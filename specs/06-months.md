@@ -1,5 +1,7 @@
 # Spec 06 — Meses
 
+> Skills: [`server-actions`](../skills/server-actions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
+
 ## 1. Propósito
 
 Define como o conceito de **Mês** funciona: criação, navegação, exibição e regras de competência financeira (afetadas por `monthStartDay`).

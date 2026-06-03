@@ -1,5 +1,7 @@
 # Spec 12 — Deployment e Docker
 
+> Skills: [`env-validation`](../skills/env-validation/SKILL.md) · [`logging`](../skills/logging/SKILL.md)
+
 ## 1. Propósito
 
 Define a estratégia de containerização do projeto para desenvolvimento local e deploy em produção. O objetivo é que **`docker compose up`** seja suficiente para subir todo o ambiente, e que o mesmo container rode em qualquer máquina (local, VPS, cloud).

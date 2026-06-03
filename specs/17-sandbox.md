@@ -1,5 +1,7 @@
 # Spec 17 — Sandbox de Análise
 
+> Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
+
 ## 1. Propósito
 
 Define a feature **Sandbox de Análise** — uma página interativa onde o usuário seleciona dimensões, métricas e tipos de gráfico para construir análises ad-hoc sobre os dados financeiros da Account. As análises configuradas podem ser salvas com nome para reutilização futura.

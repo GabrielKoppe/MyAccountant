@@ -1,5 +1,7 @@
 # Spec 16 — CI/CD
 
+> Skills: [`testing`](../skills/testing/SKILL.md) · [`env-validation`](../skills/env-validation/SKILL.md)
+
 ## 1. Propósito
 
 Define o pipeline de Continuous Integration: o que roda em cada PR e push, e como o deploy é gatilhado. Sem CI, bugs estúpidos (typo, lint, teste quebrado) chegam em prod.

@@ -1,5 +1,7 @@
 # Spec 03 — Autenticação
 
+> Skills: [`server-actions`](../skills/server-actions/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`email-resend`](../skills/email-resend/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`env-validation`](../skills/env-validation/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
+
 ## 1. Propósito
 
 Define o fluxo de autenticação: signup, login (email/senha e Google OAuth), gerenciamento de sessão, e a tela de seleção de Account pós-login.

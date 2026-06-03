@@ -1,5 +1,7 @@
 # Spec 02 — Database e Prisma
 
+> Skills: [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`env-validation`](../skills/env-validation/SKILL.md) · [`logging`](../skills/logging/SKILL.md)
+
 ## 1. Propósito
 
 Define as convenções de banco de dados, estrutura do schema Prisma, estratégia de migrations, índices, e padrões de acesso. Reflete o modelo descrito em `01-domain-model.md`.

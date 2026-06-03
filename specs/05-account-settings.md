@@ -1,5 +1,7 @@
 # Spec 05 — Configurações da Account
 
+> Skills: [`server-actions`](../skills/server-actions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
+
 ## 1. Propósito
 
 Define a página de configurações da Account, onde owner/editor configuram a estrutura que será usada em todos os meses: sections, categories, institutions, tipos de tabela, e templates de import.

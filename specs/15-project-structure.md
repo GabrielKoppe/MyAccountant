@@ -1,5 +1,7 @@
 # Spec 15 — Estrutura do Projeto
 
+> Skills: [`server-actions`](../skills/server-actions/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`logging`](../skills/logging/SKILL.md) · [`env-validation`](../skills/env-validation/SKILL.md)
+
 ## 1. Propósito
 
 Define **onde cada coisa mora** no projeto e quais são as fronteiras entre as camadas. Sem isso, em 6 meses todo arquivo está em `src/lib/utils.ts` e ninguém acha nada.
