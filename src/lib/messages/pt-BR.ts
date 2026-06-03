@@ -277,6 +277,7 @@ export const messages = {
       amount: "Valor",
       description: "Descrição",
       notes: "Notas",
+      notesPlaceholder: "Adicionar nota... (suporta Markdown)",
       category: "Categoria",
       subcategory: "Subcategoria",
       institution: "Instituição",

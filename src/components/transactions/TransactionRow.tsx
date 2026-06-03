@@ -18,9 +18,12 @@ import Typography from "@mui/material/Typography";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import { useSnackbar } from "notistack";
+
+import { m } from "@/lib/messages";
 
 import { deleteTransactionAction, duplicateTransactionAction, updateTransactionAction } from "@/actions/transactions";
 import { formatCentsToBrl, reaisToCents, centsToReais } from "@/lib/money";
@@ -41,7 +44,7 @@ type Props = {
   onSelect: (id: string, checked: boolean) => void;
   onOptimisticUpdate: (id: string, patch: Partial<TxRow>) => void;
   onOptimisticDelete: (id: string) => void;
-  onDuplicated: (newTx: TxRow) => void;
+  onDuplicated: (newTx: TxRow, sourceId: string) => void;
 };
 
 export function TransactionRow({
@@ -100,6 +103,7 @@ export function TransactionRow({
       ...(editValues.isPending !== tx.isPending && { isPending: editValues.isPending }),
       ...(editValues.isFavorite !== tx.isFavorite && { isFavorite: editValues.isFavorite }),
       ...(editValues.investmentType !== tx.investmentType && { investmentType: editValues.investmentType }),
+      ...(editValues.notes !== tx.notes && { notes: editValues.notes }),
     });
 
     setSaving(false);
@@ -146,7 +150,7 @@ export function TransactionRow({
       enqueueSnackbar(result.error.message, { variant: "error" });
       return;
     }
-    onDuplicated({ ...tx, id: result.data.transactionId });
+    onDuplicated({ ...tx, id: result.data.transactionId }, tx.id);
     enqueueSnackbar("Transação duplicada.", { variant: "success" });
   }
 
@@ -156,6 +160,7 @@ export function TransactionRow({
 
   if (editing) {
     return (
+      <>
       <TableRow
         sx={{ bgcolor: "action.selected" }}
         onKeyDown={(e) => {
@@ -174,8 +179,7 @@ export function TransactionRow({
             type="date"
             value={editValues.occurredOn.slice(0, 10)}
             onChange={(e) => setEditValues((prev) => ({ ...prev, occurredOn: e.target.value }))}
-            inputProps={{ style: { fontSize: 13 } }}
-            sx={{ width: 120 }}
+            sx={{ width: 120, "& input": { fontSize: 13 } }}
             autoFocus
           />
         </TableCell>
@@ -252,7 +256,7 @@ export function TransactionRow({
               const cents = reaisToCents(floatValue ?? 0);
               setEditValues((prev) => ({ ...prev, amountCents: cents.toString() }));
             }}
-            inputProps={{ style: { textAlign: "right", width: 100, fontSize: 13 } }}
+            sx={{ "& input": { textAlign: "right", width: 100, fontSize: 13 } }}
           />
         </TableCell>
 
@@ -314,6 +318,32 @@ export function TransactionRow({
           </IconButton>
         </TableCell>
       </TableRow>
+      <TableRow sx={{ bgcolor: "action.selected" }}>
+        <TableCell
+          colSpan={99}
+          sx={{ pt: 0, pb: 1, px: 1.5, borderBottom: "1px solid" , borderColor: "divider" }}
+        >
+          <TextField
+            multiline
+            minRows={2}
+            maxRows={6}
+            fullWidth
+            size="small"
+            variant="standard"
+            label={m.transactions.fields.notes}
+            placeholder={m.transactions.fields.notesPlaceholder}
+            value={editValues.notes ?? ""}
+            onChange={(e) =>
+              setEditValues((prev) => ({ ...prev, notes: e.target.value || null }))
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Escape") cancelEdit();
+            }}
+            sx={{ "& textarea": { fontSize: 13 } }}
+          />
+        </TableCell>
+      </TableRow>
+      </>
     );
   }
 
@@ -392,6 +422,13 @@ export function TransactionRow({
       )}
 
       <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+        {tx.notes && (
+          <Tooltip title={<Box sx={{ whiteSpace: "pre-wrap", maxWidth: 280 }}>{tx.notes}</Box>}>
+            <IconButton size="small">
+              <NoteOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
         <IconButton size="small" onClick={toggleFavorite}>
           {tx.isFavorite ? <StarIcon fontSize="small" color="warning" /> : <StarBorderIcon fontSize="small" />}
         </IconButton>

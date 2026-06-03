@@ -4,7 +4,7 @@ import { prismaMock } from "@/../tests/mocks/prisma";
 import { TEST_CTX } from "@/../tests/fixtures/account";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/errors";
 
-import { calculateMonthTotal, createMonth, deleteMonth } from "./month-service";
+import { calculateMonthTotal, createMonth, deleteMonth, getSectionTotals } from "./month-service";
 
 describe("calculateMonthTotal (função pura)", () => {
   it("deve somar seções com countType=add", () => {
@@ -75,6 +75,82 @@ describe("calculateMonthTotal (função pura)", () => {
     const totals = { gastos: -5000n }; // crédito de R$ 50
     // subtract(-50) = +50
     expect(calculateMonthTotal(sections, totals)).toBe(5000n);
+  });
+});
+
+// Tipo parcial do retorno de transaction.groupBy usado nos mocks deste describe
+type GroupByRow = { sectionId: string; _sum: { amountCents: bigint | null } };
+
+describe("getSectionTotals", () => {
+  it("deve retornar {} imediatamente sem query quando sectionIds está vazio", async () => {
+    // Act
+    const result = await getSectionTotals("acc-test-1", "month-1", []);
+
+    // Assert
+    expect(result).toEqual({});
+    expect(prismaMock.transaction.groupBy).not.toHaveBeenCalled();
+  });
+
+  it("deve usar uma única query groupBy para múltiplas seções", async () => {
+    // Arrange
+    const rows: GroupByRow[] = [
+      { sectionId: "s1", _sum: { amountCents: 100000n } },
+      { sectionId: "s2", _sum: { amountCents: 50000n } },
+    ];
+    prismaMock.transaction.groupBy.mockResolvedValue(rows as never);
+
+    // Act
+    const result = await getSectionTotals("acc-test-1", "month-1", ["s1", "s2", "s3"]);
+
+    // Assert
+    expect(prismaMock.transaction.groupBy).toHaveBeenCalledOnce();
+    expect(result).toEqual({ s1: 100000n, s2: 50000n });
+  });
+
+  it("deve passar accountId, monthId e sectionIds corretos para o groupBy", async () => {
+    // Arrange
+    prismaMock.transaction.groupBy.mockResolvedValue([] as never);
+
+    // Act
+    await getSectionTotals("acc-test-1", "month-1", ["s1", "s2"]);
+
+    // Assert
+    expect(prismaMock.transaction.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: ["sectionId"],
+        where: expect.objectContaining({
+          accountId: "acc-test-1",
+          monthId: "month-1",
+          sectionId: { in: ["s1", "s2"] },
+          table: { countInMonth: true },
+        }),
+      }),
+    );
+  });
+
+  it("deve retornar 0n para seção cujo _sum.amountCents é null", async () => {
+    // Arrange
+    const rows: GroupByRow[] = [{ sectionId: "s1", _sum: { amountCents: null } }];
+    prismaMock.transaction.groupBy.mockResolvedValue(rows as never);
+
+    // Act
+    const result = await getSectionTotals("acc-test-1", "month-1", ["s1"]);
+
+    // Assert
+    expect(result).toEqual({ s1: 0n });
+  });
+
+  it("seções sem transações não aparecem no resultado (caller usa ?? 0n)", async () => {
+    // Arrange
+    const rows: GroupByRow[] = [{ sectionId: "s1", _sum: { amountCents: 200000n } }];
+    prismaMock.transaction.groupBy.mockResolvedValue(rows as never);
+
+    // Act
+    const result = await getSectionTotals("acc-test-1", "month-1", ["s1", "s2"]);
+
+    // Assert
+    expect(result).toEqual({ s1: 200000n });
+    expect(result["s2"]).toBeUndefined();
   });
 });
 
