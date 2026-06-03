@@ -1,6 +1,6 @@
 # Spec 19 — Busca, Filtro e Ordenação de Transações
 
-> Status: draft
+> Status: approved
 > Insumo: docs/v2-analysis.md §3 UX-01, §6 F-05, ajuste do usuário sobre UX-04
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md)
 
@@ -16,39 +16,78 @@ O usuário explicitamente não quer paginação — a lista deve permanecer cont
 
 ## 2. Solução
 
-Adicionar uma barra de controles acima da `TransactionTable` com:
-- Campo de busca textual (filtra pela descrição)
-- Filtros colapsáveis por campos categóricos
-- Ordenação por clique no cabeçalho das colunas
+### 2.1 Visão geral
 
-O estado de busca, filtros e ordenação deve ser preservado na URL (via `searchParams`) para que o usuário possa compartilhar ou recarregar a página com o mesmo estado.
+Há dois níveis de controle, com escopos distintos:
 
-Toda a lógica de filtragem e ordenação acontece no cliente (sobre os dados já carregados), sem nenhuma nova chamada ao servidor.
+| Controle | Escopo | Persistência |
+|---|---|---|
+| Filtros categóricos (categoria, instituição, responsável, pendentes, favoritas) | Página inteira (todas as tabelas do mês) | URL via `searchParams` |
+| Busca textual por descrição | Por tabela financeira individual | Efêmero (estado local) |
+| Ordenação por coluna | Por tabela financeira individual | Efêmero (estado local) |
+
+### 2.2 Filtros globais (por página)
+
+Um botão **"Filtros"** é adicionado no cabeçalho da página do mês, ao lado das ações existentes. Ao clicar, abre um **drawer lateral** com:
+
+- Multi-select de categorias
+- Multi-select de instituições
+- Multi-select de responsáveis
+- Chips toggle para "Pendentes" e "Favoritas" (ativáveis simultaneamente)
+- Botão "Limpar tudo" no rodapé do drawer
+
+Quando há filtros ativos, o botão exibe um badge com o contador. Abaixo do botão aparecem **chips removíveis** representando cada filtro ativo (um chip por valor selecionado). Um chip "Limpar tudo ×" aparece junto aos chips ativos.
+
+Os filtros categóricos são aditivos entre si (AND): categoria E instituição E responsável, todos aplicados simultaneamente. Dentro do mesmo campo, a seleção múltipla funciona como OR (categoria "Alimentação" OU "Transporte").
+
+### 2.3 Busca por descrição (por tabela)
+
+Cada `TransactionTable` exibe um **ícone de lupa** no cabeçalho. Ao clicar, um input de busca inline se expande. A busca filtra as linhas da tabela em tempo real (case-insensitive), sem afetar outras tabelas. O estado não vai para a URL — ao recarregar a página, a busca é perdida intencionalmente.
+
+### 2.4 Ordenação (por tabela)
+
+Colunas ordenáveis: `occurredOn`, `amountCents`, `description`, `categoryId` (exibe nome), `institutionId` (exibe nome). O cabeçalho de cada coluna ordenável é clicável:
+
+- 1º clique: ordem crescente
+- 2º clique: ordem decrescente
+- 3º clique: volta ao padrão (`occurredOn` descendente — mais recente primeiro)
+
+A ordenação é por tabela e efêmera (não vai para a URL).
+
+### 2.5 Totais quando filtros estão ativos
+
+**Total da tabela financeira**: quando filtros globais estão ativos, o valor do total muda para `warning.main` (mostarda) e aparece uma caption discreta abaixo — "X de Y transações" — sem alterar o tamanho ou layout do componente.
+
+**Total da seção**: o valor real permanece sempre visível. Quando filtros globais estão ativos, exibe ao lado o valor filtrado + percentual (ex: "R$ 8.420,00 · filtrado R$ 1.240,00 · 14,7%"), permitindo comparação entre total real e total filtrado.
 
 ---
 
 ## 3. User Stories
 
-- Como usuário, quero digitar parte de uma descrição e ver apenas as transações correspondentes, para encontrar rapidamente o que procuro.
-- Como usuário, quero filtrar transações por categoria, instituição ou responsável, para analisar um subconjunto específico.
+- Como usuário, quero clicar no ícone de lupa de uma tabela e digitar parte de uma descrição para encontrar rapidamente uma transação específica naquela tabela.
+- Como usuário, quero abrir o drawer de filtros e selecionar múltiplas categorias, instituições ou responsáveis para analisar um subconjunto específico em todas as tabelas do mês.
 - Como usuário, quero filtrar por status (pendentes / favoritas), para revisar os itens que ainda precisam de atenção.
-- Como usuário, quero ordenar as transações clicando no cabeçalho de uma coluna (data, valor, descrição, categoria, instituição), para comparar itens facilmente.
-- Como usuário, quero que meus filtros fiquem na URL, para que ao recarregar a página a visualização seja mantida.
+- Como usuário, quero ordenar as transações de uma tabela clicando no cabeçalho de uma coluna (data, valor, descrição, categoria, instituição), para comparar itens facilmente.
+- Como usuário, quero que meus filtros globais fiquem na URL, para que ao recarregar a página a visualização seja mantida.
+- Como usuário, quero ver o total filtrado ao lado do total real, para entender rapidamente a proporção que os itens filtrados representam.
 
 ---
 
 ## 4. Critérios de Aceitação
 
-- QUANDO o usuário digita texto na barra de busca, O SISTEMA DEVE filtrar as linhas exibidas em tempo real, ocultando transações cuja descrição não contenha o texto (comparação case-insensitive).
-- QUANDO o usuário seleciona um filtro de categoria, APENAS as transações dessa categoria DEVEM ser exibidas.
-- QUANDO o usuário seleciona um filtro de instituição ou responsável, O SISTEMA DEVE aplicar o filtro de forma aditiva (e não substitutiva) em relação a outros filtros ativos.
-- QUANDO o usuário ativa o filtro "Pendentes", APENAS transações com `isPending = true` DEVEM ser exibidas.
-- QUANDO o usuário ativa o filtro "Favoritas", APENAS transações com `isFavorite = true` DEVEM ser exibidas.
-- QUANDO o usuário clica no cabeçalho de uma coluna ordenável, AS TRANSAÇÕES DEVEM ser reordenadas por aquele campo (primeiro clique: crescente; segundo clique: decrescente; terceiro clique: volta ao padrão).
-- QUANDO há filtros ou ordenação ativos, OS PARÂMETROS DEVEM estar refletidos na URL.
-- QUANDO o usuário clica em "Limpar filtros", TODOS os filtros e ordenação DEVEM ser removidos e a lista volta ao estado padrão.
-- SE nenhuma transação corresponder aos filtros ativos, O SISTEMA DEVE exibir uma mensagem de estado vazio indicando que nenhum resultado foi encontrado com os filtros atuais.
-- ENQUANTO filtros estão ativos, O TOTAL DA TABELA exibido no card DEVE corresponder às transações visíveis (filtradas), não ao total real — com indicação visual de que a visualização está filtrada.
+- QUANDO o usuário clica no ícone de lupa de uma tabela e digita texto, O SISTEMA DEVE filtrar as linhas daquela tabela em tempo real, ocultando transações cuja descrição não contenha o texto (comparação case-insensitive). As demais tabelas não são afetadas.
+- QUANDO o usuário seleciona categorias no drawer, APENAS as transações dessas categorias (OR entre selecionadas) DEVEM ser exibidas em todas as tabelas.
+- QUANDO o usuário seleciona múltiplos valores em campos diferentes (ex: categoria + instituição), O SISTEMA DEVE aplicar os filtros de forma aditiva/AND entre campos e OR dentro do mesmo campo.
+- QUANDO o usuário ativa o chip "Pendentes", APENAS transações com `isPending = true` DEVEM ser exibidas.
+- QUANDO o usuário ativa o chip "Favoritas", APENAS transações com `isFavorite = true` DEVEM ser exibidas.
+- "Pendentes" e "Favoritas" PODEM ser ativados simultaneamente — o sistema exibe transações que satisfaçam ambas as condições.
+- QUANDO o usuário clica no cabeçalho de uma coluna ordenável, AS TRANSAÇÕES DAQUELA TABELA DEVEM ser reordenadas (1º clique: crescente; 2º clique: decrescente; 3º clique: volta a `occurredOn` descendente).
+- QUANDO há filtros globais ativos, OS PARÂMETROS DEVEM estar refletidos na URL. Busca textual e ordenação NÃO vão para a URL.
+- QUANDO o usuário clica em "Limpar tudo" (drawer ou chip), TODOS os filtros globais DEVEM ser removidos e a lista volta ao estado padrão. Busca textual e ordenação são independentes e não são afetadas.
+- QUANDO filtros globais estão ativos, O BOTÃO "Filtros" DEVE exibir um badge com o número de filtros ativos e chips removíveis devem aparecer abaixo do botão.
+- SE nenhuma transação de uma tabela corresponder aos filtros ativos, O SISTEMA DEVE exibir dentro daquela tabela uma ilustração + mensagem "Nenhuma transação encontrada para os filtros ativos." + botão "Limpar filtros".
+- ENQUANTO filtros globais estão ativos, O TOTAL DA TABELA DEVE mudar para `warning.main` com caption "X de Y transações" abaixo, sem alterar o layout do componente.
+- ENQUANTO filtros globais estão ativos, O TOTAL DA SEÇÃO DEVE exibir o valor real e ao lado o valor filtrado com percentual (ex: "filtrado R$ 1.240,00 · 14,7%").
 
 ---
 
@@ -60,18 +99,43 @@ Toda a lógica de filtragem e ordenação acontece no cliente (sobre os dados j�
 - Salvar combinações de filtros como "visualizações" nomeadas.
 - Filtro por valor (range de amount) — pode ser adicionado em iteração futura desta spec.
 - Ordenação de seções e tabelas dentro das configurações — essa funcionalidade existe e mantém o comportamento atual (botões ▲▼).
+- Busca textual refletida na URL — é efêmera por design (escopo por tabela tornaria a URL ilegível).
+- Ordenação refletida na URL — é efêmera por design (mesma razão).
 
 ---
 
-## 6. Referências Técnicas
+## 6. Decisões de Design (registradas no refinamento)
+
+| Decisão | Escolha |
+|---|---|
+| Escopo dos filtros categóricos | Página inteira (todas as tabelas do mês) |
+| Escopo da busca textual | Por tabela, efêmera |
+| Escopo da ordenação | Por tabela, efêmera |
+| UI dos filtros globais | Drawer lateral (botão no cabeçalho da página) |
+| Seleção nos filtros categóricos | Multi-select (OR dentro do campo, AND entre campos) |
+| UI de "Pendentes" / "Favoritas" | Chips toggle dentro do drawer (combináveis) |
+| Feedback de filtros ativos | Badge no botão + chips removíveis abaixo |
+| "Limpar tudo" | No drawer (rodapé) e na área de chips ativos |
+| Ordenação padrão | `occurredOn` descendente (mais recente primeiro) |
+| Estado vazio | Ilustração + mensagem + botão "Limpar filtros" inline |
+| Total da tabela filtrado | `warning.main` + caption "X de Y" (sem mudar layout) |
+| Total da seção com filtro ativo | Valor real sempre visível + filtrado + percentual ao lado |
+
+---
+
+## 7. Referências Técnicas
 
 | Componente | Arquivo(s) a tocar |
 |------------|-------------------|
-| Barra de filtros (novo componente) | `src/components/transactions/TransactionFilters.tsx` (novo) |
-| Tabela de transações | `src/components/transactions/TransactionTable.tsx` |
-| Estado dos filtros | hook local no componente ou contexto; estado espelhado em URL |
-| Parâmetros de URL | `src/app/(app)/[accountId]/months/[monthId]/page.tsx` — `searchParams` |
+| Botão + drawer de filtros globais (novo) | `src/components/transactions/TransactionFilterDrawer.tsx` (novo) |
+| Chips de filtros ativos (novo) | `src/components/transactions/ActiveFilterChips.tsx` (novo) |
+| Busca por tabela + ordenação (novo) | lógica em `src/components/transactions/TransactionTable.tsx` |
+| Cabeçalho da página do mês | `src/app/(app)/[accountId]/months/[monthId]/page.tsx` — adicionar botão Filtros + `searchParams` |
+| Total da tabela filtrado | componente de total dentro de `TransactionTable.tsx` |
+| Total da seção filtrado | componente de total na seção |
 
+- `isFavorite` e `responsibleUserId` (responsável) já existem no schema do Prisma.
 - Colunas ordenáveis: `occurredOn`, `amountCents`, `description`, `categoryId` (exibe nome), `institutionId` (exibe nome).
 - A filtragem e ordenação são puramente client-side sobre o array `rows` em `TransactionTable`.
 - Skill de forms/zod não se aplica aqui (sem mutação, apenas estado local de UI).
+- Filtros globais persistidos em URL como `searchParams` — nomes de params a definir na implementação (ex: `categories`, `institutions`, `responsible`, `pending`, `favorite`).

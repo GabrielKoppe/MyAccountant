@@ -209,12 +209,6 @@ export function NewTransactionRow({
         </TableCell>
       )}
 
-      {!hiddenColumns.isPending && (
-        <TableCell padding="checkbox">
-          <Checkbox size="small" checked={isPending} onChange={(e) => setIsPending(e.target.checked)} />
-        </TableCell>
-      )}
-
       {!hiddenColumns.investmentType && (
         <TableCell>
           <Select

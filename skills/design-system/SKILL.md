@@ -325,6 +325,30 @@ Se interativo, no hover: `borderColor: "border.default"` — sem mudar fundo.
 
 Configurado globalmente: `textTransform: none`, `borderRadius: 8px`, `disableElevation: true`, `fontWeight: 500`.
 
+### 3a. ExpandableIconButton (botao icone que revela texto no hover)
+
+Para acoes discretas onde o icone e suficiente na maioria das vezes mas o texto ajuda na descoberta:
+
+```tsx
+import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
+import ClearIcon from "@mui/icons-material/Clear";
+
+// So icone visivel; ao passar o mouse, o label desliza para a direita
+<ExpandableIconButton
+  icon={<ClearIcon sx={{ fontSize: 15 }} />}
+  label="Limpar tudo"
+  onClick={handleClear}
+/>
+```
+
+**Regras de uso:**
+- Usar apenas para acoes secundarias (nunca para a acao primaria da tela).
+- O label deve ser curto (2-3 palavras) — o espaco de expansao e limitado a ~120px.
+- Nao usar em listas longas (poluicao visual); preferir em barras de controles.
+- Cor padrao: `text.tertiary` → `text.secondary` no hover. Nao mudar para `accent.primary` (reservado para acoes primarias).
+
+**Como funciona:** usa `max-width: 0 → 120px` com `transition: max-width 0.2s ease` no `span` filho, ativado via seletor CSS `&:hover .eib-label` no `ButtonBase` pai.
+
 ### 4. Display de valor monetario
 
 ```tsx

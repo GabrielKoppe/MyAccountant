@@ -161,6 +161,27 @@ const averageReais: number = averageCents / 100;
 - Em sections com `countType=neutral`: sinal vem do significado (+ = aporte, - = resgate, etc.).
 - Em sections com `countType=ignore`: sinal preservado mas não usado.
 
+### Display color convention (verde/vermelho)
+
+A cor de um valor monetário depende do `countType` da section, não apenas do sinal aritmético:
+
+```ts
+// Retorna true se o valor é "positivo para as finanças" do usuário
+function isAmountPositiveForDisplay(amount: bigint, countType: SectionCountType): boolean {
+  // subtract: positivo = despesa (ruim), negativo = estorno (bom)
+  return countType === "subtract" ? amount < 0n : amount >= 0n;
+}
+```
+
+| countType  | Valor positivo (+)       | Valor negativo (−)       |
+|------------|--------------------------|--------------------------|
+| `add`      | 🟢 verde (receita)        | 🔴 vermelho (estorno/perda) |
+| `subtract` | 🔴 vermelho (despesa)    | 🟢 verde (estorno/crédito) |
+| `neutral`  | 🟢 verde                 | 🔴 vermelho               |
+| `ignore`   | 🟢 verde                 | 🔴 vermelho               |
+
+Aplicar esta lógica em: valor individual na `TransactionRow` e total no header do `FinanceTableCard`.
+
 ## React Hook Form integration
 
 ```tsx

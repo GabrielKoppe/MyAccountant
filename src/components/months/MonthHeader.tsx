@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AccountMemberRole } from "@prisma/client";
+import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
@@ -19,13 +20,16 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useSnackbar } from "notistack";
 
 import { deleteMonthAction } from "@/actions/months";
 import { formatMonthLabel } from "@/lib/dates";
 import { m } from "@/lib/messages";
+import { useMonthFilters } from "./MonthFilterContext";
 import { CreateMonthModal } from "./CreateMonthModal";
+import { TransactionFilterDrawer } from "@/components/transactions/TransactionFilterDrawer";
 
 type MonthItem = { id: string; year: number; month: number };
 
@@ -44,6 +48,9 @@ export function MonthHeader({ accountId, currentMonth, months, role }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLElement | null>(null);
+
+  const { activeCount } = useMonthFilters();
 
   const sortedMonths = [...months].sort(
     (a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month,
@@ -149,6 +156,17 @@ export function MonthHeader({ accountId, currentMonth, months, role }: Props) {
       </Tooltip>
 
       <Box sx={{ flex: 1 }} />
+
+      {/* Botão de filtros */}
+      <Tooltip title={m.transactions.filters.title}>
+        <IconButton size="small" onClick={(e) => setFilterAnchorEl(e.currentTarget)}>
+          <Badge badgeContent={activeCount} color="primary" max={9}>
+            <FilterAltIcon fontSize="small" />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+
+      <TransactionFilterDrawer anchorEl={filterAnchorEl} onClose={() => setFilterAnchorEl(null)} />
 
       {/* Botão novo mês */}
       <CreateMonthModal
