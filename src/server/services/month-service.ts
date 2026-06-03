@@ -78,22 +78,18 @@ export async function getSectionTotals(
 ): Promise<Record<string, bigint>> {
   if (sectionIds.length === 0) return {};
 
-  const results = await Promise.all(
-    sectionIds.map(async (sectionId) => {
-      const agg = await prisma.transaction.aggregate({
-        where: {
-          accountId,
-          monthId,
-          sectionId,
-          table: { countInMonth: true },
-        },
-        _sum: { amountCents: true },
-      });
-      return { sectionId, total: agg._sum.amountCents ?? 0n };
-    }),
-  );
+  const rows = await prisma.transaction.groupBy({
+    by: ["sectionId"],
+    where: {
+      accountId,
+      monthId,
+      sectionId: { in: sectionIds },
+      table: { countInMonth: true },
+    },
+    _sum: { amountCents: true },
+  });
 
-  return Object.fromEntries(results.map((r) => [r.sectionId, r.total]));
+  return Object.fromEntries(rows.map((r) => [r.sectionId, r._sum.amountCents ?? 0n]));
 }
 
 export function calculateMonthTotal(

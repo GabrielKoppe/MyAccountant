@@ -60,7 +60,6 @@ export default async function MonthPage({ params, searchParams }: Props) {
       prisma.transaction.findMany({
         where: { accountId, monthId },
         orderBy: { occurredOn: "desc" },
-        take: 300,
         select: {
           id: true,
           tableId: true,

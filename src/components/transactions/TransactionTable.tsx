@@ -73,9 +73,9 @@ export function TransactionTable({
     setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
   }
 
-  function onDuplicated(newTx: TxRow) {
+  function onDuplicated(newTx: TxRow, sourceId: string) {
     setRows((prev) => {
-      const idx = prev.findIndex((r) => r.id === newTx.id.replace(/-copy$/, ""));
+      const idx = prev.findIndex((r) => r.id === sourceId);
       const copy = [...prev];
       copy.splice(idx + 1, 0, newTx);
       return copy;
