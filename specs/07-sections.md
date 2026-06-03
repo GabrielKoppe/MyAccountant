@@ -1,5 +1,7 @@
 # Spec 07 — Sections (comportamento)
 
+> Skills: [`server-actions`](../skills/server-actions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`logging`](../skills/logging/SKILL.md)
+
 ## 1. Propósito
 
 Define como Sections se comportam dentro dos Meses, incluindo regras de visibilidade, contagem e ativação/desativação.

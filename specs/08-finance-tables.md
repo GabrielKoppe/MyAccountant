@@ -1,5 +1,7 @@
 # Spec 08 — Tabelas Financeiras
 
+> Skills: [`server-actions`](../skills/server-actions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
+
 ## 1. Propósito
 
 Define a **Finance Table**: estrutura que agrupa Transactions dentro de uma Section de um Mês. CRUD, source methods (empty, copy, import), e visualização.

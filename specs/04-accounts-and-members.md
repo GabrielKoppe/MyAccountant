@@ -1,5 +1,7 @@
 # Spec 04 — Accounts e Membros
 
+> Skills: [`server-actions`](../skills/server-actions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`email-resend`](../skills/email-resend/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
+
 ## 1. Propósito
 
 Define o fluxo de criação de Account, gerenciamento de membros, papéis (owner/editor/viewer) e convites por email.

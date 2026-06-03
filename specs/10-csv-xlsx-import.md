@@ -1,5 +1,7 @@
 # Spec 10 — Importação CSV/XLSX
 
+> Skills: [`server-actions`](../skills/server-actions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`logging`](../skills/logging/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
+
 ## 1. Propósito
 
 Define o fluxo de importação de extratos em CSV e XLSX para criar Finance Tables com Transactions em massa. Inclui templates salvos, mapeamento de colunas, preview obrigatório, e tratamento de erros.

@@ -1,5 +1,7 @@
 # Spec 13 — Testing
 
+> Skills: [`testing`](../skills/testing/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md)
+
 ## 1. Propósito
 
 Define a estratégia de testes do projeto: o que testar, como rodar, padrões obrigatórios. Sem testes consistentes, o app não escala (e bugs aparecem em produção).

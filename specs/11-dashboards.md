@@ -1,5 +1,7 @@
 # Spec 11 — Dashboards
 
+> Skills: [`money-handling`](../skills/money-handling/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`logging`](../skills/logging/SKILL.md)
+
 ## 1. Propósito
 
 Define a área de **Dashboards**: visualizações e análises dos dados financeiros ao longo do tempo, com comparações entre meses, sections e tabelas.

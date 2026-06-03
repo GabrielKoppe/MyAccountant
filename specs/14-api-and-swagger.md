@@ -1,5 +1,7 @@
 # Spec 14 — API REST + Swagger
 
+> Skills: [`server-actions`](../skills/server-actions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`logging`](../skills/logging/SKILL.md) · [`env-validation`](../skills/env-validation/SKILL.md)
+
 ## 1. Propósito
 
 Define como o backend expõe uma **API REST documentada via OpenAPI/Swagger**, paralela às Server Actions, **sem duplicar lógica de negócio**.

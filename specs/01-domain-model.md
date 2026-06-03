@@ -1,5 +1,7 @@
 # Spec 01 — Modelo de Domínio
 
+> Skills: [`money-handling`](../skills/money-handling/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md)
+
 ## 1. Propósito
 
 Define todas as entidades do domínio, seus campos, relacionamentos e regras de negócio. Este documento é a fonte única para o schema do Prisma e para os tipos TypeScript do projeto.
