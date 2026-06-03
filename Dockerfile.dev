@@ -1,0 +1,13 @@
+FROM node:22-alpine
+
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+WORKDIR /app
+
+# Instalar dependências primeiro (camada cacheada)
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --no-frozen-lockfile
+
+# Código entra por bind mount no compose
+EXPOSE 3000
+
+CMD ["pnpm", "dev"]

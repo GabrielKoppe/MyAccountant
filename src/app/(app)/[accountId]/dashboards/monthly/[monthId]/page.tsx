@@ -1,0 +1,120 @@
+import { redirect } from "next/navigation";
+import Box from "@mui/material/Box";
+
+import { requireAccountAccess } from "@/server/auth/session";
+import { prisma } from "@/server/prisma";
+import {
+  getMonthDeepDive,
+  getMonthSparklineData,
+  getComparisonData,
+  getDailyTotals,
+  getCategoryTreemapData,
+  getSankeyData,
+} from "@/lib/queries/dashboards";
+import { getPinnedAnalyses } from "@/lib/queries/sandbox";
+import { formatMonthLabel } from "@/lib/dates";
+import { MonthNav } from "@/components/dashboards/MonthNav";
+import { MonthlyDashboardClient } from "@/components/dashboards/MonthlyDashboardClient";
+
+type Props = { params: Promise<{ accountId: string; monthId: string }> };
+
+export default async function MonthlyDashboardPage({ params }: Props) {
+  const { accountId, monthId } = await params;
+  await requireAccountAccess(accountId).catch(() => redirect("/home"));
+
+  const [monthMeta, allMonthsRaw] = await Promise.all([
+    prisma.month.findFirst({
+      where: { id: monthId, accountId },
+      select: { year: true, month: true },
+    }),
+    prisma.month.findMany({
+      where: { accountId },
+      orderBy: [{ year: "asc" }, { month: "asc" }],
+      select: { id: true, year: true, month: true },
+    }),
+  ]);
+
+  if (!monthMeta) redirect(`/${accountId}/dashboards`);
+
+  const { year, month } = monthMeta;
+  const monthLabel = formatMonthLabel(year, month);
+
+  const allMonths = allMonthsRaw.map((m) => ({
+    id: m.id,
+    year: m.year,
+    month: m.month,
+    label: formatMonthLabel(m.year, m.month),
+  }));
+
+  // Fetch all data in parallel
+  const [deepDive, sparklineData, comparisonData, treemapData, pinnedAnalyses] = await Promise.all([
+    getMonthDeepDive(accountId, monthId),
+    getMonthSparklineData(accountId, monthId),
+    getComparisonData(accountId, monthId),
+    getCategoryTreemapData(accountId, monthId),
+    getPinnedAnalyses(accountId, "monthly", monthId),
+  ]);
+
+  const { sections, sectionTotals, monthTotal, topCategories, topTransactions } = deepDive;
+
+  // Income / expense totals
+  let incomeTotal = 0n;
+  let expenseTotal = 0n;
+  for (const s of sections) {
+    const v = BigInt(sectionTotals[s.id] ?? "0");
+    const abs = v < 0n ? -v : v;
+    if (s.countType === "add") incomeTotal += abs;
+    else if (s.countType === "subtract") expenseTotal += abs;
+  }
+
+  const pendingCount = await prisma.transaction.count({
+    where: { accountId, monthId, isPending: true },
+  });
+
+  const topCategory = topCategories.length > 0 ? topCategories[0] : null;
+
+  const subtractSectionIds = sections
+    .filter((s) => s.countType === "subtract" || s.countType === "neutral")
+    .map((s) => s.id);
+
+  const dailyTotals = await getDailyTotals(accountId, monthId, subtractSectionIds);
+  const sankeyData = await getSankeyData(accountId, monthId, sections, sectionTotals);
+
+  return (
+    <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
+      {/* Navigation header */}
+      <Box sx={{ mb: 3 }}>
+        <MonthNav
+          accountId={accountId}
+          currentMonthId={monthId}
+          currentLabel={monthLabel}
+          currentYear={year}
+          allMonths={allMonths}
+        />
+      </Box>
+
+      <MonthlyDashboardClient
+        accountId={accountId}
+        monthId={monthId}
+        monthLabel={monthLabel}
+        year={year}
+        month={month}
+        sections={sections}
+        sectionTotals={sectionTotals}
+        monthTotal={monthTotal}
+        incomeTotal={incomeTotal.toString()}
+        expenseTotal={expenseTotal.toString()}
+        pendingCount={pendingCount}
+        topCategory={topCategory}
+        topCategories={topCategories}
+        topTransactions={topTransactions}
+        sparklineData={sparklineData}
+        comparisonData={comparisonData}
+        dailyTotals={dailyTotals}
+        treemapData={treemapData}
+        sankeyData={sankeyData}
+        pinnedAnalyses={pinnedAnalyses}
+      />
+    </Box>
+  );
+}

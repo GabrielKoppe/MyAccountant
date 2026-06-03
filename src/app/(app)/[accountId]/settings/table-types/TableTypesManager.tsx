@@ -1,0 +1,385 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import Collapse from "@mui/material/Collapse";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import Divider from "@mui/material/Divider";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { useSnackbar } from "notistack";
+
+import {
+  createTableTypeAction,
+  deleteTableTypeAction,
+  updateTableTypeAction,
+} from "@/actions/account-settings";
+import {
+  createTableTypeSchema,
+  type CreateTableTypeInput,
+  TOGGLEABLE_COLUMNS,
+} from "@/lib/schemas/settings";
+import { m } from "@/lib/messages";
+
+type TableTypeItem = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  hiddenColumns: Record<string, boolean>;
+  tableCount: number;
+};
+
+type Props = {
+  accountId: string;
+  initialTypes: TableTypeItem[];
+};
+
+const ALWAYS_VISIBLE = [
+  { key: "occurredOn", label: "Data" },
+  { key: "amount", label: "Valor" },
+  { key: "description", label: "Descrição" },
+];
+
+export function TableTypesManager({ accountId, initialTypes }: Props) {
+  const { enqueueSnackbar } = useSnackbar();
+  const [types, setTypes] = useState(initialTypes);
+  const [isPending, startTransition] = useTransition();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<TableTypeItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TableTypeItem | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const form = useForm<CreateTableTypeInput>({
+    resolver: zodResolver(createTableTypeSchema),
+    defaultValues: { name: "", hiddenColumns: {} },
+  });
+
+  function openCreate() {
+    form.reset({ name: "", hiddenColumns: {} });
+    setCreateOpen(true);
+  }
+
+  function openEdit(type: TableTypeItem) {
+    setEditTarget(type);
+    setExpandedId(type.id);
+  }
+
+  function closeDialog() {
+    setCreateOpen(false);
+    setEditTarget(null);
+    form.reset();
+  }
+
+  async function onSubmitCreate(values: CreateTableTypeInput) {
+    const result = await createTableTypeAction(accountId, values);
+    if (!result.ok) {
+      enqueueSnackbar(result.error.message, { variant: "error" });
+      return;
+    }
+    setTypes((prev) => [
+      ...prev,
+      { id: result.data.tableTypeId, ...values, isDefault: false, tableCount: 0 },
+    ]);
+    enqueueSnackbar(m.settings.tableTypes.created, { variant: "success" });
+    closeDialog();
+  }
+
+  function handleToggleColumn(typeId: string, key: string, hidden: boolean) {
+    startTransition(async () => {
+      const current = types.find((t) => t.id === typeId);
+      if (!current) return;
+
+      const newHidden = { ...current.hiddenColumns };
+      if (hidden) newHidden[key] = true;
+      else delete newHidden[key];
+
+      const result = await updateTableTypeAction(accountId, {
+        tableTypeId: typeId,
+        hiddenColumns: newHidden,
+      });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setTypes((prev) =>
+        prev.map((t) => (t.id === typeId ? { ...t, hiddenColumns: newHidden } : t)),
+      );
+    });
+  }
+
+  function handleRename(typeId: string, name: string) {
+    startTransition(async () => {
+      const result = await updateTableTypeAction(accountId, { tableTypeId: typeId, name });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setTypes((prev) => prev.map((t) => (t.id === typeId ? { ...t, name } : t)));
+      enqueueSnackbar(m.settings.tableTypes.updated, { variant: "success" });
+      setEditTarget(null);
+    });
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    startTransition(async () => {
+      const result = await deleteTableTypeAction(accountId, { tableTypeId: target.id });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setTypes((prev) => prev.filter((t) => t.id !== target.id));
+      enqueueSnackbar(m.settings.tableTypes.deleted, { variant: "success" });
+    });
+  }
+
+  return (
+    <>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openCreate}>
+          {m.settings.tableTypes.createButton}
+        </Button>
+      </Box>
+
+      {types.length === 0 && (
+        <Typography variant="body2" color="text.secondary">{m.settings.tableTypes.noTableTypes}</Typography>
+      )}
+
+      <Stack spacing={1}>
+        {types.map((type) => {
+          const isExpanded = expandedId === type.id;
+          const hiddenKeys = Object.keys(type.hiddenColumns).filter((k) => type.hiddenColumns[k]);
+
+          return (
+            <Paper key={type.id} variant="outlined">
+              {/* Header */}
+              <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, gap: 1 }}>
+                {/* Edit inline or show name */}
+                {editTarget?.id === type.id ? (
+                  <EditableNameField
+                    initialName={type.name}
+                    onSave={(name) => handleRename(type.id, name)}
+                    onCancel={() => setEditTarget(null)}
+                    disabled={isPending}
+                  />
+                ) : (
+                  <>
+                    <Typography variant="body2" fontWeight="medium" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                      {type.name}
+                    </Typography>
+                    {type.isDefault && (
+                      <Chip
+                        label={m.settings.tableTypes.defaultBadge}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                    {hiddenKeys.length > 0 && (
+                      <Typography variant="caption" color="text.secondary">
+                        {hiddenKeys.length} coluna(s) oculta(s)
+                      </Typography>
+                    )}
+                    <Tooltip title={m.common.edit}>
+                      <IconButton size="small" onClick={() => openEdit(type)}>
+                        <EditIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                    {!type.isDefault && (
+                      <Tooltip title={m.common.delete}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setDeleteTarget(type)}
+                          disabled={isPending}
+                        >
+                          <DeleteIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    <IconButton
+                      size="small"
+                      onClick={() => setExpandedId(isExpanded ? null : type.id)}
+                    >
+                      {isExpanded ? (
+                        <ExpandLessIcon sx={{ fontSize: 16 }} />
+                      ) : (
+                        <ExpandMoreIcon sx={{ fontSize: 16 }} />
+                      )}
+                    </IconButton>
+                  </>
+                )}
+              </Box>
+
+              {/* Colunas expandidas */}
+              <Collapse in={isExpanded}>
+                <Divider />
+                <Box sx={{ px: 2, py: 1.5 }}>
+                  <Typography variant="caption" fontWeight="bold" color="text.secondary">
+                    {m.settings.tableTypes.alwaysVisible}
+                  </Typography>
+                  <List dense disablePadding>
+                    {ALWAYS_VISIBLE.map(({ key, label }) => (
+                      <ListItem key={key} dense disableGutters>
+                        <FormControlLabel
+                          sx={{ m: 0 }}
+                          control={<Switch size="small" checked disabled />}
+                          label={label}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+
+                  <Typography
+                    variant="caption"
+                    fontWeight="bold"
+                    color="text.secondary"
+                    sx={{ mt: 1, display: "block" }}
+                  >
+                    {m.settings.tableTypes.configurable}
+                  </Typography>
+                  <List dense disablePadding>
+                    {TOGGLEABLE_COLUMNS.map(({ key, label }) => (
+                      <ListItem key={key} dense disableGutters>
+                        <FormControlLabel
+                          sx={{ m: 0 }}
+                          control={
+                            <Switch
+                              size="small"
+                              checked={!type.hiddenColumns[key]}
+                              disabled={type.isDefault || isPending}
+                              onChange={(e) => handleToggleColumn(type.id, key, !e.target.checked)}
+                            />
+                          }
+                          label={label}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                  {type.isDefault && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                      O tipo padrão sempre exibe todas as colunas.
+                    </Typography>
+                  )}
+                </Box>
+              </Collapse>
+            </Paper>
+          );
+        })}
+      </Stack>
+
+      {/* Create dialog */}
+      <Dialog open={createOpen} onClose={closeDialog} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1, fontSize: "0.9375rem", fontWeight: 600 }}>{m.settings.tableTypes.createTitle}</DialogTitle>
+        <Box component="form" onSubmit={form.handleSubmit(onSubmitCreate)}>
+          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+            <Controller
+              name="name"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <TextField
+                  {...field}
+                  label={m.settings.tableTypes.nameLabel}
+                  error={!!fieldState.error}
+                  helperText={
+                    fieldState.error?.message ??
+                    "As colunas visíveis podem ser configuradas após criar o tipo."
+                  }
+                  fullWidth
+                  autoFocus
+                />
+              )}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+            <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
+            <Button size="small" type="submit" variant="contained" disabled={form.formState.isSubmitting}>
+              {m.common.create}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      {/* Delete dialog */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: "0.9375rem", fontWeight: 600 }}>{m.common.delete}</DialogTitle>
+        <DialogContent>
+          <DialogContentText variant="body2">{m.settings.tableTypes.deleteConfirm}</DialogContentText>
+          {deleteTarget && deleteTarget.tableCount > 0 && (
+            <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+              Atenção: {deleteTarget.tableCount} tabela(s) usam este tipo.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button size="small" onClick={() => setDeleteTarget(null)}>{m.common.cancel}</Button>
+          <Button size="small" color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
+            {m.common.delete}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
+function EditableNameField({
+  initialName,
+  onSave,
+  onCancel,
+  disabled,
+}: {
+  initialName: string;
+  onSave: (name: string) => void;
+  onCancel: () => void;
+  disabled: boolean;
+}) {
+  const [value, setValue] = useState(initialName);
+  return (
+    <Box sx={{ display: "flex", gap: 1, flex: 1, alignItems: "center" }}>
+      <TextField
+        size="small"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        autoFocus
+        disabled={disabled}
+        sx={{ flex: 1 }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onSave(value);
+          }
+          if (e.key === "Escape") onCancel();
+        }}
+      />
+      <Button size="small" variant="contained" onClick={() => onSave(value)} disabled={disabled}>
+        {m.common.save}
+      </Button>
+      <Button size="small" onClick={onCancel} disabled={disabled}>
+        {m.common.cancel}
+      </Button>
+    </Box>
+  );
+}

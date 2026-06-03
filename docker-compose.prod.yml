@@ -1,0 +1,11 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SKIP_ENV_VALIDATION: "1"
+    volumes: []
+    command: ["node", "server.js"]
+    environment:
+      NODE_ENV: production
