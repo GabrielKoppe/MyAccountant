@@ -86,7 +86,8 @@ MyAccountant/
     ├── server-actions/SKILL.md  # Padrão ActionResult, defineAction
     ├── email-resend/SKILL.md    # Resend + React Email
     ├── logging/SKILL.md         # Pino estruturado
-    └── env-validation/SKILL.md  # Zod env vars
+    ├── env-validation/SKILL.md  # Zod env vars
+    └── testing/SKILL.md         # Vitest, mocks Prisma, fixtures, multi-tenancy tests
 ```
 
 ---

@@ -9,6 +9,7 @@ import {
   calculateMonthTotal,
 } from "@/server/services/month-service";
 import { formatMonthLabel } from "@/lib/dates";
+import { parseHiddenColumns } from "@/lib/schemas/settings";
 import { MonthHeader } from "@/components/months/MonthHeader";
 import { MonthTabs } from "@/components/months/MonthTabs";
 import { MonthSummary } from "@/components/months/MonthSummary";
@@ -126,7 +127,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
       institutionText: tx.institutionText,
       responsibleUserId: tx.responsibleUserId,
       cardInstallment: tx.cardInstallment,
-      investmentType: tx.investmentType,
+      investmentType: tx.investmentType as import("@/lib/schemas/transaction").InvestmentType | null,
       createdById: tx.createdById,
     };
     if (!transactionsByTable[tx.tableId]) transactionsByTable[tx.tableId] = [];
@@ -146,7 +147,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
     sectionId: t.sectionId,
     countInMonth: t.countInMonth,
     tableTypeName: t.tableType?.name ?? null,
-    hiddenColumns: (t.tableType?.hiddenColumns ?? {}) as Record<string, boolean>,
+    hiddenColumns: parseHiddenColumns(t.tableType?.hiddenColumns),
     total: tableTotalsMap[t.id] ?? "0",
     transactionCount: t._count.transactions,
   }));

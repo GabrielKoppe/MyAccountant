@@ -96,25 +96,6 @@ export type DeleteInstitutionInput = z.infer<typeof deleteInstitutionSchema>;
 
 // ─── Table Types ──────────────────────────────────────────────────
 
-export const createTableTypeSchema = z.object({
-  name: z.string().min(1, "Nome obrigatório").max(50).trim(),
-  hiddenColumns: z.record(z.string(), z.boolean()),
-});
-
-export const updateTableTypeSchema = z.object({
-  tableTypeId: z.string().cuid("ID inválido"),
-  name: z.string().min(1, "Nome obrigatório").max(50).trim().optional(),
-  hiddenColumns: z.record(z.string(), z.boolean()).optional(),
-});
-
-export const deleteTableTypeSchema = z.object({
-  tableTypeId: z.string().cuid("ID inválido"),
-});
-
-export type CreateTableTypeInput = z.infer<typeof createTableTypeSchema>;
-export type UpdateTableTypeInput = z.infer<typeof updateTableTypeSchema>;
-export type DeleteTableTypeInput = z.infer<typeof deleteTableTypeSchema>;
-
 export const TOGGLEABLE_COLUMNS = [
   { key: "category", label: "Categoria" },
   { key: "subcategory", label: "Subcategoria" },
@@ -125,3 +106,42 @@ export const TOGGLEABLE_COLUMNS = [
   { key: "cardInstallment", label: "Parcela do cartão" },
   { key: "investmentType", label: "Tipo de investimento" },
 ] as const;
+
+// Schema derivado das colunas configuráveis — strips chaves desconhecidas em inputs
+const hiddenColumnsBaseSchema = z.object({
+  category: z.boolean().optional(),
+  subcategory: z.boolean().optional(),
+  institution: z.boolean().optional(),
+  responsibleUser: z.boolean().optional(),
+  isPending: z.boolean().optional(),
+  notes: z.boolean().optional(),
+  cardInstallment: z.boolean().optional(),
+  investmentType: z.boolean().optional(),
+});
+
+// Para leituras do banco: fallback para {} se o JSON estiver corrompido ou com chaves desconhecidas
+export const hiddenColumnsSchema = hiddenColumnsBaseSchema.catch({});
+export type HiddenColumns = Record<string, boolean>;
+
+export function parseHiddenColumns(raw: unknown): HiddenColumns {
+  return hiddenColumnsSchema.parse(raw ?? {}) as HiddenColumns;
+}
+
+export const createTableTypeSchema = z.object({
+  name: z.string().min(1, "Nome obrigatório").max(50).trim(),
+  hiddenColumns: hiddenColumnsBaseSchema,
+});
+
+export const updateTableTypeSchema = z.object({
+  tableTypeId: z.string().cuid("ID inválido"),
+  name: z.string().min(1, "Nome obrigatório").max(50).trim().optional(),
+  hiddenColumns: hiddenColumnsBaseSchema.optional(),
+});
+
+export const deleteTableTypeSchema = z.object({
+  tableTypeId: z.string().cuid("ID inválido"),
+});
+
+export type CreateTableTypeInput = z.infer<typeof createTableTypeSchema>;
+export type UpdateTableTypeInput = z.infer<typeof updateTableTypeSchema>;
+export type DeleteTableTypeInput = z.infer<typeof deleteTableTypeSchema>;

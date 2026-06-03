@@ -5,6 +5,7 @@ import Typography from "@mui/material/Typography";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
+import { parseHiddenColumns } from "@/lib/schemas/settings";
 import { TableTypesManager } from "./TableTypesManager";
 
 type Props = { params: Promise<{ accountId: string }> };
@@ -30,7 +31,7 @@ export default async function TableTypesPage({ params }: Props) {
     id: t.id,
     name: t.name,
     isDefault: t.isDefault,
-    hiddenColumns: (t.hiddenColumns ?? {}) as Record<string, boolean>,
+    hiddenColumns: parseHiddenColumns(t.hiddenColumns),
     tableCount: t._count.financeTables,
   }));
 

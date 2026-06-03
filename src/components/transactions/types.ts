@@ -1,5 +1,10 @@
 // Tipos compartilhados entre os componentes de transação
 
+import type { InvestmentType } from "@/lib/schemas/transaction";
+import type { HiddenColumns } from "@/lib/schemas/settings";
+
+export type { HiddenColumns };
+
 export type TransactionRow = {
   id: string;
   occurredOn: string; // ISO date "YYYY-MM-DD"
@@ -14,7 +19,7 @@ export type TransactionRow = {
   institutionText: string | null;
   responsibleUserId: string | null;
   cardInstallment: string | null;
-  investmentType: string | null;
+  investmentType: InvestmentType | null;
   createdById: string;
 };
 
@@ -32,5 +37,3 @@ export type MemberOption = {
   email: string;
   image: string | null;
 };
-
-export type HiddenColumns = Record<string, boolean>;

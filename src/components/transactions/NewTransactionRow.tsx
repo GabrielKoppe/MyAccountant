@@ -13,6 +13,8 @@ import { useSnackbar } from "notistack";
 
 import { createTransactionAction } from "@/actions/transactions";
 import { reaisToCents } from "@/lib/money";
+import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
+import type { InvestmentType } from "@/lib/schemas/transaction";
 import type { CategoryOption, HiddenColumns, InstitutionOption, MemberOption, TransactionRow } from "./types";
 
 type Props = {
@@ -52,6 +54,7 @@ export function NewTransactionRow({
   const [institutionId, setInstitutionId] = useState<string | null>(null);
   const [responsibleUserId, setResponsibleUserId] = useState<string | null>(defaultResponsibleUserId);
   const [isPending, setIsPending] = useState(false);
+  const [investmentType, setInvestmentType] = useState<InvestmentType | null>(null);
 
   const subcatsForCategory = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
   const sharedInputProps = { size: "small" as const, variant: "standard" as const };
@@ -71,6 +74,7 @@ export function NewTransactionRow({
       subcategoryId,
       institutionId,
       responsibleUserId,
+      investmentType,
     });
 
     setSaving(false);
@@ -94,7 +98,7 @@ export function NewTransactionRow({
       institutionText: null,
       responsibleUserId,
       cardInstallment: null,
-      investmentType: null,
+      investmentType,
       createdById: "",
     });
   }
@@ -208,6 +212,22 @@ export function NewTransactionRow({
       {!hiddenColumns.isPending && (
         <TableCell padding="checkbox">
           <Checkbox size="small" checked={isPending} onChange={(e) => setIsPending(e.target.checked)} />
+        </TableCell>
+      )}
+
+      {!hiddenColumns.investmentType && (
+        <TableCell>
+          <Select
+            {...sharedInputProps}
+            value={investmentType ?? ""}
+            onChange={(e) => setInvestmentType((e.target.value || null) as InvestmentType | null)}
+            sx={{ minWidth: 120, fontSize: 13 }}
+          >
+            <MenuItem value=""><em>Nenhum</em></MenuItem>
+            {INVESTMENT_TYPES.map((t) => (
+              <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>{t}</MenuItem>
+            ))}
+          </Select>
         </TableCell>
       )}
 

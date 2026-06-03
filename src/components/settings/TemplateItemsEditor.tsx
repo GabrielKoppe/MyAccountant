@@ -30,6 +30,8 @@ import { useSnackbar } from "notistack";
 import { addTemplateItemAction, deleteTemplateItemAction } from "@/actions/table-templates";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
+import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
+import type { InvestmentType } from "@/lib/schemas/transaction";
 
 type Item = {
   id: string;
@@ -42,7 +44,7 @@ type Item = {
   institutionId: string | null;
   responsibleUserId: string | null;
   cardInstallment: string | null;
-  investmentType: string | null;
+  investmentType: InvestmentType | null;
   displayOrder: number;
 };
 
@@ -112,7 +114,7 @@ export function TemplateItemsEditor({
         institutionId: form.institutionId || undefined,
         responsibleUserId: form.responsibleUserId || undefined,
         cardInstallment: form.cardInstallment || undefined,
-        investmentType: form.investmentType || undefined,
+        investmentType: (form.investmentType || undefined) as InvestmentType | undefined,
       });
       if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
 
@@ -127,7 +129,7 @@ export function TemplateItemsEditor({
         institutionId: form.institutionId || null,
         responsibleUserId: form.responsibleUserId || null,
         cardInstallment: form.cardInstallment || null,
-        investmentType: form.investmentType || null,
+        investmentType: (form.investmentType || null) as InvestmentType | null,
         displayOrder: items.length,
       };
       const updated = [...items, newItem];
@@ -280,6 +282,20 @@ export function TemplateItemsEditor({
                 </Select>
               </FormControl>
             </Box>
+
+            <FormControl fullWidth size="small">
+              <InputLabel>{m.transactions.investmentTypeLabel}</InputLabel>
+              <Select
+                value={form.investmentType}
+                label={m.transactions.investmentTypeLabel}
+                onChange={(e) => pf({ investmentType: e.target.value })}
+              >
+                <MenuItem value="">— {m.transactions.investmentTypeNone} —</MenuItem>
+                {INVESTMENT_TYPES.map((t) => (
+                  <MenuItem key={t} value={t}>{t}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             <FormControlLabel
               control={<Checkbox size="small" checked={form.isPending} onChange={(e) => pf({ isPending: e.target.checked })} />}

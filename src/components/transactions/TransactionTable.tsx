@@ -170,6 +170,7 @@ export function TransactionTable({
               <TableCell sx={{ fontSize: 12, fontWeight: "bold" }} align="right">Valor</TableCell>
               {show("responsibleUser") && <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Resp.</TableCell>}
               {show("isPending") && <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Pend.</TableCell>}
+              {show("investmentType") && <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tipo inv.</TableCell>}
               <TableCell align="right" sx={{ fontSize: 12, fontWeight: "bold" }}>★ ⋮</TableCell>
             </TableRow>
           </TableHead>

@@ -25,6 +25,8 @@ import { useSnackbar } from "notistack";
 import { deleteTransactionAction, duplicateTransactionAction, updateTransactionAction } from "@/actions/transactions";
 import { formatCentsToBrl, reaisToCents, centsToReais } from "@/lib/money";
 import { formatDateShort } from "@/lib/dates";
+import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
+import type { InvestmentType } from "@/lib/schemas/transaction";
 import type { CategoryOption, HiddenColumns, InstitutionOption, MemberOption, TransactionRow as TxRow } from "./types";
 
 type Props = {
@@ -97,6 +99,7 @@ export function TransactionRow({
       ...(editValues.responsibleUserId !== tx.responsibleUserId && { responsibleUserId: editValues.responsibleUserId }),
       ...(editValues.isPending !== tx.isPending && { isPending: editValues.isPending }),
       ...(editValues.isFavorite !== tx.isFavorite && { isFavorite: editValues.isFavorite }),
+      ...(editValues.investmentType !== tx.investmentType && { investmentType: editValues.investmentType }),
     });
 
     setSaving(false);
@@ -279,6 +282,28 @@ export function TransactionRow({
           </TableCell>
         )}
 
+        {/* Tipo de investimento */}
+        {!hiddenColumns.investmentType && (
+          <TableCell>
+            <Select
+              {...sharedInputProps}
+              value={editValues.investmentType ?? ""}
+              onChange={(e) =>
+                setEditValues((prev) => ({
+                  ...prev,
+                  investmentType: (e.target.value || null) as InvestmentType | null,
+                }))
+              }
+              sx={{ minWidth: 120, fontSize: 13 }}
+            >
+              <MenuItem value=""><em>Nenhum</em></MenuItem>
+              {INVESTMENT_TYPES.map((t) => (
+                <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>{t}</MenuItem>
+              ))}
+            </Select>
+          </TableCell>
+        )}
+
         {/* Ações edit */}
         <TableCell align="right">
           <IconButton size="small" onClick={saveEdit} color="primary" title="Salvar (Enter)">
@@ -357,6 +382,12 @@ export function TransactionRow({
       {!hiddenColumns.isPending && (
         <TableCell padding="checkbox">
           {tx.isPending && <Tooltip title="Pendente"><span>⏳</span></Tooltip>}
+        </TableCell>
+      )}
+
+      {!hiddenColumns.investmentType && (
+        <TableCell sx={{ fontSize: 13 }}>
+          {tx.investmentType ?? <Typography variant="caption" color="text.disabled">—</Typography>}
         </TableCell>
       )}
 

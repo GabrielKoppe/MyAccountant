@@ -65,4 +65,18 @@ Detalhes completos em `specs/12-deployment-and-docker.md`.
 
 ## Status
 
-🚧 Em planejamento — fase 0 (setup) ainda não iniciada.
+✅ **V1 entregue** — todas as fases do MVP implementadas e funcionando.
+
+| Fase | Conteúdo | Status |
+|---|---|---|
+| 0 | Setup: Docker, Next.js, Prisma, NextAuth, MUI | ✅ |
+| 1 | Auth (signup, login, OAuth, recuperação de senha) | ✅ |
+| 2 | Accounts + Members + Convites por email | ✅ |
+| 3 | Account Settings (seções, categorias, instituições, modelos) | ✅ |
+| 4 | Meses + navegação | ✅ |
+| 5 | Finance Tables (CRUD + source methods) | ✅ |
+| 6 | Transações (CRUD + bulk actions + edição inline) | ✅ |
+| 7 | Importação CSV/XLSX + templates | ✅ |
+| 8 | Dashboards (mensal, anual, sandbox de análise) | ✅ |
+
+Ver [docs/v1-delivery.md](docs/v1-delivery.md) para o registro completo do que foi entregue.
