@@ -6,6 +6,7 @@ import { requireAccountAccess } from "@/server/auth/session";
 import * as svc from "@/server/services/table-template-service";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
+import type { InvestmentType } from "@/lib/schemas/transaction";
 import { TableModelsManager } from "@/components/settings/TableModelsManager";
 
 type Props = { params: Promise<{ accountId: string }> };
@@ -37,12 +38,13 @@ export default async function TableModelsPage({ params }: Props) {
     }),
   ]);
 
-  // Serialize BigInt
+  // Serialize BigInt; cast investmentType to enum (DB may return string)
   const serializedTemplates = templates.map((t) => ({
     ...t,
     items: t.items.map((item) => ({
       ...item,
       amountCents: item.amountCents.toString(),
+      investmentType: item.investmentType as InvestmentType | null,
     })),
   }));
 

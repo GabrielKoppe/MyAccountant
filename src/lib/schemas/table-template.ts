@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { investmentTypeSchema } from "./transaction";
+
 // Campos de um item de modelo (equivale a uma transação sem data completa)
 const templateItemFields = z.object({
   day: z.number().int().min(1).max(31),
@@ -12,7 +14,7 @@ const templateItemFields = z.object({
   institutionId: z.string().cuid().nullable().optional(),
   responsibleUserId: z.string().cuid().nullable().optional(),
   cardInstallment: z.string().regex(/^\d+\/\d+$/, "Formato: 3/12").optional().nullable(),
-  investmentType: z.string().max(40).optional().nullable(),
+  investmentType: investmentTypeSchema,
 });
 
 export const createTemplateFromTableSchema = z.object({

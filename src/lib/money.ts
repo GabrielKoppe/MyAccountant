@@ -8,12 +8,12 @@ export function reaisToCents(reais: number): bigint {
   return BigInt(Math.round(reais * 100));
 }
 
+// Instância cacheada — criar Intl.NumberFormat é custoso; reutilizar é ~10x mais rápido
+const BRL_FORMATTER = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
 export function formatCentsToBrl(cents: bigint, options?: { sign?: boolean }): string {
   const value = Number(cents) / 100;
-  const formatted = new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Math.abs(value));
+  const formatted = BRL_FORMATTER.format(Math.abs(value));
 
   if (options?.sign && cents < 0n) {
     return `-${formatted}`;

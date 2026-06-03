@@ -1,5 +1,22 @@
 import { z } from "zod";
 
+export const INVESTMENT_TYPES = [
+  "Ações",
+  "ETF",
+  "FII",
+  "Tesouro Direto",
+  "CDB",
+  "LCI/LCA",
+  "Fundos",
+  "Previdência",
+  "Criptomoedas",
+  "Outros",
+] as const;
+
+export type InvestmentType = (typeof INVESTMENT_TYPES)[number];
+
+export const investmentTypeSchema = z.enum(INVESTMENT_TYPES).nullable().optional();
+
 export const baseTransactionSchema = z.object({
   occurredOn: z.coerce.date(),
   amountCents: z.coerce.bigint(),
@@ -17,7 +34,7 @@ export const baseTransactionSchema = z.object({
     .regex(/^\d+\/\d+$/, "Formato: 3/12")
     .optional()
     .nullable(),
-  investmentType: z.string().max(40).optional().nullable(),
+  investmentType: investmentTypeSchema,
 });
 
 export const createTransactionSchema = baseTransactionSchema.extend({

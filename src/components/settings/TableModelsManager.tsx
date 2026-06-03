@@ -48,7 +48,7 @@ type TemplateItem = {
   institutionId: string | null;
   responsibleUserId: string | null;
   cardInstallment: string | null;
-  investmentType: string | null;
+  investmentType: import("@/lib/schemas/transaction").InvestmentType | null;
   displayOrder: number;
 };
 
