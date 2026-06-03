@@ -1,0 +1,177 @@
+import { parse as dateParse, isValid as dateIsValid, format as dateFormat } from "date-fns";
+import type { ImportMapping } from "./schemas/csv-import";
+
+export type ParsedRow = Record<string, string>;
+
+export type PreviewRow = {
+  rowIndex: number;
+  status: "ok" | "error" | "ignored";
+  original: ParsedRow;
+  parsed?: {
+    occurredOn: string; // YYYY-MM-DD
+    amountCents: bigint;
+    description: string | null;
+    notes: string | null;
+    categoryName: string | null;
+    subcategoryName: string | null;
+    institutionName: string | null;
+    cardInstallment: string | null;
+    investmentType: string | null;
+    responsibleUserId: string | null;
+  };
+  error?: string;
+};
+
+// date-fns v3 uses lowercase tokens: dd, yyyy (not DD, YYYY)
+function normalizeDateFormat(fmt: string): string {
+  return fmt.replace(/DD/g, "dd").replace(/YYYY/g, "yyyy").replace(/YY/g, "yy");
+}
+
+export function parseDateString(str: string, fmt: string): string | null {
+  if (!str.trim()) return null;
+  const normalizedFmt = normalizeDateFormat(fmt);
+  const ref = new Date(2000, 0, 1);
+  const parsed = dateParse(str.trim(), normalizedFmt, ref);
+  if (!dateIsValid(parsed)) return null;
+  return dateFormat(parsed, "yyyy-MM-dd");
+}
+
+export function parseAmountToCents(
+  raw: string,
+  format: "brl" | "us",
+  signMode: "raw" | "invert" | "abs",
+): bigint | null {
+  let s = raw.trim();
+  if (!s) return null;
+
+  // Strip currency symbols
+  s = s.replace(/R\$\s*/g, "").replace(/\$\s*/g, "").trim();
+
+  let negative = false;
+  if (s.startsWith("-")) {
+    negative = true;
+    s = s.slice(1).trim();
+  } else if (s.endsWith("-")) {
+    negative = true;
+    s = s.slice(0, -1).trim();
+  }
+
+  let normalized: string;
+  if (format === "brl") {
+    // 1.234,56 → 1234.56
+    normalized = s.replace(/\./g, "").replace(",", ".");
+    if (normalized.endsWith(".")) normalized += "00";
+  } else {
+    // 1,234.56 → 1234.56
+    normalized = s.replace(/,/g, "");
+  }
+
+  const num = parseFloat(normalized);
+  if (isNaN(num) || !isFinite(num)) return null;
+
+  let cents = Math.round(num * 100);
+  if (negative) cents = -cents;
+
+  if (signMode === "invert") cents = -cents;
+  else if (signMode === "abs") cents = Math.abs(cents);
+
+  return BigInt(cents);
+}
+
+export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): PreviewRow[] {
+  const results: PreviewRow[] = [];
+  const startIndex = mapping.skipRows;
+
+  for (let i = startIndex; i < rows.length; i++) {
+    const row = rows[i];
+    const relIdx = i - startIndex;
+
+    // Skip empty rows
+    if (mapping.ignoreEmptyRows && Object.values(row).every((v) => !v.trim())) {
+      results.push({ rowIndex: relIdx, status: "ignored", original: row, error: "Linha vazia" });
+      continue;
+    }
+
+    // Apply ignoreRowsWhere rules
+    let ignored = false;
+    for (const rule of mapping.ignoreRowsWhere) {
+      const cell = row[rule.column] ?? "";
+      if (cell.includes(rule.contains)) {
+        ignored = true;
+        break;
+      }
+    }
+    if (ignored) {
+      results.push({ rowIndex: relIdx, status: "ignored", original: row, error: "Filtrado por regra" });
+      continue;
+    }
+
+    // Parse date
+    const dateStr = row[mapping.columns.date] ?? "";
+    const parsedDate = parseDateString(dateStr, mapping.dateFormat);
+    if (!parsedDate) {
+      results.push({
+        rowIndex: relIdx,
+        status: "error",
+        original: row,
+        error: `Data inválida: "${dateStr}"`,
+      });
+      continue;
+    }
+
+    // Parse amount
+    const amountStr = row[mapping.columns.amount] ?? "";
+    const parsedAmount = parseAmountToCents(amountStr, mapping.amountFormat, mapping.amountSign);
+    if (parsedAmount === null) {
+      results.push({
+        rowIndex: relIdx,
+        status: "error",
+        original: row,
+        error: `Valor inválido: "${amountStr}"`,
+      });
+      continue;
+    }
+
+    results.push({
+      rowIndex: relIdx,
+      status: "ok",
+      original: row,
+      parsed: {
+        occurredOn: parsedDate,
+        amountCents: parsedAmount,
+        description: mapping.columns.description
+          ? row[mapping.columns.description] || null
+          : null,
+        notes: mapping.columns.notes
+          ? row[mapping.columns.notes] || null
+          : null,
+        categoryName: mapping.columns.category
+          ? row[mapping.columns.category] || null
+          : null,
+        subcategoryName: mapping.columns.subcategory
+          ? row[mapping.columns.subcategory] || null
+          : null,
+        institutionName: mapping.columns.institution
+          ? row[mapping.columns.institution] || null
+          : null,
+        cardInstallment: mapping.columns.cardInstallment
+          ? row[mapping.columns.cardInstallment] || null
+          : null,
+        investmentType: mapping.columns.investmentType
+          ? row[mapping.columns.investmentType] || null
+          : null,
+        responsibleUserId: (() => {
+          if (!mapping.columns.responsibleUser) return null;
+          const cellVal = (row[mapping.columns.responsibleUser] ?? "").trim();
+          if (!cellVal || !mapping.responsibleUserMappings?.length) return null;
+          const found = mapping.responsibleUserMappings.find(
+            (m) => m.text.toLowerCase() === cellVal.toLowerCase(),
+          );
+          return found?.userId ?? null;
+        })(),
+      },
+    });
+  }
+
+  return results;
+}

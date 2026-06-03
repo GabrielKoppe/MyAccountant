@@ -1,0 +1,1 @@
+export { inviteEmailTemplate } from "./invite";

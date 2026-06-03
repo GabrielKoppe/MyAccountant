@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone",
+  // pino e pino-pretty precisam ser tratados como pacotes externos no servidor
+  serverExternalPackages: ["pino", "pino-pretty"],
 };
 
 export default nextConfig;

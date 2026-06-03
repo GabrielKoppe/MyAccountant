@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MyAccountant
 
-## Getting Started
+Aplicação web de organização financeira pessoal e colaborativa.
 
-First, run the development server:
+## Visão rápida
+
+Múltiplos usuários compartilham uma **Account** (com papéis owner/editor/viewer). Os dados são organizados por **Mês → Seção → Tabela Financeira → Transação**, com importação de CSV/XLSX e dashboards de visualização.
+
+## Stack
+
+- Next.js 15 (App Router) + TypeScript
+- PostgreSQL 16 + Prisma
+- NextAuth v5 (email/senha + Google OAuth)
+- Zod + React Hook Form
+- Material UI v6 + Emotion
+- Docker + Docker Compose
+
+## Documentação
+
+Este projeto segue **spec-driven development**. Toda feature começa por um spec.
+
+- 📖 **[CLAUDE.md](./CLAUDE.md)** — Steering document para o Claude Code (convenções, regras inegociáveis)
+- 📋 **[specs/](./specs/)** — Specs por feature/fase
+- 🔧 **[skills/](./skills/)** — Padrões reutilizáveis
+
+### Por onde começar
+
+1. Leia `specs/00-overview.md` para entender o projeto.
+2. Leia `specs/01-domain-model.md` para o modelo de domínio.
+3. Leia `specs/12-deployment-and-docker.md` para o setup de containers.
+4. Siga as fases descritas em `specs/00-overview.md`.
+
+## Desenvolvimento
+
+**Pré-requisitos**: Docker Desktop (ou Docker Engine + Compose v2).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. Copie o env de exemplo
+cp .env.example .env
+# (Opcional) preencha GOOGLE_CLIENT_ID, RESEND_API_KEY, etc.
+
+# 2. Suba a stack (postgres + app)
+docker compose up -d
+
+# 3. Rode migrations (primeira vez)
+docker compose exec app pnpm prisma migrate dev --name init
+
+# 4. (Opcional) seed de dados de teste
+docker compose exec app pnpm prisma db seed
+
+# 5. Abra http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Comandos do dia-a-dia
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+docker compose logs -f app                            # acompanhar logs
+docker compose exec app pnpm prisma migrate dev       # nova migration
+docker compose --profile tools up -d                  # subir com Adminer (UI do postgres em :8080)
+docker compose down                                   # parar tudo
+docker compose down -v                                # parar e LIMPAR DB (cuidado)
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Detalhes completos em `specs/12-deployment-and-docker.md`.
 
-## Learn More
+## Status
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+🚧 Em planejamento — fase 0 (setup) ainda não iniciada.
