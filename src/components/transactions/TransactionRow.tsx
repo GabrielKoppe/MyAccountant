@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import type { SectionCountType } from "@prisma/client";
 import { NumericFormat } from "react-number-format";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
+import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
@@ -18,6 +20,9 @@ import Typography from "@mui/material/Typography";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import HourglassBottomIcon from "@mui/icons-material/HourglassBottom";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import NoteIcon from "@mui/icons-material/Note";
 import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
@@ -25,18 +30,29 @@ import { useSnackbar } from "notistack";
 
 import { m } from "@/lib/messages";
 
-import { deleteTransactionAction, duplicateTransactionAction, updateTransactionAction } from "@/actions/transactions";
+import {
+  deleteTransactionAction,
+  duplicateTransactionAction,
+  updateTransactionAction,
+} from "@/actions/transactions";
 import { formatCentsToBrl, reaisToCents, centsToReais } from "@/lib/money";
 import { formatDateShort } from "@/lib/dates";
 import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
 import type { InvestmentType } from "@/lib/schemas/transaction";
-import type { CategoryOption, HiddenColumns, InstitutionOption, MemberOption, TransactionRow as TxRow } from "./types";
+import type {
+  CategoryOption,
+  HiddenColumns,
+  InstitutionOption,
+  MemberOption,
+  TransactionRow as TxRow,
+} from "./types";
 
 type Props = {
   tx: TxRow;
   accountId: string;
   isSelected: boolean;
   isReadOnly: boolean;
+  sectionCountType: SectionCountType;
   hiddenColumns: HiddenColumns;
   categories: CategoryOption[];
   institutions: InstitutionOption[];
@@ -52,6 +68,7 @@ export function TransactionRow({
   accountId,
   isSelected,
   isReadOnly,
+  sectionCountType,
   hiddenColumns,
   categories,
   institutions,
@@ -66,13 +83,24 @@ export function TransactionRow({
   const [editValues, setEditValues] = useState<TxRow>(tx);
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const amount = BigInt(tx.amountCents);
-  const isPositive = amount >= 0n;
+  // subtract: positivo = despesa (vermelho), negativo = estorno (verde)
+  const isPositive = sectionCountType === "subtract" ? amount < 0n : amount >= 0n;
 
   function startEdit() {
     if (isReadOnly) return;
     setEditValues(tx);
+    setNotesOpen(false);
+    setEditing(true);
+  }
+
+  function startEditWithNote(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (isReadOnly) return;
+    setEditValues(tx);
+    setNotesOpen(true);
     setEditing(true);
   }
 
@@ -87,22 +115,37 @@ export function TransactionRow({
       if (editValues[k] !== tx[k]) (patch as Record<string, unknown>)[k] = editValues[k];
     }
 
-    if (Object.keys(patch).length === 0) { setSaving(false); return; }
+    if (Object.keys(patch).length === 0) {
+      setSaving(false);
+      return;
+    }
 
     onOptimisticUpdate(tx.id, patch);
 
     const result = await updateTransactionAction(accountId, {
       transactionId: tx.id,
-      ...(editValues.occurredOn !== tx.occurredOn && { occurredOn: new Date(editValues.occurredOn) }),
-      ...(editValues.amountCents !== tx.amountCents && { amountCents: BigInt(editValues.amountCents) }),
+      ...(editValues.occurredOn !== tx.occurredOn && {
+        occurredOn: new Date(editValues.occurredOn),
+      }),
+      ...(editValues.amountCents !== tx.amountCents && {
+        amountCents: BigInt(editValues.amountCents),
+      }),
       ...(editValues.description !== tx.description && { description: editValues.description }),
       ...(editValues.categoryId !== tx.categoryId && { categoryId: editValues.categoryId }),
-      ...(editValues.subcategoryId !== tx.subcategoryId && { subcategoryId: editValues.subcategoryId }),
-      ...(editValues.institutionId !== tx.institutionId && { institutionId: editValues.institutionId }),
-      ...(editValues.responsibleUserId !== tx.responsibleUserId && { responsibleUserId: editValues.responsibleUserId }),
+      ...(editValues.subcategoryId !== tx.subcategoryId && {
+        subcategoryId: editValues.subcategoryId,
+      }),
+      ...(editValues.institutionId !== tx.institutionId && {
+        institutionId: editValues.institutionId,
+      }),
+      ...(editValues.responsibleUserId !== tx.responsibleUserId && {
+        responsibleUserId: editValues.responsibleUserId,
+      }),
       ...(editValues.isPending !== tx.isPending && { isPending: editValues.isPending }),
       ...(editValues.isFavorite !== tx.isFavorite && { isFavorite: editValues.isFavorite }),
-      ...(editValues.investmentType !== tx.investmentType && { investmentType: editValues.investmentType }),
+      ...(editValues.investmentType !== tx.investmentType && {
+        investmentType: editValues.investmentType,
+      }),
       ...(editValues.notes !== tx.notes && { notes: editValues.notes }),
     });
 
@@ -132,6 +175,20 @@ export function TransactionRow({
     }
   }
 
+  async function togglePending(e: React.MouseEvent) {
+    e.stopPropagation();
+    const newVal = !tx.isPending;
+    onOptimisticUpdate(tx.id, { isPending: newVal });
+    const result = await updateTransactionAction(accountId, {
+      transactionId: tx.id,
+      isPending: newVal,
+    });
+    if (!result.ok) {
+      onOptimisticUpdate(tx.id, { isPending: tx.isPending });
+      enqueueSnackbar(result.error.message, { variant: "error" });
+    }
+  }
+
   async function handleDelete() {
     setMenuAnchor(null);
     onOptimisticDelete(tx.id);
@@ -154,195 +211,245 @@ export function TransactionRow({
     enqueueSnackbar("Transação duplicada.", { variant: "success" });
   }
 
-  const subcatsForCategory = categories.find((c) => c.id === (editing ? editValues.categoryId : tx.categoryId))?.subcategories ?? [];
+  const subcatsForCategory =
+    categories.find((c) => c.id === (editing ? editValues.categoryId : tx.categoryId))
+      ?.subcategories ?? [];
 
   const sharedInputProps = { size: "small" as const, variant: "standard" as const };
 
   if (editing) {
     return (
       <>
-      <TableRow
-        sx={{ bgcolor: "action.selected" }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") saveEdit();
-          if (e.key === "Escape") cancelEdit();
-        }}
-      >
-        <TableCell padding="checkbox">
-          <Checkbox checked={isSelected} onChange={(e) => onSelect(tx.id, e.target.checked)} size="small" />
-        </TableCell>
-
-        {/* Data */}
-        <TableCell>
-          <TextField
-            {...sharedInputProps}
-            type="date"
-            value={editValues.occurredOn.slice(0, 10)}
-            onChange={(e) => setEditValues((prev) => ({ ...prev, occurredOn: e.target.value }))}
-            sx={{ width: 120, "& input": { fontSize: 13 } }}
-            autoFocus
-          />
-        </TableCell>
-
-        {/* Descrição */}
-        <TableCell>
-          <TextField
-            {...sharedInputProps}
-            value={editValues.description ?? ""}
-            onChange={(e) => setEditValues((prev) => ({ ...prev, description: e.target.value }))}
-            placeholder="Descrição"
-            fullWidth
-          />
-        </TableCell>
-
-        {/* Categoria */}
-        {!hiddenColumns.category && (
-          <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={editValues.categoryId ?? ""}
-              onChange={(e) => setEditValues((prev) => ({ ...prev, categoryId: e.target.value || null, subcategoryId: null }))}
-              sx={{ minWidth: 110, fontSize: 13 }}
-            >
-              <MenuItem value=""><em>Nenhuma</em></MenuItem>
-              {categories.map((c) => <MenuItem key={c.id} value={c.id} sx={{ fontSize: 13 }}>{c.name}</MenuItem>)}
-            </Select>
-          </TableCell>
-        )}
-
-        {/* Subcategoria */}
-        {!hiddenColumns.subcategory && (
-          <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={editValues.subcategoryId ?? ""}
-              onChange={(e) => setEditValues((prev) => ({ ...prev, subcategoryId: e.target.value || null }))}
-              sx={{ minWidth: 110, fontSize: 13 }}
-              disabled={!editValues.categoryId}
-            >
-              <MenuItem value=""><em>Nenhuma</em></MenuItem>
-              {subcatsForCategory.map((s) => <MenuItem key={s.id} value={s.id} sx={{ fontSize: 13 }}>{s.name}</MenuItem>)}
-            </Select>
-          </TableCell>
-        )}
-
-        {/* Instituição */}
-        {!hiddenColumns.institution && (
-          <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={editValues.institutionId ?? ""}
-              onChange={(e) => setEditValues((prev) => ({ ...prev, institutionId: e.target.value || null }))}
-              sx={{ minWidth: 110, fontSize: 13 }}
-            >
-              <MenuItem value=""><em>Nenhuma</em></MenuItem>
-              {institutions.map((i) => <MenuItem key={i.id} value={i.id} sx={{ fontSize: 13 }}>{i.name}</MenuItem>)}
-            </Select>
-          </TableCell>
-        )}
-
-        {/* Valor */}
-        <TableCell align="right">
-          <NumericFormat
-            customInput={TextField}
-            {...sharedInputProps}
-            value={centsToReais(BigInt(editValues.amountCents))}
-            thousandSeparator="."
-            decimalSeparator=","
-            decimalScale={2}
-            fixedDecimalScale
-            allowNegative
-            onValueChange={({ floatValue }) => {
-              const cents = reaisToCents(floatValue ?? 0);
-              setEditValues((prev) => ({ ...prev, amountCents: cents.toString() }));
-            }}
-            sx={{ "& input": { textAlign: "right", width: 100, fontSize: 13 } }}
-          />
-        </TableCell>
-
-        {/* Responsável */}
-        {!hiddenColumns.responsibleUser && (
-          <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={editValues.responsibleUserId ?? ""}
-              onChange={(e) => setEditValues((prev) => ({ ...prev, responsibleUserId: e.target.value || null }))}
-              sx={{ minWidth: 90, fontSize: 13 }}
-            >
-              <MenuItem value=""><em>Nenhum</em></MenuItem>
-              {members.map((m) => <MenuItem key={m.id} value={m.id} sx={{ fontSize: 13 }}>{m.name ?? m.email}</MenuItem>)}
-            </Select>
-          </TableCell>
-        )}
-
-        {/* Pendente */}
-        {!hiddenColumns.isPending && (
+        <TableRow
+          sx={{ bgcolor: "action.selected" }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") saveEdit();
+            if (e.key === "Escape") cancelEdit();
+          }}
+        >
           <TableCell padding="checkbox">
             <Checkbox
+              checked={isSelected}
+              onChange={(e) => onSelect(tx.id, e.target.checked)}
               size="small"
-              checked={editValues.isPending}
-              onChange={(e) => setEditValues((prev) => ({ ...prev, isPending: e.target.checked }))}
             />
           </TableCell>
-        )}
 
-        {/* Tipo de investimento */}
-        {!hiddenColumns.investmentType && (
+          {/* Data */}
           <TableCell>
-            <Select
+            <TextField
               {...sharedInputProps}
-              value={editValues.investmentType ?? ""}
-              onChange={(e) =>
-                setEditValues((prev) => ({
-                  ...prev,
-                  investmentType: (e.target.value || null) as InvestmentType | null,
-                }))
-              }
-              sx={{ minWidth: 120, fontSize: 13 }}
-            >
-              <MenuItem value=""><em>Nenhum</em></MenuItem>
-              {INVESTMENT_TYPES.map((t) => (
-                <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>{t}</MenuItem>
-              ))}
-            </Select>
+              type="date"
+              value={editValues.occurredOn.slice(0, 10)}
+              onChange={(e) => setEditValues((prev) => ({ ...prev, occurredOn: e.target.value }))}
+              sx={{ width: 120, "& input": { fontSize: 13 } }}
+              autoFocus
+            />
           </TableCell>
-        )}
 
-        {/* Ações edit */}
-        <TableCell align="right">
-          <IconButton size="small" onClick={saveEdit} color="primary" title="Salvar (Enter)">
-            ✓
-          </IconButton>
-          <IconButton size="small" onClick={cancelEdit} title="Cancelar (Esc)">
-            ✕
-          </IconButton>
-        </TableCell>
-      </TableRow>
-      <TableRow sx={{ bgcolor: "action.selected" }}>
-        <TableCell
-          colSpan={99}
-          sx={{ pt: 0, pb: 1, px: 1.5, borderBottom: "1px solid" , borderColor: "divider" }}
-        >
-          <TextField
-            multiline
-            minRows={2}
-            maxRows={6}
-            fullWidth
-            size="small"
-            variant="standard"
-            label={m.transactions.fields.notes}
-            placeholder={m.transactions.fields.notesPlaceholder}
-            value={editValues.notes ?? ""}
-            onChange={(e) =>
-              setEditValues((prev) => ({ ...prev, notes: e.target.value || null }))
-            }
-            onKeyDown={(e) => {
-              if (e.key === "Escape") cancelEdit();
-            }}
-            sx={{ "& textarea": { fontSize: 13 } }}
-          />
-        </TableCell>
-      </TableRow>
+          {/* Descrição */}
+          <TableCell>
+            <TextField
+              {...sharedInputProps}
+              value={editValues.description ?? ""}
+              onChange={(e) => setEditValues((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Descrição"
+              fullWidth
+            />
+          </TableCell>
+
+          {/* Categoria */}
+          {!hiddenColumns.category && (
+            <TableCell>
+              <Select
+                {...sharedInputProps}
+                value={editValues.categoryId ?? ""}
+                onChange={(e) =>
+                  setEditValues((prev) => ({
+                    ...prev,
+                    categoryId: e.target.value || null,
+                    subcategoryId: null,
+                  }))
+                }
+                sx={{ minWidth: 110, fontSize: 13 }}
+              >
+                <MenuItem value="">
+                  <em>Nenhuma</em>
+                </MenuItem>
+                {categories.map((c) => (
+                  <MenuItem key={c.id} value={c.id} sx={{ fontSize: 13 }}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </TableCell>
+          )}
+
+          {/* Subcategoria */}
+          {!hiddenColumns.subcategory && (
+            <TableCell>
+              <Select
+                {...sharedInputProps}
+                value={editValues.subcategoryId ?? ""}
+                onChange={(e) =>
+                  setEditValues((prev) => ({ ...prev, subcategoryId: e.target.value || null }))
+                }
+                sx={{ minWidth: 110, fontSize: 13 }}
+                disabled={!editValues.categoryId}
+              >
+                <MenuItem value="">
+                  <em>Nenhuma</em>
+                </MenuItem>
+                {subcatsForCategory.map((s) => (
+                  <MenuItem key={s.id} value={s.id} sx={{ fontSize: 13 }}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </TableCell>
+          )}
+
+          {/* Instituição */}
+          {!hiddenColumns.institution && (
+            <TableCell>
+              <Select
+                {...sharedInputProps}
+                value={editValues.institutionId ?? ""}
+                onChange={(e) =>
+                  setEditValues((prev) => ({ ...prev, institutionId: e.target.value || null }))
+                }
+                sx={{ minWidth: 110, fontSize: 13 }}
+              >
+                <MenuItem value="">
+                  <em>Nenhuma</em>
+                </MenuItem>
+                {institutions.map((i) => (
+                  <MenuItem key={i.id} value={i.id} sx={{ fontSize: 13 }}>
+                    {i.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </TableCell>
+          )}
+
+          {/* Valor */}
+          <TableCell align="right">
+            <NumericFormat
+              customInput={TextField}
+              {...sharedInputProps}
+              value={centsToReais(BigInt(editValues.amountCents))}
+              thousandSeparator="."
+              decimalSeparator=","
+              decimalScale={2}
+              fixedDecimalScale
+              allowNegative
+              onValueChange={({ floatValue }) => {
+                const cents = reaisToCents(floatValue ?? 0);
+                setEditValues((prev) => ({ ...prev, amountCents: cents.toString() }));
+              }}
+              sx={{ "& input": { textAlign: "right", width: 100, fontSize: 13 } }}
+            />
+          </TableCell>
+
+          {/* Responsável */}
+          {!hiddenColumns.responsibleUser && (
+            <TableCell>
+              <Select
+                {...sharedInputProps}
+                value={editValues.responsibleUserId ?? ""}
+                onChange={(e) =>
+                  setEditValues((prev) => ({ ...prev, responsibleUserId: e.target.value || null }))
+                }
+                sx={{ minWidth: 90, fontSize: 13 }}
+              >
+                <MenuItem value="">
+                  <em>Nenhum</em>
+                </MenuItem>
+                {members.map((m) => (
+                  <MenuItem key={m.id} value={m.id} sx={{ fontSize: 13 }}>
+                    {m.name ?? m.email}
+                  </MenuItem>
+                ))}
+              </Select>
+            </TableCell>
+          )}
+
+          {/* Tipo de investimento */}
+          {!hiddenColumns.investmentType && (
+            <TableCell>
+              <Select
+                {...sharedInputProps}
+                value={editValues.investmentType ?? ""}
+                onChange={(e) =>
+                  setEditValues((prev) => ({
+                    ...prev,
+                    investmentType: (e.target.value || null) as InvestmentType | null,
+                  }))
+                }
+                sx={{ minWidth: 120, fontSize: 13 }}
+              >
+                <MenuItem value="">
+                  <em>Nenhum</em>
+                </MenuItem>
+                {INVESTMENT_TYPES.map((t) => (
+                  <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>
+                    {t}
+                  </MenuItem>
+                ))}
+              </Select>
+            </TableCell>
+          )}
+
+          {/* Ações edit */}
+          <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+            <Tooltip title={notesOpen ? "Ocultar notas" : "Adicionar nota"}>
+              <IconButton
+                size="small"
+                onClick={() => setNotesOpen((o) => !o)}
+                sx={{ color: "text.disabled" }}
+              >
+                {notesOpen || (editValues.notes && editValues.notes.length > 0) ? (
+                  <NoteIcon sx={{ fontSize: 16 }} />
+                ) : (
+                  <NoteOutlinedIcon sx={{ fontSize: 16 }} />
+                )}
+              </IconButton>
+            </Tooltip>
+            <IconButton size="small" onClick={saveEdit} color="primary" title="Salvar (Enter)">
+              ✓
+            </IconButton>
+            <IconButton size="small" onClick={cancelEdit} title="Cancelar (Esc)">
+              ✕
+            </IconButton>
+          </TableCell>
+        </TableRow>
+        <TableRow sx={{ bgcolor: "action.selected" }}>
+          <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
+            <Collapse in={notesOpen} unmountOnExit>
+              <Box sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
+                <TextField
+                  multiline
+                  minRows={2}
+                  maxRows={6}
+                  fullWidth
+                  size="small"
+                  variant="standard"
+                  label={m.transactions.fields.notes}
+                  placeholder={m.transactions.fields.notesPlaceholder}
+                  value={editValues.notes ?? ""}
+                  onChange={(e) =>
+                    setEditValues((prev) => ({ ...prev, notes: e.target.value || null }))
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                  sx={{ "& textarea": { fontSize: 13 } }}
+                  autoFocus={notesOpen}
+                />
+              </Box>
+            </Collapse>
+          </TableCell>
+        </TableRow>
       </>
     );
   }
@@ -368,29 +475,61 @@ export function TransactionRow({
         {formatDateShort(tx.occurredOn)}
       </TableCell>
 
-      <TableCell sx={{ fontSize: 13, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {tx.description || <Typography variant="caption" color="text.disabled">—</Typography>}
+      <TableCell
+        sx={{
+          fontSize: 13,
+          maxWidth: 200,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {tx.description || (
+          <Typography variant="caption" color="text.disabled">
+            —
+          </Typography>
+        )}
       </TableCell>
 
       {!hiddenColumns.category && (
         <TableCell sx={{ fontSize: 13 }}>
-          {categories.find((c) => c.id === tx.categoryId)?.name ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+          {categories.find((c) => c.id === tx.categoryId)?.name ?? (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
         </TableCell>
       )}
 
       {!hiddenColumns.subcategory && (
         <TableCell sx={{ fontSize: 13 }}>
-          {subcatsForCategory.find((s) => s.id === tx.subcategoryId)?.name ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+          {subcatsForCategory.find((s) => s.id === tx.subcategoryId)?.name ?? (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
         </TableCell>
       )}
 
       {!hiddenColumns.institution && (
         <TableCell sx={{ fontSize: 13 }}>
-          {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+          {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
         </TableCell>
       )}
 
-      <TableCell align="right" sx={{ fontWeight: "medium", fontSize: 13, whiteSpace: "nowrap", color: isPositive ? "success.main" : "error.main" }}>
+      <TableCell
+        align="right"
+        sx={{
+          fontWeight: "medium",
+          fontSize: 13,
+          whiteSpace: "nowrap",
+          color: isPositive ? "success.main" : "error.main",
+        }}
+      >
         {formatCentsToBrl(amount)}
       </TableCell>
 
@@ -405,33 +544,56 @@ export function TransactionRow({
                 {members.find((m) => m.id === tx.responsibleUserId)?.name?.charAt(0)}
               </Avatar>
             </Tooltip>
-          ) : <Typography variant="caption" color="text.disabled">—</Typography>}
-        </TableCell>
-      )}
-
-      {!hiddenColumns.isPending && (
-        <TableCell padding="checkbox">
-          {tx.isPending && <Tooltip title="Pendente"><span>⏳</span></Tooltip>}
+          ) : (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
         </TableCell>
       )}
 
       {!hiddenColumns.investmentType && (
         <TableCell sx={{ fontSize: 13 }}>
-          {tx.investmentType ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+          {tx.investmentType ?? (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
         </TableCell>
       )}
 
-      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-        {tx.notes && (
-          <Tooltip title={<Box sx={{ whiteSpace: "pre-wrap", maxWidth: 280 }}>{tx.notes}</Box>}>
-            <IconButton size="small">
-              <NoteOutlinedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-        <IconButton size="small" onClick={toggleFavorite}>
-          {tx.isFavorite ? <StarIcon fontSize="small" color="warning" /> : <StarBorderIcon fontSize="small" />}
-        </IconButton>
+      <TableCell align="right" sx={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+        <Tooltip
+          title={
+            tx.notes ? (
+              <Box sx={{ whiteSpace: "pre-wrap", maxWidth: 280 }}>{tx.notes}</Box>
+            ) : (
+              "Adicionar nota"
+            )
+          }
+        >
+          <IconButton size="small" onClick={startEditWithNote}>
+            {tx.notes ? <NoteIcon fontSize="small" /> : <NoteOutlinedIcon fontSize="small" />}
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={tx.isPending ? "Marcar como concluída" : "Marcar como pendente"}>
+          <IconButton size="small" onClick={togglePending}>
+            {tx.isPending ? (
+              <HourglassBottomIcon fontSize="small" />
+            ) : (
+              <HourglassEmptyIcon fontSize="small" />
+            )}
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={tx.isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}>
+          <IconButton size="small" onClick={toggleFavorite}>
+            {tx.isFavorite ? (
+              <StarIcon fontSize="small" color="warning" />
+            ) : (
+              <StarBorderIcon fontSize="small" />
+            )}
+          </IconButton>
+        </Tooltip>
         {!isReadOnly && (
           <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}>
             <MoreVertIcon fontSize="small" />
@@ -441,11 +603,15 @@ export function TransactionRow({
 
       <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
         <MenuItem onClick={handleDuplicate}>
-          <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon>
+            <ContentCopyIcon fontSize="small" />
+          </ListItemIcon>
           Duplicar
         </MenuItem>
         <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
-          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
           Deletar
         </MenuItem>
       </Menu>

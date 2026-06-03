@@ -505,6 +505,26 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
         },
       },
 
+      // Desabilita o scroll-lock em todos os componentes overlay para evitar o
+      // layout shift que ocorre quando o MUI compensa a largura do scrollbar.
+      // Cada componente precisa do seu próprio defaultProp porque cada um chama
+      // useThemeProps com seu próprio nome antes de repassar ao Modal interno.
+      MuiModal: {
+        defaultProps: { disableScrollLock: true },
+      },
+      MuiDialog: {
+        defaultProps: { disableScrollLock: true },
+      },
+      MuiDrawer: {
+        defaultProps: { disableScrollLock: true },
+      },
+      MuiPopover: {
+        defaultProps: { disableScrollLock: true },
+      },
+      MuiMenu: {
+        defaultProps: { disableScrollLock: true },
+      },
+
       MuiTooltip: {
         styleOverrides: {
           tooltip: {

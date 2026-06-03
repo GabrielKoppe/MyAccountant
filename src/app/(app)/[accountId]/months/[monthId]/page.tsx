@@ -14,16 +14,40 @@ import { MonthHeader } from "@/components/months/MonthHeader";
 import { MonthTabs } from "@/components/months/MonthTabs";
 import { MonthSummary } from "@/components/months/MonthSummary";
 import { SectionView } from "@/components/months/SectionView";
+import { MonthFilterProvider, type MonthFilterState } from "@/components/months/MonthFilterContext";
+import { ActiveFilterChips } from "@/components/transactions/ActiveFilterChips";
 import type { TransactionRow } from "@/components/transactions/types";
 
 type Props = {
   params: Promise<{ accountId: string; monthId: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    categories?: string;
+    institutions?: string;
+    responsible?: string;
+    pending?: string;
+    favorite?: string;
+  }>;
 };
 
 export default async function MonthPage({ params, searchParams }: Props) {
   const { accountId, monthId } = await params;
-  const { tab = "summary" } = await searchParams;
+  const {
+    tab = "summary",
+    categories: categoriesParam,
+    institutions: institutionsParam,
+    responsible: responsibleParam,
+    pending: pendingParam,
+    favorite: favoriteParam,
+  } = await searchParams;
+
+  const initialFilters: MonthFilterState = {
+    categories: categoriesParam ? categoriesParam.split(",").filter(Boolean) : [],
+    institutions: institutionsParam ? institutionsParam.split(",").filter(Boolean) : [],
+    responsible: responsibleParam ? responsibleParam.split(",").filter(Boolean) : [],
+    pending: pendingParam === "1",
+    favorite: favoriteParam === "1",
+  };
 
   const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
@@ -219,52 +243,59 @@ export default async function MonthPage({ params, searchParams }: Props) {
   const activeSection = tab !== "summary" ? sections.find((s) => s.id === tab) : null;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 48px)" }}>
-      <MonthHeader
-        accountId={accountId}
-        currentMonth={currentMonth}
-        months={allMonths}
-        role={member.role}
-      />
+    <MonthFilterProvider
+      initialFilters={initialFilters}
+      options={{ categories, institutions, members }}
+    >
+      <Box sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 48px)" }}>
+        <MonthHeader
+          accountId={accountId}
+          currentMonth={currentMonth}
+          months={allMonths}
+          role={member.role}
+        />
 
-      <MonthTabs
-        accountId={accountId}
-        monthId={monthId}
-        sections={sections}
-        activeTab={tab}
-      />
+        <ActiveFilterChips />
 
-      <Box sx={{ flex: 1, overflow: "auto" }}>
-        {tab === "summary" || !activeSection ? (
-          <MonthSummary
-            sections={sections}
-            sectionTotals={sectionTotals}
-            monthTotal={monthTotal}
-            tables={tables}
-            accountId={accountId}
-            monthId={monthId}
-            pendingTransactions={pendingTransactions}
-            favoriteTransactions={favoriteTransactions}
-            categoryTotals={categoryTotals}
-          />
-        ) : (
-          <SectionView
-            section={activeSection}
-            tables={tables.filter((t) => t.sectionId === activeSection.id)}
-            sectionTotal={sectionTotals[activeSection.id] ?? "0"}
-            accountId={accountId}
-            monthId={monthId}
-            allSections={allSections}
-            tableTypes={accountTableTypes}
-            sourceTables={sourceTables}
-            transactionsByTable={transactionsByTable}
-            categories={categories}
-            institutions={institutions}
-            members={members}
-            defaultResponsibleUserId={accountSettings?.defaultResponsibleUserId ?? null}
-          />
-        )}
+        <MonthTabs
+          accountId={accountId}
+          monthId={monthId}
+          sections={sections}
+          activeTab={tab}
+        />
+
+        <Box sx={{ flex: 1, overflow: "auto" }}>
+          {tab === "summary" || !activeSection ? (
+            <MonthSummary
+              sections={sections}
+              sectionTotals={sectionTotals}
+              monthTotal={monthTotal}
+              tables={tables}
+              accountId={accountId}
+              monthId={monthId}
+              pendingTransactions={pendingTransactions}
+              favoriteTransactions={favoriteTransactions}
+              categoryTotals={categoryTotals}
+            />
+          ) : (
+            <SectionView
+              section={activeSection}
+              tables={tables.filter((t) => t.sectionId === activeSection.id)}
+              sectionTotal={sectionTotals[activeSection.id] ?? "0"}
+              accountId={accountId}
+              monthId={monthId}
+              allSections={allSections}
+              tableTypes={accountTableTypes}
+              sourceTables={sourceTables}
+              transactionsByTable={transactionsByTable}
+              categories={categories}
+              institutions={institutions}
+              members={members}
+              defaultResponsibleUserId={accountSettings?.defaultResponsibleUserId ?? null}
+            />
+          )}
+        </Box>
       </Box>
-    </Box>
+    </MonthFilterProvider>
   );
 }
