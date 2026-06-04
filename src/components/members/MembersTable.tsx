@@ -5,11 +5,6 @@ import type { AccountMemberRole } from "@prisma/client";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
@@ -25,6 +20,7 @@ import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
 import { useSnackbar } from "notistack";
 
 import { removeMemberAction, updateMemberRoleAction } from "@/actions/members";
+import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
 
 type Member = {
@@ -163,18 +159,21 @@ export function MembersTable({ accountId, members, currentUserId, currentUserRol
         </Table>
       </Paper>
 
-      <Dialog open={!!removeTarget} onClose={() => setRemoveTarget(null)}>
-        <DialogTitle>{m.account.members.removeButton}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>{m.account.members.removeConfirm}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRemoveTarget(null)}>{m.common.cancel}</Button>
-          <Button color="error" variant="contained" onClick={confirmRemove} disabled={isPending}>
-            {m.account.members.removeButton}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={!!removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        title={m.account.members.removeButton}
+        actions={
+          <>
+            <Button onClick={() => setRemoveTarget(null)}>{m.common.cancel}</Button>
+            <Button color="error" variant="contained" onClick={confirmRemove} disabled={isPending}>
+              {m.account.members.removeButton}
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="body2">{m.account.members.removeConfirm}</Typography>
+      </DialogShell>
     </>
   );
 }

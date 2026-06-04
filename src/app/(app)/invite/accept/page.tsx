@@ -65,10 +65,10 @@ export default function AcceptInvitePage() {
         bgcolor: "background.default",
       }}
     >
-      <Paper sx={{ p: 4, maxWidth: 440, width: "100%", textAlign: "center" }} elevation={3}>
+      <Paper sx={{ p: 4, maxWidth: 440, width: "100%", textAlign: "center" }}>
         <MailOutlineIcon sx={{ fontSize: 56, color: "primary.main", mb: 2 }} />
 
-        <Typography variant="h5" fontWeight="bold" mb={1}>
+        <Typography variant="h5" mb={1}>
           {m.account.acceptInvite.title}
         </Typography>
 

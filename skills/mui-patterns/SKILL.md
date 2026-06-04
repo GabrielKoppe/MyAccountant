@@ -1,47 +1,45 @@
-# SKILL — Material UI Patterns
+# SKILL — Material UI: Integração com Next.js e Forms
 
 ## Quando usar
 
-Sempre que criar ou tocar em qualquer componente de UI. Estabelece convenções de integração com Next.js App Router (RSC), e padrões comuns de form/table/modal com MUI.
+Sempre que criar ou tocar em qualquer componente de UI. Este skill cobre **como integrar MUI com Next.js App Router, RSC e React Hook Form**.
 
-> ⚠️ **Pré-requisito**: leia primeiro `skills/design-system/SKILL.md`. Este skill cobre **como usar MUI**; o design-system cobre **quais tokens e padrões visuais**. Os dois se complementam.
+> **Pré-requisito**: leia `skills/design-system/SKILL.md` primeiro. O design-system cobre tokens visuais, especificação de cada componente, wrappers (PageHeader, Section, KpiCard, DialogShell, EmptyState), layout e anti-patterns visuais. Este skill cobre **infraestrutura e integração**.
 
 ## Princípio
 
-**MUI é a única biblioteca de UI do projeto.** Não misturar com Tailwind, shadcn ou CSS modules. Customização via **tema MUI customizado** (`src/lib/theme.ts`) + **tokens semânticos** (`src/lib/design-tokens.ts`) + `sx prop` + `styled API` quando necessário.
+**MUI é a única biblioteca de UI do projeto.** Não misturar com Tailwind, shadcn ou CSS modules. Customização via `sx prop`, `styled API` e overrides no tema.
 
 ## Pacotes
 
 ```bash
 pnpm add @mui/material @mui/icons-material @emotion/react @emotion/styled
 pnpm add @mui/x-date-pickers       # date picker
-pnpm add @mui/x-data-grid          # tabela avançada (opcional, para FinanceTable)
+pnpm add @mui/x-data-grid          # tabela com virtualização (opcional)
 pnpm add @mui/x-charts             # gráficos (alternativa ao recharts)
 ```
 
-> **Emotion** é o styling engine default do MUI. Mantemos ele.
+> **Emotion** é o styling engine default do MUI. Mantemos ele.  
 > **Não** instalar `tailwindcss` — o `create-next-app` pergunta sobre Tailwind: **responder não**.
+
+---
 
 ## Setup no App Router
 
-### 1. AppRouterCacheProvider
+### 1. AppRouterCacheProvider (CRÍTICO)
+
+Sem isto, Emotion injeta CSS errado no SSR → FOUC.
 
 ```tsx
 // src/app/layout.tsx
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
-import { ThemeProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-import { theme } from "@/lib/theme";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
       <body>
         <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            {children}
-          </ThemeProvider>
+          <AppProviders>{children}</AppProviders>
         </AppRouterCacheProvider>
       </body>
     </html>
@@ -49,171 +47,155 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-> `AppRouterCacheProvider` garante que Emotion injete CSS corretamente no SSR.
+### 2. ThemeProvider e dark mode
 
-### 2. Tema customizado
-
-**Definido em `src/lib/theme.ts`** — ver `skills/design-system/SKILL.md` para detalhes completos do design system "Warm Calm" (paleta, tipografia, espaçamento, etc.).
-
-O tema exporta `lightTheme` e `darkTheme`, ambos com:
-- Locale `ptBR` aplicado.
-- Tipografia Inter + JetBrains Mono (mono para valores monetários).
-- Palette estendida com tokens semânticos (`surface`, `border`, `accent`, `danger`, `neutral`).
-- Variantes Typography customizadas (`kpi`, `mono`).
-- Component overrides em todos os componentes principais (Button, Card, TextField, Table, etc.).
+Ver `skills/design-system/SKILL.md §4`. Setup já implementado em:
+- `src/components/providers/ThemeProviderClient.tsx` — lógica de toggle
+- `src/components/providers/AppProviders.tsx` — wrapper de providers
+- `src/lib/theme.ts` — `lightTheme` e `darkTheme`
+- `src/lib/design-tokens.ts` — tokens exportados
 
 ```ts
-// Import básico
-import { lightTheme, darkTheme, getTheme } from "@/lib/theme";
-
-// Ou tokens diretamente para casos avançados
-import { lightColors, spacing, radius } from "@/lib/design-tokens";
+// Import tokens para uso em código TS puro (fora do tema)
+import { layout, containers, lightColors } from "@/lib/design-tokens";
 ```
 
-### 3. Modo dark
+### 3. `useMediaQuery` sem noSsr
 
-Dark mode é primeira-classe (não afterthought). Os dois temas estão prontos em `src/lib/theme.ts`. Toggle persistido via cookie.
+**Crítico**: nunca usar `{ noSsr: true }` no `useMediaQuery` dentro do ThemeProvider. Causa mismatch de hash Emotion entre server e client.
 
 ```tsx
-// src/components/ThemeProvider.tsx
-"use client";
-import { useState } from "react";
-import { ThemeProvider as MuiThemeProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
+// ✅ correto
+const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-import { lightTheme, darkTheme } from "@/lib/theme";
-import type { ThemeMode } from "@/lib/design-tokens";
-
-export function ThemeProvider({
-  children,
-  initialMode,
-}: {
-  children: React.ReactNode;
-  initialMode: ThemeMode;
-}) {
-  const [mode, setMode] = useState<ThemeMode>(initialMode);
-  return (
-    <MuiThemeProvider theme={mode === "light" ? lightTheme : darkTheme}>
-      <CssBaseline />
-      {children}
-    </MuiThemeProvider>
-  );
-}
+// ❌ errado — causa hydration mismatch
+const isMobile = useMediaQuery(theme.breakpoints.down("sm"), { noSsr: true });
 ```
 
-Detalhes (tokens dark, princípios) em `skills/design-system/SKILL.md`.
+---
 
 ## Server Components vs Client Components
 
-**Maioria dos componentes MUI precisa de `"use client"`**. Eles usam Context, useState, etc.
+**Maioria dos componentes MUI precisa de `"use client"`** — usam Context, useState, hooks.
 
-**Estratégia**:
-- Páginas (`page.tsx`) e layouts ficam como **Server Components** (default).
-- Componentes interativos com MUI ficam em arquivos separados com `"use client"` no topo.
-- Composição: Server Component busca dados + renderiza Client Component.
+**Estratégia recomendada**:
+- Páginas (`page.tsx`) e layouts ficam como **Server Components** (default no App Router).
+- Componentes interativos ficam em arquivos separados com `"use client"`.
+- Server Component busca dados → passa como props para Client Component.
+- Client Components podem ser passados como `children` ou props para outros Client Components — isso não quebra o boundary.
 
 ```tsx
-// src/app/(app)/months/[monthId]/page.tsx (Server Component)
-import { getMonthData } from "@/lib/queries/months";
-import { MonthView } from "./MonthView"; // client component
+// page.tsx — Server Component
+import { MonthView } from "./MonthView";
 
 export default async function MonthPage({ params }: Props) {
-  const data = await getMonthData(params.monthId);
+  const data = await prisma.month.findUnique({ where: { id: params.monthId } });
   return <MonthView data={data} />;
 }
 ```
 
 ```tsx
-// src/app/(app)/months/[monthId]/MonthView.tsx (Client Component)
+// MonthView.tsx — Client Component
 "use client";
-import { Box, Tabs, Tab } from "@mui/material";
+import { useState } from "react";
+import Box from "@mui/material/Box";
 
 export function MonthView({ data }: Props) {
-  // hooks, state, etc.
+  const [tab, setTab] = useState(0);
   return <Box>...</Box>;
 }
 ```
+
+**Passando Client Components como props de Server Components:**
+```tsx
+// page.tsx (Server)
+<PageHeader
+  title="Membros"
+  actions={<InviteForm accountId={accountId} />}  // Client Component como prop — ok
+/>
+```
+
+---
 
 ## Sistema de styling
 
 ### Ordem de preferência
 
-1. **Variantes e props do componente** (`variant`, `size`, `color`).
-2. **`sx` prop** para customizações pontuais inline.
-3. **`styled` API** para componentes reutilizáveis com estilo customizado.
-4. **Tema** para customizações globais (cores, tipografia, defaults).
+1. **Variantes e props do componente** (`variant`, `size`, `color`) — first.
+2. **`sx` prop** — customizações pontuais inline com tokens semânticos.
+3. **`styled` API** — componentes reutilizáveis com estilo encapsulado.
+4. **Tema** (`src/lib/theme.ts`) — customizações globais.
 
-### Exemplo: `sx` prop
+### `sx` com tokens
+
+Sempre usar tokens semânticos (via tema ou `layout`), nunca px diretos nem hex.
 
 ```tsx
+import { layout } from "@/lib/design-tokens";
+
 <Box
   sx={{
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,         // 2 * 8px = 16px (theme.spacing)
-    p: 3,           // padding
-    borderRadius: 1, // theme.shape.borderRadius
-    bgcolor: "background.paper",
+    p: layout.page,          // 32px — não escrever sx={{ p: 8 }}
+    mb: layout.cluster,      // 24px — não escrever sx={{ mb: 6 }}
+    bgcolor: "background.surface",  // token do tema
+    borderColor: "border.subtle",   // token do tema
   }}
->
-  ...
-</Box>
+/>
 ```
 
-> `sx` aceita callback: `sx={(theme) => ({ color: theme.palette.primary.main })}`.
+### `sx` callback (acesso ao tema)
 
-### Exemplo: `styled`
+```tsx
+<Box sx={(theme) => ({ color: theme.palette.primary.main })} />
+```
+
+### `styled` API
+
+Para componentes reutilizáveis que precisam de estilo fixo:
 
 ```ts
 import { styled } from "@mui/material/styles";
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 
-export const Card = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(3),
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.background.paper,
-  boxShadow: theme.shadows[1],
+export const MonoBox = styled(Box)(({ theme }) => ({
+  fontFamily: theme.typography.mono,
+  fontSize: theme.typography.pxToRem(14),
 }));
 ```
 
-### Anti-pattern
-❌ Inline styles com `style={}` (não usa o tema, sem fallback).
-❌ CSS modules misturados (vai criar conflito de specificity).
-❌ Tailwind classes (não estão configuradas).
+---
 
 ## Forms com React Hook Form + MUI
 
-Integração via `Controller` (necessário porque MUI controla seu próprio state).
+Todo formulário usa `Controller` porque MUI gerencia seu próprio estado interno.
 
 ```tsx
 "use client";
-import { Controller, useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  FormLabel,
-  Switch,
-  Button,
-  Stack,
-} from "@mui/material";
-import { transactionFormSchema } from "@/lib/schemas/transaction";
+import TextField from "@mui/material/TextField";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
+import { layout } from "@/lib/design-tokens";
 
-export function TransactionForm({ accountId, tableId }: Props) {
-  const form = useForm({
-    resolver: zodResolver(transactionFormSchema),
-    defaultValues: { /* ... */ },
+export function TransactionForm() {
+  const { control, handleSubmit } = useForm({
+    resolver: zodResolver(transactionSchema),
+    defaultValues: { description: "", amountCents: 0n },
   });
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)}>
-      <Stack spacing={2}>
-        {/* Controlled TextField */}
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Stack spacing={layout.stack}>
         <Controller
           name="description"
-          control={form.control}
+          control={control}
           render={({ field, fieldState }) => (
             <TextField
               {...field}
@@ -225,15 +207,14 @@ export function TransactionForm({ accountId, tableId }: Props) {
           )}
         />
 
-        {/* Select */}
         <Controller
           name="categoryId"
-          control={form.control}
+          control={control}
           render={({ field, fieldState }) => (
-            <FormControl error={!!fieldState.error} fullWidth>
-              <FormLabel>Categoria</FormLabel>
-              <Select {...field} value={field.value ?? ""}>
-                <MenuItem value="">Nenhuma</MenuItem>
+            <FormControl fullWidth error={!!fieldState.error}>
+              <InputLabel>Categoria</InputLabel>
+              <Select {...field} value={field.value ?? ""} label="Categoria">
+                <MenuItem value=""><em>Nenhuma</em></MenuItem>
                 {categories.map((c) => (
                   <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
                 ))}
@@ -242,10 +223,9 @@ export function TransactionForm({ accountId, tableId }: Props) {
           )}
         />
 
-        {/* Switch */}
         <Controller
           name="isPending"
-          control={form.control}
+          control={control}
           render={({ field }) => (
             <FormControlLabel
               control={<Switch {...field} checked={field.value} />}
@@ -254,40 +234,36 @@ export function TransactionForm({ accountId, tableId }: Props) {
           )}
         />
 
-        <Button type="submit" variant="contained">Salvar</Button>
+        <Stack direction="row" spacing={layout.inline} justifyContent="flex-end">
+          <Button variant="text" onClick={onCancel}>Cancelar</Button>
+          <Button type="submit" variant="contained">Salvar</Button>
+        </Stack>
       </Stack>
     </form>
   );
 }
 ```
 
-### Date Picker
+### Date Picker com Controller
 
 ```tsx
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsV3";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { ptBR } from "date-fns/locale";
 
-// Envolver app (uma vez no layout)
-<LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
-  {children}
-</LocalizationProvider>
-
-// Usar
 <Controller
   name="occurredOn"
-  control={form.control}
+  control={control}
   render={({ field, fieldState }) => (
     <DatePicker
       label="Data"
       value={field.value}
       onChange={field.onChange}
+      format="dd/MM/yyyy"
       slotProps={{
         textField: {
           error: !!fieldState.error,
           helperText: fieldState.error?.message,
           fullWidth: true,
+          size: "small",
         },
       }}
     />
@@ -295,18 +271,17 @@ import { ptBR } from "date-fns/locale";
 />
 ```
 
-### Currency Input
+Requer `<LocalizationProvider dateAdapter={AdapterDateFnsV3} adapterLocale={ptBR}>` no root layout.
 
-MUI não tem input monetário nativo. Combinar `TextField` + biblioteca de máscara (ex: `react-number-format`):
+### Currency Input (BigInt → centavos)
 
 ```tsx
 import { NumericFormat } from "react-number-format";
-import { TextField } from "@mui/material";
 import { reaisToCents, centsToReais } from "@/lib/money";
 
 <Controller
   name="amountCents"
-  control={form.control}
+  control={control}
   render={({ field, fieldState }) => (
     <NumericFormat
       customInput={TextField}
@@ -328,17 +303,21 @@ import { reaisToCents, centsToReais } from "@/lib/money";
 />
 ```
 
+---
+
 ## Tabelas
 
-Duas opções para FinanceTable:
-
-### A) `<Table>` básico (recomendado para MVP)
-Componente padrão do MUI. Simples, flexível, fácil de customizar.
+### `<Table>` básico (recomendado para < 500 linhas)
 
 ```tsx
-import { Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper } from "@mui/material";
+import Table from "@mui/material/Table";
+import TableHead from "@mui/material/TableHead";
+import TableBody from "@mui/material/TableBody";
+import TableRow from "@mui/material/TableRow";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
 
-<TableContainer component={Paper}>
+<TableContainer>
   <Table size="small">
     <TableHead>
       <TableRow>
@@ -352,7 +331,9 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper
         <TableRow key={tx.id} hover>
           <TableCell>{format(tx.occurredOn, "dd/MM")}</TableCell>
           <TableCell>{tx.description}</TableCell>
-          <TableCell align="right">{formatCentsToBrl(tx.amountCents)}</TableCell>
+          <TableCell align="right">
+            <MoneyValue cents={tx.amountCents} />
+          </TableCell>
         </TableRow>
       ))}
     </TableBody>
@@ -360,220 +341,113 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper
 </TableContainer>
 ```
 
-### B) `<DataGrid>` (MUI X)
-Mais features (sort, filter, virtualização) mas mais peso. Considerar para tabelas com 500+ linhas.
+Regra de alinhamento: datas e texto à esquerda, números e ações à direita.
+
+### `<DataGrid>` (MUI X — 500+ linhas)
 
 ```tsx
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 
 const columns: GridColDef[] = [
   { field: "occurredOn", headerName: "Data", width: 100 },
   { field: "description", headerName: "Descrição", flex: 1 },
-  { field: "amountCents", headerName: "Valor", width: 120, valueFormatter: ({ value }) => formatCentsToBrl(value) },
 ];
 
-<DataGrid rows={transactions} columns={columns} pageSizeOptions={[25, 50, 100]} />
+<DataGrid
+  rows={transactions}
+  columns={columns}
+  sx={{
+    border: 1,
+    borderColor: "border.subtle",
+    borderRadius: "12px",
+    "& .MuiDataGrid-columnHeaders": { bgcolor: "background.subtle" },
+  }}
+  initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+/>
 ```
 
-> **MVP**: começar com `<Table>` básico. Migrar para `DataGrid` se precisar das features.
-
-## Páginas de Configurações — padrão canônico
-
-Todas as páginas em `src/app/(app)/[accountId]/settings/` seguem **exatamente** este layout. Referência: `settings/sections/`.
-
-### Página (`page.tsx` — Server Component)
-
-```tsx
-// Wrapper externo: p: 4, maxWidth: 700 (sem mx: "auto" — alinha à esquerda)
-<Box sx={{ p: 4, maxWidth: 700 }}>
-  <Typography variant="h5" fontWeight="bold" mb={3}>
-    {m.settings.sections.title}
-  </Typography>
-  <SectionsManager accountId={accountId} initialSections={sections} />
-</Box>
-```
-
-| Propriedade | Valor |
-|---|---|
-| `p` | `4` (32px) |
-| `maxWidth` | `700` |
-| `mx` | **nunca** `"auto"` — conteúdo alinha à esquerda |
-| Typography | `variant="h5"`, `fontWeight="bold"`, `mb={3}` |
-
-### Manager (`*Manager.tsx` — Client Component)
-
-#### Botão de ação principal (topo)
-
-```tsx
-<Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-  <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={...}>
-    Nova seção
-  </Button>
-</Box>
-```
-
-- Sempre `size="small"` — padrão de densidade.
-- `justifyContent: "flex-end"` — botão à direita.
-
-#### Itens em lista
-
-```tsx
-<Paper variant="outlined" sx={{ px: 2, py: 1.5 }}>
-  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-    <Typography variant="body2" fontWeight="medium" sx={{ flex: 1 }}>
-      {item.name}
-    </Typography>
-    {/* chips opcionais */}
-    <Box sx={{ display: "flex", gap: 0.25, flexShrink: 0 }}>
-      <IconButton size="small" onClick={...}>
-        <EditIcon sx={{ fontSize: 16 }} />
-      </IconButton>
-      <IconButton size="small" color="error" onClick={...}>
-        <DeleteIcon sx={{ fontSize: 16 }} />
-      </IconButton>
-    </Box>
-  </Box>
-</Paper>
-```
-
-- `IconButton` sempre `size="small"` com ícone `sx={{ fontSize: 16 }}`.
-- `Typography` de nome sempre `variant="body2" fontWeight="medium"`.
-- Container de ícones: `gap: 0.25` (2px).
-
-### Diálogos de configurações
-
-#### Criação / Edição (formulário simples)
-
-```tsx
-<Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-  <DialogTitle>Nova seção</DialogTitle>
-  <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-    <TextField label="Nome" fullWidth autoFocus ... />
-  </DialogContent>
-  <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-    <Button onClick={onClose}>Cancelar</Button>
-    <Button variant="contained" onClick={onSave}>Salvar</Button>
-  </DialogActions>
-</Dialog>
-```
-
-#### Confirmação de exclusão
-
-```tsx
-<Dialog open={open} onClose={onClose}>
-  <DialogTitle>Excluir</DialogTitle>
-  <DialogContent>
-    <DialogContentText>Confirmar exclusão?</DialogContentText>
-  </DialogContent>
-  <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-    <Button onClick={onClose}>Cancelar</Button>
-    <Button color="error" variant="contained" onClick={onConfirm}>Excluir</Button>
-  </DialogActions>
-</Dialog>
-```
-
-| Propriedade de Dialog | Valor |
-|---|---|
-| `maxWidth` (form) | `"xs"` + `fullWidth` |
-| `DialogActions.px` | `3` (24px) |
-| `DialogActions.pb` | `2.5` (20px) |
-| `DialogActions.gap` | `1` (8px) |
-
-> ❌ **Nunca** `pb: 2` nos DialogActions — ficaria inconsistente com a referência.
-
-## Diálogos / Modais
-
-```tsx
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
-
-<Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-  <DialogTitle>Nova Tabela</DialogTitle>
-  <DialogContent>
-    {/* form */}
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={handleClose}>Cancelar</Button>
-    <Button variant="contained" onClick={handleSubmit}>Criar</Button>
-  </DialogActions>
-</Dialog>
-```
-
-> Em mobile, considerar `fullScreen={isMobile}` para melhor UX.
+---
 
 ## Notifications (Toasts)
 
-MUI tem `<Snackbar>` mas é "1 por vez". Para múltiplos toasts, usar `notistack`:
-
-```bash
-pnpm add notistack
-```
+Usar sempre `notistack` (configurado em `AppProviders`). **Nunca** usar `<Snackbar>` do MUI diretamente.
 
 ```tsx
-// layout.tsx
-import { SnackbarProvider } from "notistack";
-
-<SnackbarProvider maxSnack={3} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
-  {children}
-</SnackbarProvider>
-```
-
-```tsx
-// uso
 import { useSnackbar } from "notistack";
 
 const { enqueueSnackbar } = useSnackbar();
 enqueueSnackbar("Transação criada", { variant: "success" });
+enqueueSnackbar("Falha ao salvar", { variant: "error" });
 ```
+
+---
 
 ## Ícones
 
-```tsx
-import { Add, Delete, Edit, Star, StarBorder } from "@mui/icons-material";
+Imports nomeados (tree-shaking):
 
-<IconButton size="small"><Edit /></IconButton>
-<Button startIcon={<Add />}>Nova transação</Button>
+```tsx
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+
+<Button startIcon={<AddIcon />}>Nova transação</Button>
+<IconButton size="small" aria-label="Editar"><EditIcon fontSize="small" /></IconButton>
 ```
 
-> Imports nomeados, **não default import do pacote inteiro** (tree shaking).
+**Nunca** importar o pacote inteiro (`import * from "@mui/icons-material"` — bundle gigante).
+
+---
 
 ## Responsividade
 
 ```tsx
-// Em sx
-<Box sx={{ display: { xs: "block", md: "flex" } }} />
+// sx responsivo
+<Stack direction={{ xs: "column", sm: "row" }} spacing={layout.stack} />
 
 // Hook
 import { useMediaQuery, useTheme } from "@mui/material";
 const theme = useTheme();
-const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 ```
 
-Breakpoints default:
-- `xs`: 0px
-- `sm`: 600px
-- `md`: 900px
-- `lg`: 1200px
-- `xl`: 1536px
+Breakpoints do projeto: `xs` 0, `sm` 600, `md` 900, `lg` 1200, `xl` 1536.
+
+---
 
 ## Performance
 
-- **Imports nomeados** (`import { Button } from "@mui/material"`) — Next.js + MUI tree-shake bem.
-- **Avoid `sx` prop em listas grandes** — cria objeto novo a cada render. Use `styled` se estilo é fixo.
-- **Memoize componentes filhos** em listas: `React.memo`.
-- **Bundle size**: MUI é pesado (~150KB gzipped). Considerar `next/dynamic` para componentes grandes (DataGrid, Charts).
+- **Imports granulares**: `import Button from "@mui/material/Button"` bate tree-shake melhor que `import { Button } from "@mui/material"` em alguns bundlers.
+- **`sx` em listas grandes**: evitar objeto literal complexo em loop — cria objeto novo a cada render. Usar `styled` ou extrair `sx` para constante fora do componente.
+- **`React.memo`** em filhos de listas grandes.
+- **`next/dynamic`** para componentes pesados (`DataGrid`, `SankeyChart`, `SandboxPage`).
+
+```tsx
+const SandboxPage = dynamic(() => import("./SandboxPage"), { ssr: false });
+```
+
+---
 
 ## Anti-patterns
 
-❌ Misturar com Tailwind / shadcn
-❌ Customizar via `!important` no CSS
-❌ Esquecer `AppRouterCacheProvider` (FOUC no SSR)
-❌ Usar `useState` em Server Component
-❌ Importar `@mui/icons-material` inteiro (default import → bundle gigante)
-❌ Modificar tema em runtime sem `ThemeProvider` wrapper
-❌ `sx` com expressões complexas em loops (cria objeto a cada render)
+❌ Misturar Tailwind / shadcn / CSS modules com MUI  
+❌ Customizar via `!important` em qualquer lugar  
+❌ Esquecer `AppRouterCacheProvider` → FOUC no SSR  
+❌ `useMediaQuery({ noSsr: true })` no ThemeProvider → hydration mismatch  
+❌ `useState` em Server Component  
+❌ Default import do pacote de ícones inteiro  
+❌ Usar `<Dialog>` cru — usar `<DialogShell>` (ver design-system)  
+❌ Usar `<Snackbar>` do MUI — usar `notistack`  
+❌ `sx` com px diretos (`marginTop: "13px"`) — usar escala do tema ou tokens de layout  
+❌ `sx={{ p: 8 }}` como número mágico — usar `sx={{ p: layout.page }}` com token semântico  
+
+---
 
 ## Recursos
 
 - [MUI Docs](https://mui.com)
-- [MUI + Next.js example](https://github.com/mui/material-ui/tree/master/examples/material-ui-nextjs-ts)
+- [MUI + Next.js App Router](https://mui.com/material-ui/integrations/nextjs/)
 - [MUI X (data grid, date picker, charts)](https://mui.com/x/)
+- **Design tokens do projeto**: `src/lib/design-tokens.ts`
+- **Tema customizado**: `src/lib/theme.ts`
+- **Wrappers de UI**: `src/components/ui/`

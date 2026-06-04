@@ -16,7 +16,7 @@ export default function OnboardingPage() {
       }}
     >
       <Box sx={{ width: "100%", maxWidth: 480 }}>
-        <Typography variant="h5" fontWeight="bold" mb={1}>
+        <Typography variant="h5" mb={1}>
           Criar sua conta financeira
         </Typography>
         <Typography color="text.secondary" mb={4}>

@@ -7,11 +7,6 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
@@ -41,6 +36,7 @@ import {
   TOGGLEABLE_COLUMNS,
 } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
+import { DialogShell } from "@/components/ui/DialogShell";
 
 type TableTypeItem = {
   id: string;
@@ -292,55 +288,63 @@ export function TableTypesManager({ accountId, initialTypes }: Props) {
       </Stack>
 
       {/* Create dialog */}
-      <Dialog open={createOpen} onClose={closeDialog} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ pb: 1, fontSize: "0.9375rem", fontWeight: 600 }}>{m.settings.tableTypes.createTitle}</DialogTitle>
-        <Box component="form" onSubmit={form.handleSubmit(onSubmitCreate)}>
-          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
-            <Controller
-              name="name"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <TextField
-                  {...field}
-                  label={m.settings.tableTypes.nameLabel}
-                  error={!!fieldState.error}
-                  helperText={
-                    fieldState.error?.message ??
-                    "As colunas visíveis podem ser configuradas após criar o tipo."
-                  }
-                  fullWidth
-                  autoFocus
-                />
-              )}
-            />
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+      <DialogShell
+        open={createOpen}
+        onClose={closeDialog}
+        maxWidth="xs"
+        title={m.settings.tableTypes.createTitle}
+        actions={
+          <>
             <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
             <Button size="small" type="submit" variant="contained" disabled={form.formState.isSubmitting}>
               {m.common.create}
             </Button>
-          </DialogActions>
+          </>
+        }
+      >
+        <Box component="form" onSubmit={form.handleSubmit(onSubmitCreate)} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Controller
+            name="name"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                label={m.settings.tableTypes.nameLabel}
+                error={!!fieldState.error}
+                helperText={
+                  fieldState.error?.message ??
+                  "As colunas visíveis podem ser configuradas após criar o tipo."
+                }
+                fullWidth
+                autoFocus
+              />
+            )}
+          />
         </Box>
-      </Dialog>
+      </DialogShell>
 
       {/* Delete dialog */}
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: "0.9375rem", fontWeight: 600 }}>{m.common.delete}</DialogTitle>
-        <DialogContent>
-          <DialogContentText variant="body2">{m.settings.tableTypes.deleteConfirm}</DialogContentText>
-          {deleteTarget && deleteTarget.tableCount > 0 && (
-            <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-              Atenção: {deleteTarget.tableCount} tabela(s) usam este tipo.
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button size="small" onClick={() => setDeleteTarget(null)}>{m.common.cancel}</Button>
-          <Button size="small" color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
-            {m.common.delete}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        maxWidth="xs"
+        title={m.common.delete}
+        actions={
+          <>
+            <Button size="small" onClick={() => setDeleteTarget(null)}>{m.common.cancel}</Button>
+            <Button size="small" color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
+              {m.common.delete}
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="body2">{m.settings.tableTypes.deleteConfirm}</Typography>
+        {deleteTarget && deleteTarget.tableCount > 0 && (
+          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+            Atenção: {deleteTarget.tableCount} tabela(s) usam este tipo.
+          </Typography>
+        )}
+      </DialogShell>
     </>
   );
 }

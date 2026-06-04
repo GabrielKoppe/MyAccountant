@@ -41,7 +41,6 @@ export default async function AccountLayout({ children, params }: Props) {
         <Toolbar variant="dense">
           <Typography
             variant="h4"
-            fontWeight="bold"
             component={AppLink}
             href={`/${accountId}`}
             sx={{ flexGrow: 1, textDecoration: "none", color: "inherit" }}

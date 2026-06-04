@@ -4,11 +4,6 @@ import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -20,6 +15,7 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { useSnackbar } from "notistack";
 
 import { deleteTemplateAction, updateTemplateAction } from "@/actions/csv-import";
+import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
 import type { ImportMapping } from "@/lib/schemas/csv-import";
 
@@ -150,56 +146,62 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
       </Stack>
 
       {/* Rename dialog */}
-      <Dialog open={!!renameId} onClose={() => setRenameId(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ pb: 1, fontSize: "0.9375rem", fontWeight: 600 }}>
-          Renomear template
-        </DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <TextField
-            label={m.templates.nameLabel}
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            fullWidth
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleRename();
-              }
-            }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button size="small" onClick={() => setRenameId(null)}>
-            {m.common.cancel}
-          </Button>
-          <Button size="small" variant="contained" onClick={handleRename} disabled={isPending}>
-            {m.common.save}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={!!renameId}
+        onClose={() => setRenameId(null)}
+        maxWidth="xs"
+        title="Renomear template"
+        actions={
+          <>
+            <Button size="small" onClick={() => setRenameId(null)}>
+              {m.common.cancel}
+            </Button>
+            <Button size="small" variant="contained" onClick={handleRename} disabled={isPending}>
+              {m.common.save}
+            </Button>
+          </>
+        }
+      >
+        <TextField
+          label={m.templates.nameLabel}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          fullWidth
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleRename();
+            }
+          }}
+        />
+      </DialogShell>
 
       {/* Delete dialog */}
-      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: "0.9375rem", fontWeight: 600 }}>Deletar template</DialogTitle>
-        <DialogContent>
-          <DialogContentText variant="body2">{m.templates.deleteConfirm}</DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button size="small" onClick={() => setDeleteId(null)}>
-            {m.common.cancel}
-          </Button>
-          <Button
-            size="small"
-            color="error"
-            variant="contained"
-            onClick={handleDelete}
-            disabled={isPending}
-          >
-            {m.common.delete}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        maxWidth="xs"
+        title="Deletar template"
+        actions={
+          <>
+            <Button size="small" onClick={() => setDeleteId(null)}>
+              {m.common.cancel}
+            </Button>
+            <Button
+              size="small"
+              color="error"
+              variant="contained"
+              onClick={handleDelete}
+              disabled={isPending}
+            >
+              {m.common.delete}
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="body2">{m.templates.deleteConfirm}</Typography>
+      </DialogShell>
     </>
   );
 }

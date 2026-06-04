@@ -6,17 +6,13 @@ import type { AccountMemberRole } from "@prisma/client";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useSnackbar } from "notistack";
 
 import { deleteAccountAction, leaveAccountAction } from "@/actions/members";
+import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
 
 type Props = {
@@ -108,25 +104,44 @@ export function AccountDangerZone({ accountId, accountName, role }: Props) {
       )}
 
       {/* Leave Dialog */}
-      <Dialog open={leaveOpen} onClose={() => setLeaveOpen(false)}>
-        <DialogTitle>{m.account.settings.leaveAccount}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>{m.account.settings.leaveAccountConfirm}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setLeaveOpen(false)}>{m.common.cancel}</Button>
-          <Button color="error" variant="contained" onClick={handleLeave} disabled={isPending}>
-            {m.account.settings.leaveAccount}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={leaveOpen}
+        onClose={() => setLeaveOpen(false)}
+        title={m.account.settings.leaveAccount}
+        actions={
+          <>
+            <Button onClick={() => setLeaveOpen(false)}>{m.common.cancel}</Button>
+            <Button color="error" variant="contained" onClick={handleLeave} disabled={isPending}>
+              {m.account.settings.leaveAccount}
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="body2">{m.account.settings.leaveAccountConfirm}</Typography>
+      </DialogShell>
 
       {/* Delete Dialog */}
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-        <DialogTitle>{m.account.settings.deleteAccount}</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+      <DialogShell
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title={m.account.settings.deleteAccount}
+        actions={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={handleDelete}
+              disabled={isPending || confirmName !== accountName}
+            >
+              {m.account.settings.deleteAccount}
+            </Button>
+          </>
+        }
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Alert severity="error">Esta ação é permanente e não pode ser desfeita.</Alert>
-          <DialogContentText>{m.account.settings.deleteAccountConfirm}</DialogContentText>
+          <Typography variant="body2">{m.account.settings.deleteAccountConfirm}</Typography>
           <TextField
             label={`Digite "${accountName}" para confirmar`}
             value={confirmName}
@@ -134,19 +149,8 @@ export function AccountDangerZone({ accountId, accountName, role }: Props) {
             fullWidth
             size="small"
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={handleDelete}
-            disabled={isPending || confirmName !== accountName}
-          >
-            {m.account.settings.deleteAccount}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
+      </DialogShell>
     </Box>
   );
 }

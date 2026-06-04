@@ -36,7 +36,7 @@ export default async function SelectAccountPage() {
         p: 4,
       }}
     >
-      <Typography variant="h5" fontWeight="bold" mb={1}>
+      <Typography variant="h5" mb={1}>
         {m.account.selectAccount}
       </Typography>
       <Typography color="text.secondary" mb={4}>
@@ -48,7 +48,7 @@ export default async function SelectAccountPage() {
             <Paper
               component="a"
               href={`/${account.id}`}
-              elevation={2}
+              variant="outlined"
               sx={{
                 display: "block",
                 p: 3,
@@ -56,8 +56,8 @@ export default async function SelectAccountPage() {
                 cursor: "pointer",
                 textDecoration: "none",
                 color: "inherit",
-                transition: "box-shadow 0.2s",
-                "&:hover": { boxShadow: 6 },
+                transition: "border-color 120ms",
+                "&:hover": { borderColor: "border.default" },
               }}
             >
               <Typography variant="h6" fontWeight="medium">

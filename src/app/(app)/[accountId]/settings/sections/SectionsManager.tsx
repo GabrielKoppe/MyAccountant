@@ -7,11 +7,6 @@ import type { SectionCountType } from "@prisma/client";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormLabel from "@mui/material/FormLabel";
@@ -39,6 +34,7 @@ import {
 } from "@/actions/account-settings";
 import { createSectionSchema, type CreateSectionInput } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
+import { DialogShell } from "@/components/ui/DialogShell";
 
 type Section = {
   id: string;
@@ -216,12 +212,29 @@ export function SectionsManager({ accountId, initialSections }: Props) {
       )}
 
       {/* Create / Edit dialog */}
-      <Dialog open={createOpen || !!editTarget} onClose={closeDialog} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ pb: 1, fontSize: "0.9375rem", fontWeight: 600 }}>
-          {editTarget ? m.settings.sections.editTitle : m.settings.sections.createTitle}
-        </DialogTitle>
-        <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
-          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
+        <DialogShell
+          open={createOpen || !!editTarget}
+          onClose={closeDialog}
+          maxWidth="xs"
+          title={editTarget ? m.settings.sections.editTitle : m.settings.sections.createTitle}
+          actions={
+            <>
+              <Button size="small" onClick={closeDialog}>
+                {m.common.cancel}
+              </Button>
+              <Button
+                size="small"
+                type="submit"
+                variant="contained"
+                disabled={form.formState.isSubmitting}
+              >
+                {m.common.save}
+              </Button>
+            </>
+          }
+        >
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Controller
               name="name"
               control={form.control}
@@ -296,44 +309,35 @@ export function SectionsManager({ accountId, initialSections }: Props) {
                 />
               )}
             />
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-            <Button size="small" onClick={closeDialog}>
+          </Box>
+        </DialogShell>
+      </Box>
+
+      {/* Delete confirmation */}
+      <DialogShell
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        maxWidth="xs"
+        title={m.common.delete}
+        actions={
+          <>
+            <Button size="small" onClick={() => setDeleteTarget(null)}>
               {m.common.cancel}
             </Button>
             <Button
               size="small"
-              type="submit"
+              color="error"
               variant="contained"
-              disabled={form.formState.isSubmitting}
+              onClick={confirmDelete}
+              disabled={isPending}
             >
-              {m.common.save}
+              {m.common.delete}
             </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
-
-      {/* Delete confirmation */}
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: "0.9375rem", fontWeight: 600 }}>{m.common.delete}</DialogTitle>
-        <DialogContent>
-          <DialogContentText variant="body2">{m.settings.sections.deleteConfirm}</DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button size="small" onClick={() => setDeleteTarget(null)}>
-            {m.common.cancel}
-          </Button>
-          <Button
-            size="small"
-            color="error"
-            variant="contained"
-            onClick={confirmDelete}
-            disabled={isPending}
-          >
-            {m.common.delete}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </>
+        }
+      >
+        <Typography variant="body2">{m.settings.sections.deleteConfirm}</Typography>
+      </DialogShell>
     </>
   );
 }

@@ -18,7 +18,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       }}
     >
       <Box sx={{ mb: 4, textAlign: "center" }}>
-        <Typography variant="h5" fontWeight="bold" color="primary">
+        <Typography variant="h5" color="primary">
           MyAccountant
         </Typography>
       </Box>

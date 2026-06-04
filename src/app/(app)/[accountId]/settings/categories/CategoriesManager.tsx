@@ -6,11 +6,6 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import List from "@mui/material/List";
@@ -33,6 +28,7 @@ import {
   updateCategoryAction,
   updateSubcategoryAction,
 } from "@/actions/account-settings";
+import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
 
 type Subcategory = { id: string; name: string };
@@ -226,50 +222,59 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
       ))}
 
       {/* Name input dialog */}
-      <Dialog open={isNameDialog} onClose={closeDialog} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ pb: 1, fontSize: "0.9375rem", fontWeight: 600 }}>
-          {dialog?.type === "createCategory" && m.settings.categories.createButton}
-          {dialog?.type === "editCategory" && m.common.edit}
-          {dialog?.type === "createSub" && m.settings.categories.createSubButton}
-          {dialog?.type === "editSub" && m.common.edit}
-        </DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <TextField
-            label={m.settings.categories.nameLabel}
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            error={!!nameError}
-            helperText={nameError}
-            fullWidth
-            autoFocus
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
-          <Button size="small" variant="contained" onClick={handleSave} disabled={isPending}>
-            {m.common.save}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={isNameDialog}
+        onClose={closeDialog}
+        maxWidth="xs"
+        title={
+          (dialog?.type === "createCategory" && m.settings.categories.createButton) ||
+          (dialog?.type === "editCategory" && m.common.edit) ||
+          (dialog?.type === "createSub" && m.settings.categories.createSubButton) ||
+          (dialog?.type === "editSub" && m.common.edit) ||
+          ""
+        }
+        actions={
+          <>
+            <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
+            <Button size="small" variant="contained" onClick={handleSave} disabled={isPending}>
+              {m.common.save}
+            </Button>
+          </>
+        }
+      >
+        <TextField
+          label={m.settings.categories.nameLabel}
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          error={!!nameError}
+          helperText={nameError}
+          fullWidth
+          autoFocus
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
+        />
+      </DialogShell>
 
       {/* Delete dialog */}
-      <Dialog open={isDeleteDialog} onClose={closeDialog} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: "0.9375rem", fontWeight: 600 }}>{m.common.delete}</DialogTitle>
-        <DialogContent>
-          <DialogContentText variant="body2">
-            {dialog?.type === "deleteCategory"
-              ? m.settings.categories.deleteConfirm
-              : m.common.confirm}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
-          <Button size="small" color="error" variant="contained" onClick={handleDelete} disabled={isPending}>
-            {m.common.delete}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={isDeleteDialog}
+        onClose={closeDialog}
+        maxWidth="xs"
+        title={m.common.delete}
+        actions={
+          <>
+            <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
+            <Button size="small" color="error" variant="contained" onClick={handleDelete} disabled={isPending}>
+              {m.common.delete}
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="body2">
+          {dialog?.type === "deleteCategory"
+            ? m.settings.categories.deleteConfirm
+            : m.common.confirm}
+        </Typography>
+      </DialogShell>
     </>
   );
 }

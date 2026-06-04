@@ -196,6 +196,7 @@ O projeto é dividido em fases independentemente testáveis. **Não pule fases**
 
 ## 7. O que NUNCA fazer
 
+### Backend / Dados
 - ❌ Usar `Float` ou `Number` para valores monetários.
 - ❌ Query sem filtro de `accountId` (vazamento entre tenants).
 - ❌ Implementar feature sem ler o spec correspondente.
@@ -204,8 +205,6 @@ O projeto é dividido em fases independentemente testáveis. **Não pule fases**
 - ❌ Confiar em validação só no client. **Server Actions sempre revalidam com Zod**.
 - ❌ Usar `getServerSession` legado — use `auth()` do NextAuth v5.
 - ❌ Acessar `prisma` diretamente em Server Actions sem checar autorização do usuário.
-- ❌ Misturar **Tailwind**, **shadcn**, ou CSS modules com MUI — **só MUI**.
-- ❌ Customizar componentes MUI via `!important` ou inline `style={}` — usar `sx`, `styled` ou tema.
 - ❌ Rodar `pnpm` fora do container em dev (ambiente fica desalinhado).
 - ❌ Lógica de negócio dentro de Server Action / Route Handler — **deve ir pro service**.
 - ❌ `console.log` em código de produção — usar Pino logger.
@@ -213,9 +212,23 @@ O projeto é dividido em fases independentemente testáveis. **Não pule fases**
 - ❌ Hardcode de strings de UI em componentes — usar `src/lib/messages/`.
 - ❌ Action sem teste de multi-tenancy quando há mutation.
 - ❌ Action sem `defineAction()` wrapper — boilerplate fica fora de controle.
+
+### UI / Design System
+- ❌ Misturar **Tailwind**, **shadcn**, ou CSS modules com MUI — **só MUI**.
+- ❌ Customizar componentes MUI via `!important` ou inline `style={}` — usar `sx`, `styled` ou tema.
 - ❌ Hardcode de cores hex (`#1976d2`) em componentes — sempre tokens semânticos do tema.
-- ❌ Customizar componente MUI com `style={}` inline ou `!important` — usar `sx` com tokens.
+- ❌ Usar `<Dialog>` cru do MUI — sempre **`<DialogShell>`** de `@/components/ui/DialogShell`.
+- ❌ Criar estado vazio customizado — usar **`<EmptyState>`** de `@/components/ui/EmptyState`.
+- ❌ Criar cabeçalho de página customizado — usar **`<PageHeader>`** de `@/components/ui/PageHeader`.
+- ❌ Espaçamentos mágicos (`sx={{ p: 8 }}`, `spacing={6}`) — usar tokens semânticos de layout (`layout.page`, `layout.section`, `layout.cluster`, etc.) de `@/lib/design-tokens`.
+- ❌ `success.50`, `error.50` — não existem no tema. Usar `success.subtle`, `danger.subtle`, `warning.subtle`.
+- ❌ `<Chip color="default" variant="outlined">` para status — usar `<StatusBadge variant="neutral">`.
+- ❌ `elevation={N}` em `<Card>` — tema força elevation 0 + borda. Remover o prop.
+- ❌ `fontWeight="bold"` em `<Typography variant="h1">` a `<Typography variant="h6">` — já vem do tema.
+- ❌ `<Typography fontWeight="bold">` para enfatizar texto em headings — usar variante correta.
+- ❌ Hardcode em SVG/recharts (`fill="#2e7d32"`) — usar `theme.palette.*` ou `getChartColors(mode)`.
 - ❌ Implementar feature de UI sem testar em **light E dark mode**.
+- ❌ `useMediaQuery({ noSsr: true })` no ThemeProvider — causa hydration mismatch.
 
 ---
 

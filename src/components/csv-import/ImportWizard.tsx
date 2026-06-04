@@ -4,15 +4,11 @@ import { useEffect, useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
 import Step from "@mui/material/Step";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
-import CloseIcon from "@mui/icons-material/Close";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import { DialogShell } from "@/components/ui/DialogShell";
 import { useSnackbar } from "notistack";
 
 import { executeImportAction, listTemplatesAction } from "@/actions/csv-import";
@@ -215,23 +211,38 @@ export function ImportWizard({
         {m.csvImport.importButton}
       </Button>
 
-      <Dialog
+      <DialogShell
         open={open}
         onClose={() => !isPending && setOpen(false)}
         maxWidth="lg"
-        fullWidth
-        PaperProps={{ sx: { minHeight: "70vh" } }}
+        title={m.csvImport.wizardTitle}
+        fullScreenOnMobile={false}
+        actions={
+          step < 4 ? (
+            <>
+              <Button
+                onClick={() => setStep((s) => s - 1)}
+                disabled={step === 0 || isPending}
+              >
+                Voltar
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={isPending}
+                endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+              >
+                {isPending
+                  ? "Importando..."
+                  : isLastStep
+                    ? m.csvImport.config.confirmButton
+                    : "Próximo"}
+              </Button>
+            </>
+          ) : undefined
+        }
       >
-        <DialogTitle>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            {m.csvImport.wizardTitle}
-            <IconButton onClick={() => !isPending && setOpen(false)} size="small">
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 3, minHeight: "55vh" }}>
           {showStepper && (
             <Stepper activeStep={step} alternativeLabel>
               {STEPS.map((label) => (
@@ -281,32 +292,8 @@ export function ImportWizard({
               />
             )}
           </Box>
-
-          {/* Navigation */}
-          {step < 4 && (
-            <Box sx={{ display: "flex", justifyContent: "space-between", pt: 1 }}>
-              <Button
-                onClick={() => setStep((s) => s - 1)}
-                disabled={step === 0 || isPending}
-              >
-                Voltar
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                disabled={isPending}
-                endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
-              >
-                {isPending
-                  ? "Importando..."
-                  : isLastStep
-                    ? m.csvImport.config.confirmButton
-                    : "Próximo"}
-              </Button>
-            </Box>
-          )}
-        </DialogContent>
-      </Dialog>
+        </Box>
+      </DialogShell>
     </>
   );
 }

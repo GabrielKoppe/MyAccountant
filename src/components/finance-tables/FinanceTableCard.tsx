@@ -7,11 +7,6 @@ import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
@@ -38,6 +33,7 @@ import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
+import { DialogShell } from "@/components/ui/DialogShell";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -341,75 +337,86 @@ export function FinanceTableCard({
       </Collapse>
 
       {/* Rename dialog */}
-      <Dialog open={renameOpen} onClose={() => setRenameOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{m.financeTables.editTitle}</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <TextField
-            label={m.financeTables.nameLabel}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            fullWidth
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleRename();
-              }
-            }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRenameOpen(false)}>{m.common.cancel}</Button>
-          <Button variant="contained" onClick={handleRename}>
-            {m.common.save}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={renameOpen}
+        onClose={() => setRenameOpen(false)}
+        maxWidth="xs"
+        title={m.financeTables.editTitle}
+        actions={
+          <>
+            <Button onClick={() => setRenameOpen(false)}>{m.common.cancel}</Button>
+            <Button variant="contained" onClick={handleRename}>
+              {m.common.save}
+            </Button>
+          </>
+        }
+      >
+        <TextField
+          label={m.financeTables.nameLabel}
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          fullWidth
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleRename();
+            }
+          }}
+        />
+      </DialogShell>
 
       {/* Delete dialog */}
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-        <DialogTitle>{m.financeTables.menuDelete}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>{m.financeTables.deleteConfirm}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
-          <Button color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
-            {m.common.delete}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title={m.financeTables.menuDelete}
+        actions={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
+            <Button color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
+              {m.common.delete}
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="body2">{m.financeTables.deleteConfirm}</Typography>
+      </DialogShell>
 
       {/* Save as model dialog */}
-      <Dialog open={saveModelOpen} onClose={() => setSaveModelOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{m.tableModels.saveAsModelTitle}</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <TextField
-            label={m.tableModels.nameLabel}
-            value={modelName}
-            onChange={(e) => setModelName(e.target.value)}
-            fullWidth
-            autoFocus
-            helperText="As transações atuais serão salvas como itens do modelo."
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleSaveAsModel();
-              }
-            }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setSaveModelOpen(false)}>{m.common.cancel}</Button>
-          <Button
-            variant="contained"
-            onClick={handleSaveAsModel}
-            disabled={isPending || !modelName.trim()}
-          >
-            Salvar modelo
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={saveModelOpen}
+        onClose={() => setSaveModelOpen(false)}
+        maxWidth="xs"
+        title={m.tableModels.saveAsModelTitle}
+        actions={
+          <>
+            <Button onClick={() => setSaveModelOpen(false)}>{m.common.cancel}</Button>
+            <Button
+              variant="contained"
+              onClick={handleSaveAsModel}
+              disabled={isPending || !modelName.trim()}
+            >
+              Salvar modelo
+            </Button>
+          </>
+        }
+      >
+        <TextField
+          label={m.tableModels.nameLabel}
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+          fullWidth
+          autoFocus
+          helperText="As transações atuais serão salvas como itens do modelo."
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSaveAsModel();
+            }
+          }}
+        />
+      </DialogShell>
     </Paper>
   );
 }

@@ -7,11 +7,6 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Table from "@mui/material/Table";
@@ -35,6 +30,7 @@ import {
 } from "@/actions/table-templates";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
+import { DialogShell } from "@/components/ui/DialogShell";
 import { TemplateItemsEditor } from "./TemplateItemsEditor";
 
 type TemplateItem = {
@@ -224,27 +220,34 @@ export function TableModelsManager({
       {/* Dialogs */}
       <CreateDialog open={createOpen} name={newName} onNameChange={setNewName} onConfirm={handleCreate} onClose={() => { setCreateOpen(false); setNewName(""); }} isPending={isPending} />
 
-      <Dialog open={!!renameId} onClose={() => setRenameId(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Renomear modelo</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <TextField label={m.tableModels.nameLabel} value={renameValue} onChange={(e) => setRenameValue(e.target.value)} fullWidth autoFocus onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRename(); } }} />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRenameId(null)}>{m.common.cancel}</Button>
-          <Button variant="contained" onClick={handleRename} disabled={isPending}>{m.common.save}</Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={!!renameId}
+        onClose={() => setRenameId(null)}
+        maxWidth="xs"
+        title="Renomear modelo"
+        actions={
+          <>
+            <Button onClick={() => setRenameId(null)}>{m.common.cancel}</Button>
+            <Button variant="contained" onClick={handleRename} disabled={isPending}>{m.common.save}</Button>
+          </>
+        }
+      >
+        <TextField label={m.tableModels.nameLabel} value={renameValue} onChange={(e) => setRenameValue(e.target.value)} fullWidth autoFocus onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRename(); } }} />
+      </DialogShell>
 
-      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
-        <DialogTitle>Deletar modelo</DialogTitle>
-        <DialogContent>
-          <DialogContentText>{m.tableModels.deleteConfirm}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteId(null)}>{m.common.cancel}</Button>
-          <Button color="error" variant="contained" onClick={handleDelete} disabled={isPending}>{m.common.delete}</Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        title="Deletar modelo"
+        actions={
+          <>
+            <Button onClick={() => setDeleteId(null)}>{m.common.cancel}</Button>
+            <Button color="error" variant="contained" onClick={handleDelete} disabled={isPending}>{m.common.delete}</Button>
+          </>
+        }
+      >
+        <Typography variant="body2">{m.tableModels.deleteConfirm}</Typography>
+      </DialogShell>
 
       {editTemplate && (
         <TemplateItemsEditor
@@ -267,15 +270,19 @@ function CreateDialog({ open, name, onNameChange, onConfirm, onClose, isPending 
   onConfirm: () => void; onClose: () => void; isPending: boolean;
 }) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{m.tableModels.createButton}</DialogTitle>
-      <DialogContent sx={{ pt: 1 }}>
-        <TextField label={m.tableModels.nameLabel} value={name} onChange={(e) => onNameChange(e.target.value)} fullWidth autoFocus onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onConfirm(); } }} />
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>{m.common.cancel}</Button>
-        <Button variant="contained" onClick={onConfirm} disabled={isPending || !name.trim()}>{m.common.create}</Button>
-      </DialogActions>
-    </Dialog>
+    <DialogShell
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      title={m.tableModels.createButton}
+      actions={
+        <>
+          <Button onClick={onClose}>{m.common.cancel}</Button>
+          <Button variant="contained" onClick={onConfirm} disabled={isPending || !name.trim()}>{m.common.create}</Button>
+        </>
+      }
+    >
+      <TextField label={m.tableModels.nameLabel} value={name} onChange={(e) => onNameChange(e.target.value)} fullWidth autoFocus onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onConfirm(); } }} />
+    </DialogShell>
   );
 }

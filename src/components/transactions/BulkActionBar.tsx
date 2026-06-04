@@ -4,11 +4,6 @@ import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -24,6 +19,7 @@ import type { BulkUpdateInput } from "@/lib/schemas/transaction";
 import type { CategoryOption, InstitutionOption, TransactionRow } from "./types";
 import { MoveTransactionsDialog } from "./MoveTransactionsDialog";
 import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
+import { DialogShell } from "@/components/ui/DialogShell";
 
 type Props = {
   accountId: string;
@@ -162,20 +158,23 @@ export function BulkActionBar({
         Cancelar
       </Button>
 
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-        <DialogTitle>Deletar transações</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Tem certeza que deseja deletar {count} transações? Esta ação não pode ser desfeita.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>Cancelar</Button>
-          <Button color="error" variant="contained" onClick={handleDelete} disabled={isPending}>
-            Deletar {count} transações
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Deletar transações"
+        actions={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>Cancelar</Button>
+            <Button color="error" variant="contained" onClick={handleDelete} disabled={isPending}>
+              Deletar {count} transações
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="body2">
+          Tem certeza que deseja deletar {count} transações? Esta ação não pode ser desfeita.
+        </Typography>
+      </DialogShell>
 
       <MoveTransactionsDialog
         accountId={accountId}
