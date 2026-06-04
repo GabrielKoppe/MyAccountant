@@ -6,10 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
+import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -31,7 +28,7 @@ import { applyTemplateAction, listTemplatesAction } from "@/actions/table-templa
 import { createFinanceTableSchema, type CreateFinanceTableInput } from "@/lib/schemas/finance-table";
 import { formatMonthLabel } from "@/lib/dates";
 import { m } from "@/lib/messages";
-import Chip from "@mui/material/Chip";
+import { DialogShell } from "@/components/ui/DialogShell";
 
 type Section = { id: string; name: string };
 type TableTypeOption = { id: string; name: string; isDefault: boolean };
@@ -167,231 +164,235 @@ export function CreateTableModal({
         {m.financeTables.createButton}
       </Button>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{m.financeTables.createTitle}</DialogTitle>
-        <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
-          <DialogContent>
-            <Stack spacing={2.5}>
-              {/* Seção */}
-              {!preSelectedSectionId && (
-                <Controller
-                  name="sectionId"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <FormControl error={!!fieldState.error} fullWidth>
-                      <InputLabel>{m.financeTables.sectionLabel}</InputLabel>
-                      <Select {...field} label={m.financeTables.sectionLabel}>
-                        {sections.map((s) => (
-                          <MenuItem key={s.id} value={s.id}>
-                            {s.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-              )}
-
-              {/* Nome */}
+      <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
+        <DialogShell
+          open={open}
+          onClose={() => setOpen(false)}
+          maxWidth="sm"
+          title={m.financeTables.createTitle}
+          actions={
+            <>
+              <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
+              <Button type="submit" variant="contained" disabled={form.formState.isSubmitting}>
+                {m.common.create}
+              </Button>
+            </>
+          }
+        >
+          <Stack spacing={2.5}>
+            {/* Seção */}
+            {!preSelectedSectionId && (
               <Controller
-                name="name"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    {...field}
-                    label={m.financeTables.nameLabel}
-                    error={!!fieldState.error}
-                    helperText={fieldState.error?.message}
-                    fullWidth
-                    autoFocus
-                  />
-                )}
-              />
-
-              {/* Tipo de tabela */}
-              <Controller
-                name="tableTypeId"
+                name="sectionId"
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <FormControl error={!!fieldState.error} fullWidth>
-                    <InputLabel>{m.financeTables.tableTypeLabel}</InputLabel>
-                    <Select {...field} label={m.financeTables.tableTypeLabel}>
-                      {tableTypes.map((t) => (
-                        <MenuItem key={t.id} value={t.id}>
-                          {t.name}
-                          {t.isDefault && (
-                            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                              (padrão)
-                            </Typography>
-                          )}
+                    <InputLabel>{m.financeTables.sectionLabel}</InputLabel>
+                    <Select {...field} label={m.financeTables.sectionLabel}>
+                      {sections.map((s) => (
+                        <MenuItem key={s.id} value={s.id}>
+                          {s.name}
                         </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
                 )}
               />
+            )}
 
-              {/* Contar no mês */}
-              <Controller
-                name="countInMonth"
-                control={form.control}
-                render={({ field }) => (
-                  <FormControlLabel
-                    control={<Checkbox checked={field.value} onChange={field.onChange} />}
-                    label={m.financeTables.countInMonthLabel}
-                  />
-                )}
-              />
-
-              <Divider />
-
-              {/* Source method */}
-              <Controller
-                name="sourceMethod"
-                control={form.control}
-                render={({ field }) => (
-                  <FormControl>
-                    <FormLabel>{m.financeTables.sourceMethodLabel}</FormLabel>
-                    <RadioGroup {...field} row>
-                      <FormControlLabel
-                        value="empty"
-                        control={<Radio />}
-                        label={m.financeTables.sourceMethods.empty}
-                        onClick={() => setUseTemplate(false)}
-                      />
-                      <FormControlLabel
-                        value="copy"
-                        control={<Radio />}
-                        label={m.financeTables.sourceMethods.copy}
-                        disabled={sourceTables.length === 0}
-                        onClick={() => setUseTemplate(false)}
-                      />
-                      <FormControlLabel
-                        value="empty"
-                        control={<Radio checked={useTemplate} onChange={() => { setUseTemplate(true); field.onChange("empty"); }} />}
-                        label={m.financeTables.sourceMethods.template}
-                      />
-                    </RadioGroup>
-                  </FormControl>
-                )}
-              />
-
-              {/* Template selector */}
-              {useTemplate && (
-                <Stack spacing={1.5} sx={{ pl: 1 }}>
-                  <FormControl fullWidth>
-                    <InputLabel>Modelo *</InputLabel>
-                    <Select
-                      value={selectedTemplateId}
-                      label="Modelo *"
-                      onChange={(e) => setSelectedTemplateId(e.target.value)}
-                    >
-                      {templateList.length === 0 && (
-                        <MenuItem disabled value="">Nenhum modelo salvo. Crie um em Configurações → Modelos.</MenuItem>
-                      )}
-                      {templateList.map((t) => (
-                        <MenuItem key={t.id} value={t.id}>
-                          {t.name}
-                          <Chip label={`${t._count.items} item(ns)`} size="small" sx={{ ml: 1 }} />
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Stack>
+            {/* Nome */}
+            <Controller
+              name="name"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <TextField
+                  {...field}
+                  label={m.financeTables.nameLabel}
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message}
+                  fullWidth
+                  autoFocus
+                />
               )}
+            />
 
-              {/* Copy options */}
-              {sourceMethod === "copy" && (
-                <Stack spacing={2} sx={{ pl: 1 }}>
-                  <Controller
-                    name="sourceTableId"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <FormControl error={!!fieldState.error} fullWidth>
-                        <InputLabel>{m.financeTables.sourceTableLabel}</InputLabel>
-                        <Select
-                          {...field}
-                          value={field.value ?? ""}
-                          label={m.financeTables.sourceTableLabel}
-                        >
-                          {sourceTables.map((t) => (
-                            <MenuItem key={t.id} value={t.id}>
-                              <Box>
-                                <Typography variant="body2">{t.name}</Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {t.monthYear} › {t.sectionName}
-                                </Typography>
-                              </Box>
-                            </MenuItem>
-                          ))}
-                        </Select>
-                        {fieldState.error && (
-                          <Typography variant="caption" color="error">
-                            {fieldState.error.message}
+            {/* Tipo de tabela */}
+            <Controller
+              name="tableTypeId"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <FormControl error={!!fieldState.error} fullWidth>
+                  <InputLabel>{m.financeTables.tableTypeLabel}</InputLabel>
+                  <Select {...field} label={m.financeTables.tableTypeLabel}>
+                    {tableTypes.map((t) => (
+                      <MenuItem key={t.id} value={t.id}>
+                        {t.name}
+                        {t.isDefault && (
+                          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                            (padrão)
                           </Typography>
                         )}
-                      </FormControl>
-                    )}
-                  />
-
-                  <Controller
-                    name="copyOptions.includeTransactions"
-                    control={form.control}
-                    render={({ field }) => (
-                      <FormControlLabel
-                        control={
-                          <Checkbox checked={field.value ?? true} onChange={field.onChange} />
-                        }
-                        label={m.financeTables.includeTransactions}
-                      />
-                    )}
-                  />
-
-                  {form.watch("copyOptions.includeTransactions") && (
-                    <>
-                      <Controller
-                        name="copyOptions.updateDates"
-                        control={form.control}
-                        render={({ field }) => (
-                          <FormControlLabel
-                            sx={{ pl: 2 }}
-                            control={
-                              <Checkbox checked={field.value ?? true} onChange={field.onChange} />
-                            }
-                            label={m.financeTables.updateDates}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name="copyOptions.markAsPending"
-                        control={form.control}
-                        render={({ field }) => (
-                          <FormControlLabel
-                            sx={{ pl: 2 }}
-                            control={
-                              <Checkbox
-                                checked={field.value ?? false}
-                                onChange={field.onChange}
-                              />
-                            }
-                            label={m.financeTables.markAsPending}
-                          />
-                        )}
-                      />
-                    </>
-                  )}
-                </Stack>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               )}
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
-            <Button type="submit" variant="contained" disabled={form.formState.isSubmitting}>
-              {m.common.create}
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
+            />
+
+            {/* Contar no mês */}
+            <Controller
+              name="countInMonth"
+              control={form.control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Checkbox checked={field.value} onChange={field.onChange} />}
+                  label={m.financeTables.countInMonthLabel}
+                />
+              )}
+            />
+
+            <Divider />
+
+            {/* Source method */}
+            <Controller
+              name="sourceMethod"
+              control={form.control}
+              render={({ field }) => (
+                <FormControl>
+                  <FormLabel>{m.financeTables.sourceMethodLabel}</FormLabel>
+                  <RadioGroup {...field} row>
+                    <FormControlLabel
+                      value="empty"
+                      control={<Radio />}
+                      label={m.financeTables.sourceMethods.empty}
+                      onClick={() => setUseTemplate(false)}
+                    />
+                    <FormControlLabel
+                      value="copy"
+                      control={<Radio />}
+                      label={m.financeTables.sourceMethods.copy}
+                      disabled={sourceTables.length === 0}
+                      onClick={() => setUseTemplate(false)}
+                    />
+                    <FormControlLabel
+                      value="empty"
+                      control={<Radio checked={useTemplate} onChange={() => { setUseTemplate(true); field.onChange("empty"); }} />}
+                      label={m.financeTables.sourceMethods.template}
+                    />
+                  </RadioGroup>
+                </FormControl>
+              )}
+            />
+
+            {/* Template selector */}
+            {useTemplate && (
+              <Stack spacing={1.5} sx={{ pl: 1 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Modelo *</InputLabel>
+                  <Select
+                    value={selectedTemplateId}
+                    label="Modelo *"
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                  >
+                    {templateList.length === 0 && (
+                      <MenuItem disabled value="">Nenhum modelo salvo. Crie um em Configurações → Modelos.</MenuItem>
+                    )}
+                    {templateList.map((t) => (
+                      <MenuItem key={t.id} value={t.id}>
+                        {t.name}
+                        <Chip label={`${t._count.items} item(ns)`} size="small" sx={{ ml: 1 }} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            )}
+
+            {/* Copy options */}
+            {sourceMethod === "copy" && (
+              <Stack spacing={2} sx={{ pl: 1 }}>
+                <Controller
+                  name="sourceTableId"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <FormControl error={!!fieldState.error} fullWidth>
+                      <InputLabel>{m.financeTables.sourceTableLabel}</InputLabel>
+                      <Select
+                        {...field}
+                        value={field.value ?? ""}
+                        label={m.financeTables.sourceTableLabel}
+                      >
+                        {sourceTables.map((t) => (
+                          <MenuItem key={t.id} value={t.id}>
+                            <Box>
+                              <Typography variant="body2">{t.name}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {t.monthYear} › {t.sectionName}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {fieldState.error && (
+                        <Typography variant="caption" color="error">
+                          {fieldState.error.message}
+                        </Typography>
+                      )}
+                    </FormControl>
+                  )}
+                />
+
+                <Controller
+                  name="copyOptions.includeTransactions"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={field.value ?? true} onChange={field.onChange} />
+                      }
+                      label={m.financeTables.includeTransactions}
+                    />
+                  )}
+                />
+
+                {form.watch("copyOptions.includeTransactions") && (
+                  <>
+                    <Controller
+                      name="copyOptions.updateDates"
+                      control={form.control}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          sx={{ pl: 2 }}
+                          control={
+                            <Checkbox checked={field.value ?? true} onChange={field.onChange} />
+                          }
+                          label={m.financeTables.updateDates}
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="copyOptions.markAsPending"
+                      control={form.control}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          sx={{ pl: 2 }}
+                          control={
+                            <Checkbox
+                              checked={field.value ?? false}
+                              onChange={field.onChange}
+                            />
+                          }
+                          label={m.financeTables.markAsPending}
+                        />
+                      )}
+                    />
+                  </>
+                )}
+              </Stack>
+            )}
+          </Stack>
+        </DialogShell>
+      </Box>
     </>
   );
 }

@@ -3,11 +3,6 @@
 import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -24,6 +19,7 @@ import {
   deleteInstitutionAction,
   updateInstitutionAction,
 } from "@/actions/account-settings";
+import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
 
 type Institution = { id: string; name: string };
@@ -131,41 +127,47 @@ export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
       )}
 
       {/* Create / Edit dialog */}
-      <Dialog open={createOpen || !!editTarget} onClose={closeDialog} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ pb: 1, fontSize: "0.9375rem", fontWeight: 600 }}>
-          {editTarget ? m.common.edit : m.settings.institutions.createButton}
-        </DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <TextField
-            label={m.settings.institutions.nameLabel}
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            error={!!nameError}
-            helperText={nameError}
-            fullWidth
-            autoFocus
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
-          <Button size="small" variant="contained" onClick={handleSave}>{m.common.save}</Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={createOpen || !!editTarget}
+        onClose={closeDialog}
+        maxWidth="xs"
+        title={editTarget ? m.common.edit : m.settings.institutions.createButton}
+        actions={
+          <>
+            <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
+            <Button size="small" variant="contained" onClick={handleSave}>{m.common.save}</Button>
+          </>
+        }
+      >
+        <TextField
+          label={m.settings.institutions.nameLabel}
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          error={!!nameError}
+          helperText={nameError}
+          fullWidth
+          autoFocus
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
+        />
+      </DialogShell>
 
       {/* Delete dialog */}
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: "0.9375rem", fontWeight: 600 }}>{m.common.delete}</DialogTitle>
-        <DialogContent>
-          <DialogContentText variant="body2">{m.settings.institutions.deleteConfirm}</DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button size="small" onClick={() => setDeleteTarget(null)}>{m.common.cancel}</Button>
-          <Button size="small" color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
-            {m.common.delete}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        maxWidth="xs"
+        title={m.common.delete}
+        actions={
+          <>
+            <Button size="small" onClick={() => setDeleteTarget(null)}>{m.common.cancel}</Button>
+            <Button size="small" color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
+              {m.common.delete}
+            </Button>
+          </>
+        }
+      >
+        <Typography variant="body2">{m.settings.institutions.deleteConfirm}</Typography>
+      </DialogShell>
     </>
   );
 }

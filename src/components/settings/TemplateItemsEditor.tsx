@@ -4,10 +4,6 @@ import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
@@ -28,6 +24,7 @@ import { NumericFormat } from "react-number-format";
 import { useSnackbar } from "notistack";
 
 import { addTemplateItemAction, deleteTemplateItemAction } from "@/actions/table-templates";
+import { DialogShell } from "@/components/ui/DialogShell";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
@@ -154,162 +151,168 @@ export function TemplateItemsEditor({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle>
-          Editar itens — {template.name}
-        </DialogTitle>
-        <DialogContent>
-          {items.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-              Nenhum item. Clique em "+ Adicionar item" para começar.
-            </Typography>
-          ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: "background.default" }}>
-                  <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Dia</TableCell>
-                  <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Descrição</TableCell>
-                  <TableCell sx={{ fontSize: 11, fontWeight: "bold" }} align="right">Valor</TableCell>
-                  <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Categoria</TableCell>
-                  <TableCell sx={{ width: 48 }} />
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {items.map((item) => {
-                  const cat = categories.find((c) => c.id === item.categoryId);
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell sx={{ fontSize: 12 }}>Dia {item.day}</TableCell>
-                      <TableCell sx={{ fontSize: 12, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {item.description ?? <Typography variant="caption" color="text.disabled">—</Typography>}
-                      </TableCell>
-                      <TableCell sx={{ fontSize: 12, whiteSpace: "nowrap" }} align="right">
-                        <Typography variant="caption" color={BigInt(item.amountCents) < 0n ? "error.main" : "success.main"}>
-                          {formatCentsToBrl(BigInt(item.amountCents))}
-                        </Typography>
-                      </TableCell>
-                      <TableCell sx={{ fontSize: 12 }}>{cat?.name ?? "—"}</TableCell>
-                      <TableCell>
-                        <IconButton size="small" color="error" onClick={() => handleDelete(item.id)} disabled={isPending}>
-                          <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>
-            {m.tableModels.addItem}
-          </Button>
-          <Box sx={{ flex: 1 }} />
-          <Button onClick={onClose}>{m.common.close}</Button>
-        </DialogActions>
-      </Dialog>
+      <DialogShell
+        open={open}
+        onClose={onClose}
+        maxWidth="md"
+        title={`Editar itens — ${template.name}`}
+        actions={
+          <>
+            <Button startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>
+              {m.tableModels.addItem}
+            </Button>
+            <Box sx={{ flex: 1 }} />
+            <Button onClick={onClose}>{m.common.close}</Button>
+          </>
+        }
+      >
+        {items.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+            Nenhum item. Clique em "+ Adicionar item" para começar.
+          </Typography>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: "background.default" }}>
+                <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Dia</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Descrição</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: "bold" }} align="right">Valor</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Categoria</TableCell>
+                <TableCell sx={{ width: 48 }} />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {items.map((item) => {
+                const cat = categories.find((c) => c.id === item.categoryId);
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell sx={{ fontSize: 12 }}>Dia {item.day}</TableCell>
+                    <TableCell sx={{ fontSize: 12, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.description ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 12, whiteSpace: "nowrap" }} align="right">
+                      <Typography variant="caption" color={BigInt(item.amountCents) < 0n ? "error.main" : "success.main"}>
+                        {formatCentsToBrl(BigInt(item.amountCents))}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{cat?.name ?? "—"}</TableCell>
+                    <TableCell>
+                      <IconButton size="small" color="error" onClick={() => handleDelete(item.id)} disabled={isPending}>
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </DialogShell>
 
       {/* Add item dialog */}
-      <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{m.tableModels.addItem}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 0.5 }}>
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <TextField
-                label={m.tableModels.dayLabel}
-                type="number"
-                value={form.day}
-                onChange={(e) => pf({ day: Math.min(31, Math.max(1, parseInt(e.target.value) || 1)) })}
-                inputProps={{ min: 1, max: 31 }}
-                sx={{ width: 100 }}
-                size="small"
-              />
-              <NumericFormat
-                customInput={TextField}
-                label="Valor (R$) *"
-                value={form.amountRaw}
-                onValueChange={(v) => pf({ amountRaw: v.value })}
-                thousandSeparator="."
-                decimalSeparator=","
-                decimalScale={2}
-                fixedDecimalScale
-                prefix="R$ "
-                fullWidth
-                size="small"
-                allowNegative
-              />
-            </Box>
-
+      <DialogShell
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        maxWidth="sm"
+        title={m.tableModels.addItem}
+        actions={
+          <>
+            <Button onClick={() => setAddOpen(false)}>{m.common.cancel}</Button>
+            <Button variant="contained" onClick={handleAdd} disabled={isPending || !form.amountRaw}>
+              Adicionar
+            </Button>
+          </>
+        }
+      >
+        <Stack spacing={2} sx={{ mt: 0.5 }}>
+          <Box sx={{ display: "flex", gap: 2 }}>
             <TextField
-              label="Descrição"
-              value={form.description}
-              onChange={(e) => pf({ description: e.target.value })}
-              fullWidth
+              label={m.tableModels.dayLabel}
+              type="number"
+              value={form.day}
+              onChange={(e) => pf({ day: Math.min(31, Math.max(1, parseInt(e.target.value) || 1)) })}
+              inputProps={{ min: 1, max: 31 }}
+              sx={{ width: 100 }}
               size="small"
             />
+            <NumericFormat
+              customInput={TextField}
+              label="Valor (R$) *"
+              value={form.amountRaw}
+              onValueChange={(v) => pf({ amountRaw: v.value })}
+              thousandSeparator="."
+              decimalSeparator=","
+              decimalScale={2}
+              fixedDecimalScale
+              prefix="R$ "
+              fullWidth
+              size="small"
+              allowNegative
+            />
+          </Box>
 
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Categoria</InputLabel>
-                <Select value={form.categoryId} label="Categoria" onChange={(e) => pf({ categoryId: e.target.value })}>
-                  <MenuItem value="">— Nenhuma —</MenuItem>
-                  {categories.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
-                </Select>
-              </FormControl>
-              <FormControl fullWidth size="small" disabled={!selectedCategory}>
-                <InputLabel>Subcategoria</InputLabel>
-                <Select value={form.subcategoryId} label="Subcategoria" onChange={(e) => pf({ subcategoryId: e.target.value })}>
-                  <MenuItem value="">— Nenhuma —</MenuItem>
-                  {selectedCategory?.subcategories.map((s) => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Box>
+          <TextField
+            label="Descrição"
+            value={form.description}
+            onChange={(e) => pf({ description: e.target.value })}
+            fullWidth
+            size="small"
+          />
 
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Instituição</InputLabel>
-                <Select value={form.institutionId} label="Instituição" onChange={(e) => pf({ institutionId: e.target.value })}>
-                  <MenuItem value="">— Nenhuma —</MenuItem>
-                  {institutions.map((i) => <MenuItem key={i.id} value={i.id}>{i.name}</MenuItem>)}
-                </Select>
-              </FormControl>
-              <FormControl fullWidth size="small">
-                <InputLabel>Responsável</InputLabel>
-                <Select value={form.responsibleUserId} label="Responsável" onChange={(e) => pf({ responsibleUserId: e.target.value })}>
-                  <MenuItem value="">— Nenhum —</MenuItem>
-                  {members.map((mem) => <MenuItem key={mem.id} value={mem.id}>{mem.name ?? mem.email}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Box>
-
+          <Box sx={{ display: "flex", gap: 2 }}>
             <FormControl fullWidth size="small">
-              <InputLabel>{m.transactions.investmentTypeLabel}</InputLabel>
-              <Select
-                value={form.investmentType}
-                label={m.transactions.investmentTypeLabel}
-                onChange={(e) => pf({ investmentType: e.target.value })}
-              >
-                <MenuItem value="">— {m.transactions.investmentTypeNone} —</MenuItem>
-                {INVESTMENT_TYPES.map((t) => (
-                  <MenuItem key={t} value={t}>{t}</MenuItem>
-                ))}
+              <InputLabel>Categoria</InputLabel>
+              <Select value={form.categoryId} label="Categoria" onChange={(e) => pf({ categoryId: e.target.value })}>
+                <MenuItem value="">— Nenhuma —</MenuItem>
+                {categories.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
               </Select>
             </FormControl>
+            <FormControl fullWidth size="small" disabled={!selectedCategory}>
+              <InputLabel>Subcategoria</InputLabel>
+              <Select value={form.subcategoryId} label="Subcategoria" onChange={(e) => pf({ subcategoryId: e.target.value })}>
+                <MenuItem value="">— Nenhuma —</MenuItem>
+                {selectedCategory?.subcategories.map((s) => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Box>
 
-            <FormControlLabel
-              control={<Checkbox size="small" checked={form.isPending} onChange={(e) => pf({ isPending: e.target.checked })} />}
-              label="Marcar como pendente ao aplicar"
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setAddOpen(false)}>{m.common.cancel}</Button>
-          <Button variant="contained" onClick={handleAdd} disabled={isPending || !form.amountRaw}>
-            Adicionar
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Instituição</InputLabel>
+              <Select value={form.institutionId} label="Instituição" onChange={(e) => pf({ institutionId: e.target.value })}>
+                <MenuItem value="">— Nenhuma —</MenuItem>
+                {institutions.map((i) => <MenuItem key={i.id} value={i.id}>{i.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth size="small">
+              <InputLabel>Responsável</InputLabel>
+              <Select value={form.responsibleUserId} label="Responsável" onChange={(e) => pf({ responsibleUserId: e.target.value })}>
+                <MenuItem value="">— Nenhum —</MenuItem>
+                {members.map((mem) => <MenuItem key={mem.id} value={mem.id}>{mem.name ?? mem.email}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Box>
+
+          <FormControl fullWidth size="small">
+            <InputLabel>{m.transactions.investmentTypeLabel}</InputLabel>
+            <Select
+              value={form.investmentType}
+              label={m.transactions.investmentTypeLabel}
+              onChange={(e) => pf({ investmentType: e.target.value })}
+            >
+              <MenuItem value="">— {m.transactions.investmentTypeNone} —</MenuItem>
+              {INVESTMENT_TYPES.map((t) => (
+                <MenuItem key={t} value={t}>{t}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControlLabel
+            control={<Checkbox size="small" checked={form.isPending} onChange={(e) => pf({ isPending: e.target.checked })} />}
+            label="Marcar como pendente ao aplicar"
+          />
+        </Stack>
+      </DialogShell>
     </>
   );
 }

@@ -12,15 +12,14 @@ type Props = {
   subtitle?: string;
   delta?: { value: string; positive: boolean } | null;
   icon?: SvgIconComponent;
-  color?: "default" | "success" | "warning" | "error" | "info";
+  color?: "default" | "success" | "warning" | "error";
 };
 
 const colorMap = {
   default: { bg: "background.paper", text: "text.primary" },
-  success: { bg: "success.50", text: "success.main" },
-  warning: { bg: "warning.50", text: "warning.main" },
-  error: { bg: "error.50", text: "error.main" },
-  info: { bg: "info.50", text: "info.main" },
+  success: { bg: "success.subtle", text: "success.main" },
+  warning: { bg: "warning.subtle", text: "warning.main" },
+  error: { bg: "error.subtle", text: "error.main" },
 } as const;
 
 export function KpiCard({ title, value, subtitle, delta, icon: Icon, color = "default" }: Props) {
@@ -38,7 +37,7 @@ export function KpiCard({ title, value, subtitle, delta, icon: Icon, color = "de
         {Icon && <Icon sx={{ color: colors.text, fontSize: 20, opacity: 0.7 }} />}
       </Box>
 
-      <Typography variant="h5" fontWeight="bold" color={colors.text} sx={{ mb: 0.5 }}>
+      <Typography variant="h5" color={colors.text} sx={{ mb: 0.5 }}>
         {value}
       </Typography>
 

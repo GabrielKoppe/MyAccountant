@@ -25,7 +25,7 @@ export function NoMonthsState({ accountId }: Props) {
       }}
     >
       <CalendarMonthIcon sx={{ fontSize: 80, opacity: 0.3 }} />
-      <Typography variant="h5" fontWeight="bold" color="text.primary">
+      <Typography variant="h5" color="text.primary">
         {m.months.noMonths}
       </Typography>
       <Typography variant="body1" maxWidth={400}>

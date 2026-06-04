@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
+import { layout, containers } from "@/lib/design-tokens";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { TemplatesManager } from "@/components/settings/TemplatesManager";
 import type { ImportMapping } from "@/lib/schemas/csv-import";
 
@@ -28,10 +29,8 @@ export default async function TemplatesPage({ params }: Props) {
   }));
 
   return (
-    <Box sx={{ p: 4, maxWidth: 700 }}>
-      <Typography variant="h5" fontWeight="bold" mb={3}>
-        {m.templates.title}
-      </Typography>
+    <Box sx={{ p: layout.page, maxWidth: containers.md }}>
+      <PageHeader title={m.templates.title} />
       <TemplatesManager accountId={accountId} initialTemplates={serialized} />
     </Box>
   );

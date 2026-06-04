@@ -45,10 +45,10 @@ export function StepConfig({ config, sections, tableTypes, okCount, errorCount, 
       <Box
         sx={{
           p: 2,
-          bgcolor: "info.50",
+          bgcolor: "background.subtle",
           borderRadius: 1,
           border: 1,
-          borderColor: "info.200",
+          borderColor: "border.subtle",
         }}
       >
         <Typography variant="body2">

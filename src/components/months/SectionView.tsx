@@ -103,9 +103,7 @@ export function SectionView({
         }}
       >
         <Box>
-          <Typography variant="h5" fontWeight="bold">
-            {section.name}
-          </Typography>
+          <Typography variant="h5">{section.name}</Typography>
           {!section.isActive && (
             <Typography variant="caption" color="text.secondary">
               Seção inativa — somente leitura
@@ -117,7 +115,11 @@ export function SectionView({
             placement="bottom-end"
             title={
               <Box sx={{ minWidth: 210, p: 0.25 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", mb: 1 }}
+                >
                   {COUNT_TYPE_LABELS[section.countType]}
                 </Typography>
                 {tables.map((t) => (
@@ -136,19 +138,29 @@ export function SectionView({
                       {t.name}
                       {!t.countInMonth && (
                         <Typography component="span" variant="caption" color="text.disabled">
-                          {" "}(não conta)
+                          {" "}
+                          (não conta)
                         </Typography>
                       )}
                     </Typography>
-                    <Typography variant="caption" sx={{ fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontVariantNumeric: "tabular-nums", flexShrink: 0 }}
+                    >
                       {formatCentsToBrl(BigInt(t.total))}
                     </Typography>
                   </Box>
                 ))}
                 {tables.length > 0 && <Divider sx={{ my: 1 }} />}
                 <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-                  <Typography variant="caption" fontWeight={600}>Total</Typography>
-                  <Typography variant="caption" fontWeight={600} sx={{ fontVariantNumeric: "tabular-nums" }}>
+                  <Typography variant="caption" fontWeight={600}>
+                    Total
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    fontWeight={600}
+                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                  >
                     {formatCentsToBrl(BigInt(sectionTotal))}
                   </Typography>
                 </Box>
@@ -170,12 +182,17 @@ export function SectionView({
             }}
           >
             <Box sx={{ textAlign: "right", cursor: "default" }}>
-              <Typography variant="h5" fontWeight="bold" color="text.secondary">
+              <Typography variant="h5" color="text.secondary">
                 {formatCentsToBrl(BigInt(sectionTotal))}
               </Typography>
               {filteredSectionTotal !== null && (
                 <Box
-                  sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5 }}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    gap: 0.5,
+                  }}
                 >
                   <Typography variant="caption" color="warning.main" fontWeight={500}>
                     {formatCentsToBrl(filteredSectionTotal)}
@@ -201,7 +218,7 @@ export function SectionView({
           {section.isActive && (
             <>
               <Divider orientation="vertical" flexItem />
-              <Box sx={{ display: "flex", gap: 2 }}>
+              <Box sx={{ display: "flex", gap: 1 }}>
                 <CreateTableModal
                   accountId={accountId}
                   monthId={monthId}

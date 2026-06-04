@@ -120,7 +120,7 @@ export function SandboxPage({
           bgcolor: "background.paper",
         }}
       >
-        <Typography variant="h6" fontWeight="bold">
+        <Typography variant="h6">
           {ms.title}
         </Typography>
         {isPending && <CircularProgress size={14} thickness={5} />}

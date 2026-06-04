@@ -8,8 +8,8 @@ import { m } from "@/lib/messages";
 
 export default function LoginPage() {
   return (
-    <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
-      <Typography variant="h6" fontWeight="bold" mb={0.5}>
+    <Paper sx={{ p: 4, borderRadius: 2 }}>
+      <Typography variant="h6" mb={0.5}>
         {m.auth.login}
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>

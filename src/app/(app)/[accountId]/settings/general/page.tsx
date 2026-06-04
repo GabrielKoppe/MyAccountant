@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
+import { layout, containers } from "@/lib/design-tokens";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { GeneralSettingsForm } from "./GeneralSettingsForm";
 
 type Props = { params: Promise<{ accountId: string }> };
@@ -26,10 +27,8 @@ export default async function GeneralSettingsPage({ params }: Props) {
   if (!account || !settings) redirect("/home");
 
   return (
-    <Box sx={{ p: 4, maxWidth: 700, display: "flex", flexDirection: "column", gap: 3 }}>
-      <Typography variant="h5" fontWeight="bold" mb={3}>
-        {m.settings.general.title}
-      </Typography>
+    <Box sx={{ p: layout.page, maxWidth: containers.md }}>
+      <PageHeader title={m.settings.general.title} />
       <GeneralSettingsForm
         accountId={accountId}
         defaultValues={{

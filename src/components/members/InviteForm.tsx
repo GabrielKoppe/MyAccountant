@@ -5,10 +5,6 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import { useSnackbar } from "notistack";
@@ -16,6 +12,7 @@ import { useSnackbar } from "notistack";
 import { inviteMemberAction } from "@/actions/members";
 import { inviteMemberSchema, type InviteMemberInput } from "@/lib/schemas/account";
 import { m } from "@/lib/messages";
+import { DialogShell } from "@/components/ui/DialogShell";
 
 type Props = {
   accountId: string;
@@ -55,10 +52,22 @@ export function InviteForm({ accountId }: Props) {
         {m.account.inviteMember}
       </Button>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{m.account.invite.title}</DialogTitle>
-        <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
-          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+      <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
+        <DialogShell
+          open={open}
+          onClose={() => setOpen(false)}
+          maxWidth="xs"
+          title={m.account.invite.title}
+          actions={
+            <>
+              <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
+              <Button type="submit" variant="contained" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? m.account.invite.sending : m.account.invite.sendButton}
+              </Button>
+            </>
+          }
+        >
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Controller
               name="email"
               control={form.control}
@@ -92,15 +101,9 @@ export function InviteForm({ accountId }: Props) {
                 </TextField>
               )}
             />
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
-            <Button type="submit" variant="contained" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? m.account.invite.sending : m.account.invite.sendButton}
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
+          </Box>
+        </DialogShell>
+      </Box>
     </>
   );
 }

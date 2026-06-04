@@ -106,7 +106,7 @@ export function StepPreview({ previewRows }: Props) {
                 sx={{
                   bgcolor:
                     row.status === "error"
-                      ? "error.50"
+                      ? "error.subtle"
                       : row.status === "ignored"
                         ? "action.hover"
                         : "inherit",

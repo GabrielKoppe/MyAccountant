@@ -6,11 +6,6 @@ import type { AccountMemberRole } from "@prisma/client";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import ListItemText from "@mui/material/ListItemText";
 import Menu from "@mui/material/Menu";
@@ -30,6 +25,7 @@ import { m } from "@/lib/messages";
 import { useMonthFilters } from "./MonthFilterContext";
 import { CreateMonthModal } from "./CreateMonthModal";
 import { TransactionFilterDrawer } from "@/components/transactions/TransactionFilterDrawer";
+import { DialogShell } from "@/components/ui/DialogShell";
 
 type MonthItem = { id: string; year: number; month: number };
 
@@ -201,10 +197,26 @@ export function MonthHeader({ accountId, currentMonth, months, role }: Props) {
       )}
 
       {/* Delete confirmation */}
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-        <DialogTitle>{m.months.deleteTitle}</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
-          <DialogContentText>{m.months.deleteConfirm}</DialogContentText>
+      <DialogShell
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title={m.months.deleteTitle}
+        actions={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={handleDelete}
+              disabled={deleting || deleteConfirm !== currentLabel}
+            >
+              {m.months.deleteTitle}
+            </Button>
+          </>
+        }
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Typography variant="body2">{m.months.deleteConfirm}</Typography>
           <TextField
             label={`Digite "${currentLabel}" para confirmar`}
             value={deleteConfirm}
@@ -212,19 +224,8 @@ export function MonthHeader({ accountId, currentMonth, months, role }: Props) {
             fullWidth
             size="small"
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={handleDelete}
-            disabled={deleting || deleteConfirm !== currentLabel}
-          >
-            {m.months.deleteTitle}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
+      </DialogShell>
     </Box>
   );
 }

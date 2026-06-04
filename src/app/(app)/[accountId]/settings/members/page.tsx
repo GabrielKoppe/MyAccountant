@@ -9,6 +9,8 @@ import { InviteForm } from "@/components/members/InviteForm";
 import { InvitesList } from "@/components/members/InvitesList";
 import { MembersTable } from "@/components/members/MembersTable";
 import { m } from "@/lib/messages";
+import { layout, containers } from "@/lib/design-tokens";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type Props = { params: Promise<{ accountId: string }> };
 
@@ -39,13 +41,11 @@ export default async function MembersPage({ params }: Props) {
   const isOwner = currentMember.role === "owner";
 
   return (
-    <Box sx={{ p: 4, maxWidth: 800 }}>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
-        <Typography variant="h5" fontWeight="bold">
-          {m.account.members.title}
-        </Typography>
-        {isOwner && <InviteForm accountId={accountId} />}
-      </Box>
+    <Box sx={{ p: layout.page, maxWidth: containers.md }}>
+      <PageHeader
+        title={m.account.members.title}
+        actions={isOwner ? <InviteForm accountId={accountId} /> : undefined}
+      />
 
       <MembersTable
         accountId={accountId}
