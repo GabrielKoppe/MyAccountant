@@ -247,7 +247,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
       initialFilters={initialFilters}
       options={{ categories, institutions, members }}
     >
-      <Box sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 48px)" }}>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "calc(100vh - 49px)" }}>
         <MonthHeader
           accountId={accountId}
           currentMonth={currentMonth}

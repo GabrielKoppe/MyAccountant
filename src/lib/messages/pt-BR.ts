@@ -258,6 +258,10 @@ export const messages = {
     title: "Transações",
     newTransaction: "Nova transação",
     confirmDelete: "Deletar esta transação?",
+    deleted: "Transação deletada",
+    deletedMultiple: "transações deletadas",
+    undoDelete: "Desfazer",
+    deleteError: "Erro ao deletar. As transações foram restauradas.",
     investmentTypeLabel: "Tipo de investimento",
     investmentTypeNone: "Nenhum",
     investmentTypes: {

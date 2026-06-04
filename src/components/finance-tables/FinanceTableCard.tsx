@@ -6,6 +6,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
+import Divider from "@mui/material/Divider";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -16,10 +17,10 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import AddIcon from "@mui/icons-material/Add";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import TableChartIcon from "@mui/icons-material/TableChart";
@@ -28,6 +29,7 @@ import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutli
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import { useSnackbar } from "notistack";
 
 import { deleteFinanceTableAction, updateFinanceTableAction } from "@/actions/finance-tables";
@@ -170,7 +172,7 @@ export function FinanceTableCard({
           alignItems: "center",
           px: 2,
           py: 1.5,
-          gap: 3,
+          gap: 2,
           borderBottom: collapsed ? 0 : 1,
           borderColor: "divider",
           bgcolor: "background.default",
@@ -245,16 +247,22 @@ export function FinanceTableCard({
       </Box>
 
       {/* Ellipsis menu */}
-      <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
+      <Menu
+        anchorEl={menuAnchor}
+        open={!!menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+        slotProps={{ paper: { sx: { minWidth: 180 } } }}
+      >
         <MenuItem
           onClick={() => {
             setMenuAnchor(null);
             setNewName(table.name);
             setRenameOpen(true);
           }}
+          sx={{ py: 0.75, fontSize: 13 }}
         >
-          <ListItemIcon>
-            <DriveFileRenameOutlineIcon fontSize="small" />
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <DriveFileRenameOutlineIcon sx={{ fontSize: 16 }} />
           </ListItemIcon>
           {m.financeTables.menuRename}
         </MenuItem>
@@ -263,11 +271,16 @@ export function FinanceTableCard({
             setMenuAnchor(null);
             handleToggleCount();
           }}
+          sx={{ py: 0.75, fontSize: 13 }}
         >
-          <ListItemIcon>
-            <Switch size="small" checked={table.countInMonth} readOnly tabIndex={-1} />
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            {table.countInMonth ? (
+              <RemoveCircleOutlineIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+            ) : (
+              <AddCircleOutlineIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+            )}
           </ListItemIcon>
-          {m.financeTables.countInMonthLabel}
+          {table.countInMonth ? "Excluir do total do mês" : "Incluir no total do mês"}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -275,9 +288,10 @@ export function FinanceTableCard({
             setModelName(table.name);
             setSaveModelOpen(true);
           }}
+          sx={{ py: 0.75, fontSize: 13 }}
         >
-          <ListItemIcon>
-            <TableChartIcon fontSize="small" />
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <TableChartIcon sx={{ fontSize: 16 }} />
           </ListItemIcon>
           {m.tableModels.createFromTableButton}
         </MenuItem>
@@ -286,9 +300,10 @@ export function FinanceTableCard({
             setMenuAnchor(null);
             onDuplicate();
           }}
+          sx={{ py: 0.75, fontSize: 13 }}
         >
-          <ListItemIcon>
-            <ContentCopyIcon fontSize="small" />
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <ContentCopyIcon sx={{ fontSize: 16 }} />
           </ListItemIcon>
           {m.financeTables.menuDuplicate}
         </MenuItem>
@@ -297,10 +312,10 @@ export function FinanceTableCard({
             setMenuAnchor(null);
             setDeleteOpen(true);
           }}
-          sx={{ color: "error.main" }}
+          sx={{ py: 0.75, fontSize: 13, color: "error.main" }}
         >
-          <ListItemIcon>
-            <DeleteOutlineIcon fontSize="small" color="error" />
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <DeleteOutlineIcon sx={{ fontSize: 16 }} color="error" />
           </ListItemIcon>
           {m.financeTables.menuDelete}
         </MenuItem>

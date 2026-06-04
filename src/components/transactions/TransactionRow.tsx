@@ -17,11 +17,14 @@ import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import EditIcon from "@mui/icons-material/Edit";
 import HourglassBottomIcon from "@mui/icons-material/HourglassBottom";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import NoteIcon from "@mui/icons-material/Note";
 import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
 import StarIcon from "@mui/icons-material/Star";
@@ -31,7 +34,6 @@ import { useSnackbar } from "notistack";
 import { m } from "@/lib/messages";
 
 import {
-  deleteTransactionAction,
   duplicateTransactionAction,
   updateTransactionAction,
 } from "@/actions/transactions";
@@ -59,7 +61,7 @@ type Props = {
   members: MemberOption[];
   onSelect: (id: string, checked: boolean) => void;
   onOptimisticUpdate: (id: string, patch: Partial<TxRow>) => void;
-  onOptimisticDelete: (id: string) => void;
+  onDeleteRequested: (id: string) => void;
   onDuplicated: (newTx: TxRow, sourceId: string) => void;
 };
 
@@ -75,11 +77,12 @@ export function TransactionRow({
   members,
   onSelect,
   onOptimisticUpdate,
-  onOptimisticDelete,
+  onDeleteRequested,
   onDuplicated,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [editing, setEditing] = useState(false);
+  const [focusField, setFocusField] = useState("occurredOn");
   const [editValues, setEditValues] = useState<TxRow>(tx);
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -89,9 +92,10 @@ export function TransactionRow({
   // subtract: positivo = despesa (vermelho), negativo = estorno (verde)
   const isPositive = sectionCountType === "subtract" ? amount < 0n : amount >= 0n;
 
-  function startEdit() {
+  function startEdit(field = "occurredOn") {
     if (isReadOnly) return;
     setEditValues(tx);
+    setFocusField(field);
     setNotesOpen(false);
     setEditing(true);
   }
@@ -100,6 +104,7 @@ export function TransactionRow({
     e.stopPropagation();
     if (isReadOnly) return;
     setEditValues(tx);
+    setFocusField("notes");
     setNotesOpen(true);
     setEditing(true);
   }
@@ -189,15 +194,9 @@ export function TransactionRow({
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     setMenuAnchor(null);
-    onOptimisticDelete(tx.id);
-    const result = await deleteTransactionAction(accountId, { transactionId: tx.id });
-    if (!result.ok) {
-      enqueueSnackbar(result.error.message, { variant: "error" });
-    } else {
-      enqueueSnackbar("Transação deletada.", { variant: "info" });
-    }
+    onDeleteRequested(tx.id);
   }
 
   async function handleDuplicate() {
@@ -243,7 +242,7 @@ export function TransactionRow({
               value={editValues.occurredOn.slice(0, 10)}
               onChange={(e) => setEditValues((prev) => ({ ...prev, occurredOn: e.target.value }))}
               sx={{ width: 120, "& input": { fontSize: 13 } }}
-              autoFocus
+              autoFocus={focusField === "occurredOn"}
             />
           </TableCell>
 
@@ -255,6 +254,8 @@ export function TransactionRow({
               onChange={(e) => setEditValues((prev) => ({ ...prev, description: e.target.value }))}
               placeholder="Descrição"
               fullWidth
+              autoFocus={focusField === "description"}
+              sx={{ "& input": { fontSize: 13 } }}
             />
           </TableCell>
 
@@ -272,6 +273,7 @@ export function TransactionRow({
                   }))
                 }
                 sx={{ minWidth: 110, fontSize: 13 }}
+                autoFocus={focusField === "categoryId"}
               >
                 <MenuItem value="">
                   <em>Nenhuma</em>
@@ -296,6 +298,7 @@ export function TransactionRow({
                 }
                 sx={{ minWidth: 110, fontSize: 13 }}
                 disabled={!editValues.categoryId}
+                autoFocus={focusField === "subcategoryId"}
               >
                 <MenuItem value="">
                   <em>Nenhuma</em>
@@ -319,6 +322,7 @@ export function TransactionRow({
                   setEditValues((prev) => ({ ...prev, institutionId: e.target.value || null }))
                 }
                 sx={{ minWidth: 110, fontSize: 13 }}
+                autoFocus={focusField === "institutionId"}
               >
                 <MenuItem value="">
                   <em>Nenhuma</em>
@@ -348,6 +352,7 @@ export function TransactionRow({
                 setEditValues((prev) => ({ ...prev, amountCents: cents.toString() }));
               }}
               sx={{ "& input": { textAlign: "right", width: 100, fontSize: 13 } }}
+              autoFocus={focusField === "amountCents"}
             />
           </TableCell>
 
@@ -361,6 +366,7 @@ export function TransactionRow({
                   setEditValues((prev) => ({ ...prev, responsibleUserId: e.target.value || null }))
                 }
                 sx={{ minWidth: 90, fontSize: 13 }}
+                autoFocus={focusField === "responsibleUserId"}
               >
                 <MenuItem value="">
                   <em>Nenhum</em>
@@ -387,6 +393,7 @@ export function TransactionRow({
                   }))
                 }
                 sx={{ minWidth: 120, fontSize: 13 }}
+                autoFocus={focusField === "investmentType"}
               >
                 <MenuItem value="">
                   <em>Nenhum</em>
@@ -403,24 +410,24 @@ export function TransactionRow({
           {/* Ações edit */}
           <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
             <Tooltip title={notesOpen ? "Ocultar notas" : "Adicionar nota"}>
-              <IconButton
-                size="small"
-                onClick={() => setNotesOpen((o) => !o)}
-                sx={{ color: "text.disabled" }}
-              >
+              <IconButton size="small" onClick={() => setNotesOpen((o) => !o)}>
                 {notesOpen || (editValues.notes && editValues.notes.length > 0) ? (
-                  <NoteIcon sx={{ fontSize: 16 }} />
+                  <NoteIcon fontSize="small" />
                 ) : (
-                  <NoteOutlinedIcon sx={{ fontSize: 16 }} />
+                  <NoteOutlinedIcon fontSize="small" />
                 )}
               </IconButton>
             </Tooltip>
-            <IconButton size="small" onClick={saveEdit} color="primary" title="Salvar (Enter)">
-              ✓
-            </IconButton>
-            <IconButton size="small" onClick={cancelEdit} title="Cancelar (Esc)">
-              ✕
-            </IconButton>
+            <Tooltip title="Salvar (Enter)">
+              <IconButton size="small" onClick={saveEdit} color="primary">
+                <CheckIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Cancelar (Esc)">
+              <IconButton size="small" onClick={cancelEdit}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </TableCell>
         </TableRow>
         <TableRow sx={{ bgcolor: "action.selected" }}>
@@ -444,7 +451,7 @@ export function TransactionRow({
                     if (e.key === "Escape") cancelEdit();
                   }}
                   sx={{ "& textarea": { fontSize: 13 } }}
-                  autoFocus={notesOpen}
+                  autoFocus={focusField === "notes"}
                 />
               </Box>
             </Collapse>
@@ -459,8 +466,7 @@ export function TransactionRow({
     <TableRow
       hover
       selected={isSelected}
-      sx={{ opacity: tx.isPending ? 0.65 : 1, cursor: isReadOnly ? "default" : "pointer" }}
-      onClick={() => !isReadOnly && startEdit()}
+      sx={{ opacity: tx.isPending ? 0.65 : 1 }}
     >
       <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
         <Checkbox
@@ -471,7 +477,10 @@ export function TransactionRow({
         />
       </TableCell>
 
-      <TableCell sx={{ fontSize: 13, whiteSpace: "nowrap" }}>
+      <TableCell
+        sx={{ fontSize: 13, whiteSpace: "nowrap", cursor: isReadOnly ? "default" : "pointer" }}
+        onClick={() => !isReadOnly && startEdit("occurredOn")}
+      >
         {formatDateShort(tx.occurredOn)}
       </TableCell>
 
@@ -482,7 +491,9 @@ export function TransactionRow({
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          cursor: isReadOnly ? "default" : "pointer",
         }}
+        onClick={() => !isReadOnly && startEdit("description")}
       >
         {tx.description || (
           <Typography variant="caption" color="text.disabled">
@@ -492,7 +503,10 @@ export function TransactionRow({
       </TableCell>
 
       {!hiddenColumns.category && (
-        <TableCell sx={{ fontSize: 13 }}>
+        <TableCell
+          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("categoryId")}
+        >
           {categories.find((c) => c.id === tx.categoryId)?.name ?? (
             <Typography variant="caption" color="text.disabled">
               —
@@ -502,7 +516,10 @@ export function TransactionRow({
       )}
 
       {!hiddenColumns.subcategory && (
-        <TableCell sx={{ fontSize: 13 }}>
+        <TableCell
+          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("subcategoryId")}
+        >
           {subcatsForCategory.find((s) => s.id === tx.subcategoryId)?.name ?? (
             <Typography variant="caption" color="text.disabled">
               —
@@ -512,7 +529,10 @@ export function TransactionRow({
       )}
 
       {!hiddenColumns.institution && (
-        <TableCell sx={{ fontSize: 13 }}>
+        <TableCell
+          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("institutionId")}
+        >
           {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? (
             <Typography variant="caption" color="text.disabled">
               —
@@ -528,13 +548,18 @@ export function TransactionRow({
           fontSize: 13,
           whiteSpace: "nowrap",
           color: isPositive ? "success.main" : "error.main",
+          cursor: isReadOnly ? "default" : "pointer",
         }}
+        onClick={() => !isReadOnly && startEdit("amountCents")}
       >
         {formatCentsToBrl(amount)}
       </TableCell>
 
       {!hiddenColumns.responsibleUser && (
-        <TableCell>
+        <TableCell
+          sx={{ cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("responsibleUserId")}
+        >
           {tx.responsibleUserId ? (
             <Tooltip title={members.find((m) => m.id === tx.responsibleUserId)?.name ?? ""}>
               <Avatar
@@ -553,7 +578,10 @@ export function TransactionRow({
       )}
 
       {!hiddenColumns.investmentType && (
-        <TableCell sx={{ fontSize: 13 }}>
+        <TableCell
+          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("investmentType")}
+        >
           {tx.investmentType ?? (
             <Typography variant="caption" color="text.disabled">
               —
@@ -595,22 +623,34 @@ export function TransactionRow({
           </IconButton>
         </Tooltip>
         {!isReadOnly && (
-          <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}>
-            <MoreVertIcon fontSize="small" />
-          </IconButton>
+          <>
+            <Tooltip title="Editar">
+              <IconButton size="small" onClick={() => startEdit()}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}>
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          </>
         )}
       </TableCell>
 
-      <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
-        <MenuItem onClick={handleDuplicate}>
-          <ListItemIcon>
-            <ContentCopyIcon fontSize="small" />
+      <Menu
+        anchorEl={menuAnchor}
+        open={!!menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+        slotProps={{ paper: { sx: { minWidth: 140 } } }}
+      >
+        <MenuItem onClick={handleDuplicate} sx={{ py: 0.75, fontSize: 13 }}>
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <ContentCopyIcon sx={{ fontSize: 16 }} />
           </ListItemIcon>
           Duplicar
         </MenuItem>
-        <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" color="error" />
+        <MenuItem onClick={handleDelete} sx={{ py: 0.75, fontSize: 13, color: "error.main" }}>
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <DeleteIcon sx={{ fontSize: 16 }} color="error" />
           </ListItemIcon>
           Deletar
         </MenuItem>

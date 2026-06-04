@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SectionCountType } from "@prisma/client";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -23,7 +23,10 @@ import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 
+import { useSnackbar } from "notistack";
+
 import { m } from "@/lib/messages";
+import { deleteTransactionAction } from "@/actions/transactions";
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import { BulkActionBar } from "./BulkActionBar";
 import { NewTransactionRow } from "./NewTransactionRow";
@@ -113,6 +116,11 @@ export function TransactionTable({
   const [searchText, setSearchText] = useState("");
   const [sort, setSort] = useState<SortState>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const pendingBatchRef = useRef<{ id: string; row: TxRow }[]>([]);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snackbarKeyRef = useRef<string | number | null>(null);
+  const isMountedRef = useRef(true);
 
   const { filters, clearFilters, isActive: hasGlobalFilters } = useMonthFilters();
 
@@ -183,6 +191,85 @@ export function TransactionTable({
     const idSet = new Set(ids);
     setRows((prev) => prev.map((r) => (idSet.has(r.id) ? { ...r, ...patch } : r)));
   }
+
+  async function executePendingDeletes() {
+    const batch = [...pendingBatchRef.current];
+    if (batch.length === 0) return;
+    pendingBatchRef.current = [];
+    deleteTimerRef.current = null;
+
+    const results = await Promise.all(
+      batch.map(({ id }) => deleteTransactionAction(accountId, { transactionId: id })),
+    );
+
+    const failed = batch.filter((_, i) => !results[i]?.ok);
+    if (failed.length > 0 && isMountedRef.current) {
+      setRows((prev) => [...prev, ...failed.map((b) => b.row)]);
+      enqueueSnackbar(m.transactions.deleteError, { variant: "error" });
+    }
+  }
+
+  function handleUndoDelete(snackKey: string | number) {
+    closeSnackbar(snackKey);
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+    deleteTimerRef.current = null;
+    snackbarKeyRef.current = null;
+
+    const batch = [...pendingBatchRef.current];
+    pendingBatchRef.current = [];
+    if (batch.length > 0) {
+      setRows((prev) => [...prev, ...batch.map((b) => b.row)]);
+    }
+  }
+
+  function onDeleteRequested(id: string) {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+
+    optimisticDelete(id);
+    pendingBatchRef.current = [...pendingBatchRef.current, { id, row }];
+
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+    if (snackbarKeyRef.current !== null) closeSnackbar(snackbarKeyRef.current);
+
+    const count = pendingBatchRef.current.length;
+    const message =
+      count === 1
+        ? `${m.transactions.deleted}.`
+        : `${count} ${m.transactions.deletedMultiple}.`;
+
+    const key = enqueueSnackbar(message, {
+      variant: "info",
+      persist: true,
+      action: (snackKey) => (
+        <Button size="small" color="inherit" onClick={() => handleUndoDelete(snackKey)}>
+          {m.transactions.undoDelete}
+        </Button>
+      ),
+    });
+    snackbarKeyRef.current = key;
+
+    deleteTimerRef.current = setTimeout(() => {
+      if (snackbarKeyRef.current !== null) closeSnackbar(snackbarKeyRef.current);
+      snackbarKeyRef.current = null;
+      void executePendingDeletes();
+    }, 5000);
+  }
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (pendingBatchRef.current.length > 0) {
+        if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+        const batch = [...pendingBatchRef.current];
+        pendingBatchRef.current = [];
+        void Promise.all(
+          batch.map(({ id }) => deleteTransactionAction(accountId, { transactionId: id })),
+        );
+      }
+    };
+  }, [accountId]);
 
   function handleOpenSearch() {
     setSearchOpen(true);
@@ -390,7 +477,7 @@ export function TransactionTable({
                   members={members}
                   onSelect={handleSelect}
                   onOptimisticUpdate={optimisticUpdate}
-                  onOptimisticDelete={optimisticDelete}
+                  onDeleteRequested={onDeleteRequested}
                   onDuplicated={onDuplicated}
                 />
               ))
