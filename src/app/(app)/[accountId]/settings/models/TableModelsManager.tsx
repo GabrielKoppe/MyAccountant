@@ -31,7 +31,8 @@ import {
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import { DialogShell } from "@/components/ui/DialogShell";
-import { TemplateItemsEditor } from "./TemplateItemsEditor";
+import { TemplateItemsEditor } from "../../../../../components/settings/TemplateItemsEditor";
+import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type TemplateItem = {
   id: string;
@@ -66,6 +67,7 @@ type Props = {
   institutions: { id: string; name: string }[];
   members: { id: string; name: string | null; email: string }[];
   tableTypes: { id: string; name: string; isDefault: boolean }[];
+  title?: string;
 };
 
 export function TableModelsManager({
@@ -75,6 +77,7 @@ export function TableModelsManager({
   institutions,
   members,
   tableTypes,
+  title,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [isPending, startTransition] = useTransition();
@@ -90,10 +93,21 @@ export function TableModelsManager({
     if (!newName.trim()) return;
     startTransition(async () => {
       const result = await createTemplateManualAction(accountId, { name: newName.trim() });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
       setTemplates((prev) => [
         ...prev,
-        { ...result.data, description: null, tableTypeId: null, countInMonth: true, tableType: null, _count: { items: 0 }, items: [] },
+        {
+          ...result.data,
+          description: null,
+          tableTypeId: null,
+          countInMonth: true,
+          tableType: null,
+          _count: { items: 0 },
+          items: [],
+        },
       ]);
       enqueueSnackbar(m.tableModels.created, { variant: "success" });
       setCreateOpen(false);
@@ -104,9 +118,17 @@ export function TableModelsManager({
   function handleRename() {
     if (!renameId || !renameValue.trim()) return;
     startTransition(async () => {
-      const result = await updateTemplateAction(accountId, { templateId: renameId, name: renameValue.trim() });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
-      setTemplates((prev) => prev.map((t) => t.id === renameId ? { ...t, name: renameValue.trim() } : t));
+      const result = await updateTemplateAction(accountId, {
+        templateId: renameId,
+        name: renameValue.trim(),
+      });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setTemplates((prev) =>
+        prev.map((t) => (t.id === renameId ? { ...t, name: renameValue.trim() } : t)),
+      );
       enqueueSnackbar(m.tableModels.updated, { variant: "success" });
       setRenameId(null);
     });
@@ -117,7 +139,10 @@ export function TableModelsManager({
     setDeleteId(null);
     startTransition(async () => {
       const result = await deleteTemplateAction(accountId, { templateId: deleteId });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
       setTemplates((prev) => prev.filter((t) => t.id !== deleteId));
       enqueueSnackbar(m.tableModels.deleted, { variant: "success" });
     });
@@ -125,11 +150,7 @@ export function TableModelsManager({
 
   function handleItemsUpdated(templateId: string, items: TemplateItem[]) {
     setTemplates((prev) =>
-      prev.map((t) =>
-        t.id === templateId
-          ? { ...t, items, _count: { items: items.length } }
-          : t,
-      ),
+      prev.map((t) => (t.id === templateId ? { ...t, items, _count: { items: items.length } } : t)),
     );
   }
 
@@ -140,25 +161,42 @@ export function TableModelsManager({
       <Box>
         <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
           <TableChartIcon sx={{ fontSize: 64, opacity: 0.3 }} />
-          <Typography variant="h6" mt={1}>{m.tableModels.noModels}</Typography>
-          <Typography variant="body2" mt={0.5} mb={3}>{m.tableModels.noModelsHint}</Typography>
+          <Typography variant="h6" mt={1}>
+            {m.tableModels.noModels}
+          </Typography>
+          <Typography variant="body2" mt={0.5} mb={3}>
+            {m.tableModels.noModelsHint}
+          </Typography>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
             {m.tableModels.createButton}
           </Button>
         </Box>
-        <CreateDialog open={createOpen} name={newName} onNameChange={setNewName} onConfirm={handleCreate} onClose={() => setCreateOpen(false)} isPending={isPending} />
+        <CreateDialog
+          open={createOpen}
+          name={newName}
+          onNameChange={setNewName}
+          onConfirm={handleCreate}
+          onClose={() => setCreateOpen(false)}
+          isPending={isPending}
+        />
       </Box>
     );
   }
 
   return (
-    <>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+    <PageSettingsContainer
+      title={title}
+      secondary={
+        <Button
+          variant="contained"
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={() => setCreateOpen(true)}
+        >
           {m.tableModels.createButton}
         </Button>
-      </Box>
-
+      }
+    >
       <Stack spacing={1}>
         {templates.map((t) => (
           <Accordion key={t.id} variant="outlined">
@@ -166,7 +204,11 @@ export function TableModelsManager({
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1, mr: 1 }}>
                 <TableChartIcon fontSize="small" color="action" />
                 <Typography fontWeight="medium">{t.name}</Typography>
-                <Chip label={m.tableModels.itemCount(t._count.items)} size="small" variant="outlined" />
+                <Chip
+                  label={m.tableModels.itemCount(t._count.items)}
+                  size="small"
+                  variant="outlined"
+                />
                 {t.tableType && <Chip label={t.tableType.name} size="small" />}
               </Box>
             </AccordionSummary>
@@ -178,16 +220,27 @@ export function TableModelsManager({
                     <TableRow sx={{ bgcolor: "background.default" }}>
                       <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Dia</TableCell>
                       <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Descrição</TableCell>
-                      <TableCell sx={{ fontSize: 11, fontWeight: "bold" }} align="right">Valor</TableCell>
+                      <TableCell sx={{ fontSize: 11, fontWeight: "bold" }} align="right">
+                        Valor
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {t.items.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell sx={{ fontSize: 12 }}>Dia {item.day}</TableCell>
-                        <TableCell sx={{ fontSize: 12 }}>{item.description ?? <Typography variant="caption" color="text.disabled">—</Typography>}</TableCell>
+                        <TableCell sx={{ fontSize: 12 }}>
+                          {item.description ?? (
+                            <Typography variant="caption" color="text.disabled">
+                              —
+                            </Typography>
+                          )}
+                        </TableCell>
                         <TableCell sx={{ fontSize: 12 }} align="right">
-                          <Typography variant="caption" color={BigInt(item.amountCents) < 0n ? "error.main" : "success.main"}>
+                          <Typography
+                            variant="caption"
+                            color={BigInt(item.amountCents) < 0n ? "error.main" : "success.main"}
+                          >
                             {formatCentsToBrl(BigInt(item.amountCents))}
                           </Typography>
                         </TableCell>
@@ -205,10 +258,21 @@ export function TableModelsManager({
                 <Button size="small" startIcon={<AddIcon />} onClick={() => setEditItemsId(t.id)}>
                   {m.tableModels.editItems}
                 </Button>
-                <IconButton size="small" onClick={() => { setRenameId(t.id); setRenameValue(t.name); }}>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setRenameId(t.id);
+                    setRenameValue(t.name);
+                  }}
+                >
                   <DriveFileRenameOutlineIcon fontSize="small" />
                 </IconButton>
-                <IconButton size="small" color="error" onClick={() => setDeleteId(t.id)} disabled={isPending}>
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => setDeleteId(t.id)}
+                  disabled={isPending}
+                >
                   <DeleteOutlineIcon fontSize="small" />
                 </IconButton>
               </Box>
@@ -218,7 +282,17 @@ export function TableModelsManager({
       </Stack>
 
       {/* Dialogs */}
-      <CreateDialog open={createOpen} name={newName} onNameChange={setNewName} onConfirm={handleCreate} onClose={() => { setCreateOpen(false); setNewName(""); }} isPending={isPending} />
+      <CreateDialog
+        open={createOpen}
+        name={newName}
+        onNameChange={setNewName}
+        onConfirm={handleCreate}
+        onClose={() => {
+          setCreateOpen(false);
+          setNewName("");
+        }}
+        isPending={isPending}
+      />
 
       <DialogShell
         open={!!renameId}
@@ -228,11 +302,25 @@ export function TableModelsManager({
         actions={
           <>
             <Button onClick={() => setRenameId(null)}>{m.common.cancel}</Button>
-            <Button variant="contained" onClick={handleRename} disabled={isPending}>{m.common.save}</Button>
+            <Button variant="contained" onClick={handleRename} disabled={isPending}>
+              {m.common.save}
+            </Button>
           </>
         }
       >
-        <TextField label={m.tableModels.nameLabel} value={renameValue} onChange={(e) => setRenameValue(e.target.value)} fullWidth autoFocus onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRename(); } }} />
+        <TextField
+          label={m.tableModels.nameLabel}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          fullWidth
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleRename();
+            }
+          }}
+        />
       </DialogShell>
 
       <DialogShell
@@ -242,7 +330,9 @@ export function TableModelsManager({
         actions={
           <>
             <Button onClick={() => setDeleteId(null)}>{m.common.cancel}</Button>
-            <Button color="error" variant="contained" onClick={handleDelete} disabled={isPending}>{m.common.delete}</Button>
+            <Button color="error" variant="contained" onClick={handleDelete} disabled={isPending}>
+              {m.common.delete}
+            </Button>
           </>
         }
       >
@@ -261,13 +351,24 @@ export function TableModelsManager({
           onItemsChanged={(items) => handleItemsUpdated(editTemplate.id, items)}
         />
       )}
-    </>
+    </PageSettingsContainer>
   );
 }
 
-function CreateDialog({ open, name, onNameChange, onConfirm, onClose, isPending }: {
-  open: boolean; name: string; onNameChange: (v: string) => void;
-  onConfirm: () => void; onClose: () => void; isPending: boolean;
+function CreateDialog({
+  open,
+  name,
+  onNameChange,
+  onConfirm,
+  onClose,
+  isPending,
+}: {
+  open: boolean;
+  name: string;
+  onNameChange: (v: string) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+  isPending: boolean;
 }) {
   return (
     <DialogShell
@@ -278,11 +379,25 @@ function CreateDialog({ open, name, onNameChange, onConfirm, onClose, isPending 
       actions={
         <>
           <Button onClick={onClose}>{m.common.cancel}</Button>
-          <Button variant="contained" onClick={onConfirm} disabled={isPending || !name.trim()}>{m.common.create}</Button>
+          <Button variant="contained" onClick={onConfirm} disabled={isPending || !name.trim()}>
+            {m.common.create}
+          </Button>
         </>
       }
     >
-      <TextField label={m.tableModels.nameLabel} value={name} onChange={(e) => onNameChange(e.target.value)} fullWidth autoFocus onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onConfirm(); } }} />
+      <TextField
+        label={m.tableModels.nameLabel}
+        value={name}
+        onChange={(e) => onNameChange(e.target.value)}
+        fullWidth
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onConfirm();
+          }
+        }}
+      />
     </DialogShell>
   );
 }

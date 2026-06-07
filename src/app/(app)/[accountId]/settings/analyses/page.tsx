@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 
@@ -10,6 +12,12 @@ import { AnalysesManager } from "./AnalysesManager";
 
 type Props = { params: Promise<{ accountId: string }> };
 
+type MetaProps = { params: Promise<{ accountId: string }> };
+export async function generateMetadata({ params }: MetaProps): Promise<Metadata> {
+  const { accountId } = await params;
+  return generateSettingsMetadata(accountId, "Análises");
+}
+
 export default async function AnalysesSettingsPage({ params }: Props) {
   const { accountId } = await params;
   const { user, member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
@@ -17,15 +25,11 @@ export default async function AnalysesSettingsPage({ params }: Props) {
   const analyses = await listSavedAnalyses(accountId);
 
   return (
-    <Box sx={{ p: layout.page, maxWidth: containers.md }}>
-      <PageHeader title={m.settings.nav.analyses} />
-
-      <AnalysesManager
-        accountId={accountId}
-        analyses={analyses}
-        currentUserId={user.id}
-        role={member.role}
-      />
-    </Box>
+    <AnalysesManager
+      accountId={accountId}
+      analyses={analyses}
+      currentUserId={user.id}
+      role={member.role}
+    />
   );
 }

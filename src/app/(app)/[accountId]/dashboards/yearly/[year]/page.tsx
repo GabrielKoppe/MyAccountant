@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
@@ -10,6 +11,7 @@ import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 
 import { requireAccountAccess } from "@/server/auth/session";
+import { prisma } from "@/server/prisma";
 import { getYearOverview } from "@/lib/queries/dashboards";
 import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { formatCentsToBrl } from "@/lib/money";
@@ -23,6 +25,16 @@ import { MonthCardGrid } from "@/components/dashboards/MonthCardGrid";
 import { PinnedAnalysesSection } from "@/components/dashboards/PinnedAnalysesSection";
 
 type Props = { params: Promise<{ accountId: string; year: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { accountId, year: yearStr } = await params;
+  const account = await prisma.account.findUnique({
+    where: { id: accountId },
+    select: { name: true },
+  });
+  if (!account) return { title: "MyAccountant" };
+  return { title: `Dashboard Anual — ${yearStr} | ${account.name} | MyAccountant` };
+}
 
 export default async function YearlyDashboardPage({ params }: Props) {
   const { accountId, year: yearStr } = await params;

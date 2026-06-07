@@ -1,15 +1,19 @@
+import type { Metadata } from "next";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
-import Box from "@mui/material/Box";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
-import { m } from "@/lib/messages";
-import { layout, containers } from "@/lib/design-tokens";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { TemplatesManager } from "@/components/settings/TemplatesManager";
+import { TemplatesManager } from "@/app/(app)/[accountId]/settings/templates/TemplatesManager";
 import type { ImportMapping } from "@/lib/schemas/csv-import";
 
 type Props = { params: Promise<{ accountId: string }> };
+
+type MetaProps = { params: Promise<{ accountId: string }> };
+export async function generateMetadata({ params }: MetaProps): Promise<Metadata> {
+  const { accountId } = await params;
+  return generateSettingsMetadata(accountId, "Templates CSV");
+}
 
 export default async function TemplatesPage({ params }: Props) {
   const { accountId } = await params;
@@ -21,17 +25,14 @@ export default async function TemplatesPage({ params }: Props) {
     select: { id: true, name: true, mapping: true, createdAt: true },
   });
 
-  const serialized = templates.map((t) => ({
-    id: t.id,
-    name: t.name,
-    mapping: t.mapping as ImportMapping,
-    createdAt: t.createdAt.toISOString(),
-  }));
-
-  return (
-    <Box sx={{ p: layout.page, maxWidth: containers.md }}>
-      <PageHeader title={m.templates.title} />
-      <TemplatesManager accountId={accountId} initialTemplates={serialized} />
-    </Box>
+  const serialized = templates.map(
+    (t: { id: string; name: string; mapping: ImportMapping; createdAt: Date }) => ({
+      id: t.id,
+      name: t.name,
+      mapping: t.mapping as ImportMapping,
+      createdAt: t.createdAt.toISOString(),
+    }),
   );
+
+  return <TemplatesManager accountId={accountId} initialTemplates={serialized} />;
 }

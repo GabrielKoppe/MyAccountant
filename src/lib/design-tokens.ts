@@ -44,7 +44,7 @@ export const lightColors = {
   },
   success: { main: "#4B7F52", subtle: "#E8F0E9" },
   warning: { main: "#B8862A", subtle: "#F5EDD5" },
-  danger:  { main: "#B54545", subtle: "#F5E4E4" },
+  danger: { main: "#B54545", subtle: "#F5E4E4" },
   neutral: { main: "#7A7368", subtle: "#EDEBE5" },
 } as const;
 
@@ -79,7 +79,7 @@ export const darkColors = {
   },
   success: { main: "#7AAE83", subtle: "#1F2D24" },
   warning: { main: "#D4A551", subtle: "#2E2818" },
-  danger:  { main: "#D47373", subtle: "#2E1F1F" },
+  danger: { main: "#D47373", subtle: "#2E1F1F" },
   neutral: { main: "#8B847A", subtle: "#322D26" },
 } as const;
 
@@ -89,7 +89,7 @@ export const darkColors = {
 
 export const chartColors = {
   light: ["#4E5FD9", "#4B7F52", "#B8862A", "#B54545", "#6E8FAB", "#8B6FA8", "#C49454", "#5C8A8A"],
-  dark:  ["#7E8DE5", "#7AAE83", "#D4A551", "#D47373", "#8FB0C8", "#AE96C8", "#D4AE78", "#7AADAD"],
+  dark: ["#7E8DE5", "#7AAE83", "#D4A551", "#D47373", "#8FB0C8", "#AE96C8", "#D4AE78", "#7AADAD"],
 } as const;
 
 // ============================================================================
@@ -157,7 +157,7 @@ export const spacing = {
 
 export const layout = {
   /** Padding interno de pagina (32px) — use em <main> ou Container */
-  page: 8,
+  page: 4,
 
   /** Gap vertical entre secoes principais de uma pagina (48px) */
   section: 12,

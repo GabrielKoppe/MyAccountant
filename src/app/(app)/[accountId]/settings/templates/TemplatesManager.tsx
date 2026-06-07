@@ -18,6 +18,7 @@ import { deleteTemplateAction, updateTemplateAction } from "@/actions/csv-import
 import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
 import type { ImportMapping } from "@/lib/schemas/csv-import";
+import PageSettingsContainer from "../../../../../components/settings/PageSettingsContainer";
 
 type TemplateItem = {
   id: string;
@@ -86,64 +87,62 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
     return parts.join(" · ");
   }
 
-  if (templates.length === 0) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          py: 8,
-          color: "text.secondary",
-          gap: 2,
-        }}
-      >
-        <UploadFileIcon sx={{ fontSize: 64, opacity: 0.3 }} />
-        <Typography variant="h6">{m.templates.noTemplates}</Typography>
-        <Typography variant="body2" textAlign="center">
-          {m.templates.noTemplatesHint}
-        </Typography>
-      </Box>
-    );
-  }
-
   return (
-    <>
-      <Stack spacing={1}>
-        {templates.map((t) => (
-          <Paper key={t.id} variant="outlined" sx={{ px: 2, py: 1.5 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <UploadFileIcon sx={{ fontSize: 16 }} color="action" />
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="body2" fontWeight="medium" noWrap>
-                  {t.name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {summaryLabel(t.mapping)}
-                </Typography>
-              </Box>
-              <Chip
-                label={`${t.mapping.amountFormat.toUpperCase()} · ${t.mapping.dateFormat}`}
-                size="small"
-                variant="outlined"
-              />
-              <Box sx={{ display: "flex", gap: 0.25, flexShrink: 0 }}>
-                <IconButton size="small" onClick={() => openRename(t)} disabled={isPending}>
-                  <EditIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-                <IconButton
+    <PageSettingsContainer title={m.templates.title}>
+      {templates.length === 0 ? (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            py: 8,
+            color: "text.secondary",
+            gap: 2,
+          }}
+        >
+          <UploadFileIcon sx={{ fontSize: 64, opacity: 0.3 }} />
+          <Typography variant="h6">{m.templates.noTemplates}</Typography>
+          <Typography variant="body2" textAlign="center">
+            {m.templates.noTemplatesHint}
+          </Typography>
+        </Box>
+      ) : (
+        <Stack spacing={1}>
+          {templates.map((t) => (
+            <Paper key={t.id} variant="outlined" sx={{ px: 2, py: 1.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <UploadFileIcon sx={{ fontSize: 16 }} color="action" />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight="medium" noWrap>
+                    {t.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>
+                    {summaryLabel(t.mapping)}
+                  </Typography>
+                </Box>
+                <Chip
+                  label={`${t.mapping.amountFormat.toUpperCase()} · ${t.mapping.dateFormat}`}
                   size="small"
-                  color="error"
-                  onClick={() => setDeleteId(t.id)}
-                  disabled={isPending}
-                >
-                  <DeleteIcon sx={{ fontSize: 16 }} />
-                </IconButton>
+                  variant="outlined"
+                />
+                <Box sx={{ display: "flex", gap: 0.25, flexShrink: 0 }}>
+                  <IconButton size="small" onClick={() => openRename(t)} disabled={isPending}>
+                    <EditIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => setDeleteId(t.id)}
+                    disabled={isPending}
+                  >
+                    <DeleteIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Box>
               </Box>
-            </Box>
-          </Paper>
-        ))}
-      </Stack>
+            </Paper>
+          ))}
+        </Stack>
+      )}
 
       {/* Rename dialog */}
       <DialogShell
@@ -202,6 +201,6 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
       >
         <Typography variant="body2">{m.templates.deleteConfirm}</Typography>
       </DialogShell>
-    </>
+    </PageSettingsContainer>
   );
 }

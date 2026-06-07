@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
@@ -9,9 +11,15 @@ import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
 import { layout, containers } from "@/lib/design-tokens";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { AccountDangerZone } from "./AccountDangerZone";
+import { AccountDangerZone } from "../general/AccountDangerZone";
 
 type Props = { params: Promise<{ accountId: string }> };
+
+type MetaProps = { params: Promise<{ accountId: string }> };
+export async function generateMetadata({ params }: MetaProps): Promise<Metadata> {
+  const { accountId } = await params;
+  return generateSettingsMetadata(accountId, "Conta");
+}
 
 export default async function AccountSettingsPage({ params }: Props) {
   const { accountId } = await params;
@@ -28,28 +36,7 @@ export default async function AccountSettingsPage({ params }: Props) {
     <Box sx={{ p: layout.page, maxWidth: containers.md }}>
       <PageHeader title={m.account.settings.title} />
 
-      <Typography variant="body2" color="text.secondary" mb={1}>
-        {m.account.accountName}
-      </Typography>
-      <Typography variant="h6" mb={4}>
-        {account.name}
-      </Typography>
-
-      <Divider sx={{ my: 3 }} />
-
-      <Paper
-        variant="outlined"
-        sx={{ p: 3, borderColor: "error.light" }}
-      >
-        <Typography variant="h6" color="error" fontWeight="medium" mb={1}>
-          {m.account.settings.dangerZone}
-        </Typography>
-        <AccountDangerZone
-          accountId={accountId}
-          accountName={account.name}
-          role={member.role}
-        />
-      </Paper>
+      
     </Box>
   );
 }

@@ -30,6 +30,7 @@ import {
 } from "@/actions/account-settings";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
+import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type Subcategory = { id: string; name: string };
 type Category = { id: string; name: string; subcategories: Subcategory[] };
@@ -37,6 +38,7 @@ type Category = { id: string; name: string; subcategories: Subcategory[] };
 type Props = {
   accountId: string;
   initialCategories: Category[];
+  title?: string;
 };
 
 type DialogState =
@@ -48,7 +50,7 @@ type DialogState =
   | { type: "deleteSub"; categoryId: string; sub: Subcategory }
   | null;
 
-export function CategoriesManager({ accountId, initialCategories }: Props) {
+export function CategoriesManager({ accountId, initialCategories, title }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [categories, setCategories] = useState(initialCategories);
   const [isPending, startTransition] = useTransition();
@@ -77,31 +79,72 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
 
     if (dialog?.type === "createCategory") {
       const result = await createCategoryAction(accountId, { name: nameInput.trim() });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
-      setCategories((prev) => [...prev, { id: result.data.categoryId, name: nameInput.trim(), subcategories: [] }]);
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setCategories((prev) => [
+        ...prev,
+        { id: result.data.categoryId, name: nameInput.trim(), subcategories: [] },
+      ]);
       enqueueSnackbar(m.settings.categories.created, { variant: "success" });
     } else if (dialog?.type === "editCategory") {
-      const result = await updateCategoryAction(accountId, { categoryId: dialog.category.id, name: nameInput.trim() });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
-      setCategories((prev) => prev.map((c) => c.id === dialog.category.id ? { ...c, name: nameInput.trim() } : c));
+      const result = await updateCategoryAction(accountId, {
+        categoryId: dialog.category.id,
+        name: nameInput.trim(),
+      });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setCategories((prev) =>
+        prev.map((c) => (c.id === dialog.category.id ? { ...c, name: nameInput.trim() } : c)),
+      );
       enqueueSnackbar(m.settings.categories.updated, { variant: "success" });
     } else if (dialog?.type === "createSub") {
-      const result = await createSubcategoryAction(accountId, { categoryId: dialog.categoryId, name: nameInput.trim() });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
-      setCategories((prev) => prev.map((c) =>
-        c.id === dialog.categoryId
-          ? { ...c, subcategories: [...c.subcategories, { id: result.data.subcategoryId, name: nameInput.trim() }] }
-          : c,
-      ));
+      const result = await createSubcategoryAction(accountId, {
+        categoryId: dialog.categoryId,
+        name: nameInput.trim(),
+      });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === dialog.categoryId
+            ? {
+                ...c,
+                subcategories: [
+                  ...c.subcategories,
+                  { id: result.data.subcategoryId, name: nameInput.trim() },
+                ],
+              }
+            : c,
+        ),
+      );
       enqueueSnackbar(m.settings.categories.subCreated, { variant: "success" });
     } else if (dialog?.type === "editSub") {
-      const result = await updateSubcategoryAction(accountId, { subcategoryId: dialog.sub.id, name: nameInput.trim() });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
-      setCategories((prev) => prev.map((c) =>
-        c.id === dialog.categoryId
-          ? { ...c, subcategories: c.subcategories.map((s) => s.id === dialog.sub.id ? { ...s, name: nameInput.trim() } : s) }
-          : c,
-      ));
+      const result = await updateSubcategoryAction(accountId, {
+        subcategoryId: dialog.sub.id,
+        name: nameInput.trim(),
+      });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === dialog.categoryId
+            ? {
+                ...c,
+                subcategories: c.subcategories.map((s) =>
+                  s.id === dialog.sub.id ? { ...s, name: nameInput.trim() } : s,
+                ),
+              }
+            : c,
+        ),
+      );
       enqueueSnackbar(m.settings.categories.subUpdated, { variant: "success" });
     }
     closeDialog();
@@ -114,7 +157,10 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
       closeDialog();
       startTransition(async () => {
         const result = await deleteCategoryAction(accountId, { categoryId });
-        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        if (!result.ok) {
+          enqueueSnackbar(result.error.message, { variant: "error" });
+          return;
+        }
         setCategories((prev) => prev.filter((c) => c.id !== categoryId));
         enqueueSnackbar(m.settings.categories.deleted, { variant: "success" });
       });
@@ -123,12 +169,17 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
       closeDialog();
       startTransition(async () => {
         const result = await deleteSubcategoryAction(accountId, { subcategoryId: sub.id });
-        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
-        setCategories((prev) => prev.map((c) =>
-          c.id === categoryId
-            ? { ...c, subcategories: c.subcategories.filter((s) => s.id !== sub.id) }
-            : c,
-        ));
+        if (!result.ok) {
+          enqueueSnackbar(result.error.message, { variant: "error" });
+          return;
+        }
+        setCategories((prev) =>
+          prev.map((c) =>
+            c.id === categoryId
+              ? { ...c, subcategories: c.subcategories.filter((s) => s.id !== sub.id) }
+              : c,
+          ),
+        );
         enqueueSnackbar(m.settings.categories.subDeleted, { variant: "success" });
       });
     }
@@ -138,8 +189,9 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
   const isNameDialog = !isDeleteDialog && dialog !== null;
 
   return (
-    <>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+    <PageSettingsContainer
+      title={title}
+      secondary={
         <Button
           variant="contained"
           size="small"
@@ -148,16 +200,20 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
         >
           {m.settings.categories.createButton}
         </Button>
-      </Box>
-
+      }
+    >
       {categories.length === 0 && (
-        <Typography variant="body2" color="text.secondary">{m.settings.categories.noCategories}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {m.settings.categories.noCategories}
+        </Typography>
       )}
 
       {categories.map((category) => (
         <Accordion key={category.id} disableGutters variant="outlined" sx={{ mb: 1 }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}>
-            <Typography variant="body2" fontWeight="medium">{category.name}</Typography>
+            <Typography variant="body2" fontWeight="medium">
+              {category.name}
+            </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ pt: 0 }}>
             {/* Ações da categoria ficam aqui para evitar <button> aninhado no AccordionSummary */}
@@ -188,7 +244,9 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
                       <Tooltip title={m.common.edit}>
                         <IconButton
                           size="small"
-                          onClick={() => openDialog({ type: "editSub", categoryId: category.id, sub }, sub.name)}
+                          onClick={() =>
+                            openDialog({ type: "editSub", categoryId: category.id, sub }, sub.name)
+                          }
                         >
                           <EditIcon sx={{ fontSize: 16 }} />
                         </IconButton>
@@ -197,7 +255,9 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
                         <IconButton
                           size="small"
                           color="error"
-                          onClick={() => openDialog({ type: "deleteSub", categoryId: category.id, sub })}
+                          onClick={() =>
+                            openDialog({ type: "deleteSub", categoryId: category.id, sub })
+                          }
                         >
                           <DeleteIcon sx={{ fontSize: 16 }} />
                         </IconButton>
@@ -205,7 +265,11 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
                     </Box>
                   }
                 >
-                  <ListItemText primary={sub.name} primaryTypographyProps={{ variant: "body2" }} sx={{ pl: 2 }} />
+                  <ListItemText
+                    primary={sub.name}
+                    primaryTypographyProps={{ variant: "body2" }}
+                    sx={{ pl: 2 }}
+                  />
                 </ListItem>
               ))}
             </List>
@@ -235,7 +299,9 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
         }
         actions={
           <>
-            <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
+            <Button size="small" onClick={closeDialog}>
+              {m.common.cancel}
+            </Button>
             <Button size="small" variant="contained" onClick={handleSave} disabled={isPending}>
               {m.common.save}
             </Button>
@@ -250,7 +316,12 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
           helperText={nameError}
           fullWidth
           autoFocus
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSave();
+            }
+          }}
         />
       </DialogShell>
 
@@ -262,8 +333,16 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
         title={m.common.delete}
         actions={
           <>
-            <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
-            <Button size="small" color="error" variant="contained" onClick={handleDelete} disabled={isPending}>
+            <Button size="small" onClick={closeDialog}>
+              {m.common.cancel}
+            </Button>
+            <Button
+              size="small"
+              color="error"
+              variant="contained"
+              onClick={handleDelete}
+              disabled={isPending}
+            >
               {m.common.delete}
             </Button>
           </>
@@ -275,6 +354,6 @@ export function CategoriesManager({ accountId, initialCategories }: Props) {
             : m.common.confirm}
         </Typography>
       </DialogShell>
-    </>
+    </PageSettingsContainer>
   );
 }

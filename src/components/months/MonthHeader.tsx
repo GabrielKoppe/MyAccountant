@@ -7,16 +7,13 @@ import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
-import ListItemText from "@mui/material/ListItemText";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import { useSnackbar } from "notistack";
 
 import { deleteMonthAction } from "@/actions/months";
@@ -26,6 +23,8 @@ import { useMonthFilters } from "./MonthFilterContext";
 import { CreateMonthModal } from "./CreateMonthModal";
 import { TransactionFilterDrawer } from "@/components/transactions/TransactionFilterDrawer";
 import { DialogShell } from "@/components/ui/DialogShell";
+import { MoneyValue } from "@/components/ui/MoneyValue";
+import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
 
 type MonthItem = { id: string; year: number; month: number };
 
@@ -34,13 +33,13 @@ type Props = {
   currentMonth: MonthItem;
   months: MonthItem[];
   role: AccountMemberRole;
+  monthTotal?: string;
 };
 
-export function MonthHeader({ accountId, currentMonth, months, role }: Props) {
+export function MonthHeader({ accountId, currentMonth, months, role, monthTotal }: Props) {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-  const [dropdownAnchor, setDropdownAnchor] = useState<null | HTMLElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -51,9 +50,6 @@ export function MonthHeader({ accountId, currentMonth, months, role }: Props) {
   const sortedMonths = [...months].sort(
     (a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month,
   );
-  const currentIndex = sortedMonths.findIndex((m) => m.id === currentMonth.id);
-  const prevMonth = currentIndex > 0 ? sortedMonths[currentIndex - 1] : null;
-  const nextMonth = currentIndex < sortedMonths.length - 1 ? sortedMonths[currentIndex + 1] : null;
   const lastMonth = sortedMonths[sortedMonths.length - 1];
 
   const currentLabel = formatMonthLabel(currentMonth.year, currentMonth.month);
@@ -94,68 +90,24 @@ export function MonthHeader({ accountId, currentMonth, months, role }: Props) {
         bgcolor: "background.paper",
       }}
     >
-      {/* Seta anterior */}
-      <Tooltip title={prevMonth ? formatMonthLabel(prevMonth.year, prevMonth.month) : ""}>
-        <span>
-          <IconButton
-            size="small"
-            disabled={!prevMonth}
-            onClick={() => prevMonth && router.push(`/${accountId}/months/${prevMonth.id}`)}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
-        </span>
-      </Tooltip>
+      <MonthPickerNav
+        currentMonth={currentMonth}
+        months={months}
+        basePath={`/${accountId}/months`}
+      />
 
-      {/* Dropdown de meses */}
-      <Button
-        variant="text"
-        size="small"
-        onClick={(e) => setDropdownAnchor(e.currentTarget)}
-        sx={{ fontWeight: "bold", fontSize: "1.1rem", minWidth: 120 }}
-      >
-        {currentLabel}
-      </Button>
-
-      <Menu
-        anchorEl={dropdownAnchor}
-        open={!!dropdownAnchor}
-        onClose={() => setDropdownAnchor(null)}
-      >
-        {[...sortedMonths].reverse().map((month) => (
-          <MenuItem
-            key={month.id}
-            selected={month.id === currentMonth.id}
-            onClick={() => {
-              setDropdownAnchor(null);
-              if (month.id !== currentMonth.id) {
-                router.push(`/${accountId}/months/${month.id}`);
-              }
-            }}
-          >
-            <ListItemText primary={formatMonthLabel(month.year, month.month)} />
-          </MenuItem>
-        ))}
-      </Menu>
-
-      {/* Seta próximo */}
-      <Tooltip title={nextMonth ? formatMonthLabel(nextMonth.year, nextMonth.month) : ""}>
-        <span>
-          <IconButton
-            size="small"
-            disabled={!nextMonth}
-            onClick={() => nextMonth && router.push(`/${accountId}/months/${nextMonth.id}`)}
-          >
-            <ChevronRightIcon />
-          </IconButton>
-        </span>
-      </Tooltip>
+      {/* Total do mês em destaque */}
+      {monthTotal !== undefined && (
+        <Box sx={{ ml: 1 }}>
+          <MoneyValue cents={BigInt(monthTotal)} variant="subtitle1" />
+        </Box>
+      )}
 
       <Box sx={{ flex: 1 }} />
 
       {/* Botão de filtros */}
       <Tooltip title={m.transactions.filters.title}>
-        <IconButton size="small" onClick={(e) => setFilterAnchorEl(e.currentTarget)}>
+        <IconButton size="small" aria-label="Filtros" onClick={(e) => setFilterAnchorEl(e.currentTarget)}>
           <Badge badgeContent={activeCount} color="primary" max={9}>
             <FilterAltIcon fontSize="small" />
           </Badge>
@@ -174,7 +126,7 @@ export function MonthHeader({ accountId, currentMonth, months, role }: Props) {
       {/* Menu ellipsis (owner only) */}
       {isOwner && (
         <>
-          <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}>
+          <IconButton size="small" aria-label="Mais opções" onClick={(e) => setMenuAnchor(e.currentTarget)}>
             <MoreVertIcon fontSize="small" />
           </IconButton>
           <Menu

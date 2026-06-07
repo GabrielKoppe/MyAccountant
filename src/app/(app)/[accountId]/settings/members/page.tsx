@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
@@ -11,8 +13,15 @@ import { MembersTable } from "@/components/members/MembersTable";
 import { m } from "@/lib/messages";
 import { layout, containers } from "@/lib/design-tokens";
 import { PageHeader } from "@/components/ui/PageHeader";
+import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type Props = { params: Promise<{ accountId: string }> };
+
+type MetaProps = { params: Promise<{ accountId: string }> };
+export async function generateMetadata({ params }: MetaProps): Promise<Metadata> {
+  const { accountId } = await params;
+  return generateSettingsMetadata(accountId, "Membros");
+}
 
 export default async function MembersPage({ params }: Props) {
   const { accountId } = await params;
@@ -41,28 +50,28 @@ export default async function MembersPage({ params }: Props) {
   const isOwner = currentMember.role === "owner";
 
   return (
-    <Box sx={{ p: layout.page, maxWidth: containers.md }}>
-      <PageHeader
-        title={m.account.members.title}
-        actions={isOwner ? <InviteForm accountId={accountId} /> : undefined}
-      />
+    <PageSettingsContainer
+      title={m.account.members.title}
+      secondary={isOwner ? <InviteForm accountId={accountId} /> : undefined}
+    >
+      <>
+        <MembersTable
+          accountId={accountId}
+          members={members}
+          currentUserId={user.id}
+          currentUserRole={currentMember.role}
+        />
 
-      <MembersTable
-        accountId={accountId}
-        members={members}
-        currentUserId={user.id}
-        currentUserRole={currentMember.role}
-      />
-
-      {isOwner && (
-        <>
-          <Divider sx={{ my: 4 }} />
-          <Typography variant="h6" fontWeight="medium" mb={2}>
-            {m.account.members.pendingInvites}
-          </Typography>
-          <InvitesList accountId={accountId} invites={pendingInvites} />
-        </>
-      )}
-    </Box>
+        {isOwner && (
+          <>
+            <Divider sx={{ my: 4 }} />
+            <Typography variant="h6" fontWeight="medium" mb={2}>
+              {m.account.members.pendingInvites}
+            </Typography>
+            <InvitesList accountId={accountId} invites={pendingInvites} />
+          </>
+        )}
+      </>
+    </PageSettingsContainer>
   );
 }

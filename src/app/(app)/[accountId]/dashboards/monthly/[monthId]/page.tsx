@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import UndoIcon from "@mui/icons-material/Undo";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
@@ -12,11 +18,26 @@ import {
   getSankeyData,
 } from "@/lib/queries/dashboards";
 import { getPinnedAnalyses } from "@/lib/queries/sandbox";
-import { formatMonthLabel } from "@/lib/dates";
-import { MonthNav } from "@/components/dashboards/MonthNav";
+import { formatMonthLabel, MONTH_NAMES } from "@/lib/dates";
+import { AppLink } from "@/components/ui/AppLink";
+import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
 import { MonthlyDashboardClient } from "@/components/dashboards/MonthlyDashboardClient";
 
 type Props = { params: Promise<{ accountId: string; monthId: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { accountId, monthId } = await params;
+  const [month, account] = await Promise.all([
+    prisma.month.findFirst({
+      where: { id: monthId, accountId },
+      select: { year: true, month: true },
+    }),
+    prisma.account.findUnique({ where: { id: accountId }, select: { name: true } }),
+  ]);
+  if (!month || !account) return { title: "MyAccountant" };
+  const monthName = `${MONTH_NAMES[month.month - 1]} ${month.year}`;
+  return { title: `Dashboard Mensal — ${monthName} | ${account.name} | MyAccountant` };
+}
 
 export default async function MonthlyDashboardPage({ params }: Props) {
   const { accountId, monthId } = await params;
@@ -38,13 +59,6 @@ export default async function MonthlyDashboardPage({ params }: Props) {
 
   const { year, month } = monthMeta;
   const monthLabel = formatMonthLabel(year, month);
-
-  const allMonths = allMonthsRaw.map((m) => ({
-    id: m.id,
-    year: m.year,
-    month: m.month,
-    label: formatMonthLabel(m.year, m.month),
-  }));
 
   // Fetch all data in parallel
   const [deepDive, sparklineData, comparisonData, treemapData, pinnedAnalyses] = await Promise.all([
@@ -83,15 +97,36 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   return (
     <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
       {/* Navigation header */}
-      <Box sx={{ mb: 3 }}>
-        <MonthNav
-          accountId={accountId}
-          currentMonthId={monthId}
-          currentLabel={monthLabel}
-          currentYear={year}
-          allMonths={allMonths}
-        />
-      </Box>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+        <Stack direction="row" alignItems="center" gap={1}>
+          <Button
+            component={AppLink}
+            href={`/${accountId}/dashboards/yearly/${year}`}
+            size="small"
+            variant="text"
+            sx={{ color: "text.secondary", fontWeight: "normal", px: 1, minWidth: 0 }}
+          >
+            Dashboards · {year}
+          </Button>
+          <Typography variant="body2" sx={{ color: "text.disabled" }}>
+            /
+          </Typography>
+          <MonthPickerNav
+            currentMonth={{ id: monthId, year, month }}
+            months={allMonthsRaw}
+            basePath={`/${accountId}/dashboards/monthly`}
+          />
+        </Stack>
+        <Button
+          variant="text"
+          component={AppLink}
+          href={`/${accountId}/months/${monthId}`}
+          startIcon={<CalendarMonthIcon fontSize="small" />}
+          sx={{ color: "text.secondary", whiteSpace: "nowrap" }}
+        >
+          Ver mês
+        </Button>
+      </Stack>
 
       <MonthlyDashboardClient
         accountId={accountId}

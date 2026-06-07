@@ -21,15 +21,17 @@ import {
 } from "@/actions/account-settings";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
+import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type Institution = { id: string; name: string };
 
 type Props = {
   accountId: string;
   initialInstitutions: Institution[];
+  title?: string;
 };
 
-export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
+export function InstitutionsManager({ accountId, initialInstitutions, title }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [institutions, setInstitutions] = useState(initialInstitutions);
   const [isPending, startTransition] = useTransition();
@@ -53,7 +55,10 @@ export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
   }
 
   async function handleSave() {
-    if (!nameInput.trim()) { setNameError("Nome obrigatório"); return; }
+    if (!nameInput.trim()) {
+      setNameError("Nome obrigatório");
+      return;
+    }
     setNameError("");
 
     if (editTarget) {
@@ -61,13 +66,25 @@ export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
         institutionId: editTarget.id,
         name: nameInput.trim(),
       });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
-      setInstitutions((prev) => prev.map((i) => i.id === editTarget.id ? { ...i, name: nameInput.trim() } : i));
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setInstitutions((prev) =>
+        prev.map((i) => (i.id === editTarget.id ? { ...i, name: nameInput.trim() } : i)),
+      );
       enqueueSnackbar(m.settings.institutions.updated, { variant: "success" });
     } else {
       const result = await createInstitutionAction(accountId, { name: nameInput.trim() });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
-      setInstitutions((prev) => [...prev, { id: result.data.institutionId, name: nameInput.trim() }].sort((a, b) => a.name.localeCompare(b.name)));
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setInstitutions((prev) =>
+        [...prev, { id: result.data.institutionId, name: nameInput.trim() }].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
+      );
       enqueueSnackbar(m.settings.institutions.created, { variant: "success" });
     }
     closeDialog();
@@ -79,33 +96,48 @@ export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
     setDeleteTarget(null);
     startTransition(async () => {
       const result = await deleteInstitutionAction(accountId, { institutionId: target.id });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
       setInstitutions((prev) => prev.filter((i) => i.id !== target.id));
       enqueueSnackbar(m.settings.institutions.deleted, { variant: "success" });
     });
   }
 
   return (
-    <>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+    <PageSettingsContainer
+      title={title}
+      secondary={
         <Button
           variant="contained"
           size="small"
           startIcon={<AddIcon />}
-          onClick={() => { setCreateOpen(true); setNameInput(""); setNameError(""); }}
+          onClick={() => {
+            setCreateOpen(true);
+            setNameInput("");
+            setNameError("");
+          }}
         >
           {m.settings.institutions.createButton}
         </Button>
-      </Box>
-
+      }
+    >
       {institutions.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">{m.settings.institutions.noInstitutions}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {m.settings.institutions.noInstitutions}
+        </Typography>
       ) : (
         <Stack spacing={1}>
           {institutions.map((inst) => (
             <Paper key={inst.id} variant="outlined" sx={{ px: 2, py: 1.5 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" fontWeight="medium" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
+                  variant="body2"
+                  fontWeight="medium"
+                  noWrap
+                  sx={{ flex: 1, minWidth: 0 }}
+                >
                   {inst.name}
                 </Typography>
                 <Box sx={{ display: "flex", gap: 0.25, flexShrink: 0 }}>
@@ -134,8 +166,12 @@ export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
         title={editTarget ? m.common.edit : m.settings.institutions.createButton}
         actions={
           <>
-            <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
-            <Button size="small" variant="contained" onClick={handleSave}>{m.common.save}</Button>
+            <Button size="small" onClick={closeDialog}>
+              {m.common.cancel}
+            </Button>
+            <Button size="small" variant="contained" onClick={handleSave}>
+              {m.common.save}
+            </Button>
           </>
         }
       >
@@ -147,7 +183,12 @@ export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
           helperText={nameError}
           fullWidth
           autoFocus
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSave();
+            }
+          }}
         />
       </DialogShell>
 
@@ -159,8 +200,16 @@ export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
         title={m.common.delete}
         actions={
           <>
-            <Button size="small" onClick={() => setDeleteTarget(null)}>{m.common.cancel}</Button>
-            <Button size="small" color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
+            <Button size="small" onClick={() => setDeleteTarget(null)}>
+              {m.common.cancel}
+            </Button>
+            <Button
+              size="small"
+              color="error"
+              variant="contained"
+              onClick={confirmDelete}
+              disabled={isPending}
+            >
               {m.common.delete}
             </Button>
           </>
@@ -168,6 +217,6 @@ export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
       >
         <Typography variant="body2">{m.settings.institutions.deleteConfirm}</Typography>
       </DialogShell>
-    </>
+    </PageSettingsContainer>
   );
 }
