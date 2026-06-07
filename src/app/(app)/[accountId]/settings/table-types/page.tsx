@@ -1,15 +1,20 @@
+import type { Metadata } from "next";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
-import Box from "@mui/material/Box";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
 import { parseHiddenColumns } from "@/lib/schemas/settings";
-import { layout, containers } from "@/lib/design-tokens";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { TableTypesManager } from "./TableTypesManager";
 
 type Props = { params: Promise<{ accountId: string }> };
+
+type MetaProps = { params: Promise<{ accountId: string }> };
+export async function generateMetadata({ params }: MetaProps): Promise<Metadata> {
+  const { accountId } = await params;
+  return generateSettingsMetadata(accountId, "Modelos de coluna");
+}
 
 export default async function TableTypesPage({ params }: Props) {
   const { accountId } = await params;
@@ -28,18 +33,27 @@ export default async function TableTypesPage({ params }: Props) {
     },
   });
 
-  const types = tableTypes.map((t) => ({
-    id: t.id,
-    name: t.name,
-    isDefault: t.isDefault,
-    hiddenColumns: parseHiddenColumns(t.hiddenColumns),
-    tableCount: t._count.financeTables,
-  }));
+  const types = tableTypes.map(
+    (t: {
+      id: string;
+      name: string;
+      isDefault: boolean;
+      hiddenColumns: any;
+      _count: { financeTables: number };
+    }) => ({
+      id: t.id,
+      name: t.name,
+      isDefault: t.isDefault,
+      hiddenColumns: parseHiddenColumns(t.hiddenColumns),
+      tableCount: t._count.financeTables,
+    }),
+  );
 
   return (
-    <Box sx={{ p: layout.page, maxWidth: containers.md }}>
-      <PageHeader title={m.settings.tableTypes.title} />
-      <TableTypesManager accountId={accountId} initialTypes={types} />
-    </Box>
+    <TableTypesManager
+      accountId={accountId}
+      initialTypes={types}
+      title={m.settings.tableTypes.title}
+    />
   );
 }

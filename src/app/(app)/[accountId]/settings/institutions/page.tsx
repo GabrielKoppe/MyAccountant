@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 
@@ -5,10 +7,15 @@ import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
 import { layout, containers } from "@/lib/design-tokens";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { InstitutionsManager } from "./InstitutionsManager";
 
 type Props = { params: Promise<{ accountId: string }> };
+
+type MetaProps = { params: Promise<{ accountId: string }> };
+export async function generateMetadata({ params }: MetaProps): Promise<Metadata> {
+  const { accountId } = await params;
+  return generateSettingsMetadata(accountId, "Instituições");
+}
 
 export default async function InstitutionsPage({ params }: Props) {
   const { accountId } = await params;
@@ -22,9 +29,10 @@ export default async function InstitutionsPage({ params }: Props) {
   });
 
   return (
-    <Box sx={{ p: layout.page, maxWidth: containers.md }}>
-      <PageHeader title={m.settings.institutions.title} />
-      <InstitutionsManager accountId={accountId} initialInstitutions={institutions} />
-    </Box>
+    <InstitutionsManager
+      accountId={accountId}
+      initialInstitutions={institutions}
+      title={m.settings.institutions.title}
+    />
   );
 }

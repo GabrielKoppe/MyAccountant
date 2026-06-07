@@ -11,7 +11,6 @@ import Select from "@mui/material/Select";
 import FormControl from "@mui/material/FormControl";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
 import { useSnackbar } from "notistack";
 
 import { updateAccountSettingsAction } from "@/actions/account-settings";
@@ -51,8 +50,8 @@ export function GeneralSettingsForm({ accountId, defaultValues, members }: Props
   }
 
   return (
-    <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
-      <Stack spacing={3}>
+    <Box component="form" onSubmit={form.handleSubmit(onSubmit)} sx={{ mt: 2 }}>
+      <Stack spacing={3} sx={{ justifyContent: "flex-start" }}>
         <Controller
           name="accountName"
           control={form.control}
@@ -62,6 +61,7 @@ export function GeneralSettingsForm({ accountId, defaultValues, members }: Props
               label={m.settings.general.accountNameLabel}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
+              size="small"
               fullWidth
             />
           )}
@@ -73,7 +73,7 @@ export function GeneralSettingsForm({ accountId, defaultValues, members }: Props
           render={({ field, fieldState }) => (
             <FormControl error={!!fieldState.error} fullWidth>
               <InputLabel>{m.settings.general.currencyLabel}</InputLabel>
-              <Select {...field} label={m.settings.general.currencyLabel}>
+              <Select {...field} size="small" label={m.settings.general.currencyLabel} disabled>
                 <MenuItem value="BRL">BRL — Real Brasileiro</MenuItem>
               </Select>
               {fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
@@ -91,9 +91,11 @@ export function GeneralSettingsForm({ accountId, defaultValues, members }: Props
               label={m.settings.general.monthStartDayLabel}
               type="number"
               inputProps={{ min: 1, max: 28 }}
+              size="small"
               error={!!fieldState.error}
               helperText={fieldState.error?.message ?? m.settings.general.monthStartDayHelper}
               fullWidth
+              disabled
             />
           )}
         />
@@ -109,6 +111,7 @@ export function GeneralSettingsForm({ accountId, defaultValues, members }: Props
                 value={field.value ?? ""}
                 onChange={(e) => field.onChange(e.target.value || null)}
                 label={m.settings.general.defaultResponsibleLabel}
+                size="small"
               >
                 <MenuItem value="">{m.settings.general.defaultResponsibleNone}</MenuItem>
                 {members.map((member) => (

@@ -35,6 +35,7 @@ import {
 import { createSectionSchema, type CreateSectionInput } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
 import { DialogShell } from "@/components/ui/DialogShell";
+import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type Section = {
   id: string;
@@ -54,9 +55,10 @@ const COUNT_TYPE_COLORS: Record<SectionCountType, "success" | "error" | "default
 type Props = {
   accountId: string;
   initialSections: Section[];
+  title?: string;
 };
 
-export function SectionsManager({ accountId, initialSections }: Props) {
+export function SectionsManager({ accountId, initialSections, title }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [sections, setSections] = useState(initialSections);
   const [isPending, startTransition] = useTransition();
@@ -137,8 +139,9 @@ export function SectionsManager({ accountId, initialSections }: Props) {
   }
 
   return (
-    <>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+    <PageSettingsContainer
+      title={title}
+      secondary={
         <Button
           variant="contained"
           size="small"
@@ -147,8 +150,8 @@ export function SectionsManager({ accountId, initialSections }: Props) {
         >
           {m.settings.sections.createButton}
         </Button>
-      </Box>
-
+      }
+    >
       {sections.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
           {m.settings.sections.noSections}
@@ -338,6 +341,6 @@ export function SectionsManager({ accountId, initialSections }: Props) {
       >
         <Typography variant="body2">{m.settings.sections.deleteConfirm}</Typography>
       </DialogShell>
-    </>
+    </PageSettingsContainer>
   );
 }

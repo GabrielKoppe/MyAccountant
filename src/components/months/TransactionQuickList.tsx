@@ -22,7 +22,7 @@ type Tx = {
   sectionId: string;
 };
 
-type Mode = "pending" | "favorite";
+type Mode = "pending" | "favorite" | "recent";
 
 type Props = {
   accountId: string;
@@ -46,9 +46,15 @@ export function TransactionQuickList({ accountId, monthId, transactions, mode }:
   }
 
   if (items.length === 0) {
+    const emptyText =
+      mode === "pending"
+        ? "Nenhuma transação pendente."
+        : mode === "favorite"
+          ? "Nenhuma transação favorita."
+          : "Nenhuma transação registrada.";
     return (
       <Typography variant="caption" color="text.disabled" sx={{ px: 0.5 }}>
-        {mode === "pending" ? "Nenhuma transação pendente." : "Nenhuma transação favorita."}
+        {emptyText}
       </Typography>
     );
   }
@@ -70,21 +76,23 @@ export function TransactionQuickList({ accountId, monthId, transactions, mode }:
               "&:hover": { bgcolor: "action.hover" },
             }}
           >
-            {/* Unmark button */}
-            <Tooltip title={mode === "pending" ? "Marcar como realizada" : "Remover dos favoritos"}>
-              <IconButton
-                size="small"
-                disabled={isPending}
-                onClick={() => handleUnmark(tx.id)}
-                sx={{ color: mode === "favorite" ? "warning.main" : "success.main" }}
-              >
-                {mode === "favorite" ? (
-                  <StarIcon fontSize="small" />
-                ) : (
-                  <CheckCircleOutlineIcon fontSize="small" />
-                )}
-              </IconButton>
-            </Tooltip>
+            {/* Unmark button — não exibido no modo "recent" */}
+            {mode !== "recent" && (
+              <Tooltip title={mode === "pending" ? "Marcar como realizada" : "Remover dos favoritos"}>
+                <IconButton
+                  size="small"
+                  disabled={isPending}
+                  onClick={() => handleUnmark(tx.id)}
+                  sx={{ color: mode === "favorite" ? "warning.main" : "success.main" }}
+                >
+                  {mode === "favorite" ? (
+                    <StarIcon fontSize="small" />
+                  ) : (
+                    <CheckCircleOutlineIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
 
             {/* Description */}
             <Typography

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 
@@ -8,7 +9,7 @@ import {
   getSectionTotals,
   calculateMonthTotal,
 } from "@/server/services/month-service";
-import { formatMonthLabel } from "@/lib/dates";
+import { formatMonthLabel, MONTH_NAMES } from "@/lib/dates";
 import { parseHiddenColumns } from "@/lib/schemas/settings";
 import { MonthHeader } from "@/components/months/MonthHeader";
 import { MonthTabs } from "@/components/months/MonthTabs";
@@ -29,6 +30,17 @@ type Props = {
     favorite?: string;
   }>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { accountId, monthId } = await params;
+  const [month, account] = await Promise.all([
+    prisma.month.findUnique({ where: { id: monthId }, select: { year: true, month: true } }),
+    prisma.account.findUnique({ where: { id: accountId }, select: { name: true } }),
+  ]);
+  if (!month || !account) return { title: "MyAccountant" };
+  const monthName = `${MONTH_NAMES[month.month - 1]} ${month.year}`;
+  return { title: `${monthName} | ${account.name} | MyAccountant` };
+}
 
 export default async function MonthPage({ params, searchParams }: Props) {
   const { accountId, monthId } = await params;
@@ -157,7 +169,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
     transactionsByTable[tx.tableId].push(row);
   }
 
-  // Totais por tabela (para o header do card)
+  // Totais por tabela
   const tableTotalsMap: Record<string, string> = {};
   for (const [tableId, txList] of Object.entries(transactionsByTable)) {
     const total = txList.reduce((sum, tx) => sum + BigInt(tx.amountCents), 0n);
@@ -185,7 +197,20 @@ export default async function MonthPage({ params, searchParams }: Props) {
   }
   const monthTotal = monthTotalRaw.toString();
 
-  // Listas para o resumo (computadas das transações já carregadas)
+  // Mês anterior (para deltas)
+  const sortedMonthsList = [...allMonths];
+  const currentIdx = sortedMonthsList.findIndex((m) => m.id === monthId);
+  const prevMonthItem = currentIdx > 0 ? sortedMonthsList[currentIdx - 1] : null;
+
+  let prevSectionTotals: Record<string, string> | undefined;
+  if (prevMonthItem) {
+    const prevTotalsRaw = await getSectionTotals(accountId, prevMonthItem.id, sections.map((s) => s.id));
+    prevSectionTotals = Object.fromEntries(
+      Object.entries(prevTotalsRaw).map(([id, val]) => [id, val.toString()]),
+    );
+  }
+
+  // Listas para o resumo
   type QuickTx = { id: string; description: string | null; amountCents: string; sectionId: string };
 
   const pendingTransactions: QuickTx[] = allTransactionsRaw
@@ -198,21 +223,9 @@ export default async function MonthPage({ params, searchParams }: Props) {
     .slice(0, 20)
     .map((tx) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
 
-  // Totais por categoria (para o gráfico do resumo)
-  const catTotalsMap: Record<string, bigint> = {};
-  for (const tx of allTransactionsRaw) {
-    if (tx.categoryId) {
-      catTotalsMap[tx.categoryId] = (catTotalsMap[tx.categoryId] ?? 0n) + tx.amountCents;
-    }
-  }
-  const categoryTotals = Object.entries(catTotalsMap)
-    .map(([id, total]) => ({
-      categoryId: id,
-      name: categories.find((c) => c.id === id)?.name ?? "—",
-      totalCents: total.toString(),
-    }))
-    .sort((a, b) => Math.abs(Number(BigInt(b.totalCents))) - Math.abs(Number(BigInt(a.totalCents))))
-    .slice(0, 8);
+  const recentTransactions: QuickTx[] = allTransactionsRaw
+    .slice(0, 8)
+    .map((tx) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
 
   // Source tables para o modal de cópia
   const allAccountTablesRaw = await prisma.financeTable.findMany({
@@ -253,6 +266,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
           currentMonth={currentMonth}
           months={allMonths}
           role={member.role}
+          monthTotal={monthTotal}
         />
 
         <ActiveFilterChips />
@@ -275,7 +289,8 @@ export default async function MonthPage({ params, searchParams }: Props) {
               monthId={monthId}
               pendingTransactions={pendingTransactions}
               favoriteTransactions={favoriteTransactions}
-              categoryTotals={categoryTotals}
+              recentTransactions={recentTransactions}
+              prevSectionTotals={prevSectionTotals}
             />
           ) : (
             <SectionView

@@ -1,14 +1,22 @@
+import type { Metadata } from "next";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
-import Box from "@mui/material/Box";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
-import { layout, containers } from "@/lib/design-tokens";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { GeneralSettingsForm } from "./GeneralSettingsForm";
+import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
+import { Divider, Paper, Typography } from "@mui/material";
+import { AccountDangerZone } from "./AccountDangerZone";
 
 type Props = { params: Promise<{ accountId: string }> };
+
+type MetaProps = { params: Promise<{ accountId: string }> };
+export async function generateMetadata({ params }: MetaProps): Promise<Metadata> {
+  const { accountId } = await params;
+  return generateSettingsMetadata(accountId, "Geral");
+}
 
 export default async function GeneralSettingsPage({ params }: Props) {
   const { accountId } = await params;
@@ -24,11 +32,21 @@ export default async function GeneralSettingsPage({ params }: Props) {
     }),
   ]);
 
+  const membersList = members.map(
+    (m: { user: { id: string; name: string | null; email: string } }) => ({
+      id: m.user.id,
+      label: m.user.name ?? m.user.email,
+    }),
+  );
+
   if (!account || !settings) redirect("/home");
 
   return (
-    <Box sx={{ p: layout.page, maxWidth: containers.md }}>
-      <PageHeader title={m.settings.general.title} />
+    <PageSettingsContainer title={m.settings.general.title}>
+      <AccountDangerZone accountId={accountId} accountName={account.name} role={member.role} />
+
+      <Divider sx={{ my: 3 }} />
+
       <GeneralSettingsForm
         accountId={accountId}
         defaultValues={{
@@ -37,11 +55,8 @@ export default async function GeneralSettingsPage({ params }: Props) {
           monthStartDay: settings.monthStartDay,
           defaultResponsibleUserId: settings.defaultResponsibleUserId ?? null,
         }}
-        members={members.map((m) => ({
-          id: m.user.id,
-          label: m.user.name ?? m.user.email,
-        }))}
+        members={membersList}
       />
-    </Box>
+    </PageSettingsContainer>
   );
 }

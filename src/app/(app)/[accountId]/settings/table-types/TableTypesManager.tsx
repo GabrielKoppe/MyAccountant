@@ -37,6 +37,7 @@ import {
 } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
 import { DialogShell } from "@/components/ui/DialogShell";
+import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type TableTypeItem = {
   id: string;
@@ -49,6 +50,7 @@ type TableTypeItem = {
 type Props = {
   accountId: string;
   initialTypes: TableTypeItem[];
+  title?: string;
 };
 
 const ALWAYS_VISIBLE = [
@@ -57,7 +59,7 @@ const ALWAYS_VISIBLE = [
   { key: "description", label: "Descrição" },
 ];
 
-export function TableTypesManager({ accountId, initialTypes }: Props) {
+export function TableTypesManager({ accountId, initialTypes, title }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [types, setTypes] = useState(initialTypes);
   const [isPending, startTransition] = useTransition();
@@ -153,15 +155,18 @@ export function TableTypesManager({ accountId, initialTypes }: Props) {
   }
 
   return (
-    <>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+    <PageSettingsContainer
+      title={title}
+      secondary={
         <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openCreate}>
           {m.settings.tableTypes.createButton}
         </Button>
-      </Box>
-
+      }
+    >
       {types.length === 0 && (
-        <Typography variant="body2" color="text.secondary">{m.settings.tableTypes.noTableTypes}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {m.settings.tableTypes.noTableTypes}
+        </Typography>
       )}
 
       <Stack spacing={1}>
@@ -183,7 +188,12 @@ export function TableTypesManager({ accountId, initialTypes }: Props) {
                   />
                 ) : (
                   <>
-                    <Typography variant="body2" fontWeight="medium" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      variant="body2"
+                      fontWeight="medium"
+                      noWrap
+                      sx={{ flex: 1, minWidth: 0 }}
+                    >
                       {type.name}
                     </Typography>
                     {type.isDefault && (
@@ -295,14 +305,25 @@ export function TableTypesManager({ accountId, initialTypes }: Props) {
         title={m.settings.tableTypes.createTitle}
         actions={
           <>
-            <Button size="small" onClick={closeDialog}>{m.common.cancel}</Button>
-            <Button size="small" type="submit" variant="contained" disabled={form.formState.isSubmitting}>
+            <Button size="small" onClick={closeDialog}>
+              {m.common.cancel}
+            </Button>
+            <Button
+              size="small"
+              type="submit"
+              variant="contained"
+              disabled={form.formState.isSubmitting}
+            >
               {m.common.create}
             </Button>
           </>
         }
       >
-        <Box component="form" onSubmit={form.handleSubmit(onSubmitCreate)} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box
+          component="form"
+          onSubmit={form.handleSubmit(onSubmitCreate)}
+          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+        >
           <Controller
             name="name"
             control={form.control}
@@ -331,8 +352,16 @@ export function TableTypesManager({ accountId, initialTypes }: Props) {
         title={m.common.delete}
         actions={
           <>
-            <Button size="small" onClick={() => setDeleteTarget(null)}>{m.common.cancel}</Button>
-            <Button size="small" color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
+            <Button size="small" onClick={() => setDeleteTarget(null)}>
+              {m.common.cancel}
+            </Button>
+            <Button
+              size="small"
+              color="error"
+              variant="contained"
+              onClick={confirmDelete}
+              disabled={isPending}
+            >
               {m.common.delete}
             </Button>
           </>
@@ -345,7 +374,7 @@ export function TableTypesManager({ accountId, initialTypes }: Props) {
           </Typography>
         )}
       </DialogShell>
-    </>
+    </PageSettingsContainer>
   );
 }
 
