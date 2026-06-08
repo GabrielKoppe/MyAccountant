@@ -1,0 +1,63 @@
+import { AppError } from "@/server/api/errors";
+import { requireAccountAccess } from "@/server/auth/session";
+import { logger } from "@/server/logger";
+import { prisma } from "@/server/prisma";
+import { buildYearCsv, getYearTransactionsForExport } from "@/server/services/export-service";
+import { toAccountSlug } from "@/lib/export-utils";
+import { m } from "@/lib/messages";
+
+const log = logger.child({ module: "export.year-csv" });
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ accountId: string; year: string }> },
+) {
+  const { accountId, year: yearStr } = await params;
+  const year = parseInt(yearStr, 10);
+
+  try {
+    await requireAccountAccess(accountId);
+
+    if (isNaN(year)) {
+      return Response.json({ error: "BAD_REQUEST" }, { status: 400 });
+    }
+
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+      select: { name: true },
+    });
+
+    if (!account) {
+      return Response.json({ error: "NOT_FOUND" }, { status: 404 });
+    }
+
+    const transactions = await getYearTransactionsForExport(accountId, year);
+
+    if (transactions.length === 0) {
+      return Response.json(
+        { code: "NO_DATA", message: m.export.noData },
+        { status: 422 },
+      );
+    }
+
+    const csv = buildYearCsv(transactions);
+    const slug = toAccountSlug(account.name);
+    const filename = `${slug}_${year}.csv`;
+
+    log.info({ accountId, year, count: transactions.length }, "Year CSV exported");
+
+    return new Response(csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
+    });
+  } catch (err) {
+    if (err instanceof AppError) {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      return Response.json({ error: err.code }, { status });
+    }
+    log.error({ err, accountId, year }, "Year CSV export failed");
+    return Response.json({ error: "INTERNAL", message: m.export.error }, { status: 500 });
+  }
+}

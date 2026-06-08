@@ -21,6 +21,7 @@ import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { formatMonthLabel, MONTH_NAMES } from "@/lib/dates";
 import { AppLink } from "@/components/ui/AppLink";
 import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
+import { MonthlyDashboardMenu } from "@/components/dashboards/MonthlyDashboardMenu";
 import { MonthlyDashboardClient } from "@/components/dashboards/MonthlyDashboardClient";
 
 type Props = { params: Promise<{ accountId: string; monthId: string }> };
@@ -117,15 +118,21 @@ export default async function MonthlyDashboardPage({ params }: Props) {
             basePath={`/${accountId}/dashboards/monthly`}
           />
         </Stack>
-        <Button
-          variant="text"
-          component={AppLink}
-          href={`/${accountId}/months/${monthId}`}
-          startIcon={<CalendarMonthIcon fontSize="small" />}
-          sx={{ color: "text.secondary", whiteSpace: "nowrap" }}
-        >
-          Ver mês
-        </Button>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          <Button
+            variant="text"
+            component={AppLink}
+            href={`/${accountId}/months/${monthId}`}
+            startIcon={<CalendarMonthIcon fontSize="small" />}
+            sx={{ color: "text.secondary", whiteSpace: "nowrap" }}
+          >
+            Ver mês
+          </Button>
+          <MonthlyDashboardMenu
+            csvUrl={`/api/v1/accounts/${accountId}/months/${monthId}/export/csv`}
+            pdfUrl={`/api/v1/accounts/${accountId}/months/${monthId}/export/pdf`}
+          />
+        </Stack>
       </Stack>
 
       <MonthlyDashboardClient

@@ -53,8 +53,7 @@ export const messages = {
       deleteAccount: "Deletar conta",
       deleteAccountHint: "Ação permanente — todos os dados serão apagados.",
       deleteAccountAlert: "Esta ação é permanente e não pode ser desfeita.",
-      deleteAccountConfirm:
-        'Para confirmar, digite o nome da conta abaixo e clique em "Deletar".',
+      deleteAccountConfirm: 'Para confirmar, digite o nome da conta abaixo e clique em "Deletar".',
       deleteAccountSuccess: "Conta deletada com sucesso.",
       leaveAccountSuccess: "Você saiu da conta.",
     },
@@ -149,7 +148,8 @@ export const messages = {
       updated: "Seção atualizada.",
       deleted: "Seção deletada.",
       deleteConfirm: "Tem certeza que deseja deletar esta seção? Esta ação não pode ser desfeita.",
-      deleteBlockedByTables: "Não é possível deletar: há tabelas financeiras associadas a esta seção.",
+      deleteBlockedByTables:
+        "Não é possível deletar: há tabelas financeiras associadas a esta seção.",
       noSections: "Nenhuma seção cadastrada.",
     },
     categories: {
@@ -165,8 +165,10 @@ export const messages = {
       subCreated: "Subcategoria criada.",
       subUpdated: "Subcategoria atualizada.",
       subDeleted: "Subcategoria deletada.",
-      deleteConfirm: "Excluir esta categoria também removerá todas as suas subcategorias. Transações que usavam esta categoria mantêm o histórico, mas sem o vínculo.",
-      deleteSubConfirm: "Transações vinculadas a esta subcategoria mantêm o histórico, mas perdem o vínculo com ela.",
+      deleteConfirm:
+        "Excluir esta categoria também removerá todas as suas subcategorias. Transações que usavam esta categoria mantêm o histórico, mas sem o vínculo.",
+      deleteSubConfirm:
+        "Transações vinculadas a esta subcategoria mantêm o histórico, mas perdem o vínculo com ela.",
       noCategories: "Nenhuma categoria cadastrada.",
     },
     institutions: {
@@ -177,7 +179,8 @@ export const messages = {
       created: "Instituição criada.",
       updated: "Instituição atualizada.",
       deleted: "Instituição deletada.",
-      deleteConfirm: "Tem certeza que deseja deletar esta instituição? Transações associadas mantêm o histórico.",
+      deleteConfirm:
+        "Tem certeza que deseja deletar esta instituição? Transações associadas mantêm o histórico.",
       noInstitutions: "Nenhuma instituição cadastrada.",
     },
     tableTypes: {
@@ -226,7 +229,8 @@ export const messages = {
     duplicateError: "Este mês já existe.",
     deleteTitle: "Deletar mês",
     deleteConfirm: "Digite o nome do mês para confirmar:",
-    deleteWithTransactionsWarning: "Este mês possui transações. Todos os dados serão apagados permanentemente.",
+    deleteWithTransactionsWarning:
+      "Este mês possui transações. Todos os dados serão apagados permanentemente.",
     deleteSuccess: "Mês deletado.",
     summary: "Resumo",
     monthTotal: "Total do mês",
@@ -277,8 +281,7 @@ export const messages = {
     noTablesHint: "Adicione uma tabela para registrar transações.",
     moveTitle: (n: number) => `Mover ${n} transação(ões)`,
     moveNewTableSection: "Configurar nova tabela",
-    moveSuccess: (n: number, name: string) =>
-      `${n} transação(ões) movida(s) para "${name}".`,
+    moveSuccess: (n: number, name: string) => `${n} transação(ões) movida(s) para "${name}".`,
   },
   transactions: {
     title: "Transações",
@@ -295,16 +298,16 @@ export const messages = {
     investmentTypeLabel: "Tipo de investimento",
     investmentTypeNone: "Nenhum",
     investmentTypes: {
-      "Ações": "Ações",
-      "ETF": "ETF",
-      "FII": "FII",
+      Ações: "Ações",
+      ETF: "ETF",
+      FII: "FII",
       "Tesouro Direto": "Tesouro Direto",
-      "CDB": "CDB",
+      CDB: "CDB",
       "LCI/LCA": "LCI/LCA",
-      "Fundos": "Fundos",
-      "Previdência": "Previdência",
-      "Criptomoedas": "Criptomoedas",
-      "Outros": "Outros",
+      Fundos: "Fundos",
+      Previdência: "Previdência",
+      Criptomoedas: "Criptomoedas",
+      Outros: "Outros",
     },
     fields: {
       occurredOn: "Data",
@@ -501,7 +504,8 @@ export const messages = {
     created: "Modelo criado.",
     updated: "Modelo atualizado.",
     deleted: "Modelo deletado.",
-    deleteConfirm: "Deletar este modelo? Os itens serão removidos, mas as tabelas já criadas a partir dele permanecem.",
+    deleteConfirm:
+      "Deletar este modelo? Os itens serão removidos, mas as tabelas já criadas a partir dele permanecem.",
     editItems: "Editar itens",
     addItem: "Adicionar item",
     itemDeleted: "Item removido.",
@@ -575,7 +579,8 @@ export const messages = {
       investmentTypeColumn: "Coluna de tipo de investimento",
       responsibleUserColumn: "Coluna de responsável (nome no cartão, etc.)",
       responsibleUserMappingsTitle: "Mapear nomes para membros",
-      responsibleUserMappingsHint: "Cada texto único encontrado na coluna pode ser associado a um membro da conta.",
+      responsibleUserMappingsHint:
+        "Cada texto único encontrado na coluna pode ser associado a um membro da conta.",
       noMapping: "— Não mapear —",
       additionalFields: "Campos adicionais",
       dateFormatLabel: "Formato de data",
@@ -624,6 +629,14 @@ export const messages = {
       errorsTitle: "Linhas com erro",
       moreErrors: (n: number) => `... e mais ${n} erro(s)`,
     },
+  },
+  export: {
+    buttonLabel: "Exportar",
+    csvOption: "CSV",
+    csvYearOption: "CSV",
+    pdfOption: "PDF",
+    noData: "Sem transações para exportar neste período.",
+    error: "Erro ao exportar. Tente novamente.",
   },
   errors: {
     unauthorized: "Você precisa estar logado.",

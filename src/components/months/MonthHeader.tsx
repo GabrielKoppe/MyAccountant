@@ -12,8 +12,13 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import Divider from "@mui/material/Divider";
+import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { useSnackbar } from "notistack";
@@ -22,6 +27,7 @@ import { deleteMonthAction } from "@/actions/months";
 import { formatMonthLabel } from "@/lib/dates";
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
+import { useExportDownload } from "@/lib/hooks/use-export-download";
 import { useMonthFilters } from "./MonthFilterContext";
 import { CreateMonthModal } from "./CreateMonthModal";
 import { TransactionFilterDrawer } from "@/components/transactions/TransactionFilterDrawer";
@@ -50,6 +56,7 @@ export function MonthHeader({
 }: Props) {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
+  const { download: exportDownload, loading: exportLoading } = useExportDownload();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -65,6 +72,14 @@ export function MonthHeader({
 
   const currentLabel = formatMonthLabel(currentMonth.year, currentMonth.month);
   const isOwner = role === "owner";
+
+  const csvUrl = `/api/v1/accounts/${accountId}/months/${currentMonth.id}/export/csv`;
+  const pdfUrl = `/api/v1/accounts/${accountId}/months/${currentMonth.id}/export/pdf`;
+
+  async function handleExport(url: string) {
+    setMenuAnchor(null);
+    await exportDownload(url);
+  }
 
   async function handleDelete() {
     setDeleting(true);
@@ -134,30 +149,58 @@ export function MonthHeader({
       {/* Botão novo mês */}
       <CreateMonthModal accountId={accountId} lastMonth={lastMonth ?? null} variant="button" />
 
-      {/* Menu ellipsis (owner only) */}
-      {isOwner && (
-        <>
-          <IconButton
-            size="small"
-            aria-label="Mais opções"
-            onClick={(e) => setMenuAnchor(e.currentTarget)}
+      {/* Menu ellipsis — exportar para todos, deletar apenas para owner */}
+      <IconButton
+        size="small"
+        aria-label="Mais opções"
+        onClick={(e) => setMenuAnchor(e.currentTarget)}
+        disabled={exportLoading}
+      >
+        <MoreVertIcon fontSize="small" />
+      </IconButton>
+      <Menu
+        anchorEl={menuAnchor}
+        open={!!menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+        slotProps={{ paper: { sx: { minWidth: 180 } } }}
+      >
+        <MenuItem
+          onClick={() => handleExport(csvUrl)}
+          disabled={exportLoading}
+          sx={{ py: 0.75, fontSize: 13 }}
+        >
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <FileDownloadIcon sx={{ fontSize: 16 }} />
+          </ListItemIcon>
+          {m.export.csvOption}
+        </MenuItem>
+        <MenuItem
+          onClick={() => handleExport(pdfUrl)}
+          disabled={exportLoading}
+          sx={{ py: 0.75, fontSize: 13 }}
+        >
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <PictureAsPdfIcon sx={{ fontSize: 16 }} />
+          </ListItemIcon>
+          {m.export.pdfOption}
+        </MenuItem>
+        {isOwner && <Divider />}
+        {isOwner && (
+          <MenuItem
+            onClick={() => {
+              setMenuAnchor(null);
+              setDeleteConfirm("");
+              setDeleteOpen(true);
+            }}
+            sx={{ py: 0.75, fontSize: 13, color: "error.main" }}
           >
-            <MoreVertIcon fontSize="small" />
-          </IconButton>
-          <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
-            <MenuItem
-              onClick={() => {
-                setMenuAnchor(null);
-                setDeleteConfirm("");
-                setDeleteOpen(true);
-              }}
-              sx={{ color: "error.main" }}
-            >
-              {m.months.deleteTitle}
-            </MenuItem>
-          </Menu>
-        </>
-      )}
+            <ListItemIcon sx={{ minWidth: 32 }}>
+              <DeleteOutlineIcon sx={{ fontSize: 16, color: "error.main" }} />
+            </ListItemIcon>
+            {m.months.deleteTitle}
+          </MenuItem>
+        )}
+      </Menu>
 
       {/* Delete confirmation */}
       <DialogShell

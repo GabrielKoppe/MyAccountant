@@ -17,6 +17,7 @@ import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import { AppLink } from "@/components/ui/AppLink";
+import { YearlyDashboardMenu } from "@/components/dashboards/YearlyDashboardMenu";
 import { KpiSparklineCard } from "@/components/dashboards/KpiSparklineCard";
 import { MonthlyBarChart } from "@/components/dashboards/MonthlyBarChart";
 import { CategoryBarList } from "@/components/dashboards/CategoryBarList";
@@ -110,8 +111,11 @@ export default async function YearlyDashboardPage({ params }: Props) {
           <YearSelector accountId={accountId} currentYear={year} allYears={allYears} />
         </Box>
 
-        {/* Quick links to adjacent years */}
-        <Box sx={{ display: "flex", gap: 1 }}>
+        {/* Quick links + actions */}
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          <YearlyDashboardMenu
+            csvUrl={`/api/v1/accounts/${accountId}/years/${year}/export/csv`}
+          />
           {allYears
             .filter((y) => y !== year)
             .slice(0, 3)
