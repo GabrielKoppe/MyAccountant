@@ -9,18 +9,30 @@ type Props = {
   label: string;
   onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
+  /** Direção em que o texto expande ao hover. Default: "right". */
+  direction?: "right" | "left";
   sx?: SxProps<Theme>;
 };
 
 /**
  * Botão que exibe apenas um ícone por padrão.
- * Ao passar o mouse, o texto desliza suavemente para a direita do ícone.
+ * Ao passar o mouse, o texto desliza suavemente para a direita ou esquerda do ícone.
  * Sem borda, sem fundo — equivalente a variant="text".
  *
  * Uso:
  *   <ExpandableIconButton icon={<ClearIcon />} label="Limpar tudo" onClick={fn} />
+ *   <ExpandableIconButton icon={<ClearIcon />} label="Limpar tudo" direction="left" onClick={fn} />
  */
-export function ExpandableIconButton({ icon, label, onClick, disabled = false, sx }: Props) {
+export function ExpandableIconButton({
+  icon,
+  label,
+  onClick,
+  disabled = false,
+  direction = "right",
+  sx,
+}: Props) {
+  const isLeft = direction === "left";
+
   return (
     <ButtonBase
       onClick={onClick}
@@ -43,18 +55,27 @@ export function ExpandableIconButton({ icon, label, onClick, disabled = false, s
           maxWidth: 0,
           overflow: "hidden",
           whiteSpace: "nowrap",
-          marginLeft: 0,
-          transition: "max-width 0.2s ease, margin-left 0.2s ease",
+          ...(isLeft ? { marginRight: 0 } : { marginLeft: 0 }),
+          transition: `max-width 0.2s ease, ${isLeft ? "margin-right" : "margin-left"} 0.2s ease`,
         },
         "&:hover .eib-label": {
           maxWidth: 120,
-          marginLeft: "4px",
+          ...(isLeft ? { marginRight: "4px" } : { marginLeft: "4px" }),
         },
         ...sx,
       }}
     >
-      {icon}
-      <span className="eib-label">{label}</span>
+      {isLeft ? (
+        <>
+          <span className="eib-label">{label}</span>
+          {icon}
+        </>
+      ) : (
+        <>
+          {icon}
+          <span className="eib-label">{label}</span>
+        </>
+      )}
     </ButtonBase>
   );
 }
