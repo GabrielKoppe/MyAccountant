@@ -20,6 +20,8 @@ import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
 import { useSnackbar } from "notistack";
 
 import { listTablesForMoveAction, moveTransactionsAction } from "@/actions/transactions";
+import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import { DialogShell } from "@/components/ui/DialogShell";
 
 const NEW_TABLE = "__new__";
@@ -137,8 +139,10 @@ export function MoveTransactionsDialog({
       }
 
       enqueueSnackbar(
-        `${selectedIds.length} transação(ões) movida(s) para "${result.data.targetTableName}".`,
-        { variant: "success" },
+        m.financeTables.moveSuccess(selectedIds.length, result.data.targetTableName),
+        {
+          variant: "success",
+        },
       );
       onMoved(selectedIds);
       onClose();
@@ -148,18 +152,17 @@ export function MoveTransactionsDialog({
   return (
     <DialogShell
       open={open}
-      onClose={() => !isPending && onClose()}
+      onClose={onClose}
       maxWidth="sm"
-      title={`Mover ${selectedIds.length} transação(ões)`}
+      title={m.financeTables.moveTitle(selectedIds.length)}
+      loading={isPending}
       actions={
         <>
-          <Button onClick={onClose} disabled={isPending}>
-            Cancelar
-          </Button>
+          <Button onClick={onClose}>{m.common.cancel}</Button>
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={!canSubmit || isPending}
+            disabled={!canSubmit}
             endIcon={
               isPending ? (
                 <CircularProgress size={16} color="inherit" />
@@ -168,40 +171,42 @@ export function MoveTransactionsDialog({
               )
             }
           >
-            {isPending ? "Movendo..." : `Mover ${selectedIds.length} transação(ões)`}
+            {m.financeTables.moveTitle(selectedIds.length)}
           </Button>
         </>
       }
     >
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", py: layout.section }}>
           <CircularProgress />
         </Box>
       ) : (
-        <Stack spacing={2.5} sx={{ mt: 0.5 }}>
+        <Stack spacing={layout.stack} sx={{ mt: 0.5 }} direction="column">
           {/* Mês destino */}
-          <FormControl fullWidth>
-            <InputLabel>Mês destino *</InputLabel>
+          <FormControl fullWidth size="small">
+            <InputLabel size="small">Mês destino *</InputLabel>
             <Select
               value={monthId}
               label="Mês destino *"
               onChange={(e) => handleMonthChange(e.target.value)}
+              size="small"
             >
-              {destData?.months.map((m) => (
-                <MenuItem key={m.id} value={m.id}>
-                  {m.label}
+              {destData?.months.map((mo) => (
+                <MenuItem key={mo.id} value={mo.id}>
+                  {mo.label}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
 
           {/* Seção destino */}
-          <FormControl fullWidth>
-            <InputLabel>Seção destino *</InputLabel>
+          <FormControl fullWidth size="small">
+            <InputLabel size="small">Seção destino *</InputLabel>
             <Select
               value={sectionId}
               label="Seção destino *"
               onChange={(e) => handleSectionChange(e.target.value)}
+              size="small"
             >
               {destData?.sections.map((s) => (
                 <MenuItem key={s.id} value={s.id}>
@@ -213,7 +218,7 @@ export function MoveTransactionsDialog({
 
           {/* Tabela destino — só aparece quando mês e seção selecionados */}
           {monthId && sectionId && (
-            <FormControl fullWidth>
+            <FormControl fullWidth size="small">
               <InputLabel>Tabela destino *</InputLabel>
               <Select
                 value={tableId}
@@ -236,17 +241,16 @@ export function MoveTransactionsDialog({
 
           {/* Campos da nova tabela */}
           {isNew && (
-            <Paper variant="outlined" sx={{ p: 2 }}>
+            <Paper variant="outlined" sx={{ p: layout.inline }}>
               <Typography
-                variant="caption"
-                fontWeight="bold"
+                variant="overline"
                 color="text.secondary"
                 display="block"
-                mb={1.5}
+                mb={layout.inline}
               >
-                CONFIGURAR NOVA TABELA
+                {m.financeTables.moveNewTableSection}
               </Typography>
-              <Stack spacing={2}>
+              <Stack spacing={layout.inline}>
                 <TextField
                   label="Nome da tabela *"
                   value={newName}

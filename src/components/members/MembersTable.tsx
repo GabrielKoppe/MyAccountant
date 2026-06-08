@@ -162,7 +162,9 @@ export function MembersTable({ accountId, members, currentUserId, currentUserRol
       <DialogShell
         open={!!removeTarget}
         onClose={() => setRemoveTarget(null)}
-        title={m.account.members.removeButton}
+        maxWidth="xs"
+        title={m.account.members.removeTitle}
+        description={m.account.members.removeConfirm}
         actions={
           <>
             <Button onClick={() => setRemoveTarget(null)}>{m.common.cancel}</Button>
@@ -171,9 +173,7 @@ export function MembersTable({ accountId, members, currentUserId, currentUserRol
             </Button>
           </>
         }
-      >
-        <Typography variant="body2">{m.account.members.removeConfirm}</Typography>
-      </DialogShell>
+      />
     </>
   );
 }

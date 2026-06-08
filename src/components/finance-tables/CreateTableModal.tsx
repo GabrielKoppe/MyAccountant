@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -22,12 +23,14 @@ import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import { useSnackbar } from "notistack";
 
-import { useEffect, useState as useStateModal } from "react";
 import { createFinanceTableAction } from "@/actions/finance-tables";
 import { applyTemplateAction, listTemplatesAction } from "@/actions/table-templates";
-import { createFinanceTableSchema, type CreateFinanceTableInput } from "@/lib/schemas/finance-table";
-import { formatMonthLabel } from "@/lib/dates";
+import {
+  createFinanceTableSchema,
+  type CreateFinanceTableInput,
+} from "@/lib/schemas/finance-table";
 import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import { DialogShell } from "@/components/ui/DialogShell";
 
 type Section = { id: string; name: string };
@@ -62,18 +65,10 @@ export function CreateTableModal({
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [open, setOpen] = useState(false);
-  const [useTemplate, setUseTemplate] = useStateModal(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useStateModal("");
-  const [templateList, setTemplateList] = useStateModal<{ id: string; name: string; _count: { items: number } }[]>([]);
-
-  // Load templates lazily when "template" option is first selected
-  useEffect(() => {
-    if (useTemplate && templateList.length === 0) {
-      listTemplatesAction(accountId, {}).then((res) => {
-        if (res.ok) setTemplateList(res.data.map((t) => ({ id: t.id, name: t.name, _count: t._count })));
-      });
-    }
-  }, [useTemplate, accountId, templateList.length]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateList, setTemplateList] = useState<
+    { id: string; name: string; _count: { items: number } }[]
+  >([]);
 
   const defaultTableType = tableTypes.find((t) => t.isDefault) ?? tableTypes[0];
 
@@ -96,6 +91,15 @@ export function CreateTableModal({
 
   const sourceMethod = form.watch("sourceMethod");
 
+  useEffect(() => {
+    if (sourceMethod === "template" && templateList.length === 0) {
+      listTemplatesAction(accountId, {}).then((res) => {
+        if (res.ok)
+          setTemplateList(res.data.map((t) => ({ id: t.id, name: t.name, _count: t._count })));
+      });
+    }
+  }, [sourceMethod, accountId, templateList.length]);
+
   function openModal() {
     form.reset({
       monthId,
@@ -106,14 +110,12 @@ export function CreateTableModal({
       countInMonth: true,
       copyOptions: { includeTransactions: true, updateDates: true, markAsPending: false },
     });
-    setUseTemplate(false);
     setSelectedTemplateId("");
     setOpen(true);
   }
 
   async function onSubmit(values: CreateFinanceTableInput) {
-    // Se "usar modelo" está selecionado, delegar para applyTemplateAction
-    if (useTemplate) {
+    if (values.sourceMethod === "template") {
       if (!selectedTemplateId) {
         enqueueSnackbar("Selecione um modelo.", { variant: "warning" });
         return;
@@ -130,7 +132,10 @@ export function CreateTableModal({
         tableTypeId: values.tableTypeId || undefined,
         countInMonth: values.countInMonth,
       });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
       enqueueSnackbar(m.tableModels.applied, { variant: "success" });
       setOpen(false);
       onCreated?.(result.data.tableId);
@@ -164,22 +169,32 @@ export function CreateTableModal({
         {m.financeTables.createButton}
       </Button>
 
-      <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
-        <DialogShell
-          open={open}
-          onClose={() => setOpen(false)}
-          maxWidth="sm"
-          title={m.financeTables.createTitle}
-          actions={
-            <>
-              <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
-              <Button type="submit" variant="contained" disabled={form.formState.isSubmitting}>
-                {m.common.create}
-              </Button>
-            </>
-          }
-        >
-          <Stack spacing={2.5}>
+      <DialogShell
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth="sm"
+        title={m.financeTables.createTitle}
+        loading={form.formState.isSubmitting}
+        actions={
+          <>
+            <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
+            <Button
+              type="submit"
+              form="create-table-form"
+              variant="contained"
+              endIcon={
+                form.formState.isSubmitting ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : undefined
+              }
+            >
+              {m.common.create}
+            </Button>
+          </>
+        }
+      >
+        <form id="create-table-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+          <Stack spacing={layout.stack}>
             {/* Seção */}
             {!preSelectedSectionId && (
               <Controller
@@ -228,7 +243,12 @@ export function CreateTableModal({
                       <MenuItem key={t.id} value={t.id}>
                         {t.name}
                         {t.isDefault && (
-                          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ ml: 1 }}
+                          >
                             (padrão)
                           </Typography>
                         )}
@@ -265,18 +285,16 @@ export function CreateTableModal({
                       value="empty"
                       control={<Radio />}
                       label={m.financeTables.sourceMethods.empty}
-                      onClick={() => setUseTemplate(false)}
                     />
                     <FormControlLabel
                       value="copy"
                       control={<Radio />}
                       label={m.financeTables.sourceMethods.copy}
                       disabled={sourceTables.length === 0}
-                      onClick={() => setUseTemplate(false)}
                     />
                     <FormControlLabel
-                      value="empty"
-                      control={<Radio checked={useTemplate} onChange={() => { setUseTemplate(true); field.onChange("empty"); }} />}
+                      value="template"
+                      control={<Radio />}
                       label={m.financeTables.sourceMethods.template}
                     />
                   </RadioGroup>
@@ -285,8 +303,8 @@ export function CreateTableModal({
             />
 
             {/* Template selector */}
-            {useTemplate && (
-              <Stack spacing={1.5} sx={{ pl: 1 }}>
+            {sourceMethod === "template" && (
+              <Stack spacing={layout.inline} sx={{ pl: 1 }}>
                 <FormControl fullWidth>
                   <InputLabel>Modelo *</InputLabel>
                   <Select
@@ -295,7 +313,9 @@ export function CreateTableModal({
                     onChange={(e) => setSelectedTemplateId(e.target.value)}
                   >
                     {templateList.length === 0 && (
-                      <MenuItem disabled value="">Nenhum modelo salvo. Crie um em Configurações → Modelos.</MenuItem>
+                      <MenuItem disabled value="">
+                        Nenhum modelo salvo. Crie um em Configurações → Modelos.
+                      </MenuItem>
                     )}
                     {templateList.map((t) => (
                       <MenuItem key={t.id} value={t.id}>
@@ -310,7 +330,7 @@ export function CreateTableModal({
 
             {/* Copy options */}
             {sourceMethod === "copy" && (
-              <Stack spacing={2} sx={{ pl: 1 }}>
+              <Stack spacing={layout.inline} sx={{ pl: 1 }}>
                 <Controller
                   name="sourceTableId"
                   control={form.control}
@@ -347,9 +367,7 @@ export function CreateTableModal({
                   control={form.control}
                   render={({ field }) => (
                     <FormControlLabel
-                      control={
-                        <Checkbox checked={field.value ?? true} onChange={field.onChange} />
-                      }
+                      control={<Checkbox checked={field.value ?? true} onChange={field.onChange} />}
                       label={m.financeTables.includeTransactions}
                     />
                   )}
@@ -377,10 +395,7 @@ export function CreateTableModal({
                         <FormControlLabel
                           sx={{ pl: 2 }}
                           control={
-                            <Checkbox
-                              checked={field.value ?? false}
-                              onChange={field.onChange}
-                            />
+                            <Checkbox checked={field.value ?? false} onChange={field.onChange} />
                           }
                           label={m.financeTables.markAsPending}
                         />
@@ -391,8 +406,8 @@ export function CreateTableModal({
               </Stack>
             )}
           </Stack>
-        </DialogShell>
-      </Box>
+        </form>
+      </DialogShell>
     </>
   );
 }

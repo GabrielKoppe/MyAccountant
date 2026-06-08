@@ -87,7 +87,8 @@ MyAccountant/
     ├── email-resend/SKILL.md    # Resend + React Email
     ├── logging/SKILL.md         # Pino estruturado
     ├── env-validation/SKILL.md  # Zod env vars
-    └── testing/SKILL.md         # Vitest, mocks Prisma, fixtures, multi-tenancy tests
+    ├── testing/SKILL.md         # Vitest, mocks Prisma, fixtures, multi-tenancy tests
+    └── spec-writing/SKILL.md    # Como criar specs no modelo V2+ (specs 18+)
 ```
 
 ---

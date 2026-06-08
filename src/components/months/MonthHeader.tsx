@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AccountMemberRole } from "@prisma/client";
+import Alert from "@mui/material/Alert";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
@@ -19,6 +21,7 @@ import { useSnackbar } from "notistack";
 import { deleteMonthAction } from "@/actions/months";
 import { formatMonthLabel } from "@/lib/dates";
 import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import { useMonthFilters } from "./MonthFilterContext";
 import { CreateMonthModal } from "./CreateMonthModal";
 import { TransactionFilterDrawer } from "@/components/transactions/TransactionFilterDrawer";
@@ -34,9 +37,17 @@ type Props = {
   months: MonthItem[];
   role: AccountMemberRole;
   monthTotal?: string;
+  hasTransactions?: boolean;
 };
 
-export function MonthHeader({ accountId, currentMonth, months, role, monthTotal }: Props) {
+export function MonthHeader({
+  accountId,
+  currentMonth,
+  months,
+  role,
+  monthTotal,
+  hasTransactions = false,
+}: Props) {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -47,8 +58,8 @@ export function MonthHeader({ accountId, currentMonth, months, role, monthTotal 
 
   const { activeCount } = useMonthFilters();
 
-  const sortedMonths = [...months].sort(
-    (a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month,
+  const sortedMonths = [...months].sort((a, b) =>
+    a.year !== b.year ? a.year - b.year : a.month - b.month,
   );
   const lastMonth = sortedMonths[sortedMonths.length - 1];
 
@@ -107,7 +118,11 @@ export function MonthHeader({ accountId, currentMonth, months, role, monthTotal 
 
       {/* Botão de filtros */}
       <Tooltip title={m.transactions.filters.title}>
-        <IconButton size="small" aria-label="Filtros" onClick={(e) => setFilterAnchorEl(e.currentTarget)}>
+        <IconButton
+          size="small"
+          aria-label="Filtros"
+          onClick={(e) => setFilterAnchorEl(e.currentTarget)}
+        >
           <Badge badgeContent={activeCount} color="primary" max={9}>
             <FilterAltIcon fontSize="small" />
           </Badge>
@@ -117,23 +132,19 @@ export function MonthHeader({ accountId, currentMonth, months, role, monthTotal 
       <TransactionFilterDrawer anchorEl={filterAnchorEl} onClose={() => setFilterAnchorEl(null)} />
 
       {/* Botão novo mês */}
-      <CreateMonthModal
-        accountId={accountId}
-        lastMonth={lastMonth ?? null}
-        variant="button"
-      />
+      <CreateMonthModal accountId={accountId} lastMonth={lastMonth ?? null} variant="button" />
 
       {/* Menu ellipsis (owner only) */}
       {isOwner && (
         <>
-          <IconButton size="small" aria-label="Mais opções" onClick={(e) => setMenuAnchor(e.currentTarget)}>
+          <IconButton
+            size="small"
+            aria-label="Mais opções"
+            onClick={(e) => setMenuAnchor(e.currentTarget)}
+          >
             <MoreVertIcon fontSize="small" />
           </IconButton>
-          <Menu
-            anchorEl={menuAnchor}
-            open={!!menuAnchor}
-            onClose={() => setMenuAnchor(null)}
-          >
+          <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
             <MenuItem
               onClick={() => {
                 setMenuAnchor(null);
@@ -152,7 +163,9 @@ export function MonthHeader({ accountId, currentMonth, months, role, monthTotal 
       <DialogShell
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
+        maxWidth="sm"
         title={m.months.deleteTitle}
+        loading={deleting}
         actions={
           <>
             <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
@@ -167,7 +180,12 @@ export function MonthHeader({ accountId, currentMonth, months, role, monthTotal 
           </>
         }
       >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Stack spacing={layout.stack}>
+          {hasTransactions && (
+            <Alert variant="standard" sx={{ fontSize: "0.77rem", py: 0 }} severity="warning">
+              {m.months.deleteWithTransactionsWarning}
+            </Alert>
+          )}
           <Typography variant="body2">{m.months.deleteConfirm}</Typography>
           <TextField
             label={`Digite "${currentLabel}" para confirmar`}
@@ -176,7 +194,7 @@ export function MonthHeader({ accountId, currentMonth, months, role, monthTotal 
             fullWidth
             size="small"
           />
-        </Box>
+        </Stack>
       </DialogShell>
     </Box>
   );

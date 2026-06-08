@@ -6,6 +6,7 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import List from "@mui/material/List";
@@ -70,84 +71,73 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
     setNameError("");
   }
 
-  async function handleSave() {
+  function handleSave() {
     if (!nameInput.trim()) {
       setNameError("Nome obrigatório");
       return;
     }
     setNameError("");
-
-    if (dialog?.type === "createCategory") {
-      const result = await createCategoryAction(accountId, { name: nameInput.trim() });
-      if (!result.ok) {
-        enqueueSnackbar(result.error.message, { variant: "error" });
-        return;
+    startTransition(async () => {
+      if (dialog?.type === "createCategory") {
+        const result = await createCategoryAction(accountId, { name: nameInput.trim() });
+        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        setCategories((prev) => [
+          ...prev,
+          { id: result.data.categoryId, name: nameInput.trim(), subcategories: [] },
+        ]);
+        enqueueSnackbar(m.settings.categories.created, { variant: "success" });
+      } else if (dialog?.type === "editCategory") {
+        const result = await updateCategoryAction(accountId, {
+          categoryId: dialog.category.id,
+          name: nameInput.trim(),
+        });
+        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        setCategories((prev) =>
+          prev.map((c) => (c.id === dialog.category.id ? { ...c, name: nameInput.trim() } : c)),
+        );
+        enqueueSnackbar(m.settings.categories.updated, { variant: "success" });
+      } else if (dialog?.type === "createSub") {
+        const result = await createSubcategoryAction(accountId, {
+          categoryId: dialog.categoryId,
+          name: nameInput.trim(),
+        });
+        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        setCategories((prev) =>
+          prev.map((c) =>
+            c.id === dialog.categoryId
+              ? {
+                  ...c,
+                  subcategories: [
+                    ...c.subcategories,
+                    { id: result.data.subcategoryId, name: nameInput.trim() },
+                  ],
+                }
+              : c,
+          ),
+        );
+        enqueueSnackbar(m.settings.categories.subCreated, { variant: "success" });
+      } else if (dialog?.type === "editSub") {
+        const result = await updateSubcategoryAction(accountId, {
+          subcategoryId: dialog.sub.id,
+          name: nameInput.trim(),
+        });
+        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        setCategories((prev) =>
+          prev.map((c) =>
+            c.id === dialog.categoryId
+              ? {
+                  ...c,
+                  subcategories: c.subcategories.map((s) =>
+                    s.id === dialog.sub.id ? { ...s, name: nameInput.trim() } : s,
+                  ),
+                }
+              : c,
+          ),
+        );
+        enqueueSnackbar(m.settings.categories.subUpdated, { variant: "success" });
       }
-      setCategories((prev) => [
-        ...prev,
-        { id: result.data.categoryId, name: nameInput.trim(), subcategories: [] },
-      ]);
-      enqueueSnackbar(m.settings.categories.created, { variant: "success" });
-    } else if (dialog?.type === "editCategory") {
-      const result = await updateCategoryAction(accountId, {
-        categoryId: dialog.category.id,
-        name: nameInput.trim(),
-      });
-      if (!result.ok) {
-        enqueueSnackbar(result.error.message, { variant: "error" });
-        return;
-      }
-      setCategories((prev) =>
-        prev.map((c) => (c.id === dialog.category.id ? { ...c, name: nameInput.trim() } : c)),
-      );
-      enqueueSnackbar(m.settings.categories.updated, { variant: "success" });
-    } else if (dialog?.type === "createSub") {
-      const result = await createSubcategoryAction(accountId, {
-        categoryId: dialog.categoryId,
-        name: nameInput.trim(),
-      });
-      if (!result.ok) {
-        enqueueSnackbar(result.error.message, { variant: "error" });
-        return;
-      }
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === dialog.categoryId
-            ? {
-                ...c,
-                subcategories: [
-                  ...c.subcategories,
-                  { id: result.data.subcategoryId, name: nameInput.trim() },
-                ],
-              }
-            : c,
-        ),
-      );
-      enqueueSnackbar(m.settings.categories.subCreated, { variant: "success" });
-    } else if (dialog?.type === "editSub") {
-      const result = await updateSubcategoryAction(accountId, {
-        subcategoryId: dialog.sub.id,
-        name: nameInput.trim(),
-      });
-      if (!result.ok) {
-        enqueueSnackbar(result.error.message, { variant: "error" });
-        return;
-      }
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === dialog.categoryId
-            ? {
-                ...c,
-                subcategories: c.subcategories.map((s) =>
-                  s.id === dialog.sub.id ? { ...s, name: nameInput.trim() } : s,
-                ),
-              }
-            : c,
-        ),
-      );
-      enqueueSnackbar(m.settings.categories.subUpdated, { variant: "success" });
-    }
-    closeDialog();
+      closeDialog();
+    });
   }
 
   function handleDelete() {
@@ -292,17 +282,23 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
         maxWidth="xs"
         title={
           (dialog?.type === "createCategory" && m.settings.categories.createButton) ||
-          (dialog?.type === "editCategory" && m.common.edit) ||
+          (dialog?.type === "editCategory" && m.settings.categories.editTitle) ||
           (dialog?.type === "createSub" && m.settings.categories.createSubButton) ||
-          (dialog?.type === "editSub" && m.common.edit) ||
+          (dialog?.type === "editSub" && m.settings.categories.editTitle) ||
           ""
         }
+        loading={isPending}
         actions={
           <>
             <Button size="small" onClick={closeDialog}>
               {m.common.cancel}
             </Button>
-            <Button size="small" variant="contained" onClick={handleSave} disabled={isPending}>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleSave}
+              endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
               {m.common.save}
             </Button>
           </>
@@ -330,7 +326,12 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
         open={isDeleteDialog}
         onClose={closeDialog}
         maxWidth="xs"
-        title={m.common.delete}
+        title={m.settings.categories.deleteTitle}
+        description={
+          dialog?.type === "deleteCategory"
+            ? m.settings.categories.deleteConfirm
+            : m.settings.categories.deleteSubConfirm
+        }
         actions={
           <>
             <Button size="small" onClick={closeDialog}>
@@ -341,19 +342,12 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
               color="error"
               variant="contained"
               onClick={handleDelete}
-              disabled={isPending}
             >
               {m.common.delete}
             </Button>
           </>
         }
-      >
-        <Typography variant="body2">
-          {dialog?.type === "deleteCategory"
-            ? m.settings.categories.deleteConfirm
-            : m.common.confirm}
-        </Typography>
-      </DialogShell>
+      />
     </PageSettingsContainer>
   );
 }

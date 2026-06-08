@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
+import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import AddIcon from "@mui/icons-material/Add";
 import { useSnackbar } from "notistack";
@@ -15,6 +17,7 @@ import { useSnackbar } from "notistack";
 import { createMonthAction } from "@/actions/months";
 import { MONTH_NAMES, getNextMonthSuggestion } from "@/lib/dates";
 import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import { DialogShell } from "@/components/ui/DialogShell";
 
 type Props = {
@@ -78,42 +81,48 @@ export function CreateMonthModal({ accountId, lastMonth, variant = "button" }: P
         onClose={() => setOpen(false)}
         maxWidth="xs"
         title={m.months.createTitle}
+        loading={loading}
         actions={
           <>
             <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
-            <Button variant="contained" onClick={handleCreate} disabled={loading}>
-              {loading ? m.months.creating : m.common.create}
+            <Button
+              variant="contained"
+              onClick={handleCreate}
+              endIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
+              {m.common.create}
             </Button>
           </>
         }
       >
-        <Box sx={{ display: "flex", gap: 2, pt: 1 }}>
-          <FormControl sx={{ flex: 1 }}>
-            <InputLabel>{m.months.monthLabel}</InputLabel>
-            <Select
-              value={month}
-              label={m.months.monthLabel}
-              onChange={(e) => setMonth(Number(e.target.value))}
-            >
-              {MONTH_NAMES.map((name, idx) => (
-                <MenuItem key={idx + 1} value={idx + 1}>
-                  {name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label={m.months.yearLabel}
-            type="number"
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            inputProps={{ min: 2000, max: 2400 }}
-            sx={{ width: 110 }}
-          />
-        </Box>
-        {error && (
-          <Box sx={{ mt: 1, color: "error.main", typography: "body2" }}>{error}</Box>
-        )}
+        <Stack spacing={layout.inline} sx={{ mt: layout.micro }}>
+          <Stack direction="row" spacing={layout.inline}>
+            <FormControl sx={{ flex: 1 }}>
+              <InputLabel>{m.months.monthLabel}</InputLabel>
+              <Select
+                value={month}
+                label={m.months.monthLabel}
+                size="small"
+                onChange={(e) => setMonth(Number(e.target.value))}
+              >
+                {MONTH_NAMES.map((name, idx) => (
+                  <MenuItem key={idx + 1} value={idx + 1}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label={m.months.yearLabel}
+              type="number"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              inputProps={{ min: 2000, max: 2400 }}
+              sx={{ width: 110 }}
+            />
+          </Stack>
+          {error && <Alert severity="error">{error}</Alert>}
+        </Stack>
       </DialogShell>
     </>
   );

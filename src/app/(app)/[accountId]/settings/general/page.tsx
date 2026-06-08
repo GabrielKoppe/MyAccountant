@@ -43,10 +43,6 @@ export default async function GeneralSettingsPage({ params }: Props) {
 
   return (
     <PageSettingsContainer title={m.settings.general.title}>
-      <AccountDangerZone accountId={accountId} accountName={account.name} role={member.role} />
-
-      <Divider sx={{ my: 3 }} />
-
       <GeneralSettingsForm
         accountId={accountId}
         defaultValues={{
@@ -57,6 +53,10 @@ export default async function GeneralSettingsPage({ params }: Props) {
         }}
         members={membersList}
       />
+
+      <Divider sx={{ my: 3 }} />
+
+      <AccountDangerZone accountId={accountId} accountName={account.name} role={member.role} />
     </PageSettingsContainer>
   );
 }

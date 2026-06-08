@@ -7,6 +7,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Table from "@mui/material/Table";
@@ -298,11 +299,16 @@ export function TableModelsManager({
         open={!!renameId}
         onClose={() => setRenameId(null)}
         maxWidth="xs"
-        title="Renomear modelo"
+        title={m.tableModels.renameTitle}
+        loading={isPending}
         actions={
           <>
             <Button onClick={() => setRenameId(null)}>{m.common.cancel}</Button>
-            <Button variant="contained" onClick={handleRename} disabled={isPending}>
+            <Button
+              variant="contained"
+              onClick={handleRename}
+              endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
               {m.common.save}
             </Button>
           </>
@@ -326,18 +332,18 @@ export function TableModelsManager({
       <DialogShell
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
-        title="Deletar modelo"
+        maxWidth="xs"
+        title={m.tableModels.deleteTitle}
+        description={m.tableModels.deleteConfirm}
         actions={
           <>
             <Button onClick={() => setDeleteId(null)}>{m.common.cancel}</Button>
-            <Button color="error" variant="contained" onClick={handleDelete} disabled={isPending}>
+            <Button color="error" variant="contained" onClick={handleDelete}>
               {m.common.delete}
             </Button>
           </>
         }
-      >
-        <Typography variant="body2">{m.tableModels.deleteConfirm}</Typography>
-      </DialogShell>
+      />
 
       {editTemplate && (
         <TemplateItemsEditor

@@ -3,15 +3,17 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import MenuItem from "@mui/material/MenuItem";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import { useSnackbar } from "notistack";
 
 import { inviteMemberAction } from "@/actions/members";
 import { inviteMemberSchema, type InviteMemberInput } from "@/lib/schemas/account";
 import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import { DialogShell } from "@/components/ui/DialogShell";
 
 type Props = {
@@ -52,22 +54,28 @@ export function InviteForm({ accountId }: Props) {
         {m.account.inviteMember}
       </Button>
 
-      <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
-        <DialogShell
-          open={open}
-          onClose={() => setOpen(false)}
-          maxWidth="xs"
-          title={m.account.invite.title}
-          actions={
-            <>
-              <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
-              <Button type="submit" variant="contained" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? m.account.invite.sending : m.account.invite.sendButton}
-              </Button>
-            </>
-          }
-        >
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <DialogShell
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth="xs"
+        title={m.account.invite.title}
+        loading={form.formState.isSubmitting}
+        actions={
+          <>
+            <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
+            <Button
+              type="submit"
+              form="invite-form"
+              variant="contained"
+              endIcon={form.formState.isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
+              {m.account.invite.sendButton}
+            </Button>
+          </>
+        }
+      >
+        <form id="invite-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+          <Stack spacing={layout.stack}>
             <Controller
               name="email"
               control={form.control}
@@ -101,9 +109,9 @@ export function InviteForm({ accountId }: Props) {
                 </TextField>
               )}
             />
-          </Box>
-        </DialogShell>
-      </Box>
+          </Stack>
+        </form>
+      </DialogShell>
     </>
   );
 }

@@ -3,9 +3,11 @@
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -36,6 +38,7 @@ import {
   TOGGLEABLE_COLUMNS,
 } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import { DialogShell } from "@/components/ui/DialogShell";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
@@ -303,6 +306,7 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
         onClose={closeDialog}
         maxWidth="xs"
         title={m.settings.tableTypes.createTitle}
+        loading={form.formState.isSubmitting}
         actions={
           <>
             <Button size="small" onClick={closeDialog}>
@@ -311,37 +315,33 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
             <Button
               size="small"
               type="submit"
+              form="table-types-form"
               variant="contained"
-              disabled={form.formState.isSubmitting}
+              endIcon={form.formState.isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}
             >
               {m.common.create}
             </Button>
           </>
         }
       >
-        <Box
-          component="form"
-          onSubmit={form.handleSubmit(onSubmitCreate)}
-          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-        >
-          <Controller
-            name="name"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                label={m.settings.tableTypes.nameLabel}
-                error={!!fieldState.error}
-                helperText={
-                  fieldState.error?.message ??
-                  "As colunas visíveis podem ser configuradas após criar o tipo."
-                }
-                fullWidth
-                autoFocus
-              />
-            )}
-          />
-        </Box>
+        <form id="table-types-form" onSubmit={form.handleSubmit(onSubmitCreate)} noValidate>
+          <Stack spacing={layout.stack}>
+            <Controller
+              name="name"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <TextField
+                  {...field}
+                  label={m.settings.tableTypes.nameLabel}
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message ?? m.settings.tableTypes.createHelperText}
+                  fullWidth
+                  autoFocus
+                />
+              )}
+            />
+          </Stack>
+        </form>
       </DialogShell>
 
       {/* Delete dialog */}
@@ -349,7 +349,8 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         maxWidth="xs"
-        title={m.common.delete}
+        title={m.settings.tableTypes.deleteTitle}
+        description={m.settings.tableTypes.deleteConfirm}
         actions={
           <>
             <Button size="small" onClick={() => setDeleteTarget(null)}>
@@ -360,19 +361,17 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
               color="error"
               variant="contained"
               onClick={confirmDelete}
-              disabled={isPending}
             >
               {m.common.delete}
             </Button>
           </>
         }
       >
-        <Typography variant="body2">{m.settings.tableTypes.deleteConfirm}</Typography>
-        {deleteTarget && deleteTarget.tableCount > 0 && (
-          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-            Atenção: {deleteTarget.tableCount} tabela(s) usam este tipo.
-          </Typography>
-        )}
+        {deleteTarget && deleteTarget.tableCount > 0 ? (
+          <Alert severity="warning">
+            {m.settings.tableTypes.deleteWarning(deleteTarget.tableCount)}
+          </Alert>
+        ) : null}
       </DialogShell>
     </PageSettingsContainer>
   );

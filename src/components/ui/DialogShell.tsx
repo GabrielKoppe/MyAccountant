@@ -1,6 +1,15 @@
 "use client";
 
 import {
+  Children,
+  Fragment,
+  cloneElement,
+  isValidElement,
+  useId,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import {
   Box,
   Dialog,
   DialogActions,
@@ -13,22 +22,21 @@ import {
   useTheme,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import type { ReactNode } from "react";
 
 import { layout } from "@/lib/design-tokens";
 
 export interface DialogShellProps {
   /** Estado de abertura */
   open: boolean;
-  /** Callback ao fechar (X, backdrop, ESC) */
+  /** Callback ao fechar (X, backdrop, ESC). Bloqueado quando loading=true. */
   onClose: () => void;
   /** Titulo do dialog */
   title: string;
-  /** Descricao opcional abaixo do titulo */
-  description?: string;
-  /** Conteudo principal */
-  children: ReactNode;
-  /** Acoes do rodape (botoes). Em mobile, ficam empilhadas. */
+  /** Descricao opcional abaixo do titulo. String é renderizada em Typography; ReactNode é renderizado diretamente. */
+  description?: ReactNode;
+  /** Conteudo principal (opcional quando description cobre todo o conteudo do dialog) */
+  children?: ReactNode;
+  /** Acoes do rodape (botoes). Em mobile, ficam empilhadas. Quando loading=true, todos os botoes recebem disabled. */
   actions?: ReactNode;
   /** Largura maxima. Padrao: "sm" (640px). */
   maxWidth?: "xs" | "sm" | "md" | "lg";
@@ -38,8 +46,20 @@ export interface DialogShellProps {
   hideCloseButton?: boolean;
   /** Esconde scroll do conteudo (raro, para conteudo pequeno) */
   hideContentScroll?: boolean;
-  /** Aria label customizado (default: usa title) */
-  ariaLabel?: string;
+  /** Estado de carregamento: bloqueia fechar (ESC, backdrop, X) e desabilita todos os botoes de actions. */
+  loading?: boolean;
+}
+
+function injectDisabled(children: ReactNode): ReactNode {
+  return Children.map(children, (child) => {
+    if (!isValidElement(child)) return child;
+    if (child.type === Fragment) {
+      return cloneElement(child as ReactElement<{ children?: ReactNode }>, {
+        children: injectDisabled((child.props as { children?: ReactNode }).children),
+      });
+    }
+    return cloneElement(child as ReactElement<{ disabled?: boolean }>, { disabled: true });
+  });
 }
 
 /**
@@ -69,74 +89,77 @@ export function DialogShell({
   fullScreenOnMobile = true,
   hideCloseButton = false,
   hideContentScroll = false,
-  ariaLabel,
+  loading = false,
 }: DialogShellProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const fullScreen = fullScreenOnMobile && isMobile;
+  const titleId = useId();
 
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={loading ? undefined : onClose}
       maxWidth={maxWidth}
       fullWidth
       fullScreen={fullScreen}
-      aria-label={ariaLabel ?? title}
+      aria-labelledby={titleId}
+      disableEscapeKeyDown={loading}
     >
       <DialogTitle
         sx={{
           px: layout.card,
           pt: layout.card,
-          pb: description ? layout.inline : layout.card,
+          pb: description !== undefined ? layout.stack : layout.card,
         }}
       >
         <Stack
           direction="row"
           alignItems="flex-start"
           justifyContent="space-between"
-          spacing={layout.stack}
+          spacing={layout.inline}
         >
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography variant="h3" component="div">
-              {title}
-            </Typography>
-            {description && (
-              <Typography
-                variant="body2"
-                sx={{ color: "text.secondary", mt: layout.micro }}
-              >
-                {description}
-              </Typography>
-            )}
-          </Box>
+          <Typography id={titleId} variant="h3" component="div" sx={{ flex: 1, minWidth: 0 }}>
+            {title}
+          </Typography>
           {!hideCloseButton && (
             <IconButton
               onClick={onClose}
               size="small"
               aria-label="Fechar"
+              disabled={loading}
               sx={{
                 color: "text.tertiary",
                 "&:hover": { color: "text.primary" },
-                mt: -1,
-                mr: -1,
+                flexShrink: 0,
+                mt: "-2px",
               }}
             >
               <CloseIcon fontSize="small" />
             </IconButton>
           )}
         </Stack>
+        {description !== undefined &&
+          (typeof description === "string" ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: layout.inline }}>
+              {description}
+            </Typography>
+          ) : (
+            <Box sx={{ mt: layout.inline }}>{description}</Box>
+          ))}
       </DialogTitle>
 
-      <DialogContent
-        sx={{
-          px: layout.card,
-          pb: actions ? 0 : layout.card,
-          overflow: hideContentScroll ? "hidden" : "auto",
-        }}
-      >
-        {children}
-      </DialogContent>
+      {children != null && (
+        <DialogContent
+          sx={{
+            px: layout.card,
+            pb: actions ? 0 : layout.card,
+            overflow: hideContentScroll ? "hidden" : "auto",
+          }}
+        >
+          {children}
+        </DialogContent>
+      )}
 
       {actions && (
         <DialogActions
@@ -154,7 +177,7 @@ export function DialogShell({
             },
           }}
         >
-          {actions}
+          {loading ? injectDisabled(actions) : actions}
         </DialogActions>
       )}
     </Dialog>

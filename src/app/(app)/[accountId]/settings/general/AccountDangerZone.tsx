@@ -6,15 +6,19 @@ import type { AccountMemberRole } from "@prisma/client";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useSnackbar } from "notistack";
 
 import { deleteAccountAction, leaveAccountAction } from "@/actions/members";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
-import { Paper } from "@mui/material";
+import { layout } from "@/lib/design-tokens";
 
 type Props = {
   accountId: string;
@@ -26,6 +30,7 @@ export function AccountDangerZone({ accountId, accountName, role }: Props) {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const [isPending, startTransition] = useTransition();
+  const [expanded, setExpanded] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmName, setConfirmName] = useState("");
@@ -57,109 +62,145 @@ export function AccountDangerZone({ accountId, accountName, role }: Props) {
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, borderColor: "error.light" }}>
-      <Typography variant="h6" color="error" fontWeight="semibold" mb={1}>
-        {m.account.settings.dangerZone}
-      </Typography>
-
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Box>
-            <Typography variant="body1" fontWeight="medium" sx={{ fontSize: "0.85rem" }}>
-              {m.account.settings.leaveAccount}
+    <Paper variant="outlined" sx={{ borderColor: "error.light", overflow: "hidden" }}>
+      <Box
+        onClick={() => setExpanded((prev) => !prev)}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: 3,
+          py: 2,
+          cursor: "pointer",
+          userSelect: "none",
+          "&:hover": { bgcolor: "danger.subtle" },
+          transition: "background-color 0.15s ease",
+        }}
+      >
+        <Box>
+          <Typography variant="h6" color="error" fontWeight="semibold" lineHeight={1.3}>
+            {m.account.settings.dangerZone}
+          </Typography>
+          {!expanded && (
+            <Typography variant="caption" color="text.secondary">
+              {m.account.settings.dangerZoneHint}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem" }}>
-              Você precisará de um novo convite para retornar.
-            </Typography>
-          </Box>
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            disabled={isPending}
-            onClick={() => setLeaveOpen(true)}
-          >
-            {m.account.settings.leaveAccount}
-          </Button>
+          )}
         </Box>
-
-        {role === "owner" && (
-          <>
-            <Divider />
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <Box>
-                <Typography variant="body1" fontWeight="medium" sx={{ fontSize: "0.85rem" }}>
-                  {m.account.settings.deleteAccount}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem" }}>
-                  Ação permanente. Todos os dados serão apagados.
-                </Typography>
-              </Box>
-              <Button
-                variant="contained"
-                color="error"
-                disabled={isPending}
-                size="small"
-                onClick={() => {
-                  setConfirmName("");
-                  setDeleteOpen(true);
-                }}
-              >
-                {m.account.settings.deleteAccount}
-              </Button>
-            </Box>
-          </>
-        )}
-
-        {/* Leave Dialog */}
-        <DialogShell
-          open={leaveOpen}
-          onClose={() => setLeaveOpen(false)}
-          title={m.account.settings.leaveAccount}
-          actions={
-            <>
-              <Button onClick={() => setLeaveOpen(false)}>{m.common.cancel}</Button>
-              <Button color="error" variant="contained" onClick={handleLeave} disabled={isPending}>
-                {m.account.settings.leaveAccount}
-              </Button>
-            </>
-          }
-        >
-          <Typography variant="body2">{m.account.settings.leaveAccountConfirm}</Typography>
-        </DialogShell>
-
-        {/* Delete Dialog */}
-        <DialogShell
-          open={deleteOpen}
-          onClose={() => setDeleteOpen(false)}
-          title={m.account.settings.deleteAccount}
-          actions={
-            <>
-              <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
-              <Button
-                color="error"
-                variant="contained"
-                onClick={handleDelete}
-                disabled={isPending || confirmName !== accountName}
-              >
-                {m.account.settings.deleteAccount}
-              </Button>
-            </>
-          }
-        >
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Alert severity="error">Esta ação é permanente e não pode ser desfeita.</Alert>
-            <Typography variant="body2">{m.account.settings.deleteAccountConfirm}</Typography>
-            <TextField
-              label={`Digite "${accountName}" para confirmar`}
-              value={confirmName}
-              onChange={(e) => setConfirmName(e.target.value)}
-              fullWidth
-              size="small"
-            />
-          </Box>
-        </DialogShell>
+        <ExpandMoreIcon
+          sx={{
+            color: "error.main",
+            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.2s ease",
+            flexShrink: 0,
+          }}
+        />
       </Box>
+
+      <Collapse in={expanded}>
+        <Divider sx={{ borderColor: "error.light" }} />
+        <Stack spacing={layout.stack} sx={{ px: 3, py: 2.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+            <Box>
+              <Typography variant="body2" fontWeight="medium">
+                {m.account.settings.leaveAccount}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {m.account.settings.leaveAccountHint}
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              color="error"
+              size="small"
+              disabled={isPending}
+              onClick={() => setLeaveOpen(true)}
+              sx={{ flexShrink: 0 }}
+            >
+              {m.account.settings.leaveAccount}
+            </Button>
+          </Box>
+
+          {role === "owner" && (
+            <>
+              <Divider />
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+                <Box>
+                  <Typography variant="body2" fontWeight="medium">
+                    {m.account.settings.deleteAccount}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {m.account.settings.deleteAccountHint}
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  color="error"
+                  size="small"
+                  disabled={isPending}
+                  onClick={() => {
+                    setConfirmName("");
+                    setDeleteOpen(true);
+                  }}
+                  sx={{ flexShrink: 0 }}
+                >
+                  {m.account.settings.deleteAccount}
+                </Button>
+              </Box>
+            </>
+          )}
+        </Stack>
+      </Collapse>
+
+      <DialogShell
+        open={leaveOpen}
+        onClose={() => setLeaveOpen(false)}
+        maxWidth="xs"
+        title={m.account.settings.leaveAccount}
+        description={m.account.settings.leaveAccountConfirm}
+        loading={isPending}
+        actions={
+          <>
+            <Button onClick={() => setLeaveOpen(false)}>{m.common.cancel}</Button>
+            <Button color="error" variant="contained" onClick={handleLeave}>
+              {m.account.settings.leaveAccount}
+            </Button>
+          </>
+        }
+      />
+
+      <DialogShell
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        maxWidth="xs"
+        title={m.account.settings.deleteAccount}
+        loading={isPending}
+        actions={
+          <>
+            <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={handleDelete}
+              disabled={isPending || confirmName !== accountName}
+            >
+              {m.account.settings.deleteAccount}
+            </Button>
+          </>
+        }
+      >
+        <Stack spacing={layout.stack}>
+          <Alert severity="error">{m.account.settings.deleteAccountAlert}</Alert>
+          <Typography variant="body2">{m.account.settings.deleteAccountConfirm}</Typography>
+          <TextField
+            label={`Digite "${accountName}" para confirmar`}
+            value={confirmName}
+            onChange={(e) => setConfirmName(e.target.value)}
+            fullWidth
+            size="small"
+          />
+        </Stack>
+      </DialogShell>
     </Paper>
   );
 }

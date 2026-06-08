@@ -9,6 +9,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 
 import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import type { ParsedRow } from "@/lib/csv-parser";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -94,20 +95,20 @@ export function StepUpload({ onParsed }: Props) {
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: layout.stack }}>
       <Box
         sx={{
           width: "100%",
           border: 2,
           borderStyle: "dashed",
-          borderColor: dragging ? "primary.main" : "grey.300",
+          borderColor: dragging ? "primary.main" : "border.default",
           borderRadius: 2,
           p: 5,
           textAlign: "center",
           cursor: "pointer",
-          bgcolor: dragging ? "primary.50" : "background.paper",
+          bgcolor: dragging ? "action.selected" : "background.default",
           transition: "all 0.2s",
-          "&:hover": { borderColor: "primary.main", bgcolor: "primary.50" },
+          "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" },
         }}
         onClick={() => inputRef.current?.click()}
         onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
@@ -143,7 +144,7 @@ export function StepUpload({ onParsed }: Props) {
               size="small"
             />
             <Typography variant="caption" color="text.secondary">
-              Clique para trocar o arquivo
+              {m.csvImport.upload.changeFile}
             </Typography>
           </Box>
         ) : (

@@ -41,7 +41,7 @@ export function StepPreview({ previewRows }: Props) {
       <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
         <Chip
           icon={<CheckCircleOutlineIcon />}
-          label={`${okCount} para importar`}
+          label={m.csvImport.preview.okChip(okCount)}
           color="success"
           size="small"
           variant="outlined"
@@ -49,7 +49,7 @@ export function StepPreview({ previewRows }: Props) {
         {ignoredCount > 0 && (
           <Chip
             icon={<RemoveCircleOutlineIcon />}
-            label={`${ignoredCount} ignorada(s)`}
+            label={m.csvImport.preview.ignoredChip(ignoredCount)}
             size="small"
             variant="outlined"
           />
@@ -57,7 +57,7 @@ export function StepPreview({ previewRows }: Props) {
         {errorCount > 0 && (
           <Chip
             icon={<ErrorOutlineIcon />}
-            label={`${errorCount} com erro`}
+            label={m.csvImport.preview.errorChip(errorCount)}
             color="error"
             size="small"
             variant="outlined"
@@ -81,7 +81,7 @@ export function StepPreview({ previewRows }: Props) {
       <Typography variant="caption" color="text.secondary" gutterBottom display="block">
         {m.csvImport.preview.summary(okCount, ignoredCount, errorCount)}
         {displayed.length < previewRows.length && !showErrorsOnly && (
-          <> — exibindo as primeiras {displayed.length} linhas</>
+          <> — {m.csvImport.preview.showingFirst(displayed.length)}</>
         )}
       </Typography>
 

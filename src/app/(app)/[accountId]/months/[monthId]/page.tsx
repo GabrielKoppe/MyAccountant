@@ -176,7 +176,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
     tableTotalsMap[tableId] = total.toString();
   }
 
-  const tables = tablesRaw.map((t) => ({
+  const tables = tablesRaw.map((t: any) => ({
     id: t.id,
     name: t.name,
     sectionId: t.sectionId,
@@ -188,7 +188,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
   }));
 
   // Totais por seção e mês
-  const sectionTotalsRaw = await getSectionTotals(accountId, monthId, sections.map((s) => s.id));
+  const sectionTotalsRaw = await getSectionTotals(accountId, monthId, sections.map((s: any) => s.id));
   const monthTotalRaw = calculateMonthTotal(sections, sectionTotalsRaw);
 
   const sectionTotals: Record<string, string> = {};
@@ -204,7 +204,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
 
   let prevSectionTotals: Record<string, string> | undefined;
   if (prevMonthItem) {
-    const prevTotalsRaw = await getSectionTotals(accountId, prevMonthItem.id, sections.map((s) => s.id));
+    const prevTotalsRaw = await getSectionTotals(accountId, prevMonthItem.id, sections.map((s: any) => s.id));
     prevSectionTotals = Object.fromEntries(
       Object.entries(prevTotalsRaw).map(([id, val]) => [id, val.toString()]),
     );
@@ -214,18 +214,18 @@ export default async function MonthPage({ params, searchParams }: Props) {
   type QuickTx = { id: string; description: string | null; amountCents: string; sectionId: string };
 
   const pendingTransactions: QuickTx[] = allTransactionsRaw
-    .filter((tx) => tx.isPending)
+    .filter((tx: any) => tx.isPending)
     .slice(0, 20)
-    .map((tx) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
+    .map((tx: any) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
 
   const favoriteTransactions: QuickTx[] = allTransactionsRaw
-    .filter((tx) => tx.isFavorite)
+    .filter((tx: any) => tx.isFavorite)
     .slice(0, 20)
-    .map((tx) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
+    .map((tx: any) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
 
   const recentTransactions: QuickTx[] = allTransactionsRaw
     .slice(0, 8)
-    .map((tx) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
+    .map((tx: any) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
 
   // Source tables para o modal de cópia
   const allAccountTablesRaw = await prisma.financeTable.findMany({
@@ -238,22 +238,22 @@ export default async function MonthPage({ params, searchParams }: Props) {
       month: { select: { year: true, month: true } },
     },
   });
-  const sourceTables = allAccountTablesRaw.map((t) => ({
+  const sourceTables = allAccountTablesRaw.map((t: any) => ({
     id: t.id,
     name: t.name,
     sectionName: t.section.name,
     monthYear: formatMonthLabel(t.month.year, t.month.month),
   }));
 
-  const allSections = sections.filter((s) => s.isActive).map((s) => ({ id: s.id, name: s.name }));
-  const members = accountMembers.map((m) => ({
+  const allSections = sections.filter((s: any) => s.isActive).map((s: any) => ({ id: s.id, name: s.name }));
+  const members = accountMembers.map((m: any) => ({
     id: m.user.id,
     name: m.user.name,
     email: m.user.email,
     image: m.user.image,
   }));
 
-  const activeSection = tab !== "summary" ? sections.find((s) => s.id === tab) : null;
+  const activeSection = tab !== "summary" ? sections.find((s: any) => s.id === tab) : null;
 
   return (
     <MonthFilterProvider
@@ -267,6 +267,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
           months={allMonths}
           role={member.role}
           monthTotal={monthTotal}
+          hasTransactions={allTransactionsRaw.length > 0}
         />
 
         <ActiveFilterChips />
@@ -295,7 +296,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
           ) : (
             <SectionView
               section={activeSection}
-              tables={tables.filter((t) => t.sectionId === activeSection.id)}
+              tables={tables.filter((t: any) => t.sectionId === activeSection.id)}
               sectionTotal={sectionTotals[activeSection.id] ?? "0"}
               accountId={accountId}
               monthId={monthId}

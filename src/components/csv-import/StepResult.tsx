@@ -54,8 +54,8 @@ export function StepResult({ result, accountId, monthId, onClose, onImportAnothe
 
       {hasErrors && (
         <Box sx={{ width: "100%", maxHeight: 200, overflowY: "auto" }}>
-          <Typography variant="caption" fontWeight="bold" color="error">
-            Linhas com erro:
+          <Typography variant="caption" color="error.main">
+            {m.csvImport.result.errorsTitle}
           </Typography>
           <List dense disablePadding>
             {result.errors.slice(0, 20).map((e) => (
@@ -69,7 +69,7 @@ export function StepResult({ result, accountId, monthId, onClose, onImportAnothe
             {result.errors.length > 20 && (
               <ListItem disablePadding>
                 <ListItemText
-                  primary={`... e mais ${result.errors.length - 20} erros`}
+                  primary={m.csvImport.result.moreErrors(result.errors.length - 20)}
                   primaryTypographyProps={{ variant: "caption", color: "text.secondary" }}
                 />
               </ListItem>

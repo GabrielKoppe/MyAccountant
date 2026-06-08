@@ -10,12 +10,12 @@ import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
 import StarIcon from "@mui/icons-material/Star";
-import Typography from "@mui/material/Typography";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useSnackbar } from "notistack";
 
 import { bulkDeleteAction, bulkUpdateAction } from "@/actions/transactions";
 import type { BulkUpdateInput } from "@/lib/schemas/transaction";
+import { m } from "@/lib/messages";
 import type { CategoryOption, InstitutionOption, TransactionRow } from "./types";
 import { MoveTransactionsDialog } from "./MoveTransactionsDialog";
 import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
@@ -72,7 +72,7 @@ export function BulkActionBar({
       const result = await bulkDeleteAction(accountId, { ids: selectedIds });
       if (!result.ok) enqueueSnackbar(result.error.message, { variant: "error" });
       else {
-        enqueueSnackbar(`${count} transação(ões) deletada(s).`, { variant: "success" });
+        enqueueSnackbar(m.transactions.bulkDeleteSuccess(count), { variant: "success" });
         onClear();
       }
     });
@@ -161,20 +161,18 @@ export function BulkActionBar({
       <DialogShell
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        title="Deletar transações"
+        maxWidth="xs"
+        title={m.transactions.bulkDeleteTitle}
+        description={m.transactions.bulkDeleteConfirm(count)}
         actions={
           <>
-            <Button onClick={() => setDeleteOpen(false)}>Cancelar</Button>
-            <Button color="error" variant="contained" onClick={handleDelete} disabled={isPending}>
-              Deletar {count} transações
+            <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
+            <Button color="error" variant="contained" onClick={handleDelete}>
+              {m.common.delete}
             </Button>
           </>
         }
-      >
-        <Typography variant="body2">
-          Tem certeza que deseja deletar {count} transações? Esta ação não pode ser desfeita.
-        </Typography>
-      </DialogShell>
+      />
 
       <MoveTransactionsDialog
         accountId={accountId}
