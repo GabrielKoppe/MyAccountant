@@ -10,6 +10,7 @@ import Stepper from "@mui/material/Stepper";
 import { layout } from "@/lib/design-tokens";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { DialogShell } from "@/components/ui/DialogShell";
+import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
 import { useSnackbar } from "notistack";
 
 import { executeImportAction, listTemplatesAction } from "@/actions/csv-import";
@@ -203,14 +204,12 @@ export function ImportWizard({
 
   return (
     <>
-      <Button
-        variant="outlined"
-        startIcon={<UploadFileIcon />}
+      <ExpandableIconButton
+        icon={<UploadFileIcon sx={{ fontSize: 22 }} />}
+        label={m.csvImport.importButton}
         onClick={openWizard}
-        size="small"
-      >
-        {m.csvImport.importButton}
-      </Button>
+        direction="left"
+      />
 
       <DialogShell
         open={open}
@@ -221,10 +220,7 @@ export function ImportWizard({
         actions={
           step < 4 ? (
             <>
-              <Button
-                onClick={() => setStep((s) => s - 1)}
-                disabled={step === 0 || isPending}
-              >
+              <Button onClick={() => setStep((s) => s - 1)} disabled={step === 0 || isPending}>
                 {m.csvImport.wizard.back}
               </Button>
               <Button
@@ -243,7 +239,9 @@ export function ImportWizard({
           ) : undefined
         }
       >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: layout.stack, minHeight: "52vh" }}>
+        <Box
+          sx={{ display: "flex", flexDirection: "column", gap: layout.stack, minHeight: "52vh" }}
+        >
           {showStepper && (
             <Stepper
               activeStep={step}
