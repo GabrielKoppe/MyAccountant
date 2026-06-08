@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -149,13 +150,19 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
         open={!!renameId}
         onClose={() => setRenameId(null)}
         maxWidth="xs"
-        title="Renomear template"
+        title={m.templates.renameTitle}
+        loading={isPending}
         actions={
           <>
             <Button size="small" onClick={() => setRenameId(null)}>
               {m.common.cancel}
             </Button>
-            <Button size="small" variant="contained" onClick={handleRename} disabled={isPending}>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleRename}
+              endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
               {m.common.save}
             </Button>
           </>
@@ -181,7 +188,8 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
         maxWidth="xs"
-        title="Deletar template"
+        title={m.templates.deleteTitle}
+        description={m.templates.deleteConfirm}
         actions={
           <>
             <Button size="small" onClick={() => setDeleteId(null)}>
@@ -192,15 +200,12 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
               color="error"
               variant="contained"
               onClick={handleDelete}
-              disabled={isPending}
             >
               {m.common.delete}
             </Button>
           </>
         }
-      >
-        <Typography variant="body2">{m.templates.deleteConfirm}</Typography>
-      </DialogShell>
+      />
     </PageSettingsContainer>
   );
 }

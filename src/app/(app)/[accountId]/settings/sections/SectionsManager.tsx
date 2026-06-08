@@ -7,13 +7,14 @@ import type { SectionCountType } from "@prisma/client";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import FormLabel from "@mui/material/FormLabel";
 import IconButton from "@mui/material/IconButton";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import Radio from "@mui/material/Radio";
-import RadioGroup from "@mui/material/RadioGroup";
+import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
@@ -34,6 +35,7 @@ import {
 } from "@/actions/account-settings";
 import { createSectionSchema, type CreateSectionInput } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import { DialogShell } from "@/components/ui/DialogShell";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
@@ -215,29 +217,31 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
       )}
 
       {/* Create / Edit dialog */}
-      <Box component="form" onSubmit={form.handleSubmit(onSubmit)}>
-        <DialogShell
-          open={createOpen || !!editTarget}
-          onClose={closeDialog}
-          maxWidth="xs"
-          title={editTarget ? m.settings.sections.editTitle : m.settings.sections.createTitle}
-          actions={
-            <>
-              <Button size="small" onClick={closeDialog}>
-                {m.common.cancel}
-              </Button>
-              <Button
-                size="small"
-                type="submit"
-                variant="contained"
-                disabled={form.formState.isSubmitting}
-              >
-                {m.common.save}
-              </Button>
-            </>
-          }
-        >
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <DialogShell
+        open={createOpen || !!editTarget}
+        onClose={closeDialog}
+        maxWidth="xs"
+        title={editTarget ? m.settings.sections.editTitle : m.settings.sections.createTitle}
+        loading={form.formState.isSubmitting}
+        actions={
+          <>
+            <Button size="small" onClick={closeDialog}>
+              {m.common.cancel}
+            </Button>
+            <Button
+              size="small"
+              type="submit"
+              form="sections-form"
+              variant="contained"
+              endIcon={form.formState.isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
+              {m.common.save}
+            </Button>
+          </>
+        }
+      >
+        <form id="sections-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+          <Stack spacing={layout.stack}>
             <Controller
               name="name"
               control={form.control}
@@ -257,46 +261,35 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
               name="countType"
               control={form.control}
               render={({ field }) => (
-                <FormControl>
-                  <FormLabel
-                    sx={{
-                      fontSize: "0.7rem",
-                      fontWeight: 500,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      color: "text.secondary",
-                      mb: 0.75,
-                      "&.Mui-focused": { color: "text.secondary" },
-                    }}
-                  >
-                    {m.settings.sections.countTypeLabel}
-                  </FormLabel>
-                  <RadioGroup
+                <FormControl fullWidth>
+                  <InputLabel>{m.settings.sections.countTypeLabel}</InputLabel>
+                  <Select
                     {...field}
-                    row
-                    sx={{
-                      gap: 0,
-                      "& .MuiFormControlLabel-root": { mr: 2 },
-                      "& .MuiFormControlLabel-label": { fontSize: "0.8125rem" },
-                    }}
+                    label={m.settings.sections.countTypeLabel}
+                    renderValue={(value) => (
+                      <Chip
+                        size="small"
+                        label={(m.settings.sections.countTypes as Record<SectionCountType, string>)[value as SectionCountType]}
+                        color={COUNT_TYPE_COLORS[value as SectionCountType]}
+                      />
+                    )}
                   >
-                    <FormControlLabel value="add" control={<Radio size="small" />} label="Somar" />
-                    <FormControlLabel
-                      value="subtract"
-                      control={<Radio size="small" />}
-                      label="Subtrair"
-                    />
-                    <FormControlLabel
-                      value="ignore"
-                      control={<Radio size="small" />}
-                      label="Ignorar"
-                    />
-                    <FormControlLabel
-                      value="neutral"
-                      control={<Radio size="small" />}
-                      label="Neutro"
-                    />
-                  </RadioGroup>
+                    {(["add", "subtract", "ignore", "neutral"] as SectionCountType[]).map((type) => (
+                      <MenuItem key={type} value={type}>
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                          <Chip
+                            size="small"
+                            label={(m.settings.sections.countTypes as Record<SectionCountType, string>)[type]}
+                            color={COUNT_TYPE_COLORS[type]}
+                            sx={{ alignSelf: "flex-start" }}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {(m.settings.sections.countTypeHints as Record<SectionCountType, string>)[type]}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
                 </FormControl>
               )}
             />
@@ -307,21 +300,29 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
               render={({ field }) => (
                 <FormControlLabel
                   control={<Switch size="small" checked={field.value} onChange={field.onChange} />}
-                  label={m.settings.sections.isActiveLabel}
-                  sx={{ "& .MuiFormControlLabel-label": { fontSize: "0.8125rem" }, ml: 0 }}
+                  label={
+                    <Box>
+                      <Typography variant="body2">{m.settings.sections.isActiveLabel}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {m.settings.sections.isActiveHint}
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ alignItems: "flex-start", ml: 0 }}
                 />
               )}
             />
-          </Box>
-        </DialogShell>
-      </Box>
+          </Stack>
+        </form>
+      </DialogShell>
 
       {/* Delete confirmation */}
       <DialogShell
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         maxWidth="xs"
-        title={m.common.delete}
+        title={m.settings.sections.deleteTitle}
+        description={m.settings.sections.deleteConfirm}
         actions={
           <>
             <Button size="small" onClick={() => setDeleteTarget(null)}>
@@ -332,15 +333,12 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
               color="error"
               variant="contained"
               onClick={confirmDelete}
-              disabled={isPending}
             >
               {m.common.delete}
             </Button>
           </>
         }
-      >
-        <Typography variant="body2">{m.settings.sections.deleteConfirm}</Typography>
-      </DialogShell>
+      />
     </PageSettingsContainer>
   );
 }

@@ -6,7 +6,7 @@ export const createFinanceTableSchema = z
     sectionId: z.string().cuid("ID inválido"),
     name: z.string().min(1, "Nome obrigatório").max(80).trim(),
     tableTypeId: z.string().cuid("ID inválido"),
-    sourceMethod: z.enum(["empty", "copy"]),
+    sourceMethod: z.enum(["empty", "copy", "template"]),
     countInMonth: z.boolean(),
     // Campos condicionais para source method "copy"
     sourceTableId: z.string().cuid("ID inválido").optional(),

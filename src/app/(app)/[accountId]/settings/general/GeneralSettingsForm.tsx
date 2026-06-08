@@ -130,7 +130,7 @@ export function GeneralSettingsForm({ accountId, defaultValues, members }: Props
           variant="contained"
           size="small"
           disabled={form.formState.isSubmitting}
-          sx={{ alignSelf: "flex-start" }}
+          sx={{ alignSelf: "flex-end" }}
         >
           {form.formState.isSubmitting ? m.common.loading : m.common.save}
         </Button>

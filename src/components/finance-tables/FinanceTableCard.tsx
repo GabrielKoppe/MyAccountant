@@ -27,10 +27,12 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import { useSnackbar } from "notistack";
 
+import CircularProgress from "@mui/material/CircularProgress";
 import { deleteFinanceTableAction, updateFinanceTableAction } from "@/actions/finance-tables";
 import { createFromTableAction } from "@/actions/table-templates";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { DialogShell } from "@/components/ui/DialogShell";
@@ -89,6 +91,7 @@ export function FinanceTableCard({
   const [saveModelOpen, setSaveModelOpen] = useState(false);
   const [modelName, setModelName] = useState(table.name);
   const [isPending, startTransition] = useTransition();
+  const [renaming, setRenaming] = useState(false);
 
   const { filters, isActive: hasGlobalFilters } = useMonthFilters();
 
@@ -116,16 +119,21 @@ export function FinanceTableCard({
 
   async function handleRename() {
     if (!newName.trim()) return;
-    const result = await updateFinanceTableAction(accountId, {
-      tableId: table.id,
-      name: newName.trim(),
-    });
-    if (!result.ok) {
-      enqueueSnackbar(result.error.message, { variant: "error" });
-      return;
+    setRenaming(true);
+    try {
+      const result = await updateFinanceTableAction(accountId, {
+        tableId: table.id,
+        name: newName.trim(),
+      });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      enqueueSnackbar(m.financeTables.updated, { variant: "success" });
+      setRenameOpen(false);
+    } finally {
+      setRenaming(false);
     }
-    enqueueSnackbar(m.financeTables.updated, { variant: "success" });
-    setRenameOpen(false);
   }
 
   function handleSaveAsModel() {
@@ -139,10 +147,7 @@ export function FinanceTableCard({
         enqueueSnackbar(result.error.message, { variant: "error" });
         return;
       }
-      enqueueSnackbar(
-        `Modelo "${result.data.name}" salvo com ${result.data._count.items} item(ns).`,
-        { variant: "success" },
-      );
+      enqueueSnackbar(m.tableModels.applied, { variant: "success" });
       setSaveModelOpen(false);
     });
   }
@@ -342,10 +347,15 @@ export function FinanceTableCard({
         onClose={() => setRenameOpen(false)}
         maxWidth="xs"
         title={m.financeTables.editTitle}
+        loading={renaming}
         actions={
           <>
             <Button onClick={() => setRenameOpen(false)}>{m.common.cancel}</Button>
-            <Button variant="contained" onClick={handleRename}>
+            <Button
+              variant="contained"
+              onClick={handleRename}
+              endIcon={renaming ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
               {m.common.save}
             </Button>
           </>
@@ -357,6 +367,7 @@ export function FinanceTableCard({
           onChange={(e) => setNewName(e.target.value)}
           fullWidth
           autoFocus
+          sx={{ mt: 2 }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -370,18 +381,18 @@ export function FinanceTableCard({
       <DialogShell
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
+        maxWidth="xs"
         title={m.financeTables.menuDelete}
+        description={m.financeTables.deleteConfirm}
         actions={
           <>
             <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
-            <Button color="error" variant="contained" onClick={confirmDelete} disabled={isPending}>
+            <Button color="error" variant="contained" onClick={confirmDelete}>
               {m.common.delete}
             </Button>
           </>
         }
-      >
-        <Typography variant="body2">{m.financeTables.deleteConfirm}</Typography>
-      </DialogShell>
+      />
 
       {/* Save as model dialog */}
       <DialogShell
@@ -389,15 +400,17 @@ export function FinanceTableCard({
         onClose={() => setSaveModelOpen(false)}
         maxWidth="xs"
         title={m.tableModels.saveAsModelTitle}
+        loading={isPending}
         actions={
           <>
             <Button onClick={() => setSaveModelOpen(false)}>{m.common.cancel}</Button>
             <Button
               variant="contained"
               onClick={handleSaveAsModel}
-              disabled={isPending || !modelName.trim()}
+              disabled={!modelName.trim()}
+              endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
             >
-              Salvar modelo
+              {m.tableModels.saveModelButton}
             </Button>
           </>
         }
@@ -408,7 +421,7 @@ export function FinanceTableCard({
           onChange={(e) => setModelName(e.target.value)}
           fullWidth
           autoFocus
-          helperText="As transações atuais serão salvas como itens do modelo."
+          helperText={m.tableModels.saveModelHelperText}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();

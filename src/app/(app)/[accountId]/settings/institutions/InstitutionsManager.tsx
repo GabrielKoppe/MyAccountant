@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -54,40 +55,35 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
     setNameError("");
   }
 
-  async function handleSave() {
+  function handleSave() {
     if (!nameInput.trim()) {
       setNameError("Nome obrigatório");
       return;
     }
     setNameError("");
-
-    if (editTarget) {
-      const result = await updateInstitutionAction(accountId, {
-        institutionId: editTarget.id,
-        name: nameInput.trim(),
-      });
-      if (!result.ok) {
-        enqueueSnackbar(result.error.message, { variant: "error" });
-        return;
+    startTransition(async () => {
+      if (editTarget) {
+        const result = await updateInstitutionAction(accountId, {
+          institutionId: editTarget.id,
+          name: nameInput.trim(),
+        });
+        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        setInstitutions((prev) =>
+          prev.map((i) => (i.id === editTarget.id ? { ...i, name: nameInput.trim() } : i)),
+        );
+        enqueueSnackbar(m.settings.institutions.updated, { variant: "success" });
+      } else {
+        const result = await createInstitutionAction(accountId, { name: nameInput.trim() });
+        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        setInstitutions((prev) =>
+          [...prev, { id: result.data.institutionId, name: nameInput.trim() }].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          ),
+        );
+        enqueueSnackbar(m.settings.institutions.created, { variant: "success" });
       }
-      setInstitutions((prev) =>
-        prev.map((i) => (i.id === editTarget.id ? { ...i, name: nameInput.trim() } : i)),
-      );
-      enqueueSnackbar(m.settings.institutions.updated, { variant: "success" });
-    } else {
-      const result = await createInstitutionAction(accountId, { name: nameInput.trim() });
-      if (!result.ok) {
-        enqueueSnackbar(result.error.message, { variant: "error" });
-        return;
-      }
-      setInstitutions((prev) =>
-        [...prev, { id: result.data.institutionId, name: nameInput.trim() }].sort((a, b) =>
-          a.name.localeCompare(b.name),
-        ),
-      );
-      enqueueSnackbar(m.settings.institutions.created, { variant: "success" });
-    }
-    closeDialog();
+      closeDialog();
+    });
   }
 
   function confirmDelete() {
@@ -164,12 +160,18 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
         onClose={closeDialog}
         maxWidth="xs"
         title={editTarget ? m.common.edit : m.settings.institutions.createButton}
+        loading={isPending}
         actions={
           <>
             <Button size="small" onClick={closeDialog}>
               {m.common.cancel}
             </Button>
-            <Button size="small" variant="contained" onClick={handleSave}>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleSave}
+              endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
               {m.common.save}
             </Button>
           </>
@@ -197,7 +199,8 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         maxWidth="xs"
-        title={m.common.delete}
+        title={m.settings.institutions.deleteTitle}
+        description={m.settings.institutions.deleteConfirm}
         actions={
           <>
             <Button size="small" onClick={() => setDeleteTarget(null)}>
@@ -208,15 +211,12 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
               color="error"
               variant="contained"
               onClick={confirmDelete}
-              disabled={isPending}
             >
               {m.common.delete}
             </Button>
           </>
         }
-      >
-        <Typography variant="body2">{m.settings.institutions.deleteConfirm}</Typography>
-      </DialogShell>
+      />
     </PageSettingsContainer>
   );
 }

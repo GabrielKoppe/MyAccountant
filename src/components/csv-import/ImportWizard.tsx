@@ -7,6 +7,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Step from "@mui/material/Step";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
+import { layout } from "@/lib/design-tokens";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { useSnackbar } from "notistack";
@@ -126,7 +127,7 @@ export function ImportWizard({
   function handleNext() {
     if (step === 0) {
       if (rows.length === 0) {
-        enqueueSnackbar("Selecione um arquivo primeiro.", { variant: "warning" });
+        enqueueSnackbar(m.csvImport.wizard.noFile, { variant: "warning" });
         return;
       }
       setStep(1);
@@ -135,7 +136,7 @@ export function ImportWizard({
 
     if (step === 1) {
       if (!mapping.columns.date || !mapping.columns.amount) {
-        enqueueSnackbar("Mapeie as colunas de data e valor.", { variant: "warning" });
+        enqueueSnackbar(m.csvImport.wizard.noMapping, { variant: "warning" });
         return;
       }
       const preview = applyMappingToRows(rows, mapping);
@@ -147,7 +148,7 @@ export function ImportWizard({
     if (step === 2) {
       const okCount = previewRows.filter((r) => r.status === "ok").length;
       if (okCount === 0) {
-        enqueueSnackbar("Nenhuma linha válida para importar.", { variant: "warning" });
+        enqueueSnackbar(m.csvImport.wizard.noValidRows, { variant: "warning" });
         return;
       }
       setStep(3);
@@ -156,15 +157,15 @@ export function ImportWizard({
 
     if (step === 3) {
       if (!config.tableName.trim()) {
-        enqueueSnackbar("Informe o nome da tabela.", { variant: "warning" });
+        enqueueSnackbar(m.csvImport.wizard.noTableName, { variant: "warning" });
         return;
       }
       if (!config.sectionId) {
-        enqueueSnackbar("Selecione uma seção.", { variant: "warning" });
+        enqueueSnackbar(m.csvImport.wizard.noSection, { variant: "warning" });
         return;
       }
       if (config.saveTemplate && !config.templateName.trim()) {
-        enqueueSnackbar("Informe o nome do template.", { variant: "warning" });
+        enqueueSnackbar(m.csvImport.wizard.noTemplateName, { variant: "warning" });
         return;
       }
       handleImport();
@@ -224,7 +225,7 @@ export function ImportWizard({
                 onClick={() => setStep((s) => s - 1)}
                 disabled={step === 0 || isPending}
               >
-                Voltar
+                {m.csvImport.wizard.back}
               </Button>
               <Button
                 variant="contained"
@@ -233,18 +234,25 @@ export function ImportWizard({
                 endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
               >
                 {isPending
-                  ? "Importando..."
+                  ? m.csvImport.wizard.importing
                   : isLastStep
                     ? m.csvImport.config.confirmButton
-                    : "Próximo"}
+                    : m.csvImport.wizard.next}
               </Button>
             </>
           ) : undefined
         }
       >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3, minHeight: "55vh" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: layout.stack, minHeight: "52vh" }}>
           {showStepper && (
-            <Stepper activeStep={step} alternativeLabel>
+            <Stepper
+              activeStep={step}
+              alternativeLabel
+              sx={{
+                "& .MuiStepIcon-root": { fontSize: 20 },
+                "& .MuiStepLabel-label": { typography: "caption", mt: "2px" },
+              }}
+            >
               {STEPS.map((label) => (
                 <Step key={label}>
                   <StepLabel>{label}</StepLabel>
