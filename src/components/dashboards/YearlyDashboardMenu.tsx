@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
@@ -32,7 +33,11 @@ export function YearlyDashboardMenu({ csvUrl }: Props) {
         disabled={loading}
         aria-label="Mais opções"
       >
-        <MoreVertIcon fontSize="small" />
+        {loading ? (
+          <CircularProgress size={16} color="inherit" />
+        ) : (
+          <MoreVertIcon fontSize="small" />
+        )}
       </IconButton>
       <Menu
         anchorEl={anchor}
