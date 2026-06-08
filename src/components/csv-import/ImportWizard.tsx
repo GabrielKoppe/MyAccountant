@@ -209,6 +209,7 @@ export function ImportWizard({
         label={m.csvImport.importButton}
         onClick={openWizard}
         direction="left"
+        sx={{ color: "text.primary" }}
       />
 
       <DialogShell

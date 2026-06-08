@@ -7,6 +7,7 @@ import Alert from "@mui/material/Alert";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
@@ -156,7 +157,11 @@ export function MonthHeader({
         onClick={(e) => setMenuAnchor(e.currentTarget)}
         disabled={exportLoading}
       >
-        <MoreVertIcon fontSize="small" />
+        {exportLoading ? (
+          <CircularProgress size={16} color="inherit" />
+        ) : (
+          <MoreVertIcon fontSize="small" />
+        )}
       </IconButton>
       <Menu
         anchorEl={menuAnchor}
