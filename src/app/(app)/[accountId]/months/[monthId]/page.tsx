@@ -9,6 +9,7 @@ import {
   getSectionTotals,
   calculateMonthTotal,
 } from "@/server/services/month-service";
+import { getBudgetsWithProgress } from "@/lib/queries/budgets";
 import { formatMonthLabel, MONTH_NAMES } from "@/lib/dates";
 import { parseHiddenColumns } from "@/lib/schemas/settings";
 import { MonthHeader } from "@/components/months/MonthHeader";
@@ -77,8 +78,10 @@ export default async function MonthPage({ params, searchParams }: Props) {
 
   if (!currentMonth || currentMonth.accountId !== accountId) notFound();
 
+  const { year: monthYear, month: monthMonth } = currentMonth;
+
   // Dados em paralelo
-  const [sections, tablesRaw, allTransactionsRaw, categories, institutions, accountMembers, accountSettings, accountTableTypes] =
+  const [sections, tablesRaw, allTransactionsRaw, categories, institutions, accountMembers, accountSettings, accountTableTypes, summaryBudgets] =
     await Promise.all([
       getMonthSections(accountId, monthId),
       prisma.financeTable.findMany({
@@ -143,6 +146,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
         orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
         select: { id: true, name: true, isDefault: true },
       }),
+      getBudgetsWithProgress(accountId, monthYear, monthMonth, true),
     ]);
 
   // Serializar transações (BigInt → string, Date → string)
@@ -292,6 +296,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
               favoriteTransactions={favoriteTransactions}
               recentTransactions={recentTransactions}
               prevSectionTotals={prevSectionTotals}
+              summaryBudgets={summaryBudgets}
             />
           ) : (
             <SectionView

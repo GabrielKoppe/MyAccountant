@@ -20,6 +20,7 @@ const editorLinks = [
   { href: "models", label: "Modelos de tabela" },
   { href: "templates", label: m.settings.nav.templates },
   { href: "analyses", label: m.settings.nav.analyses },
+  { href: "budgets", label: m.budgets.nav },
 ];
 
 export default async function SettingsLayout({ children, params }: Props) {

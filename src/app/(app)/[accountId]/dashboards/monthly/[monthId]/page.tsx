@@ -18,6 +18,7 @@ import {
   getSankeyData,
 } from "@/lib/queries/dashboards";
 import { getPinnedAnalyses } from "@/lib/queries/sandbox";
+import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
 import { formatMonthLabel, MONTH_NAMES } from "@/lib/dates";
 import { AppLink } from "@/components/ui/AppLink";
 import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
@@ -62,13 +63,16 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   const monthLabel = formatMonthLabel(year, month);
 
   // Fetch all data in parallel
-  const [deepDive, sparklineData, comparisonData, treemapData, pinnedAnalyses] = await Promise.all([
-    getMonthDeepDive(accountId, monthId),
-    getMonthSparklineData(accountId, monthId),
-    getComparisonData(accountId, monthId),
-    getCategoryTreemapData(accountId, monthId),
-    getPinnedAnalyses(accountId, "monthly", monthId),
-  ]);
+  const [deepDive, sparklineData, comparisonData, treemapData, pinnedAnalyses, budgets, budgetFormOptions] =
+    await Promise.all([
+      getMonthDeepDive(accountId, monthId),
+      getMonthSparklineData(accountId, monthId),
+      getComparisonData(accountId, monthId),
+      getCategoryTreemapData(accountId, monthId),
+      getPinnedAnalyses(accountId, "monthly", monthId),
+      getBudgetsWithProgress(accountId, year, month),
+      getBudgetFormOptions(accountId),
+    ]);
 
   const { sections, sectionTotals, monthTotal, topCategories, topTransactions } = deepDive;
 
@@ -156,6 +160,8 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         treemapData={treemapData}
         sankeyData={sankeyData}
         pinnedAnalyses={pinnedAnalyses}
+        budgets={budgets}
+        budgetFormOptions={budgetFormOptions}
       />
     </Box>
   );

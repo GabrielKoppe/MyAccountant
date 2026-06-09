@@ -3,7 +3,9 @@
 import dynamic from "next/dynamic";
 import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 import { formatCentsToBrl } from "@/lib/money";
@@ -30,17 +32,26 @@ import { SectionPieChart } from "./SectionPieChart";
 import { CategoryPieChart } from "./CategoryPieChart";
 import { PinnedAnalysesSection } from "./PinnedAnalysesSection";
 import type { PinnedAnalysisData } from "@/lib/queries/sandbox";
+import { BudgetProgressBar } from "@/components/budgets/BudgetProgressBar";
+import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
+import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CategoryIcon from "@mui/icons-material/Category";
+import AddIcon from "@mui/icons-material/Add";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import Collapse from "@mui/material/Collapse";
+import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
+import Tooltip from "@mui/material/Tooltip";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
 // @nivo/sankey loaded client-only (no SSR — uses D3 hooks)
@@ -85,6 +96,8 @@ type Props = {
   treemapData: TreemapCategory[];
   sankeyData: SankeyData;
   pinnedAnalyses: PinnedAnalysisData[];
+  budgets: BudgetProgress[];
+  budgetFormOptions: BudgetFormOptions;
 };
 
 function pickComparisonValues(
@@ -136,12 +149,16 @@ export function MonthlyDashboardClient({
   treemapData,
   sankeyData,
   pinnedAnalyses,
+  budgets,
+  budgetFormOptions,
 }: Props) {
   const [compareMode, setCompareMode] = useState<CompareMode>("prevMonth");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTitle, setDrawerTitle] = useState("");
   const [drawerTxs, setDrawerTxs] = useState<DrillDownTransaction[]>([]);
   const [drawerLoading, startDrawerTransition] = useTransition();
+  const [budgetsExpanded, setBudgetsExpanded] = useState(true);
+  const [budgetFormOpen, setBudgetFormOpen] = useState(false);
 
   const compValues = pickComparisonValues(compareMode, sparklineData, comparisonData);
   const hasPrevYear = !!comparisonData.prevYearSameMonth;
@@ -246,6 +263,78 @@ export function MonthlyDashboardClient({
         )}
       </Box>
 
+      {/* Budget targets block */}
+      {budgets.length > 0 && (
+        <Paper variant="outlined" sx={{ mb: 3 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 2.5,
+              py: 1.5,
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+            onClick={() => setBudgetsExpanded((v) => !v)}
+          >
+            <Stack direction="row" alignItems="center" gap={1}>
+              <Typography variant="subtitle2" fontWeight="bold">
+                {m.budgets.title}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {budgets.length} {budgets.length === 1 ? "meta" : "metas"}
+              </Typography>
+            </Stack>
+            <Stack direction="row" alignItems="center" gap={0.5}>
+              <Tooltip title={m.budgets.createButton}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); setBudgetFormOpen(true); }}
+                >
+                  <AddIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <IconButton size="small">
+                {budgetsExpanded ? <ExpandLessIcon sx={{ fontSize: 18 }} /> : <ExpandMoreIcon sx={{ fontSize: 18 }} />}
+              </IconButton>
+            </Stack>
+          </Box>
+          <Collapse in={budgetsExpanded}>
+            <Box sx={{ px: 2.5, pb: 2, pt: 0.5 }}>
+              <Stack spacing={1.5}>
+                {budgets.map((b) => (
+                  <BudgetProgressBar
+                    key={b.id}
+                    label={b.label}
+                    amountCents={b.amountCents}
+                    spentCents={b.spentCents}
+                    percent={b.percent}
+                    alertThresholdPercent={b.alertThresholdPercent}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          </Collapse>
+        </Paper>
+      )}
+
+      {budgets.length === 0 && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+          <Tooltip title="Definir metas de orçamento para acompanhar no dashboard">
+            <Button
+              size="small"
+              variant="text"
+              startIcon={<AddIcon />}
+              onClick={() => setBudgetFormOpen(true)}
+              sx={{ color: "text.secondary", fontSize: "0.75rem" }}
+            >
+              {m.budgets.createButton}
+            </Button>
+          </Tooltip>
+        </Box>
+      )}
+
       {/* Row 1: Calendar Heatmap + Category Treemap */}
       <Box
         sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 3 }}
@@ -336,6 +425,15 @@ export function MonthlyDashboardClient({
         title={drawerTitle}
         transactions={drawerTxs}
         loading={drawerLoading}
+      />
+
+      {/* Budget creation dialog */}
+      <BudgetFormDialog
+        open={budgetFormOpen}
+        onClose={() => setBudgetFormOpen(false)}
+        accountId={accountId}
+        formOptions={budgetFormOptions}
+        onSuccess={() => setBudgetFormOpen(false)}
       />
     </Box>
   );

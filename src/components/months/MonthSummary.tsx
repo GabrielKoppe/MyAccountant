@@ -14,8 +14,10 @@ import ScheduleIcon from "@mui/icons-material/Schedule";
 
 import { AppLink } from "@/components/ui/AppLink";
 import { KpiSparklineCard } from "@/components/dashboards/KpiSparklineCard";
+import { BudgetProgressBar } from "@/components/budgets/BudgetProgressBar";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
+import type { BudgetProgress } from "@/lib/queries/budgets";
 import { TransactionQuickList } from "./TransactionQuickList";
 
 type SectionItem = {
@@ -51,6 +53,7 @@ type Props = {
   favoriteTransactions: QuickTx[];
   recentTransactions: QuickTx[];
   prevSectionTotals?: Record<string, string>;
+  summaryBudgets?: BudgetProgress[];
 };
 
 const COUNT_TYPE_COLORS: Record<SectionCountType, "success" | "error" | "default" | "warning"> = {
@@ -71,6 +74,7 @@ export function MonthSummary({
   favoriteTransactions,
   recentTransactions,
   prevSectionTotals,
+  summaryBudgets,
 }: Props) {
   const totalBigInt = BigInt(monthTotal);
   const visibleSections = sections.filter((s) => s.countType !== "ignore");
@@ -169,6 +173,28 @@ export function MonthSummary({
           deltaMode={prevSectionTotals ? "prevMonth" : "none"}
         />
       </Box>
+
+      {/* ── Metas ── */}
+      {summaryBudgets && summaryBudgets.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2.5 }}>
+          <Typography variant="caption" fontWeight={600} display="block" sx={{ mb: 1.5 }}>
+            {m.budgets.title}
+          </Typography>
+          <Stack spacing={1.25}>
+            {summaryBudgets.map((b) => (
+              <BudgetProgressBar
+                key={b.id}
+                label={b.label}
+                amountCents={b.amountCents}
+                spentCents={b.spentCents}
+                percent={b.percent}
+                alertThresholdPercent={b.alertThresholdPercent}
+                compact
+              />
+            ))}
+          </Stack>
+        </Paper>
+      )}
 
       {/* ── Seções ── */}
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1 }}>
