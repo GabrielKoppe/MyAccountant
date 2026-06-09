@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyDayToMonth,
   formatDateBr,
+  formatDateTimeInTz,
   formatMonthLabel,
   getCurrentFiscalMonth,
   getMonthRange,
@@ -147,5 +148,30 @@ describe("getMonthRange", () => {
   it("deve limitar startDay ao último dia do mês em fevereiro", () => {
     const range = getMonthRange(2026, 2, 31); // Fevereiro, startDay=31
     expect(range.start.getDate()).toBe(28); // fevereiro 2026 tem 28 dias
+  });
+});
+
+describe("formatDateTimeInTz", () => {
+  it("deve formatar timestamp no timezone do usuário (America/Sao_Paulo, UTC-3)", () => {
+    expect(formatDateTimeInTz("2026-06-09T12:30:00Z", "America/Sao_Paulo")).toBe(
+      "09/06/2026 09:30",
+    );
+  });
+
+  it("deve formatar o mesmo instante em UTC", () => {
+    expect(formatDateTimeInTz("2026-06-09T12:30:00Z", "UTC")).toBe("09/06/2026 12:30");
+  });
+
+  it("deve respeitar a virada de dia ao converter o timezone", () => {
+    // 02:00 UTC vira 23:00 do dia anterior em São Paulo (UTC-3)
+    expect(formatDateTimeInTz("2026-06-09T02:00:00Z", "America/Sao_Paulo")).toBe(
+      "08/06/2026 23:00",
+    );
+  });
+
+  it("deve aceitar objeto Date", () => {
+    expect(formatDateTimeInTz(new Date("2026-01-15T00:00:00Z"), "UTC")).toBe(
+      "15/01/2026 00:00",
+    );
   });
 });

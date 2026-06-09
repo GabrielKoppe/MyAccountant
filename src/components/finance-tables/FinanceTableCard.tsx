@@ -58,6 +58,9 @@ type Props = {
   table: TableData;
   accountId: string;
   monthId: string;
+  currentUserId: string;
+  canEdit: boolean;
+  timezone: string;
   sectionIsActive: boolean;
   sectionCountType: SectionCountType;
   transactions: TransactionRow[];
@@ -72,6 +75,9 @@ export function FinanceTableCard({
   table,
   accountId,
   monthId,
+  currentUserId,
+  canEdit,
+  timezone,
   sectionIsActive,
   sectionCountType,
   transactions,
@@ -328,6 +334,9 @@ export function FinanceTableCard({
           tableId={table.id}
           monthId={monthId}
           accountId={accountId}
+          currentUserId={currentUserId}
+          canEdit={canEdit}
+          timezone={timezone}
           sectionIsActive={sectionIsActive}
           sectionCountType={sectionCountType}
           hiddenColumns={table.hiddenColumns}

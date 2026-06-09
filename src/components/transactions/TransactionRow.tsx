@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SectionCountType } from "@prisma/client";
 import { NumericFormat } from "react-number-format";
 import Avatar from "@mui/material/Avatar";
@@ -29,6 +29,7 @@ import NoteIcon from "@mui/icons-material/Note";
 import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { useSnackbar } from "notistack";
 
 import { m } from "@/lib/messages";
@@ -52,6 +53,7 @@ import type {
 type Props = {
   tx: TxRow;
   accountId: string;
+  currentUserId: string;
   isSelected: boolean;
   isReadOnly: boolean;
   sectionCountType: SectionCountType;
@@ -59,15 +61,19 @@ type Props = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
+  autoEdit: boolean;
   onSelect: (id: string, checked: boolean) => void;
   onOptimisticUpdate: (id: string, patch: Partial<TxRow>) => void;
   onDeleteRequested: (id: string) => void;
   onDuplicated: (newTx: TxRow, sourceId: string) => void;
+  onViewDetails: (id: string) => void;
+  onAutoEditConsumed: () => void;
 };
 
 export function TransactionRow({
   tx,
   accountId,
+  currentUserId,
   isSelected,
   isReadOnly,
   sectionCountType,
@@ -75,10 +81,13 @@ export function TransactionRow({
   categories,
   institutions,
   members,
+  autoEdit,
   onSelect,
   onOptimisticUpdate,
   onDeleteRequested,
   onDuplicated,
+  onViewDetails,
+  onAutoEditConsumed,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [editing, setEditing] = useState(false);
@@ -98,6 +107,20 @@ export function TransactionRow({
     setFocusField(field);
     setNotesOpen(false);
     setEditing(true);
+  }
+
+  // Gatilho de edição inline disparado pelo botão "Editar" do painel de detalhes
+  useEffect(() => {
+    if (autoEdit) {
+      startEdit();
+      onAutoEditConsumed();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoEdit]);
+
+  function handleViewDetails() {
+    setMenuAnchor(null);
+    onViewDetails(tx.id);
   }
 
   function startEditWithNote(e: React.MouseEvent) {
@@ -206,7 +229,18 @@ export function TransactionRow({
       enqueueSnackbar(result.error.message, { variant: "error" });
       return;
     }
-    onDuplicated({ ...tx, id: result.data.transactionId }, tx.id);
+    const now = new Date().toISOString();
+    onDuplicated(
+      {
+        ...tx,
+        id: result.data.transactionId,
+        createdById: currentUserId,
+        createdAt: now,
+        updatedById: null,
+        updatedAt: now,
+      },
+      tx.id,
+    );
     enqueueSnackbar("Transação duplicada.", { variant: "success" });
   }
 
@@ -623,17 +657,19 @@ export function TransactionRow({
           </IconButton>
         </Tooltip>
         {!isReadOnly && (
-          <>
-            <Tooltip title="Editar">
-              <IconButton size="small" onClick={() => startEdit()}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}>
-              <MoreVertIcon fontSize="small" />
+          <Tooltip title={m.transactions.actions.edit}>
+            <IconButton size="small" onClick={() => startEdit()}>
+              <EditIcon fontSize="small" />
             </IconButton>
-          </>
+          </Tooltip>
         )}
+        <IconButton
+          size="small"
+          aria-label="Mais ações"
+          onClick={(e) => setMenuAnchor(e.currentTarget)}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
       </TableCell>
 
       <Menu
@@ -642,18 +678,28 @@ export function TransactionRow({
         onClose={() => setMenuAnchor(null)}
         slotProps={{ paper: { sx: { minWidth: 140 } } }}
       >
-        <MenuItem onClick={handleDuplicate} sx={{ py: 0.75, fontSize: 13 }}>
+        <MenuItem onClick={handleViewDetails} sx={{ py: 0.75, fontSize: 13 }}>
           <ListItemIcon sx={{ minWidth: 32 }}>
-            <ContentCopyIcon sx={{ fontSize: 16 }} />
+            <VisibilityOutlinedIcon sx={{ fontSize: 16 }} />
           </ListItemIcon>
-          Duplicar
+          {m.transactions.actions.viewDetails}
         </MenuItem>
-        <MenuItem onClick={handleDelete} sx={{ py: 0.75, fontSize: 13, color: "error.main" }}>
-          <ListItemIcon sx={{ minWidth: 32 }}>
-            <DeleteIcon sx={{ fontSize: 16 }} color="error" />
-          </ListItemIcon>
-          Deletar
-        </MenuItem>
+        {!isReadOnly && (
+          <MenuItem onClick={handleDuplicate} sx={{ py: 0.75, fontSize: 13 }}>
+            <ListItemIcon sx={{ minWidth: 32 }}>
+              <ContentCopyIcon sx={{ fontSize: 16 }} />
+            </ListItemIcon>
+            {m.transactions.actions.duplicate}
+          </MenuItem>
+        )}
+        {!isReadOnly && (
+          <MenuItem onClick={handleDelete} sx={{ py: 0.75, fontSize: 13, color: "error.main" }}>
+            <ListItemIcon sx={{ minWidth: 32 }}>
+              <DeleteIcon sx={{ fontSize: 16 }} color="error" />
+            </ListItemIcon>
+            {m.transactions.actions.delete}
+          </MenuItem>
+        )}
       </Menu>
     </TableRow>
   );

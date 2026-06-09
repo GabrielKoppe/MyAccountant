@@ -327,6 +327,23 @@ export const messages = {
       institution: "Instituição",
       isPending: "Pendente",
       isFavorite: "Favorito",
+      responsibleUser: "Responsável",
+      cardInstallment: "Parcela do cartão",
+      investmentType: "Tipo de investimento",
+    },
+    actions: {
+      viewDetails: "Ver detalhes",
+      edit: "Editar",
+      duplicate: "Duplicar",
+      delete: "Deletar",
+    },
+    detail: {
+      title: "Detalhes da transação",
+      close: "Fechar",
+      history: "Histórico",
+      createdBy: "Criado por",
+      updatedBy: "Última alteração por",
+      removedUser: "Usuário removido",
     },
     errors: {
       invalidDate: "Data inválida",

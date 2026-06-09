@@ -20,6 +20,7 @@ import type { CategoryOption, HiddenColumns, InstitutionOption, MemberOption, Tr
 type Props = {
   tableId: string;
   accountId: string;
+  currentUserId: string;
   hiddenColumns: HiddenColumns;
   categories: CategoryOption[];
   institutions: InstitutionOption[];
@@ -36,6 +37,7 @@ function todayISO(): string {
 export function NewTransactionRow({
   tableId,
   accountId,
+  currentUserId,
   hiddenColumns,
   categories,
   institutions,
@@ -84,6 +86,7 @@ export function NewTransactionRow({
       return;
     }
 
+    const now = new Date().toISOString();
     onCreated({
       id: result.data.transactionId,
       occurredOn,
@@ -99,7 +102,10 @@ export function NewTransactionRow({
       responsibleUserId,
       cardInstallment: null,
       investmentType,
-      createdById: "",
+      createdById: currentUserId,
+      createdAt: now,
+      updatedById: null,
+      updatedAt: now,
     });
   }
 

@@ -28,6 +28,26 @@ export function formatDateShort(date: Date | string): string {
   return format(d, "dd/MM", { locale: ptBR });
 }
 
+/**
+ * Formata um timestamp (createdAt/updatedAt) no timezone do usuário como
+ * "dd/MM/yyyy HH:mm". Usa Intl (built-in) para evitar dependência de date-fns-tz.
+ * Recebe Date ou ISO string (timestamp UTC com hora — NÃO usar parseLocalDate aqui).
+ */
+export function formatDateTimeInTz(date: Date | string, timezone: string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: timezone,
+  }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("day")}/${get("month")}/${get("year")} ${get("hour")}:${get("minute")}`;
+}
+
 export function getCurrentYearMonth(): { year: number; month: number } {
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() + 1 };

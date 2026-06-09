@@ -31,6 +31,7 @@ import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFi
 import { BulkActionBar } from "./BulkActionBar";
 import { NewTransactionRow } from "./NewTransactionRow";
 import { TransactionRow } from "./TransactionRow";
+import { TransactionDetailDialog } from "./TransactionDetailDialog";
 import type { CategoryOption, HiddenColumns, InstitutionOption, MemberOption, TransactionRow as TxRow } from "./types";
 
 type SortField = "occurredOn" | "amountCents" | "description" | "categoryId" | "institutionId";
@@ -83,6 +84,9 @@ type Props = {
   tableId: string;
   monthId: string;
   accountId: string;
+  currentUserId: string;
+  canEdit: boolean;
+  timezone: string;
   sectionIsActive: boolean;
   sectionCountType: SectionCountType;
   hiddenColumns: HiddenColumns;
@@ -99,6 +103,9 @@ export function TransactionTable({
   tableId,
   monthId,
   accountId,
+  currentUserId,
+  canEdit,
+  timezone,
   sectionIsActive,
   sectionCountType,
   hiddenColumns,
@@ -112,6 +119,8 @@ export function TransactionTable({
 }: Props) {
   const [rows, setRows] = useState<TxRow[]>(initialTransactions);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [detailTxId, setDetailTxId] = useState<string | null>(null);
+  const [editRequestId, setEditRequestId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [sort, setSort] = useState<SortState>(null);
@@ -124,8 +133,15 @@ export function TransactionTable({
 
   const { filters, clearFilters, isActive: hasGlobalFilters } = useMonthFilters();
 
-  const isReadOnly = !sectionIsActive;
+  const isReadOnly = !sectionIsActive || !canEdit;
   const selectedIds = Array.from(selected);
+  const detailTx = detailTxId ? rows.find((r) => r.id === detailTxId) ?? null : null;
+
+  function handleEditFromDetail() {
+    if (!detailTx) return;
+    setEditRequestId(detailTx.id);
+    setDetailTxId(null);
+  }
   const show = (key: string) => !hiddenColumns[key];
 
   // Apply global filters → then local search → then sort
@@ -427,6 +443,7 @@ export function TransactionTable({
               <NewTransactionRow
                 tableId={tableId}
                 accountId={accountId}
+                currentUserId={currentUserId}
                 hiddenColumns={hiddenColumns}
                 categories={categories}
                 institutions={institutions}
@@ -468,6 +485,7 @@ export function TransactionTable({
                   key={tx.id}
                   tx={tx}
                   accountId={accountId}
+                  currentUserId={currentUserId}
                   isSelected={selected.has(tx.id)}
                   isReadOnly={isReadOnly}
                   sectionCountType={sectionCountType}
@@ -475,16 +493,35 @@ export function TransactionTable({
                   categories={categories}
                   institutions={institutions}
                   members={members}
+                  autoEdit={editRequestId === tx.id}
                   onSelect={handleSelect}
                   onOptimisticUpdate={optimisticUpdate}
                   onDeleteRequested={onDeleteRequested}
                   onDuplicated={onDuplicated}
+                  onViewDetails={setDetailTxId}
+                  onAutoEditConsumed={() => setEditRequestId(null)}
                 />
               ))
             )}
           </TableBody>
         </Table>
       </Box>
+
+      {detailTx && (
+        <TransactionDetailDialog
+          open
+          onClose={() => setDetailTxId(null)}
+          tx={detailTx}
+          sectionCountType={sectionCountType}
+          hiddenColumns={hiddenColumns}
+          categories={categories}
+          institutions={institutions}
+          members={members}
+          timezone={timezone}
+          canEdit={!isReadOnly}
+          onEdit={handleEditFromDetail}
+        />
+      )}
     </Box>
   );
 }
