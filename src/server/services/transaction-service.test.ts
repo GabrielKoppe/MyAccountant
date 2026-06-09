@@ -196,6 +196,10 @@ describe("duplicateTransaction", () => {
 
 describe("bulkDelete", () => {
   it("deve deletar transações filtrando sempre pelo accountId do contexto", async () => {
+    prismaMock.transaction.findMany.mockResolvedValue([
+      { monthId: "month-1" } as any,
+      { monthId: "month-1" } as any,
+    ]);
     prismaMock.transaction.deleteMany.mockResolvedValue({ count: 2 });
 
     await bulkDelete({ ids: ["tx-1", "tx-2"] }, TEST_CTX);
@@ -206,6 +210,7 @@ describe("bulkDelete", () => {
   });
 
   it("não deve deletar transações de outras accounts via ids cruzados", async () => {
+    prismaMock.transaction.findMany.mockResolvedValue([{ monthId: "month-1" } as any]);
     prismaMock.transaction.deleteMany.mockResolvedValue({ count: 0 });
 
     await bulkDelete({ ids: ["tx-outra-acc"] }, TEST_CTX);

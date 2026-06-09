@@ -713,6 +713,19 @@ export const messages = {
       expandGoals: "Ver metas",
     },
   },
+  notifications: {
+    title: "Notificações",
+    empty: "Nenhuma notificação.",
+    emptyHint: "Quando membros fizerem alterações, você verá aqui.",
+    types: {
+      transactions_added: (name: string, count: number, month: string) =>
+        `${name} adicionou ${count} ${count === 1 ? "transação" : "transações"} em ${month}`,
+      transaction_deleted: (name: string, count: number, month: string) =>
+        `${name} deletou ${count} ${count === 1 ? "transação" : "transações"} em ${month}`,
+      invite_accepted: (name: string, role: string) =>
+        `${name} entrou na conta como ${role}`,
+    },
+  },
   errors: {
     unauthorized: "Você precisa estar logado.",
     forbidden: "Você não tem permissão para esta ação.",

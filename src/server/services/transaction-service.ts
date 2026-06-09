@@ -12,6 +12,7 @@ import type {
   UpdateTransactionInput,
 } from "@/lib/schemas/transaction";
 import { formatMonthLabel } from "@/lib/dates";
+import * as notificationService from "@/server/services/notification-service";
 
 const log = logger.child({ module: "transaction-service" });
 
@@ -60,6 +61,13 @@ export async function createTransaction(input: CreateTransactionInput, ctx: Acti
     select: { id: true },
   });
 
+  void notificationService.notifyTransactionMutation({
+    accountId: ctx.accountId,
+    actorId: ctx.userId,
+    type: "transactions_added",
+    monthId: table.monthId,
+  });
+
   log.info({ transactionId: transaction.id, tableId: input.tableId }, "Transaction created");
   return { transactionId: transaction.id };
 }
@@ -89,8 +97,16 @@ export async function updateTransaction(input: UpdateTransactionInput, ctx: Acti
 }
 
 export async function deleteTransaction(input: DeleteTransactionInput, ctx: ActionContext) {
-  await getTransactionOrThrow(input.transactionId, ctx.accountId);
+  const tx = await getTransactionOrThrow(input.transactionId, ctx.accountId);
   await prisma.transaction.delete({ where: { id: input.transactionId } });
+
+  void notificationService.notifyTransactionMutation({
+    accountId: ctx.accountId,
+    actorId: ctx.userId,
+    type: "transaction_deleted",
+    monthId: tx.monthId,
+  });
+
   log.info({ transactionId: input.transactionId }, "Transaction deleted");
 }
 
@@ -125,14 +141,37 @@ export async function duplicateTransaction(input: DuplicateTransactionInput, ctx
     select: { id: true },
   });
 
+  void notificationService.notifyTransactionMutation({
+    accountId: ctx.accountId,
+    actorId: ctx.userId,
+    type: "transactions_added",
+    monthId: source.monthId,
+  });
+
   log.info({ sourceId: input.transactionId, newId: newTx.id }, "Transaction duplicated");
   return { transactionId: newTx.id };
 }
 
 export async function bulkDelete(input: BulkDeleteInput, ctx: ActionContext) {
+  const txs = await prisma.transaction.findMany({
+    where: { id: { in: input.ids }, accountId: ctx.accountId },
+    select: { monthId: true },
+  });
+
   await prisma.transaction.deleteMany({
     where: { id: { in: input.ids }, accountId: ctx.accountId },
   });
+
+  const uniqueMonthIds = [...new Set(txs.map((t) => t.monthId))];
+  for (const monthId of uniqueMonthIds) {
+    void notificationService.notifyTransactionMutation({
+      accountId: ctx.accountId,
+      actorId: ctx.userId,
+      type: "transaction_deleted",
+      monthId,
+    });
+  }
+
   log.info({ count: input.ids.length, accountId: ctx.accountId }, "Bulk transactions deleted");
 }
 

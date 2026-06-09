@@ -14,8 +14,10 @@ import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel } from "@/lib/dates";
 import { AppLink } from "@/components/ui/AppLink";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 import { UserMenuButton } from "@/components/ui/UserMenuButton";
 import { MonthsDropdown } from "@/components/months/MonthsDropdown";
+import { getUnreadCount } from "@/server/services/notification-service";
 
 type Props = {
   children: ReactNode;
@@ -27,7 +29,7 @@ export default async function AccountLayout({ children, params }: Props) {
 
   const { user } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
-  const [account, userData, recentMonthsRaw] = await Promise.all([
+  const [account, userData, recentMonthsRaw, unreadCount] = await Promise.all([
     prisma.account.findUnique({
       where: { id: accountId },
       select: { name: true },
@@ -42,6 +44,7 @@ export default async function AccountLayout({ children, params }: Props) {
       take: 6,
       select: { id: true, year: true, month: true },
     }),
+    getUnreadCount(user.id, accountId),
   ]);
 
   const recentMonths = recentMonthsRaw.map((m) => ({
@@ -78,10 +81,12 @@ export default async function AccountLayout({ children, params }: Props) {
           </Tooltip>
 
           <Tooltip title="Configurações da conta">
-            <IconButton component={AppLink} href={`/${accountId}/settings/account`} color="inherit" aria-label="Configurações">
+            <IconButton component={AppLink} href={`/${accountId}/settings/general`} color="inherit" aria-label="Configurações">
               <SettingsIcon />
             </IconButton>
           </Tooltip>
+
+          <NotificationBell accountId={accountId} initialUnreadCount={unreadCount} />
 
           <UserMenuButton userName={userData?.name} userImage={userData?.image} />
         </Toolbar>
