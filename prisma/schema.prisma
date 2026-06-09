@@ -84,6 +84,7 @@ model User {
   analysesCreated       SavedAnalysis[]   @relation("AnalysisCreatedBy")
   tableModelsCreated    TableTemplate[]   @relation("TableTemplateCreatedBy")
   monthsCreated         Month[]           @relation("MonthCreatedBy")
+  budgetsAsMember       Budget[]          @relation("BudgetMember")
 
   @@map("users")
 }
@@ -153,6 +154,7 @@ model Account {
   tableModels        TableTemplate[]
   tableModelItems    TableTemplateItem[]
   settings           AccountSettings?
+  budgets            Budget[]
 
   @@map("accounts")
 }
@@ -221,6 +223,7 @@ model TableType {
   account        Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   financeTables  FinanceTable[]
   tableTemplates TableTemplate[]
+  budgets        Budget[]
 
   @@unique([accountId, name])
   @@map("table_types")
@@ -274,6 +277,7 @@ model Section {
   account      Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
   tables       FinanceTable[]
   transactions Transaction[]
+  budgets      Budget[]
 
   @@unique([accountId, name])
   @@map("sections")
@@ -364,6 +368,7 @@ model Category {
   createdBy     User          @relation("CategoryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   subcategories Subcategory[]
   transactions  Transaction[]
+  budgets       Budget[]
 
   @@unique([accountId, name])
   @@map("categories")
@@ -394,6 +399,7 @@ model Institution {
   account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdBy    User          @relation("InstitutionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   transactions Transaction[]
+  budgets      Budget[]
 
   @@unique([accountId, name])
   @@map("institutions")
@@ -490,4 +496,38 @@ model TableTemplateItem {
 
   @@index([templateId])
   @@map("table_template_items")
+}
+
+// =========================================
+// Domain — Budget Targets (Spec 25)
+// =========================================
+
+model Budget {
+  id                    String   @id @default(cuid())
+  accountId             String   @map("account_id")
+  name                  String?
+  sectionId             String?  @map("section_id")
+  categoryId            String?  @map("category_id")
+  memberUserId          String?  @map("member_user_id")
+  institutionId         String?  @map("institution_id")
+  tableTypeId           String?  @map("table_type_id")
+  amountCents           BigInt   @map("amount_cents")
+  alertThresholdPercent Int      @default(80) @map("alert_threshold_percent")
+  isRecurring           Boolean  @default(true) @map("is_recurring")
+  showInSummary         Boolean  @default(false) @map("show_in_summary")
+  year                  Int?
+  month                 Int?
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  account     Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  section     Section?     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  category    Category?    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  member      User?        @relation("BudgetMember", fields: [memberUserId], references: [id], onDelete: SetNull)
+  institution Institution? @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  tableType   TableType?   @relation(fields: [tableTypeId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([accountId, isRecurring])
+  @@map("budgets")
 }
