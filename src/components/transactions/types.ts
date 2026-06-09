@@ -21,6 +21,9 @@ export type TransactionRow = {
   cardInstallment: string | null;
   investmentType: InvestmentType | null;
   createdById: string;
+  createdAt: string; // ISO string (timestamp UTC)
+  updatedById: string | null;
+  updatedAt: string; // ISO string (timestamp UTC)
 };
 
 export type CategoryOption = {

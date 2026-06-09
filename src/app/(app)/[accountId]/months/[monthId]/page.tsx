@@ -62,7 +62,8 @@ export default async function MonthPage({ params, searchParams }: Props) {
     favorite: favoriteParam === "1",
   };
 
-  const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
+  const { user, member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
+  const canEdit = member.role === "owner" || member.role === "editor";
 
   const [currentMonth, allMonths] = await Promise.all([
     prisma.month.findUnique({
@@ -81,7 +82,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
   const { year: monthYear, month: monthMonth } = currentMonth;
 
   // Dados em paralelo
-  const [sections, tablesRaw, allTransactionsRaw, categories, institutions, accountMembers, accountSettings, accountTableTypes, summaryBudgets] =
+  const [sections, tablesRaw, allTransactionsRaw, categories, institutions, accountMembers, accountSettings, accountTableTypes, summaryBudgets, userSettings] =
     await Promise.all([
       getMonthSections(accountId, monthId),
       prisma.financeTable.findMany({
@@ -117,6 +118,9 @@ export default async function MonthPage({ params, searchParams }: Props) {
           cardInstallment: true,
           investmentType: true,
           createdById: true,
+          createdAt: true,
+          updatedById: true,
+          updatedAt: true,
         },
       }),
       prisma.category.findMany({
@@ -147,7 +151,13 @@ export default async function MonthPage({ params, searchParams }: Props) {
         select: { id: true, name: true, isDefault: true },
       }),
       getBudgetsWithProgress(accountId, monthYear, monthMonth, true),
+      prisma.userSettings.findUnique({
+        where: { userId: user.id },
+        select: { timezone: true },
+      }),
     ]);
+
+  const timezone = userSettings?.timezone ?? "America/Sao_Paulo";
 
   // Serializar transações (BigInt → string, Date → string)
   const transactionsByTable: Record<string, TransactionRow[]> = {};
@@ -168,6 +178,9 @@ export default async function MonthPage({ params, searchParams }: Props) {
       cardInstallment: tx.cardInstallment,
       investmentType: tx.investmentType as import("@/lib/schemas/transaction").InvestmentType | null,
       createdById: tx.createdById,
+      createdAt: tx.createdAt.toISOString(),
+      updatedById: tx.updatedById,
+      updatedAt: tx.updatedAt.toISOString(),
     };
     if (!transactionsByTable[tx.tableId]) transactionsByTable[tx.tableId] = [];
     transactionsByTable[tx.tableId].push(row);
@@ -305,6 +318,9 @@ export default async function MonthPage({ params, searchParams }: Props) {
               sectionTotal={sectionTotals[activeSection.id] ?? "0"}
               accountId={accountId}
               monthId={monthId}
+              currentUserId={user.id}
+              canEdit={canEdit}
+              timezone={timezone}
               allSections={allSections}
               tableTypes={accountTableTypes}
               sourceTables={sourceTables}

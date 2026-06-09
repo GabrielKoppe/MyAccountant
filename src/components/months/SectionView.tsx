@@ -57,6 +57,9 @@ type Props = {
   sectionTotal: string;
   accountId: string;
   monthId: string;
+  currentUserId: string;
+  canEdit: boolean;
+  timezone: string;
   allSections: SectionOption[];
   tableTypes: TableTypeOption[];
   sourceTables: SourceTableOption[];
@@ -73,6 +76,9 @@ export function SectionView({
   sectionTotal,
   accountId,
   monthId,
+  currentUserId,
+  canEdit,
+  timezone,
   allSections,
   tableTypes,
   sourceTables,
@@ -277,6 +283,9 @@ export function SectionView({
           table={table}
           accountId={accountId}
           monthId={monthId}
+          currentUserId={currentUserId}
+          canEdit={canEdit}
+          timezone={timezone}
           sectionIsActive={section.isActive}
           sectionCountType={section.countType}
           transactions={transactionsByTable[table.id] ?? []}
