@@ -1,5 +1,5 @@
 import { prisma } from "@/server/prisma";
-import { NotFoundError, ConflictError } from "@/server/api/errors";
+import { NotFoundError, ConflictError, AppError } from "@/server/api/errors";
 import { applyDayToMonth } from "@/lib/dates";
 import { logger } from "@/server/logger";
 import type { ActionContext } from "@/server/api/define-action";
@@ -145,6 +145,33 @@ export async function updateTemplate(input: UpdateTemplateInput, ctx: ActionCont
   });
   if (!tpl) throw new NotFoundError("Modelo de tabela");
 
+  const effectiveAutoApply = input.autoApply !== undefined ? input.autoApply : tpl.autoApply;
+  const effectiveAutoSectionId =
+    input.autoSectionId !== undefined ? input.autoSectionId : tpl.autoSectionId;
+  const effectiveAutoTableTypeId =
+    input.autoTableTypeId !== undefined ? input.autoTableTypeId : tpl.autoTableTypeId;
+
+  if (effectiveAutoApply && (!effectiveAutoSectionId || !effectiveAutoTableTypeId)) {
+    throw new AppError(
+      "VALIDATION",
+      "Seção e tipo de tabela são obrigatórios quando a aplicação automática está ativada.",
+    );
+  }
+
+  if (effectiveAutoSectionId) {
+    const section = await prisma.section.findFirst({
+      where: { id: effectiveAutoSectionId, accountId: ctx.accountId },
+    });
+    if (!section) throw new NotFoundError("Seção configurada no modelo");
+  }
+
+  if (effectiveAutoTableTypeId) {
+    const tableType = await prisma.tableType.findFirst({
+      where: { id: effectiveAutoTableTypeId, accountId: ctx.accountId },
+    });
+    if (!tableType) throw new NotFoundError("Tipo de tabela configurado no modelo");
+  }
+
   return prisma.tableTemplate.update({
     where: { id: input.templateId },
     data: {
@@ -152,6 +179,9 @@ export async function updateTemplate(input: UpdateTemplateInput, ctx: ActionCont
       ...(input.description !== undefined ? { description: input.description } : {}),
       ...(input.tableTypeId !== undefined ? { tableTypeId: input.tableTypeId } : {}),
       ...(input.countInMonth !== undefined ? { countInMonth: input.countInMonth } : {}),
+      ...(input.autoApply !== undefined ? { autoApply: input.autoApply } : {}),
+      ...(input.autoSectionId !== undefined ? { autoSectionId: input.autoSectionId } : {}),
+      ...(input.autoTableTypeId !== undefined ? { autoTableTypeId: input.autoTableTypeId } : {}),
     },
     select: { id: true, name: true },
   });

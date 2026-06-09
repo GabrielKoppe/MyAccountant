@@ -226,6 +226,13 @@ export const messages = {
     monthLabel: "Mês",
     creating: "Criando...",
     created: "Mês criado com sucesso!",
+    autoAppliedAll: (n: number) => `${n} tabela(s) criada(s) automaticamente.`,
+    autoAppliedPartial: (ok: number, total: number) =>
+      `${ok} de ${total} tabela(s) criada(s) automaticamente.`,
+    autoAppliedFailed: "Falha ao criar tabela automaticamente.",
+    autoAppliedDetails: "Ver detalhes",
+    autoAppliedSuccess: "Criada com sucesso",
+    autoAppliedError: "Falha ao criar",
     duplicateError: "Este mês já existe.",
     deleteTitle: "Deletar mês",
     deleteConfirm: "Digite o nome do mês para confirmar:",
@@ -516,6 +523,13 @@ export const messages = {
     sourceMethods: {
       template: "Usar modelo",
     },
+    autoApplySectionTitle: "Aplicação automática",
+    autoApplyLabel: "Aplicar automaticamente ao criar mês",
+    autoApplyHint:
+      "Ao criar um novo mês, este modelo gerará uma tabela automaticamente na seção configurada.",
+    autoApplySection: "Seção de destino",
+    autoApplyTableType: "Tipo de tabela",
+    autoApplyBadge: "Automático",
   },
   templates: {
     title: "Templates de importação",

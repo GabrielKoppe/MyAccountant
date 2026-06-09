@@ -19,6 +19,7 @@ import { MONTH_NAMES, getNextMonthSuggestion } from "@/lib/dates";
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
 import { DialogShell } from "@/components/ui/DialogShell";
+import { AutoApplyResultSnackbar } from "@/components/ui/AutoApplyResultSnackbar";
 
 type Props = {
   accountId: string;
@@ -59,8 +60,29 @@ export function CreateMonthModal({ accountId, lastMonth, variant = "button" }: P
       return;
     }
 
-    enqueueSnackbar(m.months.created, { variant: "success" });
     setOpen(false);
+
+    const { autoApplied } = result.data;
+
+    if (autoApplied.length > 0) {
+      const successCount = autoApplied.filter((r) => r.success).length;
+      const failureCount = autoApplied.length - successCount;
+      const message =
+        failureCount > 0
+          ? m.months.autoAppliedPartial(successCount, autoApplied.length)
+          : m.months.autoAppliedAll(successCount);
+
+      enqueueSnackbar(message, {
+        persist: failureCount > 0,
+        autoHideDuration: failureCount > 0 ? undefined : 6000,
+        content: (key) => (
+          <AutoApplyResultSnackbar snackbarKey={key} message={message} results={autoApplied} />
+        ),
+      });
+    } else {
+      enqueueSnackbar(m.months.created, { variant: "success" });
+    }
+
     router.push(`/${accountId}/months/${result.data.monthId}`);
   }
 

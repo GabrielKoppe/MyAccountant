@@ -21,7 +21,7 @@ export default async function TableModelsPage({ params }: Props) {
   const { accountId } = await params;
   await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
-  const [templates, categories, institutions, members, tableTypes] = await Promise.all([
+  const [templates, categories, institutions, members, tableTypes, sections] = await Promise.all([
     svc.listTemplates(accountId),
     prisma.category.findMany({
       where: { accountId },
@@ -41,6 +41,11 @@ export default async function TableModelsPage({ params }: Props) {
       where: { accountId },
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
       select: { id: true, name: true, isDefault: true },
+    }),
+    prisma.section.findMany({
+      where: { accountId, isActive: true },
+      orderBy: { order: "asc" },
+      select: { id: true, name: true },
     }),
   ]);
 
@@ -68,6 +73,7 @@ export default async function TableModelsPage({ params }: Props) {
       institutions={institutions}
       members={memberOptions}
       tableTypes={tableTypes}
+      sections={sections}
       title={m.tableModels.title}
     />
   );

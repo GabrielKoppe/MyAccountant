@@ -2,13 +2,17 @@ import type { SectionCountType } from "@prisma/client";
 
 import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/errors";
 import type { ActionContext } from "@/server/api/define-action";
+import { applyDayToMonth } from "@/lib/dates";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
-import type { CreateMonthInput, DeleteMonthInput } from "@/lib/schemas/months";
+import type { AutoApplyResult, CreateMonthInput, DeleteMonthInput } from "@/lib/schemas/months";
 
 const log = logger.child({ module: "month-service" });
 
-export async function createMonth(input: CreateMonthInput, ctx: ActionContext) {
+export async function createMonth(
+  input: CreateMonthInput,
+  ctx: ActionContext,
+): Promise<{ monthId: string; autoApplied: AutoApplyResult[] }> {
   const existing = await prisma.month.findUnique({
     where: {
       accountId_year_month: {
@@ -31,7 +35,102 @@ export async function createMonth(input: CreateMonthInput, ctx: ActionContext) {
   });
 
   log.info({ monthId: newMonth.id, accountId: ctx.accountId }, "Month created");
-  return { monthId: newMonth.id };
+
+  const autoApplied = await applyAutoTemplates(newMonth.id, input, ctx);
+
+  return { monthId: newMonth.id, autoApplied };
+}
+
+async function applyAutoTemplates(
+  monthId: string,
+  input: CreateMonthInput,
+  ctx: ActionContext,
+): Promise<AutoApplyResult[]> {
+  const templates = await prisma.tableTemplate.findMany({
+    where: { accountId: ctx.accountId, autoApply: true },
+    orderBy: { createdAt: "asc" },
+    include: { items: { orderBy: [{ displayOrder: "asc" }, { day: "asc" }] } },
+  });
+
+  if (templates.length === 0) return [];
+
+  const results: AutoApplyResult[] = [];
+
+  for (const template of templates) {
+    try {
+      if (!template.autoSectionId || !template.autoTableTypeId) {
+        throw new Error("Seção ou tipo de tabela não configurados no modelo.");
+      }
+
+      const [section, tableType] = await Promise.all([
+        prisma.section.findFirst({
+          where: { id: template.autoSectionId, accountId: ctx.accountId },
+        }),
+        prisma.tableType.findFirst({
+          where: { id: template.autoTableTypeId, accountId: ctx.accountId },
+        }),
+      ]);
+
+      if (!section) throw new Error("Seção configurada não foi encontrada.");
+      if (!tableType) throw new Error("Tipo de tabela configurado não foi encontrado.");
+
+      await prisma.$transaction(async (tx) => {
+        const tableCount = await tx.financeTable.count({
+          where: { monthId, sectionId: template.autoSectionId! },
+        });
+
+        const table = await tx.financeTable.create({
+          data: {
+            accountId: ctx.accountId,
+            monthId,
+            sectionId: template.autoSectionId!,
+            tableTypeId: template.autoTableTypeId,
+            name: template.name,
+            countInMonth: template.countInMonth,
+            sourceMethod: "template",
+            displayOrder: tableCount,
+            createdById: ctx.userId,
+          },
+        });
+
+        if (template.items.length > 0) {
+          await tx.transaction.createMany({
+            data: template.items.map((item) => ({
+              accountId: ctx.accountId,
+              monthId,
+              tableId: table.id,
+              sectionId: template.autoSectionId!,
+              occurredOn: applyDayToMonth(item.day, input.year, input.month),
+              amountCents: item.amountCents,
+              description: item.description,
+              notes: item.notes,
+              isPending: item.isPending,
+              categoryId: item.categoryId,
+              subcategoryId: item.subcategoryId,
+              institutionId: item.institutionId,
+              responsibleUserId: item.responsibleUserId,
+              cardInstallment: item.cardInstallment,
+              investmentType: item.investmentType,
+              createdById: ctx.userId,
+              metadata: {},
+            })),
+          });
+        }
+      });
+
+      log.info(
+        { templateId: template.id, monthId, items: template.items.length },
+        "Auto-applied template",
+      );
+      results.push({ templateName: template.name, success: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido.";
+      log.warn({ templateId: template.id, monthId, error: message }, "Failed to auto-apply template");
+      results.push({ templateName: template.name, success: false, error: message });
+    }
+  }
+
+  return results;
 }
 
 export async function deleteMonth(input: DeleteMonthInput, ctx: ActionContext) {

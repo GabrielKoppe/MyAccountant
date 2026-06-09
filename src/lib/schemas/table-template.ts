@@ -35,6 +35,9 @@ export const updateTemplateSchema = z.object({
   description: z.string().max(200).optional().nullable(),
   tableTypeId: z.string().cuid().nullable().optional(),
   countInMonth: z.boolean().optional(),
+  autoApply: z.boolean().optional(),
+  autoSectionId: z.string().cuid().nullable().optional(),
+  autoTableTypeId: z.string().cuid().nullable().optional(),
 });
 
 export const deleteTemplateSchema = z.object({
