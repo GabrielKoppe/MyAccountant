@@ -85,6 +85,8 @@ model User {
   tableModelsCreated    TableTemplate[]   @relation("TableTemplateCreatedBy")
   monthsCreated         Month[]           @relation("MonthCreatedBy")
   budgetsAsMember       Budget[]          @relation("BudgetMember")
+  notificationsReceived Notification[]    @relation("NotificationRecipient")
+  notificationsSent     Notification[]    @relation("NotificationActor")
 
   @@map("users")
 }
@@ -155,6 +157,7 @@ model Account {
   tableModelItems    TableTemplateItem[]
   settings           AccountSettings?
   budgets            Budget[]
+  notifications      Notification[]
 
   @@map("accounts")
 }
@@ -530,4 +533,30 @@ model Budget {
   @@index([accountId])
   @@index([accountId, isRecurring])
   @@map("budgets")
+}
+
+// =========================================
+// Domain — Notifications (Spec 29)
+// =========================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  accountId String   @map("account_id")
+  userId    String   @map("user_id")
+  actorId   String   @map("actor_id")
+  type      String
+  title     String
+  body      String?
+  link      String?
+  count     Int      @default(1)
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user    User    @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor   User    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, accountId, isRead])
+  @@index([accountId])
+  @@map("notifications")
 }

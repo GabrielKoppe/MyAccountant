@@ -14,6 +14,7 @@ import { emailService } from "@/server/email/email-service";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
 import type { ActionContext } from "@/server/api/define-action";
+import * as notificationService from "@/server/services/notification-service";
 
 const log = logger.child({ module: "member-service" });
 
@@ -137,6 +138,12 @@ export async function acceptInvite(token: string, userId: string) {
       data: { status: "accepted", acceptedAt: new Date() },
     }),
   ]);
+
+  void notificationService.notifyInviteAccepted({
+    accountId: invite.accountId,
+    actorId: userId,
+    role: invite.role,
+  });
 
   log.info({ inviteId: invite.id, accountId: invite.accountId, userId }, "Invite accepted");
   return { accountId: invite.accountId };

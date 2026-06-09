@@ -30,13 +30,7 @@ export default async function SettingsLayout({ children, params }: Props) {
   if (member.role === "viewer") redirect(`/${accountId}`);
 
   const isOwner = member.role === "owner";
-  // Conta (danger zone) e Membros ficam agrupados como links de owner
-  const ownerLinks = isOwner
-    ? [
-        { href: "account", label: m.settings.nav.account },
-        { href: "members", label: m.settings.nav.members },
-      ]
-    : [];
+  const ownerLinks = isOwner ? [{ href: "members", label: m.settings.nav.members }] : [];
 
   return (
     <Box sx={{ display: "flex", minHeight: "calc(100vh - 48px)", flexDirection: { xs: "column", md: "row" } }}>

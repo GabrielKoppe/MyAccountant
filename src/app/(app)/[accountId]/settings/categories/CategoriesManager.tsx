@@ -80,7 +80,10 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
     startTransition(async () => {
       if (dialog?.type === "createCategory") {
         const result = await createCategoryAction(accountId, { name: nameInput.trim() });
-        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        if (!result.ok) {
+          enqueueSnackbar(result.error.message, { variant: "error" });
+          return;
+        }
         setCategories((prev) => [
           ...prev,
           { id: result.data.categoryId, name: nameInput.trim(), subcategories: [] },
@@ -91,7 +94,10 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
           categoryId: dialog.category.id,
           name: nameInput.trim(),
         });
-        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        if (!result.ok) {
+          enqueueSnackbar(result.error.message, { variant: "error" });
+          return;
+        }
         setCategories((prev) =>
           prev.map((c) => (c.id === dialog.category.id ? { ...c, name: nameInput.trim() } : c)),
         );
@@ -101,7 +107,10 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
           categoryId: dialog.categoryId,
           name: nameInput.trim(),
         });
-        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        if (!result.ok) {
+          enqueueSnackbar(result.error.message, { variant: "error" });
+          return;
+        }
         setCategories((prev) =>
           prev.map((c) =>
             c.id === dialog.categoryId
@@ -121,7 +130,10 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
           subcategoryId: dialog.sub.id,
           name: nameInput.trim(),
         });
-        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        if (!result.ok) {
+          enqueueSnackbar(result.error.message, { variant: "error" });
+          return;
+        }
         setCategories((prev) =>
           prev.map((c) =>
             c.id === dialog.categoryId
@@ -337,12 +349,7 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
             <Button size="small" onClick={closeDialog}>
               {m.common.cancel}
             </Button>
-            <Button
-              size="small"
-              color="error"
-              variant="contained"
-              onClick={handleDelete}
-            >
+            <Button size="small" color="error" variant="contained" onClick={handleDelete}>
               {m.common.delete}
             </Button>
           </>
