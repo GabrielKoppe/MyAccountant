@@ -8,14 +8,22 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -31,7 +39,9 @@ import {
 } from "@/actions/table-templates";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
+import { layout } from "@/lib/design-tokens";
 import { DialogShell } from "@/components/ui/DialogShell";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { TemplateItemsEditor } from "../../../../../components/settings/TemplateItemsEditor";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
@@ -56,10 +66,16 @@ type Template = {
   description: string | null;
   tableTypeId: string | null;
   countInMonth: boolean;
+  autoApply: boolean;
+  autoSectionId: string | null;
+  autoTableTypeId: string | null;
   _count: { items: number };
   tableType: { id: string; name: string } | null;
   items: TemplateItem[];
 };
+
+type Section = { id: string; name: string };
+type TableType = { id: string; name: string; isDefault: boolean };
 
 type Props = {
   accountId: string;
@@ -67,7 +83,8 @@ type Props = {
   categories: { id: string; name: string; subcategories: { id: string; name: string }[] }[];
   institutions: { id: string; name: string }[];
   members: { id: string; name: string | null; email: string }[];
-  tableTypes: { id: string; name: string; isDefault: boolean }[];
+  tableTypes: TableType[];
+  sections: Section[];
   title?: string;
 };
 
@@ -78,6 +95,7 @@ export function TableModelsManager({
   institutions,
   members,
   tableTypes,
+  sections,
   title,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
@@ -105,6 +123,9 @@ export function TableModelsManager({
           description: null,
           tableTypeId: null,
           countInMonth: true,
+          autoApply: false,
+          autoSectionId: null,
+          autoTableTypeId: null,
           tableType: null,
           _count: { items: 0 },
           items: [],
@@ -153,6 +174,13 @@ export function TableModelsManager({
     setTemplates((prev) =>
       prev.map((t) => (t.id === templateId ? { ...t, items, _count: { items: items.length } } : t)),
     );
+  }
+
+  function handleAutoApplySaved(
+    templateId: string,
+    update: Pick<Template, "autoApply" | "autoSectionId" | "autoTableTypeId">,
+  ) {
+    setTemplates((prev) => prev.map((t) => (t.id === templateId ? { ...t, ...update } : t)));
   }
 
   const editTemplate = templates.find((t) => t.id === editItemsId);
@@ -211,12 +239,14 @@ export function TableModelsManager({
                   variant="outlined"
                 />
                 {t.tableType && <Chip label={t.tableType.name} size="small" />}
+                {t.autoApply && (
+                  <StatusBadge variant="success">{m.tableModels.autoApplyBadge}</StatusBadge>
+                )}
               </Box>
             </AccordionSummary>
             <AccordionDetails>
-              {/* Items preview */}
               {t.items.length > 0 ? (
-                <Table size="small" sx={{ mb: 1.5 }}>
+                <Table size="small" sx={{ mb: layout.stack }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "background.default" }}>
                       <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Dia</TableCell>
@@ -250,11 +280,11 @@ export function TableModelsManager({
                   </TableBody>
                 </Table>
               ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: layout.stack }}>
                   Sem itens. Clique em "Editar itens" para adicionar.
                 </Typography>
               )}
-              {/* Actions */}
+
               <Box sx={{ display: "flex", gap: 1 }}>
                 <Button size="small" startIcon={<AddIcon />} onClick={() => setEditItemsId(t.id)}>
                   {m.tableModels.editItems}
@@ -277,12 +307,19 @@ export function TableModelsManager({
                   <DeleteOutlineIcon fontSize="small" />
                 </IconButton>
               </Box>
+
+              <AutoApplySection
+                template={t}
+                accountId={accountId}
+                sections={sections}
+                tableTypes={tableTypes}
+                onSaved={(update) => handleAutoApplySaved(t.id, update)}
+              />
             </AccordionDetails>
           </Accordion>
         ))}
       </Stack>
 
-      {/* Dialogs */}
       <CreateDialog
         open={createOpen}
         name={newName}
@@ -360,6 +397,168 @@ export function TableModelsManager({
     </PageSettingsContainer>
   );
 }
+
+// ─── AutoApplySection ──────────────────────────────────────────────────────────
+
+type AutoApplySectionProps = {
+  template: Template;
+  accountId: string;
+  sections: Section[];
+  tableTypes: TableType[];
+  onSaved: (update: Pick<Template, "autoApply" | "autoSectionId" | "autoTableTypeId">) => void;
+};
+
+function AutoApplySection({
+  template,
+  accountId,
+  sections,
+  tableTypes,
+  onSaved,
+}: AutoApplySectionProps) {
+  const { enqueueSnackbar } = useSnackbar();
+  const [isPendingAutoApply, startAutoApplyTransition] = useTransition();
+  const [autoApply, setAutoApply] = useState(template.autoApply ?? false);
+  const [autoSectionId, setAutoSectionId] = useState(template.autoSectionId ?? "");
+  const [autoTableTypeId, setAutoTableTypeId] = useState(template.autoTableTypeId ?? "");
+  const [isDirty, setIsDirty] = useState(false);
+
+  const canSave = !autoApply || (autoSectionId !== "" && autoTableTypeId !== "");
+
+  function handleSave() {
+    startAutoApplyTransition(async () => {
+      const result = await updateTemplateAction(
+        accountId,
+        autoApply
+          ? {
+              templateId: template.id,
+              autoApply: true,
+              autoSectionId,
+              autoTableTypeId,
+            }
+          : { templateId: template.id, autoApply: false },
+      );
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setIsDirty(false);
+      onSaved({
+        autoApply,
+        autoSectionId: autoApply ? autoSectionId : template.autoSectionId,
+        autoTableTypeId: autoApply ? autoTableTypeId : template.autoTableTypeId,
+      });
+      enqueueSnackbar(m.tableModels.updated, { variant: "success" });
+    });
+  }
+
+  function handleReset() {
+    setAutoApply(template.autoApply);
+    setAutoSectionId(template.autoSectionId ?? "");
+    setAutoTableTypeId(template.autoTableTypeId ?? "");
+    setIsDirty(false);
+  }
+
+  return (
+    <Box sx={{ mt: layout.stack }}>
+      <Divider sx={{ mb: layout.stack }} />
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        fontWeight="medium"
+        sx={{ display: "block", mb: layout.inline, textTransform: "uppercase", letterSpacing: "0.05em" }}
+      >
+        {m.tableModels.autoApplySectionTitle}
+      </Typography>
+
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={autoApply}
+            onChange={(e) => {
+              setAutoApply(e.target.checked);
+              setIsDirty(true);
+            }}
+            disabled={isPendingAutoApply}
+          />
+        }
+        label={<Typography variant="body2">{m.tableModels.autoApplyLabel}</Typography>}
+      />
+
+      {autoApply && (
+        <Tooltip title={m.tableModels.autoApplyHint} placement="bottom-start">
+          <Typography variant="caption" color="text.tertiary" sx={{ display: "block", mt: 0.5, mb: layout.inline }}>
+            {m.tableModels.autoApplyHint}
+          </Typography>
+        </Tooltip>
+      )}
+
+      {autoApply && (
+        <Stack direction="row" spacing={layout.inline} sx={{ mt: layout.inline }}>
+          <FormControl size="small" sx={{ flex: 1 }} error={isDirty && autoApply && !autoSectionId}>
+            <InputLabel>{m.tableModels.autoApplySection}</InputLabel>
+            <Select
+              value={autoSectionId}
+              label={m.tableModels.autoApplySection}
+              onChange={(e) => {
+                setAutoSectionId(e.target.value);
+                setIsDirty(true);
+              }}
+              disabled={isPendingAutoApply}
+            >
+              {sections.map((s) => (
+                <MenuItem key={s.id} value={s.id}>
+                  {s.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl
+            size="small"
+            sx={{ flex: 1 }}
+            error={isDirty && autoApply && !autoTableTypeId}
+          >
+            <InputLabel>{m.tableModels.autoApplyTableType}</InputLabel>
+            <Select
+              value={autoTableTypeId}
+              label={m.tableModels.autoApplyTableType}
+              onChange={(e) => {
+                setAutoTableTypeId(e.target.value);
+                setIsDirty(true);
+              }}
+              disabled={isPendingAutoApply}
+            >
+              {tableTypes.map((t) => (
+                <MenuItem key={t.id} value={t.id}>
+                  {t.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
+      )}
+
+      {isDirty && (
+        <Stack direction="row" spacing={layout.inline} sx={{ mt: layout.stack }}>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleSave}
+            disabled={!canSave || isPendingAutoApply}
+            endIcon={isPendingAutoApply ? <CircularProgress size={12} color="inherit" /> : undefined}
+          >
+            {m.common.save}
+          </Button>
+          <Button size="small" onClick={handleReset} disabled={isPendingAutoApply}>
+            {m.common.cancel}
+          </Button>
+        </Stack>
+      )}
+    </Box>
+  );
+}
+
+// ─── CreateDialog ──────────────────────────────────────────────────────────────
 
 function CreateDialog({
   open,

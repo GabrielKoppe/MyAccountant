@@ -444,15 +444,18 @@ model CsvTemplate {
 // =========================================
 
 model TableTemplate {
-  id           String   @id @default(cuid())
-  accountId    String   @map("account_id")
-  name         String
-  description  String?
-  tableTypeId  String?  @map("table_type_id")
-  countInMonth Boolean  @default(true) @map("count_in_month")
-  createdById  String   @map("created_by_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  accountId       String   @map("account_id")
+  name            String
+  description     String?
+  tableTypeId     String?  @map("table_type_id")
+  countInMonth    Boolean  @default(true) @map("count_in_month")
+  autoApply       Boolean  @default(false) @map("auto_apply")
+  autoSectionId   String?  @map("auto_section_id")
+  autoTableTypeId String?  @map("auto_table_type_id")
+  createdById     String   @map("created_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   account   Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
   tableType TableType?          @relation(fields: [tableTypeId], references: [id], onDelete: SetNull)

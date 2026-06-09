@@ -9,5 +9,11 @@ export const deleteMonthSchema = z.object({
   monthId: z.string().cuid("ID inválido"),
 });
 
+export type AutoApplyResult = {
+  templateName: string;
+  success: boolean;
+  error?: string;
+};
+
 export type CreateMonthInput = z.infer<typeof createMonthSchema>;
 export type DeleteMonthInput = z.infer<typeof deleteMonthSchema>;

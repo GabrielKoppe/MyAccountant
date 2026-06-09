@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { TEST_CTX } from "@/../tests/fixtures/account";
@@ -155,13 +155,18 @@ describe("getSectionTotals", () => {
 });
 
 describe("createMonth", () => {
-  it("deve criar mês com sucesso", async () => {
+  it("deve criar mês com sucesso sem templates automáticos", async () => {
+    // Arrange
     prismaMock.month.findUnique.mockResolvedValue(null);
     prismaMock.month.create.mockResolvedValue({ id: "month-novo-1" } as any);
+    prismaMock.tableTemplate.findMany.mockResolvedValue([]);
 
+    // Act
     const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
 
+    // Assert
     expect(result.monthId).toBe("month-novo-1");
+    expect(result.autoApplied).toEqual([]);
     expect(prismaMock.month.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -178,6 +183,131 @@ describe("createMonth", () => {
     prismaMock.month.findUnique.mockResolvedValue({ id: "month-existente" } as any);
 
     await expect(createMonth({ year: 2026, month: 6 }, TEST_CTX)).rejects.toThrow(ConflictError);
+  });
+
+  it("deve auto-aplicar templates com autoApply=true ao criar mês", async () => {
+    // Arrange
+    const txMock = {
+      financeTable: {
+        count: vi.fn().mockResolvedValue(0),
+        create: vi.fn().mockResolvedValue({ id: "table-1" }),
+      },
+      transaction: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    };
+    prismaMock.month.findUnique.mockResolvedValue(null);
+    prismaMock.month.create.mockResolvedValue({ id: "month-novo-1" } as any);
+    prismaMock.tableTemplate.findMany.mockResolvedValue([
+      {
+        id: "tpl-1",
+        name: "Gastos Fixos",
+        autoApply: true,
+        autoSectionId: "sec-1",
+        autoTableTypeId: "tt-1",
+        countInMonth: true,
+        items: [],
+      },
+    ] as any);
+    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1", accountId: "acc-test-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1", accountId: "acc-test-1" } as any);
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
+
+    // Act
+    const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+    // Assert
+    expect(result.autoApplied).toHaveLength(1);
+    expect(result.autoApplied[0]).toMatchObject({ templateName: "Gastos Fixos", success: true });
+    expect(txMock.financeTable.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          accountId: "acc-test-1",
+          monthId: "month-novo-1",
+          sectionId: "sec-1",
+          name: "Gastos Fixos",
+          sourceMethod: "template",
+        }),
+      }),
+    );
+  });
+
+  it("deve criar tabela vazia quando template não tem itens (melhor esforço)", async () => {
+    // Arrange
+    const txMock = {
+      financeTable: {
+        count: vi.fn().mockResolvedValue(0),
+        create: vi.fn().mockResolvedValue({ id: "table-2" }),
+      },
+      transaction: { createMany: vi.fn() },
+    };
+    prismaMock.month.findUnique.mockResolvedValue(null);
+    prismaMock.month.create.mockResolvedValue({ id: "month-novo-1" } as any);
+    prismaMock.tableTemplate.findMany.mockResolvedValue([
+      {
+        id: "tpl-vazio",
+        name: "Template Vazio",
+        autoApply: true,
+        autoSectionId: "sec-1",
+        autoTableTypeId: "tt-1",
+        countInMonth: true,
+        items: [],
+      },
+    ] as any);
+    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1", accountId: "acc-test-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1", accountId: "acc-test-1" } as any);
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
+
+    // Act
+    const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+    // Assert
+    expect(result.autoApplied[0]).toMatchObject({ templateName: "Template Vazio", success: true });
+    expect(txMock.financeTable.create).toHaveBeenCalledOnce();
+    expect(txMock.transaction.createMany).not.toHaveBeenCalled();
+  });
+
+  it("deve registrar falha no autoApply quando seção não existe (melhor esforço)", async () => {
+    // Arrange
+    prismaMock.month.findUnique.mockResolvedValue(null);
+    prismaMock.month.create.mockResolvedValue({ id: "month-novo-1" } as any);
+    prismaMock.tableTemplate.findMany.mockResolvedValue([
+      {
+        id: "tpl-1",
+        name: "Modelo Inválido",
+        autoApply: true,
+        autoSectionId: "sec-inexistente",
+        autoTableTypeId: "tt-1",
+        countInMonth: true,
+        items: [],
+      },
+    ] as any);
+    prismaMock.section.findFirst.mockResolvedValue(null);
+    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
+
+    // Act
+    const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+    // Assert — mês criado com sucesso mesmo com template inválido
+    expect(result.monthId).toBe("month-novo-1");
+    expect(result.autoApplied).toHaveLength(1);
+    expect(result.autoApplied[0]).toMatchObject({ templateName: "Modelo Inválido", success: false });
+    expect(result.autoApplied[0].error).toBeTruthy();
+  });
+
+  it("não deve vazar dados de outra account no autoApply (multi-tenancy)", async () => {
+    // Arrange
+    prismaMock.month.findUnique.mockResolvedValue(null);
+    prismaMock.month.create.mockResolvedValue({ id: "month-novo-1" } as any);
+    prismaMock.tableTemplate.findMany.mockResolvedValue([]);
+
+    // Act
+    await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+    // Assert — query de templates filtrada pela account correta
+    expect(prismaMock.tableTemplate.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ accountId: "acc-test-1", autoApply: true }),
+      }),
+    );
   });
 });
 
