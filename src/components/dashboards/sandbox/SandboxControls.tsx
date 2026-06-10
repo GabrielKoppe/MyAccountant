@@ -286,16 +286,25 @@ export function SandboxControls({
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
           {SANDBOX_CHART_TYPES.map((ct) => {
             const disabled = !validChartTypes.includes(ct);
+            const selected = config.chartType === ct;
             return (
               <Chip
                 key={ct}
                 label={chartTypeLabels[ct]}
                 size="small"
-                variant={config.chartType === ct ? "filled" : "outlined"}
-                color={config.chartType === ct ? "primary" : "default"}
+                variant={selected ? "filled" : "outlined"}
+                color={selected ? "primary" : undefined}
                 disabled={disabled}
                 onClick={() => !disabled && update({ chartType: ct })}
-                sx={{ fontSize: "0.7rem", cursor: disabled ? "default" : "pointer" }}
+                sx={{
+                  fontSize: "0.7rem",
+                  cursor: disabled ? "default" : "pointer",
+                  ...(!selected && {
+                    borderColor: "border.default",
+                    color: disabled ? "text.disabled" : "text.secondary",
+                    bgcolor: "background.subtle",
+                  }),
+                }}
               />
             );
           })}

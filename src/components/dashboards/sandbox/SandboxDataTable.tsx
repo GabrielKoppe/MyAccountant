@@ -12,6 +12,14 @@ import { formatCentsToBrl } from "@/lib/money";
 import type { SandboxConfig, SandboxMetric } from "@/lib/schemas/sandbox";
 import type { SandboxResult } from "@/lib/queries/sandbox";
 
+const GROUPBY_LABEL: Record<SandboxConfig["groupBy"], string> = {
+  month: "Mês",
+  section: "Seção",
+  category: "Categoria",
+  institution: "Instituição",
+  table_type: "Tipo de Tabela",
+};
+
 type Props = {
   result: SandboxResult;
   config: SandboxConfig;
@@ -39,7 +47,7 @@ export function SandboxDataTable({ result, config }: Props) {
         <TableHead>
           <TableRow>
             <TableCell sx={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
-              {config.groupBy === "month" ? "Mês" : config.groupBy === "section" ? "Seção" : "Categoria"}
+              {GROUPBY_LABEL[config.groupBy]}
             </TableCell>
             {hasSeries ? (
               series.map((s) => (

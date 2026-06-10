@@ -7,7 +7,10 @@ import { formatMonthLabel } from "@/lib/dates";
 import { SandboxPage } from "@/components/dashboards/sandbox/SandboxPage";
 import type { SandboxConfig } from "@/lib/schemas/sandbox";
 
-type Props = { params: Promise<{ accountId: string }> };
+type Props = {
+  params: Promise<{ accountId: string }>;
+  searchParams: Promise<{ analysisId?: string }>;
+};
 
 const DEFAULT_CONFIG: SandboxConfig = {
   periodType: "year",
@@ -18,8 +21,9 @@ const DEFAULT_CONFIG: SandboxConfig = {
   chartType: "bar_grouped",
 };
 
-export default async function SandboxDashboardPage({ params }: Props) {
+export default async function SandboxDashboardPage({ params, searchParams }: Props) {
   const { accountId } = await params;
+  const { analysisId } = await searchParams;
   const { user, member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
   const [sections, categories, membersRaw, monthsRaw, savedAnalyses] = await Promise.all([
@@ -59,7 +63,8 @@ export default async function SandboxDashboardPage({ params }: Props) {
   }));
 
   const defaultYear = allYears[0] ?? new Date().getFullYear();
-  const initialConfig: SandboxConfig = { ...DEFAULT_CONFIG, year: defaultYear };
+  const targetAnalysis = analysisId ? savedAnalyses.find((a) => a.id === analysisId) : undefined;
+  const initialConfig: SandboxConfig = targetAnalysis?.config ?? { ...DEFAULT_CONFIG, year: defaultYear };
 
   return (
     <SandboxPage
