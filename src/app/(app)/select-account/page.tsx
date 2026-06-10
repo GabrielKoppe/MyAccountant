@@ -2,12 +2,17 @@ import { redirect } from "next/navigation";
 
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Grid from "@mui/material/Grid";
-import Paper from "@mui/material/Paper";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Container from "@mui/material/Container";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import AddIcon from "@mui/icons-material/Add";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/prisma";
+import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 
 export default async function SelectAccountPage() {
@@ -21,62 +26,64 @@ export default async function SelectAccountPage() {
   });
 
   if (memberships.length === 0) redirect("/onboarding");
-  if (memberships.length === 1) redirect(`/${memberships[0].accountId}`);
-
-  const firstName = session.user.name?.split(" ")[0] ?? "";
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        p: 4,
-      }}
-    >
-      <Typography variant="h5" mb={1}>
-        {m.account.selectAccount}
-      </Typography>
-      <Typography color="text.secondary" mb={4}>
-        Bem-vindo, {firstName}!
-      </Typography>
-      <Grid container spacing={2} sx={{ maxWidth: 600 }}>
+    <Container maxWidth="sm" sx={{ py: layout.page }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: layout.cluster }}
+      >
+        <Box>
+          <Typography variant="h2">{m.account.selectAccount}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: layout.micro }}>
+            Bem-vindo, {session.user.name?.split(" ")[0]}!
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          href="/accounts/new"
+          size="small"
+        >
+          {m.account.newAccount}
+        </Button>
+      </Stack>
+
+      <Stack spacing={layout.stack}>
         {memberships.map(({ account, role }) => (
-          <Grid item xs={12} sm={6} key={account.id}>
-            <Paper
-              component="a"
-              href={`/${account.id}`}
-              variant="outlined"
-              sx={{
-                display: "block",
-                p: 3,
-                borderRadius: 2,
-                cursor: "pointer",
-                textDecoration: "none",
-                color: "inherit",
-                transition: "border-color 120ms",
-                "&:hover": { borderColor: "border.default" },
-              }}
-            >
-              <Typography variant="h6" fontWeight="medium">
-                {account.name}
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ textTransform: "capitalize" }}
-              >
-                {m.account.roles[role]}
-              </Typography>
-            </Paper>
-          </Grid>
+          <Card
+            key={account.id}
+            component="a"
+            href={`/${account.id}`}
+            sx={{
+              display: "block",
+              textDecoration: "none",
+              color: "inherit",
+              cursor: "pointer",
+              transition: "border-color 120ms",
+              "&:hover": { borderColor: "border.default" },
+            }}
+          >
+            <CardContent>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography variant="h4">{account.name}</Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ textTransform: "capitalize", mt: layout.micro }}
+                  >
+                    {m.account.roles[role]}
+                  </Typography>
+                </Box>
+                <ChevronRightIcon sx={{ color: "text.disabled" }} />
+              </Stack>
+            </CardContent>
+          </Card>
         ))}
-      </Grid>
-      <Button href="/onboarding" sx={{ mt: 3 }} variant="outlined">
-        {m.account.createAccount}
-      </Button>
-    </Box>
+      </Stack>
+    </Container>
   );
 }

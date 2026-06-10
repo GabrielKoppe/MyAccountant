@@ -35,6 +35,10 @@ export const messages = {
   account: {
     selectAccount: "Selecionar conta",
     createAccount: "Criar conta",
+    newAccount: "Nova conta",
+    newAccountTitle: "Nova conta financeira",
+    newAccountSubtitle: "Escolha um nome para identificar este novo espaço financeiro.",
+    accountNameDuplicate: "Você já tem uma conta com este nome.",
     accountName: "Nome da conta",
     inviteMember: "Convidar membro",
     roles: {

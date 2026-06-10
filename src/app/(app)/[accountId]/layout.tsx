@@ -5,18 +5,18 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import SettingsIcon from "@mui/icons-material/Settings";
 import GroupIcon from "@mui/icons-material/Group";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import { AppLink } from "@/components/ui/AppLink";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel } from "@/lib/dates";
-import { AppLink } from "@/components/ui/AppLink";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { UserMenuButton } from "@/components/ui/UserMenuButton";
 import { MonthsDropdown } from "@/components/months/MonthsDropdown";
+import { AccountSwitcher } from "@/components/accounts/AccountSwitcher";
 import { getUnreadCount } from "@/server/services/notification-service";
 
 type Props = {
@@ -29,7 +29,7 @@ export default async function AccountLayout({ children, params }: Props) {
 
   const { user } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
-  const [account, userData, recentMonthsRaw, unreadCount] = await Promise.all([
+  const [account, userData, recentMonthsRaw, unreadCount, allMemberships] = await Promise.all([
     prisma.account.findUnique({
       where: { id: accountId },
       select: { name: true },
@@ -45,7 +45,16 @@ export default async function AccountLayout({ children, params }: Props) {
       select: { id: true, year: true, month: true },
     }),
     getUnreadCount(user.id, accountId),
+    prisma.accountMember.findMany({
+      where: { userId: user.id },
+      include: { account: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
+
+  const otherAccounts = allMemberships
+    .filter((m) => m.accountId !== accountId)
+    .map((m) => ({ id: m.account.id, name: m.account.name }));
 
   const recentMonths = recentMonthsRaw.map((m) => ({
     id: m.id,
@@ -56,14 +65,11 @@ export default async function AccountLayout({ children, params }: Props) {
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <AppBar position="static" elevation={0} sx={{ borderBottom: 1, borderColor: "divider" }}>
         <Toolbar variant="dense">
-          <Typography
-            variant="h4"
-            component={AppLink}
-            href={`/${accountId}`}
-            sx={{ flexGrow: 1, textDecoration: "none", color: "inherit" }}
-          >
-            {account?.name ?? "MyAccountant"}
-          </Typography>
+          <AccountSwitcher
+            currentAccountId={accountId}
+            currentAccountName={account?.name ?? "MyAccountant"}
+            otherAccounts={otherAccounts}
+          />
 
           {/* Meses — primeiro item de navegação */}
           <MonthsDropdown accountId={accountId} months={recentMonths} />
