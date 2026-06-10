@@ -1,6 +1,6 @@
 # Spec 31 — Múltiplas Contas por Usuário
 
-> Status: draft
+> Status: approved
 > Insumo: feedback direto do usuário (identificado durante revisão do V1)
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
 
@@ -16,7 +16,7 @@ Esta é uma limitação funcional relevante, não um bug do código existente �
 
 ## 2. Solução
 
-Permitir que um usuário já autenticado crie novas Accounts a qualquer momento, a partir da página `/select-account` e do menu de troca de conta no AppBar. O fluxo de criação reutiliza a lógica existente e redireciona para o onboarding guiado (spec 26) para a nova account.
+Permitir que um usuário já autenticado crie novas Accounts a qualquer momento, a partir da página `/select-account` e do menu de troca de conta no AppBar. O fluxo de criação usa uma rota dedicada `/accounts/new` (não reutiliza o `/onboarding`, que tem UX de primeiro uso) e redireciona para o onboarding guiado (spec 26) da nova account.
 
 ---
 
@@ -30,30 +30,43 @@ Permitir que um usuário já autenticado crie novas Accounts a qualquer momento,
 
 ## 4. Critérios de Aceitação
 
-**Criação de nova Account:**
-- A página `/select-account` DEVE ter um botão "Nova conta" visível.
-- AO CLICAR, O USUÁRIO DEVE ser redirecionado para um formulário de criação de Account (pode reutilizar o componente existente do onboarding ou criar uma rota dedicada `/accounts/new`).
-- APÓS CRIAR A ACCOUNT, O USUÁRIO DEVE ser redirecionado para o onboarding guiado (spec 26) da nova account.
-- Não há limite máximo de accounts por usuário (pode ser adicionado como configuração futura se necessário).
+### Criação de nova Account (`/accounts/new`)
 
-**Troca de Account no AppBar:**
-- O nome da Account exibido no AppBar DEVE ser clicável (ou ter um ícone de dropdown ao lado).
-- AO CLICAR, UM MENU DEVE listar todas as Accounts do usuário com indicação visual de qual está ativa.
-- QUANDO o usuário seleciona outra Account, O SISTEMA DEVE navegar para `/{novaAccountId}` (última página visitada dessa account ou página padrão).
-- O menu DEVE ter um item "+ Nova conta" no rodapé.
+- A página `/select-account` DEVE ter um botão "Nova conta" que navega para `/accounts/new`.
+- A rota `/accounts/new` DEVE ter layout simplificado: AppBar com avatar/nome do usuário à direita + botão "Cancelar" à esquerda. Sem os itens de navegação da app (meses, dashboards, configurações, etc.).
+- O botão "Cancelar" DEVE usar o query param `?from=/{accountId}` para retornar à account de origem quando o usuário veio de dentro de uma account. Sem `from` param (ex: veio da `/select-account`), redireciona para `/select-account`.
+- O formulário de `/accounts/new` DEVE conter apenas o campo "Nome da conta".
+- Nomes de Account DEVEM ser únicos por usuário (case-sensitive). Tentar criar uma account com nome já existente para o mesmo usuário DEVE retornar erro de validação no campo "Nome da conta".
+- APÓS CRIAR A ACCOUNT com sucesso, O SISTEMA DEVE redirecionar para `/[novaAccountId]/setup` (onboarding guiado — spec 26).
+- Não há limite máximo de accounts por usuário.
+- O `createAccountAction` existente em `src/actions/accounts.ts` DEVE ser reutilizado. A validação de unicidade DEVE ser adicionada ao `account-service.ts`.
 
-**Consistência:**
-- O fluxo de troca de account DEVE atualizar o cookie/contexto de account ativa corretamente.
+### Troca de Account no AppBar
+
+- QUANDO o usuário tem **2 ou mais** Accounts, o nome da Account no AppBar DEVE exibir um ícone chevron (▼) à direita e ser clicável, abrindo um menu dropdown.
+- QUANDO o usuário tem **apenas 1** Account, o nome permanece como link simples para `/{accountId}` (comportamento atual preservado). Sem chevron, sem dropdown.
+- O menu dropdown DEVE exibir:
+  1. A Account ativa no topo, destacada visualmente (sem interação — indica posição atual).
+  2. Um separador.
+  3. As demais Accounts do usuário em ordem de criação (mais antiga primeiro).
+  4. Um item "+ Nova conta" fixado no rodapé do menu.
+- AO CLICAR em outra Account no menu, O SISTEMA DEVE navegar para `/{novaAccountId}` (raiz da account — página padrão).
+- AO CLICAR em "+ Nova conta" no menu, O SISTEMA DEVE navegar para `/accounts/new?from=/{accountIdAtual}`.
+
+### Consistência
+
+- O fluxo de troca de account é tratado inteiramente via navegação de URL — não há cookie de "account ativa" adicional.
 - Acessar `/{accountId}` de uma account da qual o usuário não é membro DEVE continuar resultando em redirect para `/home` (comportamento existente preservado).
 
 ---
 
 ## 5. Fora de Escopo
 
+- Rastreamento de "última página visitada por account" — ao trocar de account, navega sempre para a raiz (`/{accountId}`).
 - Transferência de transações entre Accounts.
 - Mesclagem de Accounts.
-- Limite de Accounts por usuário (sem limite na V2).
-- Pinagem ou ordenação de Accounts na lista.
+- Limite de Accounts por usuário (sem limite).
+- Pinagem ou ordenação manual de Accounts na lista.
 - Ícone ou cor customizável por Account.
 
 ---
@@ -62,12 +75,20 @@ Permitir que um usuário já autenticado crie novas Accounts a qualquer momento,
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/app/(app)/select-account/page.tsx` | Adicionar botão "Nova conta" |
-| `src/app/(app)/accounts/new/page.tsx` | Nova rota (ou modal na select-account) para criação de account |
-| `src/app/(app)/[accountId]/layout.tsx` | Adicionar dropdown de troca de account no AppBar |
-| `src/actions/accounts.ts` | Action `createAccount` já existe — verificar se pode ser reutilizada |
-| `src/server/services/account-service.ts` | Verificar se `createAccount` está implementado ou precisa ser criado |
+| `src/app/(app)/select-account/page.tsx` | Alterar botão existente (`href="/onboarding"`) para `href="/accounts/new"` |
+| `src/app/(app)/accounts/new/page.tsx` | Nova rota com layout simplificado e formulário de criação de account |
+| `src/app/(app)/accounts/layout.tsx` | Layout simplificado (AppBar com usuário + Cancelar) para o grupo `/accounts/*` |
+| `src/app/(app)/[accountId]/layout.tsx` | Adicionar `AccountSwitcher` no AppBar (visível apenas com 2+ accounts) |
+| `src/components/accounts/AccountSwitcher.tsx` | Novo componente Client: chevron + Menu dropdown com lista de accounts |
+| `src/actions/accounts.ts` | `createAccountAction` existente — reutilizar sem modificação |
+| `src/server/services/account-service.ts` | Adicionar validação de unicidade de nome por usuário (case-sensitive) antes de criar |
+| `src/lib/schemas/account.ts` | Verificar se o schema de criação já está adequado (apenas campo `name`) |
 
-- A lógica de criação de Account já existe parcialmente no onboarding — auditar o que precisa ser extraído para ser reutilizável.
-- Para o dropdown de troca de account no AppBar, buscar as accounts do usuário já acontece em `requireAccountAccess` — avaliar se pode ser reaproveitado ou se um novo fetch é necessário.
-- O AccountMember criado ao criar nova Account DEVE ter role `owner` para o criador (mesmo comportamento do onboarding).
+**Notas de implementação:**
+
+- `createAccount` no service já cria `AccountMember` com `role: "owner"` para o criador — comportamento correto, não precisa ser alterado.
+- `createAccountAction` usa `requireUser` (não `requireAccountAccess`) — correto para uma ação que não pertence a nenhuma account existente.
+- Para o `AccountSwitcher`, o `AccountLayout` precisará buscar todas as memberships do usuário autenticado (query adicional: `prisma.accountMember.findMany({ where: { userId } })`). Avaliar se vale memoizar ou fazer lazy load no clique.
+- O redirect no layout do `/accounts/new` DEVE preservar o query param `from` ao montar o botão Cancelar.
+- A validação de unicidade no service DEVE usar `prisma.account.findFirst` verificando se alguma account do `createdById` já tem o mesmo `name` (comparação exata — case-sensitive).
+- A rota `/accounts/new` fica fora do grupo `[accountId]`, portanto não herda o layout de account nem o redirect de onboarding do spec 26.

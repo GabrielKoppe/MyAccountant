@@ -1,5 +1,6 @@
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
+import { ConflictError } from "@/server/api/errors";
 import type { CreateAccountInput } from "@/lib/schemas/account";
 
 const log = logger.child({ module: "account-service" });
@@ -20,6 +21,14 @@ const DEFAULT_TABLE_TYPES = [
 
 export async function createAccount(input: CreateAccountInput & { createdById: string }) {
   const { name, createdById } = input;
+
+  const duplicate = await prisma.account.findFirst({
+    where: { name, members: { some: { userId: createdById } } },
+    select: { id: true },
+  });
+  if (duplicate) {
+    throw new ConflictError("Você já tem uma conta com este nome.", { name: "Você já tem uma conta com este nome." });
+  }
 
   const account = await prisma.$transaction(async (tx) => {
     const created = await tx.account.create({
