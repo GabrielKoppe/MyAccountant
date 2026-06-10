@@ -175,13 +175,10 @@ export function SavedAnalysisList({
         <List dense disablePadding>
           {analyses.map((a) => {
             const canDelete = a.createdById === currentUserId || role === "owner";
-            const contextColor: Record<
-              SandboxDashboardContext,
-              "default" | "primary" | "secondary"
-            > = {
-              yearly: "default",
-              monthly: "primary",
-              both: "secondary",
+            const contextChipSx: Record<SandboxDashboardContext, object> = {
+              yearly: { color: "text.tertiary", borderColor: "border.subtle" },
+              monthly: { color: "accent.primary", borderColor: "accent.primary" },
+              both: { color: "success.main", borderColor: "success.main" },
             };
             return (
               <ListItem
@@ -192,6 +189,7 @@ export function SavedAnalysisList({
                     <Tooltip title={a.isPinned ? ms.unpinToggle : ms.pinToggle}>
                       <IconButton
                         size="small"
+                        aria-label={a.isPinned ? ms.unpinToggle : ms.pinToggle}
                         onClick={() => handleTogglePin(a.id, !a.isPinned)}
                         disabled={isPending}
                       >
@@ -206,6 +204,7 @@ export function SavedAnalysisList({
                       <Tooltip title={ms.deleteAnalysis}>
                         <IconButton
                           size="small"
+                          aria-label={ms.deleteAnalysis}
                           onClick={() => handleDelete(a.id)}
                           disabled={isPending}
                         >
@@ -229,8 +228,8 @@ export function SavedAnalysisList({
                         <Chip
                           label={a.dashboardContext}
                           size="small"
-                          color={contextColor[a.dashboardContext]}
-                          sx={{ height: 14, fontSize: "0.6rem" }}
+                          variant="outlined"
+                          sx={{ height: 14, fontSize: "0.6rem", ...contextChipSx[a.dashboardContext] }}
                         />
                       </Box>
                     }

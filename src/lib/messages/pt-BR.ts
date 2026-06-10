@@ -206,6 +206,86 @@ export const messages = {
       noTableTypes: "Nenhum tipo de tabela cadastrado.",
     },
   },
+  setup: {
+    steps: {
+      sections: "Seções",
+      monthPage: "Página de Mês",
+      settings: "Configurações",
+      done: "Pronto",
+    },
+    skip: "Pular",
+    next: "Próximo",
+    finish: "Concluir",
+    sections: {
+      title: "Configure suas seções",
+      description:
+        "Seções organizam suas finanças em grupos (Renda, Gastos, Investimentos). Dentro de cada seção você criará Tabelas Financeiras para registrar suas transações.",
+      financeTablesTitle: "Como funcionam as Tabelas Financeiras",
+      financeTablesDesc:
+        "Dentro de cada seção, crie tabelas para agrupar transações relacionadas. Por exemplo, na seção 'Gastos Fixos' pode criar as tabelas 'Aluguel', 'Internet', 'Streaming'.",
+      suggestionsLabel: "Sugestões",
+      suggestionsHint: "Clique para pré-preencher o formulário abaixo",
+      nameLabel: "Nome da seção",
+      countTypeLabel: "Tipo de contagem",
+      addButton: "Adicionar seção",
+      addedTitle: "Seções adicionadas",
+      emptyHint: "Nenhuma seção adicionada. Você pode criar depois em Configurações → Seções.",
+      added: "Seção adicionada.",
+      deleted: "Seção removida.",
+    },
+    monthPage: {
+      title: "Como funciona a página de mês",
+      description:
+        "A página de mês é onde você registra e acompanha suas finanças. Cada mês é independente e contém suas seções e tabelas.",
+      card1Title: "Criação de meses",
+      card1Desc:
+        "Cada mês é criado individualmente. Ao criar um mês, suas seções aparecem automaticamente. Navegue entre meses pelo menu superior.",
+      card2Title: "Seções e Tabelas",
+      card2Desc:
+        "Dentro de cada mês, adicione Tabelas Financeiras nas seções. Uma tabela agrupa transações relacionadas (ex: 'Cartão de crédito', 'Conta corrente').",
+      card3Title: "Registro de transações",
+      card3Desc:
+        "Em cada tabela, registre suas transações com data, valor, descrição, categoria, instituição e mais. Importação em massa via CSV/XLSX também é suportada.",
+      card4Title: "Totais automáticos",
+      card4Desc:
+        "O app calcula totais por tabela, por seção e o saldo geral do mês com base no tipo de contagem configurado em cada seção.",
+    },
+    settings: {
+      title: "Configure mais quando quiser",
+      description:
+        "Acesse Configurações no menu superior para personalizar o app. Principais recursos disponíveis:",
+      card1Title: "Categorias",
+      card1Desc:
+        "Classifique transações por tipo (Alimentação, Transporte, Saúde…). Subcategorias permitem maior granularidade.",
+      card2Title: "Instituições",
+      card2Desc:
+        "Vincule transações a bancos, carteiras ou corretoras para rastrear de onde vem e para onde vai o dinheiro.",
+      card3Title: "Colunas Customizadas",
+      card3Desc:
+        "Adicione campos extras às suas tabelas (ex: Responsável, Parcela, Tipo de Investimento) conforme sua necessidade.",
+    },
+    done: {
+      title: "Tudo pronto!",
+      subtitle: "Sua conta está configurada.",
+      sectionsCreated: (n: number) =>
+        n === 1 ? "1 seção configurada" : `${n} seções configuradas`,
+      noSections:
+        "Você ainda não criou seções — transações precisam de seções para ser organizadas. Você pode criá-las em Configurações → Seções.",
+      createMonth: "Criar meu primeiro mês",
+      goToAccount: "Ir para minha conta",
+    },
+    tour: {
+      resetTitle: "Tour de configuração",
+      resetDescription:
+        "Refaça o tour inicial para relembrar as principais funcionalidades do app.",
+      resetButton: "Refazer tour",
+      resetSuccess: "Tour reiniciado.",
+      resetConfirmTitle: "Refazer o tour?",
+      resetConfirmDescription:
+        "Você será redirecionado ao tour de configuração no próximo acesso a esta conta.",
+      resetConfirm: "Reiniciar",
+    },
+  },
   onboarding: {
     title: "Criar sua conta financeira",
     subtitle: "Escolha um nome para identificar seu espaço financeiro.",
@@ -722,8 +802,7 @@ export const messages = {
         `${name} adicionou ${count} ${count === 1 ? "transação" : "transações"} em ${month}`,
       transaction_deleted: (name: string, count: number, month: string) =>
         `${name} deletou ${count} ${count === 1 ? "transação" : "transações"} em ${month}`,
-      invite_accepted: (name: string, role: string) =>
-        `${name} entrou na conta como ${role}`,
+      invite_accepted: (name: string, role: string) => `${name} entrou na conta como ${role}`,
     },
   },
   errors: {

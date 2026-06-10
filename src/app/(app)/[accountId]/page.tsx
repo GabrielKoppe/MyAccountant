@@ -11,11 +11,21 @@ export default async function AccountPage({ params }: Props) {
 
   await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
-  const latestMonth = await prisma.month.findFirst({
-    where: { accountId },
-    orderBy: [{ year: "desc" }, { month: "desc" }],
-    select: { id: true },
-  });
+  const [settings, latestMonth] = await Promise.all([
+    prisma.accountSettings.findUnique({
+      where: { accountId },
+      select: { onboardingCompletedAt: true },
+    }),
+    prisma.month.findFirst({
+      where: { accountId },
+      orderBy: [{ year: "desc" }, { month: "desc" }],
+      select: { id: true },
+    }),
+  ]);
+
+  if (!settings?.onboardingCompletedAt) {
+    redirect(`/${accountId}/setup`);
+  }
 
   if (latestMonth) {
     redirect(`/${accountId}/months/${latestMonth.id}`);

@@ -110,10 +110,16 @@ function PinnedAnalysisCard({
           />
           <Button
             component={AppLink}
-            href={`/${accountId}/dashboards/sandbox`}
+            href={`/${accountId}/dashboards/sandbox?analysisId=${analysis.id}`}
             size="small"
-            endIcon={<OpenInNewIcon sx={{ fontSize: "12px !important" }} />}
-            sx={{ fontSize: "0.7rem", minWidth: 0, px: 0.75, py: 0.25 }}
+            endIcon={<OpenInNewIcon />}
+            sx={{
+              fontSize: "0.7rem",
+              minWidth: 0,
+              px: 0.75,
+              py: 0.25,
+              "& .MuiButton-endIcon": { fontSize: "0.75rem" },
+            }}
           >
             {ms.openInSandbox}
           </Button>
