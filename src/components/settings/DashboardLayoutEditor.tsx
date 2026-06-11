@@ -5,12 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
 import Typography from "@mui/material/Typography";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import type { SvgIconProps } from "@mui/material/SvgIcon";
+import { useSnackbar } from "notistack";
 
 import {
   DndContext,
@@ -93,8 +92,8 @@ export function DashboardLayoutEditor({
 }: Props) {
   const [active, setActive] = useState<WidgetDef[]>(initialActive);
   const [available, setAvailable] = useState<WidgetDef[]>(initialAvailable);
-  const [snackbar, setSnackbar] = useState<{ open: boolean; error?: boolean }>({ open: false });
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+  const { enqueueSnackbar } = useSnackbar();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dragWidget = dragActiveId ? active.find((w) => w.id === dragActiveId) : null;
@@ -107,9 +106,9 @@ export function DashboardLayoutEditor({
         widgets: widgetIds,
       });
       if (!result.ok) {
-        setSnackbar({ open: true, error: true });
+        enqueueSnackbar(m.settings.dashboards.saveError, { variant: "error" });
       } else {
-        setSnackbar({ open: true, error: false });
+        enqueueSnackbar(m.settings.dashboards.saved, { variant: "success" });
       }
     },
     [accountId, context],
@@ -397,21 +396,6 @@ export function DashboardLayoutEditor({
         </>
       )}
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={2500}
-        onClose={() => setSnackbar({ open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          severity={snackbar.error ? "error" : "success"}
-          variant="filled"
-          onClose={() => setSnackbar({ open: false })}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.error ? m.settings.dashboards.saveError : m.settings.dashboards.saved}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }

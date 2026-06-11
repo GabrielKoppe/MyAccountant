@@ -123,7 +123,7 @@ describe("DialogShell", () => {
       renderShell();
       const dialog = screen.getByRole("dialog");
       const labelledBy = dialog.getAttribute("aria-labelledby");
-      expect(labelledBy).toBeTruthy();
+      expect(labelledBy).not.toBeNull();
       const titleEl = document.getElementById(labelledBy!);
       expect(titleEl).toHaveTextContent("Título teste");
     });
