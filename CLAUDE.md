@@ -88,7 +88,11 @@ MyAccountant/
     ├── logging/SKILL.md         # Pino estruturado
     ├── env-validation/SKILL.md  # Zod env vars
     ├── testing/SKILL.md         # Vitest, mocks Prisma, fixtures, multi-tenancy tests
-    └── spec-writing/SKILL.md    # Como criar specs no modelo V2+ (specs 18+)
+    ├── spec-writing/SKILL.md    # Como criar specs no modelo V2+ (specs 18+)
+    ├── dashboard-widgets/SKILL.md # Criar e integrar widgets nos dashboards configuráveis
+    ├── ui-feedback/SKILL.md     # Feedback de Server Actions: notistack, loading, useActionFeedback
+    ├── api-routes/SKILL.md      # Route Handlers REST /api/v1/: defineRoute, OpenAPI, AppError
+    └── rsc-client-boundary/SKILL.md # RSC vs Client, serialização BigInt/Date, React.cache, Suspense
 ```
 
 ---
