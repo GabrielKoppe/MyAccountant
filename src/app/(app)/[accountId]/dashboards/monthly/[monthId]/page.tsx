@@ -19,6 +19,7 @@ import {
 } from "@/lib/queries/dashboards";
 import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
+import { getLayout } from "@/server/services/dashboard-layout-service";
 import { formatMonthLabel, MONTH_NAMES } from "@/lib/dates";
 import { AppLink } from "@/components/ui/AppLink";
 import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
@@ -63,7 +64,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   const monthLabel = formatMonthLabel(year, month);
 
   // Fetch all data in parallel
-  const [deepDive, sparklineData, comparisonData, treemapData, pinnedAnalyses, budgets, budgetFormOptions] =
+  const [deepDive, sparklineData, comparisonData, treemapData, pinnedAnalyses, budgets, budgetFormOptions, layout] =
     await Promise.all([
       getMonthDeepDive(accountId, monthId),
       getMonthSparklineData(accountId, monthId),
@@ -72,6 +73,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
       getPinnedAnalyses(accountId, "monthly", monthId),
       getBudgetsWithProgress(accountId, year, month),
       getBudgetFormOptions(accountId),
+      getLayout(accountId, "monthly"),
     ]);
 
   const { sections, sectionTotals, monthTotal, topCategories, topTransactions } = deepDive;
@@ -162,6 +164,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         pinnedAnalyses={pinnedAnalyses}
         budgets={budgets}
         budgetFormOptions={budgetFormOptions}
+        activeWidgets={layout.active}
       />
     </Box>
   );

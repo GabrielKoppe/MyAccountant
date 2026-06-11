@@ -158,6 +158,7 @@ model Account {
   settings           AccountSettings?
   budgets            Budget[]
   notifications      Notification[]
+  dashboardLayouts   DashboardLayout[]
 
   @@map("accounts")
 }
@@ -534,6 +535,33 @@ model Budget {
   @@index([accountId])
   @@index([accountId, isRecurring])
   @@map("budgets")
+}
+
+// =========================================
+// Domain — Dashboard Layouts (Spec 33)
+// =========================================
+
+enum DashboardLayoutContext {
+  monthly
+  yearly
+  month_summary
+
+  @@map("dashboard_layout_context")
+}
+
+model DashboardLayout {
+  id        String                 @id @default(cuid())
+  accountId String                 @map("account_id")
+  context   DashboardLayoutContext
+  widgets   Json                   // string[] — array ordenado de widgetIds ativos
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, context])
+  @@index([accountId])
+  @@map("dashboard_layouts")
 }
 
 // =========================================

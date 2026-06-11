@@ -14,14 +14,22 @@ import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
 
 import { AppLink } from "@/components/ui/AppLink";
+import { CollapsibleNavItem } from "@/components/settings/CollapsibleNavItem";
 
 const DRAWER_WIDTH = 220;
 
 type NavLink = { href: string; label: string };
+export type CollapsibleNavEntry = {
+  type: "collapsible";
+  label: string;
+  subLinks: NavLink[];
+};
+
+type NavEntry = NavLink | CollapsibleNavEntry;
 
 type Props = {
   accountId: string;
-  editorLinks: NavLink[];
+  editorLinks: NavEntry[];
   ownerLinks: NavLink[];
 };
 
@@ -38,7 +46,25 @@ function NavItems({
         Configurações
       </Typography>
       <List dense disablePadding sx={{ mt: 1 }}>
-        {editorLinks.map(({ href, label }) => {
+        {editorLinks.map((entry) => {
+          if ("type" in entry && entry.type === "collapsible") {
+            const isAnySubActive = entry.subLinks.some((sub) => {
+              const fullHref = `/${accountId}/settings/${sub.href}`;
+              return pathname === fullHref || pathname.startsWith(`${fullHref}/`);
+            });
+            return (
+              <CollapsibleNavItem
+                key={entry.label}
+                label={entry.label}
+                subLinks={entry.subLinks}
+                accountId={accountId}
+                pathname={pathname}
+                defaultOpen={isAnySubActive}
+                onNavigate={onNavigate}
+              />
+            );
+          }
+          const { href, label } = entry as NavLink;
           const fullHref = `/${accountId}/settings/${href}`;
           const isActive = pathname === fullHref || pathname.startsWith(`${fullHref}/`);
           return (
