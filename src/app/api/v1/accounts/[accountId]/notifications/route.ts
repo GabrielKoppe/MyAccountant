@@ -1,26 +1,38 @@
-import { AppError } from "@/server/api/errors";
+import { z } from "zod";
 import { requireAccountAccess } from "@/server/auth/session";
-import { logger } from "@/server/logger";
 import { getUnreadCount } from "@/server/services/notification-service";
+import { defineRoute } from "@/server/api/route-helpers";
+import { registry } from "@/server/api/openapi-registry";
 
-const log = logger.child({ module: "api.notifications" });
+registry.registerPath({
+  method: "get",
+  path: "/accounts/{accountId}/notifications",
+  tags: ["Notifications"],
+  request: {
+    params: z.object({ accountId: z.string() }),
+  },
+  responses: {
+    200: {
+      description: "Contagem de notificações não lidas",
+      content: {
+        "application/json": {
+          schema: z.object({
+            ok: z.literal(true),
+            data: z.object({ unreadCount: z.number() }),
+          }),
+        },
+      },
+    },
+    401: { description: "Não autenticado" },
+    403: { description: "Sem permissão" },
+  },
+});
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ accountId: string }> },
-) {
-  const { accountId } = await params;
-
-  try {
+export const GET = defineRoute({
+  module: "api.notifications",
+  handler: async (_input, { accountId }) => {
     const { user } = await requireAccountAccess(accountId);
     const unreadCount = await getUnreadCount(user.id, accountId);
-    return Response.json({ unreadCount });
-  } catch (err) {
-    if (err instanceof AppError) {
-      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
-      return Response.json({ error: err.code }, { status });
-    }
-    log.error({ err, accountId }, "Failed to fetch notification count");
-    return Response.json({ error: "INTERNAL" }, { status: 500 });
-  }
-}
+    return { unreadCount };
+  },
+});

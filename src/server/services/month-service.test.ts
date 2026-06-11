@@ -290,7 +290,8 @@ describe("createMonth", () => {
     expect(result.monthId).toBe("month-novo-1");
     expect(result.autoApplied).toHaveLength(1);
     expect(result.autoApplied[0]).toMatchObject({ templateName: "Modelo Inválido", success: false });
-    expect(result.autoApplied[0].error).toBeTruthy();
+    expect(result.autoApplied[0].error).toBeDefined();
+    expect(typeof result.autoApplied[0].error).toBe("string");
   });
 
   it("não deve vazar dados de outra account no autoApply (multi-tenancy)", async () => {
