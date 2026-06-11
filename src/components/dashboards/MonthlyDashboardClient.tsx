@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
@@ -31,11 +31,12 @@ import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
 import { SectionPieChart } from "./SectionPieChart";
 import { CategoryPieChart } from "./CategoryPieChart";
 import { PinnedAnalysesSection } from "./PinnedAnalysesSection";
+import { DashboardWidgetRenderer } from "./DashboardWidgetRenderer";
 import type { PinnedAnalysisData } from "@/lib/queries/sandbox";
 import { BudgetProgressBar } from "@/components/budgets/BudgetProgressBar";
 import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
 import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import type { WidgetDef } from "@/components/dashboards/widget-registry";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
@@ -98,6 +99,7 @@ type Props = {
   pinnedAnalyses: PinnedAnalysisData[];
   budgets: BudgetProgress[];
   budgetFormOptions: BudgetFormOptions;
+  activeWidgets: WidgetDef[];
 };
 
 function pickComparisonValues(
@@ -151,6 +153,7 @@ export function MonthlyDashboardClient({
   pinnedAnalyses,
   budgets,
   budgetFormOptions,
+  activeWidgets,
 }: Props) {
   const [compareMode, setCompareMode] = useState<CompareMode>("prevMonth");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -180,16 +183,220 @@ export function MonthlyDashboardClient({
     setDrawerTitle(title);
     setDrawerOpen(true);
     startDrawerTransition(async () => {
-      // getTransactionsByIds is a server query — call a server action wrapper
-      // For now, show what we have; full lazy fetch via action if needed
       const txs = await fetchDrawerTransactions(accountId, ids);
       setDrawerTxs(txs);
     });
   }
 
+  const nodeMap: Record<string, React.ReactNode> = {
+    "kpi-month-total": (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.monthTotal}
+        value={formatCentsToBrl(totalBigInt)}
+        color={totalBigInt >= 0n ? "success" : "error"}
+        sparkline={sparklineData.totalSparkline}
+        currentCents={monthTotal}
+        prevCents={compValues.total}
+        deltaMode={compareMode}
+      />
+    ),
+    "kpi-income": (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.income}
+        value={formatCentsToBrl(incomeBigInt)}
+        color="success"
+        icon={TrendingUpIcon}
+        sparkline={sparklineData.incomeSparkline}
+        currentCents={incomeTotal}
+        prevCents={compValues.income}
+        deltaMode={compareMode}
+      />
+    ),
+    "kpi-expenses": (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.expenses}
+        value={formatCentsToBrl(expenseBigInt)}
+        color="error"
+        icon={TrendingDownIcon}
+        sparkline={sparklineData.expenseSparkline}
+        currentCents={expenseTotal}
+        prevCents={compValues.expense}
+        deltaMode={compareMode}
+      />
+    ),
+    "kpi-savings-rate": (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.savingsRate}
+        value={`${savingsRate}%`}
+        subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
+        color={savingsRate >= 20 ? "success" : savingsRate >= 0 ? "warning" : "error"}
+        icon={SavingsIcon}
+      />
+    ),
+    "kpi-top-category": topCategory ? (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.topCategory}
+        value={formatCentsToBrl(BigInt(topCategory.totalCents))}
+        subtitle={topCategory.name}
+        color="info"
+        icon={CategoryIcon}
+      />
+    ) : null,
+    "kpi-pending": pendingCount > 0 ? (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.pendingCount}
+        value={String(pendingCount)}
+        color="warning"
+        icon={AccessTimeIcon}
+      />
+    ) : null,
+    budgets: (
+      <>
+        {budgets.length > 0 ? (
+          <Paper variant="outlined">
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                px: 2.5,
+                py: 1.5,
+                cursor: "pointer",
+                userSelect: "none",
+              }}
+              onClick={() => setBudgetsExpanded((v) => !v)}
+            >
+              <Stack direction="row" alignItems="center" gap={1}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  {m.budgets.title}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {budgets.length} {budgets.length === 1 ? "meta" : "metas"}
+                </Typography>
+              </Stack>
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                <Tooltip title={m.budgets.createButton}>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); setBudgetFormOpen(true); }}
+                  >
+                    <AddIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+                <IconButton size="small">
+                  {budgetsExpanded ? <ExpandLessIcon sx={{ fontSize: 18 }} /> : <ExpandMoreIcon sx={{ fontSize: 18 }} />}
+                </IconButton>
+              </Stack>
+            </Box>
+            <Collapse in={budgetsExpanded}>
+              <Box sx={{ px: 2.5, pb: 2, pt: 0.5 }}>
+                <Stack spacing={1.5}>
+                  {budgets.map((b) => (
+                    <BudgetProgressBar
+                      key={b.id}
+                      label={b.label}
+                      amountCents={b.amountCents}
+                      spentCents={b.spentCents}
+                      percent={b.percent}
+                      alertThresholdPercent={b.alertThresholdPercent}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            </Collapse>
+          </Paper>
+        ) : (
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Tooltip title="Definir metas de orçamento para acompanhar no dashboard">
+              <Button
+                size="small"
+                variant="text"
+                startIcon={<AddIcon />}
+                onClick={() => setBudgetFormOpen(true)}
+                sx={{ color: "text.secondary", fontSize: "0.75rem" }}
+              >
+                {m.budgets.createButton}
+              </Button>
+            </Tooltip>
+          </Box>
+        )}
+      </>
+    ),
+    "daily-heatmap": subtractSections.length > 0 ? (
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          {m.dashboards.sections.calendarHeatmap}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+          Intensidade = total gasto naquele dia (seções de saída)
+        </Typography>
+        <DailyHeatmap
+          year={year}
+          month={month}
+          dailyTotals={dailyTotals}
+          onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
+        />
+      </Paper>
+    ) : null,
+    "category-treemap": (
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          {m.dashboards.sections.categoryTreemap}
+        </Typography>
+        <CategoryTreemap
+          categories={treemapData}
+          onDrillDown={(ids, label) => openDrawer(ids, label)}
+        />
+      </Paper>
+    ),
+    "money-flow": sankeyData.nodes.length > 0 ? (
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          {m.dashboards.sections.moneyFlow}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+          Fluxo: entradas → total disponível → categorias de gastos
+        </Typography>
+        <SankeyChart data={sankeyData} />
+      </Paper>
+    ) : null,
+    "section-breakdown": (
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          {m.dashboards.sections.sectionBreakdown}
+        </Typography>
+        <SectionPieChart sections={sections} sectionTotals={sectionTotals} />
+      </Paper>
+    ),
+    "category-breakdown": (
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          {m.dashboards.sections.categoryBreakdown}
+        </Typography>
+        {topCategories.length > 0 ? (
+          <CategoryPieChart categories={topCategories} />
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            Sem categorias neste mês.
+          </Typography>
+        )}
+      </Paper>
+    ),
+    "pinned-analyses": (
+      <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
+    ),
+    "top-transactions": (
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          {m.dashboards.sections.biggestTransactions}
+        </Typography>
+        <TopTransactionTable transactions={topTransactions} />
+      </Paper>
+    ),
+  };
+
   return (
     <Box>
-      {/* Comparison toggle */}
       <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
         <ComparisonToggle
           value={compareMode}
@@ -199,226 +406,8 @@ export function MonthlyDashboardClient({
         />
       </Box>
 
-      {/* KPI row */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)", md: "repeat(6, 1fr)" },
-          gap: 1.5,
-          mb: 3,
-        }}
-      >
-        <KpiSparklineCard
-          title={m.dashboards.kpi.monthTotal}
-          value={formatCentsToBrl(totalBigInt)}
-          color={totalBigInt >= 0n ? "success" : "error"}
-          sparkline={sparklineData.totalSparkline}
-          currentCents={monthTotal}
-          prevCents={compValues.total}
-          deltaMode={compareMode}
-        />
-        <KpiSparklineCard
-          title={m.dashboards.kpi.income}
-          value={formatCentsToBrl(incomeBigInt)}
-          color="success"
-          icon={TrendingUpIcon}
-          sparkline={sparklineData.incomeSparkline}
-          currentCents={incomeTotal}
-          prevCents={compValues.income}
-          deltaMode={compareMode}
-        />
-        <KpiSparklineCard
-          title={m.dashboards.kpi.expenses}
-          value={formatCentsToBrl(expenseBigInt)}
-          color="error"
-          icon={TrendingDownIcon}
-          sparkline={sparklineData.expenseSparkline}
-          currentCents={expenseTotal}
-          prevCents={compValues.expense}
-          deltaMode={compareMode}
-        />
-        <KpiSparklineCard
-          title={m.dashboards.kpi.savingsRate}
-          value={`${savingsRate}%`}
-          subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
-          color={savingsRate >= 20 ? "success" : savingsRate >= 0 ? "warning" : "error"}
-          icon={SavingsIcon}
-        />
-        {topCategory && (
-          <KpiSparklineCard
-            title={m.dashboards.kpi.topCategory}
-            value={formatCentsToBrl(BigInt(topCategory.totalCents))}
-            subtitle={topCategory.name}
-            color="info"
-            icon={CategoryIcon}
-          />
-        )}
-        {pendingCount > 0 && (
-          <KpiSparklineCard
-            title={m.dashboards.kpi.pendingCount}
-            value={String(pendingCount)}
-            color="warning"
-            icon={AccessTimeIcon}
-          />
-        )}
-      </Box>
+      <DashboardWidgetRenderer active={activeWidgets} nodeMap={nodeMap} />
 
-      {/* Budget targets block */}
-      {budgets.length > 0 && (
-        <Paper variant="outlined" sx={{ mb: 3 }}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              px: 2.5,
-              py: 1.5,
-              cursor: "pointer",
-              userSelect: "none",
-            }}
-            onClick={() => setBudgetsExpanded((v) => !v)}
-          >
-            <Stack direction="row" alignItems="center" gap={1}>
-              <Typography variant="subtitle2" fontWeight="bold">
-                {m.budgets.title}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {budgets.length} {budgets.length === 1 ? "meta" : "metas"}
-              </Typography>
-            </Stack>
-            <Stack direction="row" alignItems="center" gap={0.5}>
-              <Tooltip title={m.budgets.createButton}>
-                <IconButton
-                  size="small"
-                  onClick={(e) => { e.stopPropagation(); setBudgetFormOpen(true); }}
-                >
-                  <AddIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <IconButton size="small">
-                {budgetsExpanded ? <ExpandLessIcon sx={{ fontSize: 18 }} /> : <ExpandMoreIcon sx={{ fontSize: 18 }} />}
-              </IconButton>
-            </Stack>
-          </Box>
-          <Collapse in={budgetsExpanded}>
-            <Box sx={{ px: 2.5, pb: 2, pt: 0.5 }}>
-              <Stack spacing={1.5}>
-                {budgets.map((b) => (
-                  <BudgetProgressBar
-                    key={b.id}
-                    label={b.label}
-                    amountCents={b.amountCents}
-                    spentCents={b.spentCents}
-                    percent={b.percent}
-                    alertThresholdPercent={b.alertThresholdPercent}
-                  />
-                ))}
-              </Stack>
-            </Box>
-          </Collapse>
-        </Paper>
-      )}
-
-      {budgets.length === 0 && (
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-          <Tooltip title="Definir metas de orçamento para acompanhar no dashboard">
-            <Button
-              size="small"
-              variant="text"
-              startIcon={<AddIcon />}
-              onClick={() => setBudgetFormOpen(true)}
-              sx={{ color: "text.secondary", fontSize: "0.75rem" }}
-            >
-              {m.budgets.createButton}
-            </Button>
-          </Tooltip>
-        </Box>
-      )}
-
-      {/* Row 1: Calendar Heatmap + Category Treemap */}
-      <Box
-        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 3 }}
-      >
-        {subtractSections.length > 0 && (
-          <Paper variant="outlined" sx={{ p: 2.5 }}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-              {m.dashboards.sections.calendarHeatmap}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-              Intensidade = total gasto naquele dia (seções de saída)
-            </Typography>
-            <DailyHeatmap
-              year={year}
-              month={month}
-              dailyTotals={dailyTotals}
-              onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
-            />
-          </Paper>
-        )}
-
-        <Paper variant="outlined" sx={{ p: 2.5 }}>
-          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-            {m.dashboards.sections.categoryTreemap}
-          </Typography>
-          <CategoryTreemap
-            categories={treemapData}
-            onDrillDown={(ids, label) => openDrawer(ids, label)}
-          />
-        </Paper>
-      </Box>
-
-      {/* Row 2: Sankey */}
-      {sankeyData.nodes.length > 0 && (
-        <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
-          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-            {m.dashboards.sections.moneyFlow}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-            Fluxo: entradas → total disponível → categorias de gastos
-          </Typography>
-          <SankeyChart data={sankeyData} />
-        </Paper>
-      )}
-
-      {/* Row 3: Existing pie charts */}
-      <Box
-        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 3 }}
-      >
-        <Paper variant="outlined" sx={{ p: 2.5 }}>
-          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-            {m.dashboards.sections.sectionBreakdown}
-          </Typography>
-          <SectionPieChart sections={sections} sectionTotals={sectionTotals} />
-        </Paper>
-
-        <Paper variant="outlined" sx={{ p: 2.5 }}>
-          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-            {m.dashboards.sections.categoryBreakdown}
-          </Typography>
-          {topCategories.length > 0 ? (
-            <CategoryPieChart categories={topCategories} />
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              Sem categorias neste mês.
-            </Typography>
-          )}
-        </Paper>
-      </Box>
-
-      {/* Row 4: Pinned analyses */}
-      <Box sx={{ mb: 3 }}>
-        <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
-      </Box>
-
-      {/* Row 5: Top transactions */}
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {m.dashboards.sections.biggestTransactions}
-        </Typography>
-        <TopTransactionTable transactions={topTransactions} />
-      </Paper>
-
-      {/* DrillDown Drawer */}
       <DrillDownDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -427,7 +416,6 @@ export function MonthlyDashboardClient({
         loading={drawerLoading}
       />
 
-      {/* Budget creation dialog */}
       <BudgetFormDialog
         open={budgetFormOpen}
         onClose={() => setBudgetFormOpen(false)}

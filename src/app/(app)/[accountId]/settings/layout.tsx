@@ -4,11 +4,21 @@ import Box from "@mui/material/Box";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { m } from "@/lib/messages";
-import { SettingsNav } from "@/components/settings/SettingsNav";
+import { SettingsNav, type CollapsibleNavEntry } from "@/components/settings/SettingsNav";
 
 type Props = {
   children: ReactNode;
   params: Promise<{ accountId: string }>;
+};
+
+const visualizationEntry: CollapsibleNavEntry = {
+  type: "collapsible",
+  label: m.settings.nav.visualization,
+  subLinks: [
+    { href: "dashboards/monthly", label: m.settings.nav.dashboards.monthly },
+    { href: "dashboards/yearly", label: m.settings.nav.dashboards.yearly },
+    { href: "dashboards/month-summary", label: m.settings.nav.dashboards.monthSummary },
+  ],
 };
 
 const editorLinks = [
@@ -21,6 +31,7 @@ const editorLinks = [
   { href: "templates", label: m.settings.nav.templates },
   { href: "analyses", label: m.settings.nav.analyses },
   { href: "budgets", label: m.budgets.nav },
+  visualizationEntry,
 ];
 
 export default async function SettingsLayout({ children, params }: Props) {

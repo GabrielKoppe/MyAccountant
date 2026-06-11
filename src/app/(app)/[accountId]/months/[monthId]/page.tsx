@@ -10,6 +10,7 @@ import {
   calculateMonthTotal,
 } from "@/server/services/month-service";
 import { getBudgetsWithProgress } from "@/lib/queries/budgets";
+import { getLayout } from "@/server/services/dashboard-layout-service";
 import { formatMonthLabel, MONTH_NAMES } from "@/lib/dates";
 import { parseHiddenColumns } from "@/lib/schemas/settings";
 import { MonthHeader } from "@/components/months/MonthHeader";
@@ -82,7 +83,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
   const { year: monthYear, month: monthMonth } = currentMonth;
 
   // Dados em paralelo
-  const [sections, tablesRaw, allTransactionsRaw, categories, institutions, accountMembers, accountSettings, accountTableTypes, summaryBudgets, userSettings] =
+  const [sections, tablesRaw, allTransactionsRaw, categories, institutions, accountMembers, accountSettings, accountTableTypes, summaryBudgets, userSettings, summaryLayout] =
     await Promise.all([
       getMonthSections(accountId, monthId),
       prisma.financeTable.findMany({
@@ -155,6 +156,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
         where: { userId: user.id },
         select: { timezone: true },
       }),
+      getLayout(accountId, "month_summary"),
     ]);
 
   const timezone = userSettings?.timezone ?? "America/Sao_Paulo";
@@ -310,6 +312,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
               recentTransactions={recentTransactions}
               prevSectionTotals={prevSectionTotals}
               summaryBudgets={summaryBudgets}
+              activeWidgets={summaryLayout.active}
             />
           ) : (
             <SectionView

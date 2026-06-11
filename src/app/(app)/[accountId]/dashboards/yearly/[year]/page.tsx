@@ -14,6 +14,7 @@ import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { getYearOverview } from "@/lib/queries/dashboards";
 import { getPinnedAnalyses } from "@/lib/queries/sandbox";
+import { getLayout } from "@/server/services/dashboard-layout-service";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import { AppLink } from "@/components/ui/AppLink";
@@ -24,6 +25,7 @@ import { CategoryBarList } from "@/components/dashboards/CategoryBarList";
 import { YearSelector } from "@/components/dashboards/YearSelector";
 import { MonthCardGrid } from "@/components/dashboards/MonthCardGrid";
 import { PinnedAnalysesSection } from "@/components/dashboards/PinnedAnalysesSection";
+import { DashboardWidgetRenderer } from "@/components/dashboards/DashboardWidgetRenderer";
 
 type Props = { params: Promise<{ accountId: string; year: string }> };
 
@@ -44,10 +46,11 @@ export default async function YearlyDashboardPage({ params }: Props) {
   const year = parseInt(yearStr);
   if (isNaN(year)) redirect(`/${accountId}/dashboards`);
 
-  const [{ sections, monthSummaries, topCategories, pendingCount, allYears }, pinnedAnalyses] =
+  const [{ sections, monthSummaries, topCategories, pendingCount, allYears }, pinnedAnalyses, layout] =
     await Promise.all([
       getYearOverview(accountId, year),
       getPinnedAnalyses(accountId, "yearly"),
+      getLayout(accountId, "yearly"),
     ]);
 
   if (monthSummaries.length === 0) {
@@ -133,110 +136,110 @@ export default async function YearlyDashboardPage({ params }: Props) {
         </Box>
       </Box>
 
-      {/* KPI grid */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" },
-          gap: 2,
-          mb: 3,
+      <DashboardWidgetRenderer
+        active={layout.active}
+        nodeMap={{
+          "kpi-year-total": (
+            <KpiSparklineCard
+              title={m.dashboards.kpi.yearTotal}
+              value={formatCentsToBrl(yearTotal)}
+              subtitle={`${monthSummaries.length} ${monthSummaries.length === 1 ? "mês" : "meses"}`}
+              color={yearTotal >= 0n ? "success" : "error"}
+            />
+          ),
+          "kpi-income": (
+            <KpiSparklineCard
+              title={m.dashboards.kpi.income}
+              value={formatCentsToBrl(yearlyIncome)}
+              color="success"
+              icon={TrendingUpIcon}
+            />
+          ),
+          "kpi-expenses": (
+            <KpiSparklineCard
+              title={m.dashboards.kpi.expenses}
+              value={formatCentsToBrl(yearlyExpense)}
+              color="error"
+              icon={TrendingDownIcon}
+            />
+          ),
+          "kpi-savings-rate": (
+            <KpiSparklineCard
+              title={m.dashboards.kpi.savingsRate}
+              value={`${savingsRate}%`}
+              subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
+              color={savingsRate >= 20 ? "success" : savingsRate >= 0 ? "warning" : "error"}
+              icon={SavingsIcon}
+            />
+          ),
+          "kpi-monthly-avg": (
+            <KpiSparklineCard
+              title={m.dashboards.kpi.monthlyAvg}
+              value={formatCentsToBrl(BigInt(Math.round(monthAvg)))}
+              icon={CalendarMonthIcon}
+            />
+          ),
+          "kpi-best-month": (
+            <KpiSparklineCard
+              title={m.dashboards.kpi.bestMonth}
+              value={formatCentsToBrl(BigInt(bestMonth.total))}
+              subtitle={bestMonth.label}
+              icon={TrendingUpIcon}
+              color="success"
+            />
+          ),
+          "kpi-worst-month": (
+            <KpiSparklineCard
+              title={m.dashboards.kpi.worstMonth}
+              value={formatCentsToBrl(BigInt(worstMonth.total))}
+              subtitle={worstMonth.label}
+              icon={TrendingDownIcon}
+              color={BigInt(worstMonth.total) < 0n ? "error" : "default"}
+            />
+          ),
+          "kpi-pending": pendingCount > 0 ? (
+            <KpiSparklineCard
+              title={m.dashboards.kpi.pendingCount}
+              value={String(pendingCount)}
+              color="warning"
+              icon={AccessTimeIcon}
+            />
+          ) : null,
+          "month-card-grid": (
+            <Paper variant="outlined" sx={{ p: 2.5 }}>
+              <MonthCardGrid accountId={accountId} months={monthSummaries} />
+            </Paper>
+          ),
+          "monthly-bar-chart": (
+            <Paper variant="outlined" sx={{ p: 2.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  {m.dashboards.sections.monthlyChart}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Clique em uma barra para abrir o mês
+                </Typography>
+              </Box>
+              <MonthlyBarChart
+                months={monthSummaries}
+                sections={sections}
+                monthPagePrefix={`/${accountId}/dashboards/monthly/`}
+              />
+            </Paper>
+          ),
+          "pinned-analyses": (
+            <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
+          ),
+          "top-categories": (
+            <Paper variant="outlined" sx={{ p: 2.5 }}>
+              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                {m.dashboards.sections.topCategories}
+              </Typography>
+              <CategoryBarList categories={topCategories} />
+            </Paper>
+          ),
         }}
-      >
-        <KpiSparklineCard
-          title={m.dashboards.kpi.yearTotal}
-          value={formatCentsToBrl(yearTotal)}
-          subtitle={`${monthSummaries.length} ${monthSummaries.length === 1 ? "mês" : "meses"}`}
-          color={yearTotal >= 0n ? "success" : "error"}
-        />
-        <KpiSparklineCard
-          title={m.dashboards.kpi.income}
-          value={formatCentsToBrl(yearlyIncome)}
-          color="success"
-          icon={TrendingUpIcon}
-        />
-        <KpiSparklineCard
-          title={m.dashboards.kpi.expenses}
-          value={formatCentsToBrl(yearlyExpense)}
-          color="error"
-          icon={TrendingDownIcon}
-        />
-        <KpiSparklineCard
-          title={m.dashboards.kpi.savingsRate}
-          value={`${savingsRate}%`}
-          subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
-          color={savingsRate >= 20 ? "success" : savingsRate >= 0 ? "warning" : "error"}
-          icon={SavingsIcon}
-        />
-        <KpiSparklineCard
-          title={m.dashboards.kpi.monthlyAvg}
-          value={formatCentsToBrl(BigInt(Math.round(monthAvg)))}
-          icon={CalendarMonthIcon}
-        />
-        <KpiSparklineCard
-          title={m.dashboards.kpi.bestMonth}
-          value={formatCentsToBrl(BigInt(bestMonth.total))}
-          subtitle={bestMonth.label}
-          icon={TrendingUpIcon}
-          color="success"
-        />
-        <KpiSparklineCard
-          title={m.dashboards.kpi.worstMonth}
-          value={formatCentsToBrl(BigInt(worstMonth.total))}
-          subtitle={worstMonth.label}
-          icon={TrendingDownIcon}
-          color={BigInt(worstMonth.total) < 0n ? "error" : "default"}
-        />
-        {pendingCount > 0 && (
-          <KpiSparklineCard
-            title={m.dashboards.kpi.pendingCount}
-            value={String(pendingCount)}
-            color="warning"
-            icon={AccessTimeIcon}
-          />
-        )}
-      </Box>
-
-      {/* Month card grid */}
-      <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
-        <MonthCardGrid accountId={accountId} months={monthSummaries} />
-      </Paper>
-
-      {/* Bar chart — months × sections */}
-      <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            mb: 1.5,
-          }}
-        >
-          <Typography variant="subtitle2" fontWeight="bold">
-            {m.dashboards.sections.monthlyChart}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Clique em uma barra para abrir o mês
-          </Typography>
-        </Box>
-        <MonthlyBarChart
-          months={monthSummaries}
-          sections={sections}
-          monthPagePrefix={`/${accountId}/dashboards/monthly/`}
-        />
-      </Paper>
-
-      {/* Pinned analyses */}
-      <Box sx={{ mb: 3 }}>
-        <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
-      </Box>
-
-      {/* Top categories */}
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {m.dashboards.sections.topCategories}
-        </Typography>
-        <CategoryBarList categories={topCategories} />
-      </Paper>
+      />
     </Box>
   );
 }
