@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 
 import { defineAction } from "@/server/api/define-action";
@@ -16,6 +16,7 @@ export const createBudgetAction = defineAction({
   handler: async (input, ctx) => {
     const result = await budgetService.createBudget(input, ctx);
     revalidatePath(`/${ctx.accountId}/settings/budgets`);
+    updateTag(`account:${ctx.accountId}`); // invalida cache de insights (metas mudaram)
     return result;
   },
 });
@@ -26,6 +27,7 @@ export const updateBudgetAction = defineAction({
   handler: async (input, ctx) => {
     await budgetService.updateBudget(input, ctx);
     revalidatePath(`/${ctx.accountId}/settings/budgets`);
+    updateTag(`account:${ctx.accountId}`);
   },
 });
 
@@ -35,6 +37,7 @@ export const deleteBudgetAction = defineAction({
   handler: async (input, ctx) => {
     await budgetService.deleteBudget(input, ctx);
     revalidatePath(`/${ctx.accountId}/settings/budgets`);
+    updateTag(`account:${ctx.accountId}`);
   },
 });
 

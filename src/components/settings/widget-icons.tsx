@@ -24,6 +24,7 @@ import CategoryIcon from "@mui/icons-material/Category";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import DynamicFeedIcon from "@mui/icons-material/DynamicFeed";
+import TipsAndUpdatesIcon from "@mui/icons-material/TipsAndUpdates";
 
 export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   // shared across contexts
@@ -33,6 +34,7 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "kpi-pending": AccessTimeIcon,
   budgets: FlagIcon,
   "pinned-analyses": PushPinIcon,
+  insights: TipsAndUpdatesIcon,
 
   // monthly
   "kpi-month-total": AccountBalanceWalletIcon,

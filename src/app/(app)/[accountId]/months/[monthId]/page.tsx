@@ -11,7 +11,8 @@ import {
 } from "@/server/services/month-service";
 import { getBudgetsWithProgress } from "@/lib/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
-import { formatMonthLabel, MONTH_NAMES } from "@/lib/dates";
+import { generateInsights } from "@/server/services/insights-service";
+import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
 import { parseHiddenColumns } from "@/lib/schemas/settings";
 import { MonthHeader } from "@/components/months/MonthHeader";
 import { MonthTabs } from "@/components/months/MonthTabs";
@@ -144,7 +145,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
       }),
       prisma.accountSettings.findUnique({
         where: { accountId },
-        select: { defaultResponsibleUserId: true },
+        select: { defaultResponsibleUserId: true, monthStartDay: true },
       }),
       prisma.tableType.findMany({
         where: { accountId },
@@ -273,6 +274,14 @@ export default async function MonthPage({ params, searchParams }: Props) {
   }));
 
   const activeSection = tab !== "summary" ? sections.find((s: any) => s.id === tab) : null;
+  const showSummary = tab === "summary" || !activeSection;
+
+  // Insights só são necessários no resumo do mês (evita custo nas abas de seção).
+  const fiscalNow = getCurrentFiscalMonth(new Date(), accountSettings?.monthStartDay ?? 1);
+  const isCurrentMonth = fiscalNow.year === monthYear && fiscalNow.month === monthMonth;
+  const insights = showSummary
+    ? await generateInsights(accountId, monthId, { isCurrentMonth })
+    : [];
 
   return (
     <MonthFilterProvider
@@ -299,7 +308,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
         />
 
         <Box sx={{ flex: 1, overflow: "auto" }}>
-          {tab === "summary" || !activeSection ? (
+          {showSummary ? (
             <MonthSummary
               sections={sections}
               sectionTotals={sectionTotals}
@@ -312,6 +321,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
               recentTransactions={recentTransactions}
               prevSectionTotals={prevSectionTotals}
               summaryBudgets={summaryBudgets}
+              insights={insights}
               activeWidgets={summaryLayout.active}
             />
           ) : (

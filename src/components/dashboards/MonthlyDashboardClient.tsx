@@ -31,7 +31,9 @@ import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
 import { SectionPieChart } from "./SectionPieChart";
 import { CategoryPieChart } from "./CategoryPieChart";
 import { PinnedAnalysesSection } from "./PinnedAnalysesSection";
+import { InsightsCard } from "./InsightsCard";
 import { DashboardWidgetRenderer } from "./DashboardWidgetRenderer";
+import type { Insight } from "@/server/services/insights-service";
 import type { PinnedAnalysisData } from "@/lib/queries/sandbox";
 import { BudgetProgressBar } from "@/components/budgets/BudgetProgressBar";
 import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
@@ -99,6 +101,7 @@ type Props = {
   pinnedAnalyses: PinnedAnalysisData[];
   budgets: BudgetProgress[];
   budgetFormOptions: BudgetFormOptions;
+  insights: Insight[];
   activeWidgets: WidgetDef[];
 };
 
@@ -153,6 +156,7 @@ export function MonthlyDashboardClient({
   pinnedAnalyses,
   budgets,
   budgetFormOptions,
+  insights,
   activeWidgets,
 }: Props) {
   const [compareMode, setCompareMode] = useState<CompareMode>("prevMonth");
@@ -385,6 +389,7 @@ export function MonthlyDashboardClient({
     "pinned-analyses": (
       <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
     ),
+    insights: <InsightsCard insights={insights} />,
     "top-transactions": (
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
