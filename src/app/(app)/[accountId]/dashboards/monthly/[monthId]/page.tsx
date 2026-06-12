@@ -20,7 +20,8 @@ import {
 import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
-import { formatMonthLabel, MONTH_NAMES } from "@/lib/dates";
+import { generateInsights } from "@/server/services/insights-service";
+import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
 import { AppLink } from "@/components/ui/AppLink";
 import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
 import { MonthlyDashboardMenu } from "@/components/dashboards/MonthlyDashboardMenu";
@@ -46,7 +47,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   const { accountId, monthId } = await params;
   await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
-  const [monthMeta, allMonthsRaw] = await Promise.all([
+  const [monthMeta, allMonthsRaw, accountSettings] = await Promise.all([
     prisma.month.findFirst({
       where: { id: monthId, accountId },
       select: { year: true, month: true },
@@ -56,6 +57,10 @@ export default async function MonthlyDashboardPage({ params }: Props) {
       orderBy: [{ year: "asc" }, { month: "asc" }],
       select: { id: true, year: true, month: true },
     }),
+    prisma.accountSettings.findUnique({
+      where: { accountId },
+      select: { monthStartDay: true },
+    }),
   ]);
 
   if (!monthMeta) redirect(`/${accountId}/dashboards`);
@@ -63,8 +68,12 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   const { year, month } = monthMeta;
   const monthLabel = formatMonthLabel(year, month);
 
+  // Mês fiscal atual? Define o texto prospectivo vs retrospectivo dos insights (INS-03).
+  const fiscalNow = getCurrentFiscalMonth(new Date(), accountSettings?.monthStartDay ?? 1);
+  const isCurrentMonth = fiscalNow.year === year && fiscalNow.month === month;
+
   // Fetch all data in parallel
-  const [deepDive, sparklineData, comparisonData, treemapData, pinnedAnalyses, budgets, budgetFormOptions, layout] =
+  const [deepDive, sparklineData, comparisonData, treemapData, pinnedAnalyses, budgets, budgetFormOptions, layout, insights] =
     await Promise.all([
       getMonthDeepDive(accountId, monthId),
       getMonthSparklineData(accountId, monthId),
@@ -74,6 +83,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
       getBudgetsWithProgress(accountId, year, month),
       getBudgetFormOptions(accountId),
       getLayout(accountId, "monthly"),
+      generateInsights(accountId, monthId, { isCurrentMonth }),
     ]);
 
   const { sections, sectionTotals, monthTotal, topCategories, topTransactions } = deepDive;
@@ -164,6 +174,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         pinnedAnalyses={pinnedAnalyses}
         budgets={budgets}
         budgetFormOptions={budgetFormOptions}
+        insights={insights}
         activeWidgets={layout.active}
       />
     </Box>

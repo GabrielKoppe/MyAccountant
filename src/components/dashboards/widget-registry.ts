@@ -72,6 +72,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
     { id: "category-breakdown",   labelKey: "categoryBreakdown",kind: "panel", span: "half", defaultVisible: true },
     { id: "pinned-analyses",      labelKey: "pinnedAnalyses",   kind: "panel", span: "full", defaultVisible: true },
     { id: "top-transactions",     labelKey: "topTransactions",  kind: "panel", span: "full", defaultVisible: true },
+    { id: "insights",             labelKey: "insights",         kind: "panel", span: "full", defaultVisible: false },
   ],
   yearly: [
     { id: "kpi-year-total",       labelKey: "yearTotal",        kind: "kpi",   defaultVisible: true },
@@ -94,6 +95,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
     { id: "budgets",              labelKey: "budgets",          kind: "panel", span: "full", defaultVisible: true },
     { id: "section-cards",        labelKey: "sectionCards",     kind: "panel", span: "full", defaultVisible: true },
     { id: "activity-lists",       labelKey: "activityLists",    kind: "panel", span: "full", defaultVisible: true },
+    { id: "insights",             labelKey: "insights",         kind: "panel", span: "full", defaultVisible: false },
   ],
 };
 

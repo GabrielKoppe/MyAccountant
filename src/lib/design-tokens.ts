@@ -102,6 +102,7 @@ export const typography = {
     mono: "var(--font-jetbrains-mono), 'JetBrains Mono', 'Fira Code', Menlo, monospace",
   },
   fontSize: {
+    xxs: "0.625rem",
     xs: "0.75rem",
     sm: "0.875rem",
     base: "1rem",

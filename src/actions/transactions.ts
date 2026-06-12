@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 import { defineAction } from "@/server/api/define-action";
 import { z } from "zod";
@@ -24,6 +24,7 @@ export const createTransactionAction = defineAction({
   handler: async (input, ctx) => {
     const result = await txService.createTransaction(input, ctx);
     revalidatePath(`/${ctx.accountId}`, "layout");
+    updateTag(`account:${ctx.accountId}`);
     return result;
   },
 });
@@ -34,6 +35,7 @@ export const updateTransactionAction = defineAction({
   handler: async (input, ctx) => {
     await txService.updateTransaction(input, ctx);
     revalidatePath(`/${ctx.accountId}`, "layout");
+    updateTag(`account:${ctx.accountId}`);
   },
 });
 
@@ -43,6 +45,7 @@ export const deleteTransactionAction = defineAction({
   handler: async (input, ctx) => {
     await txService.deleteTransaction(input, ctx);
     revalidatePath(`/${ctx.accountId}`, "layout");
+    updateTag(`account:${ctx.accountId}`);
   },
 });
 
@@ -52,6 +55,7 @@ export const duplicateTransactionAction = defineAction({
   handler: async (input, ctx) => {
     const result = await txService.duplicateTransaction(input, ctx);
     revalidatePath(`/${ctx.accountId}`, "layout");
+    updateTag(`account:${ctx.accountId}`);
     return result;
   },
 });
@@ -62,6 +66,7 @@ export const bulkDeleteAction = defineAction({
   handler: async (input, ctx) => {
     await txService.bulkDelete(input, ctx);
     revalidatePath(`/${ctx.accountId}`, "layout");
+    updateTag(`account:${ctx.accountId}`);
   },
 });
 
@@ -71,6 +76,7 @@ export const bulkUpdateAction = defineAction({
   handler: async (input, ctx) => {
     await txService.bulkUpdate(input, ctx);
     revalidatePath(`/${ctx.accountId}`, "layout");
+    updateTag(`account:${ctx.accountId}`);
   },
 });
 
@@ -81,6 +87,7 @@ export const moveTransactionsAction = defineAction({
     const result = await txService.moveTransactions(input, ctx);
     // Revalida o layout inteiro para cobrir mês de origem e destino
     revalidatePath(`/${ctx.accountId}`, "layout");
+    updateTag(`account:${ctx.accountId}`);
     return result;
   },
 });

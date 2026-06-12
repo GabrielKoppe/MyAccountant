@@ -16,9 +16,11 @@ import { AppLink } from "@/components/ui/AppLink";
 import { KpiSparklineCard } from "@/components/dashboards/KpiSparklineCard";
 import { BudgetProgressBar } from "@/components/budgets/BudgetProgressBar";
 import { DashboardWidgetRenderer } from "@/components/dashboards/DashboardWidgetRenderer";
+import { InsightsCard } from "@/components/dashboards/InsightsCard";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { BudgetProgress } from "@/lib/queries/budgets";
+import type { Insight } from "@/server/services/insights-service";
 import type { WidgetDef } from "@/components/dashboards/widget-registry";
 import { TransactionQuickList } from "./TransactionQuickList";
 
@@ -56,6 +58,7 @@ type Props = {
   recentTransactions: QuickTx[];
   prevSectionTotals?: Record<string, string>;
   summaryBudgets?: BudgetProgress[];
+  insights: Insight[];
   activeWidgets: WidgetDef[];
 };
 
@@ -78,6 +81,7 @@ export function MonthSummary({
   recentTransactions,
   prevSectionTotals,
   summaryBudgets,
+  insights,
   activeWidgets,
 }: Props) {
   const totalBigInt = BigInt(monthTotal);
@@ -322,6 +326,7 @@ export function MonthSummary({
           ) : null,
           "section-cards": sectionCardsNode,
           "activity-lists": activityListsNode,
+          insights: <InsightsCard insights={insights} />,
         }}
       />
     </Box>

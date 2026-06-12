@@ -544,6 +544,25 @@ export const messages = {
       drillHint: "Clique para ver subcategorias",
       back: "← Todas as categorias",
     },
+    insights: {
+      cardTitle: "Insights",
+      spikeTitle: (category: string) => `Pico de gasto em ${category}`,
+      spikeBody: (pct: number, current: string, avg: string) =>
+        `Você gastou ${current} este mês — ${pct}% acima da média recente (${avg}).`,
+      newCategoryTitle: (category: string) => `Nova categoria: ${category}`,
+      newCategoryBody: (amount: string) =>
+        `Primeira vez com gastos nesta categoria: ${amount}.`,
+      budgetRiskTitle: (label: string) => `Meta perto do limite: ${label}`,
+      budgetRiskBodyCurrent: (percent: number, days: number) =>
+        `Você já usou ${percent}% da meta e ${
+          days === 1 ? "falta 1 dia" : `faltam ${days} dias`
+        } no mês.`,
+      budgetRiskBodyHistoric: (percent: number) => `Atingiu ${percent}% da meta neste mês.`,
+      viewBudgetAction: "Ver metas",
+      adherenceTitle: (label: string) => `Meta sob controle: ${label}`,
+      adherenceBody: (months: number) =>
+        `Você ficou dentro do limite por ${months} meses seguidos. Continue assim!`,
+    },
     nav: {
       yearly: "Anual",
       monthly: "Por Mês",
@@ -564,6 +583,7 @@ export const messages = {
         "category-breakdown": "Por Categoria",
         "pinned-analyses": "Análises Salvas",
         "top-transactions": "Maiores Transações",
+        insights: "Insights",
       },
       yearly: {
         "kpi-year-total": "Total do Ano",
@@ -586,6 +606,7 @@ export const messages = {
         budgets: "Metas de Orçamento",
         "section-cards": "Resumo por Seção",
         "activity-lists": "Atividade Recente",
+        insights: "Insights",
       },
       descriptions: {
         monthly: {
@@ -603,6 +624,7 @@ export const messages = {
           "category-breakdown": "Proporção de gastos por categoria",
           "pinned-analyses": "Análises do Sandbox fixadas",
           "top-transactions": "Maiores transações do período",
+          insights: "Destaques automáticos: picos, metas em risco e categorias novas",
         },
         yearly: {
           "kpi-year-total": "Saldo acumulado no ano",
@@ -625,6 +647,7 @@ export const messages = {
           budgets: "Progresso das metas de orçamento",
           "section-cards": "Totais e tabelas por seção",
           "activity-lists": "Transações pendentes, favoritas e recentes",
+          insights: "Destaques automáticos: picos, metas em risco e categorias novas",
         },
       },
     },

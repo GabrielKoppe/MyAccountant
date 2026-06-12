@@ -14,8 +14,10 @@ describe("getLayout", () => {
     const result = await getLayout("acc-test-1", "monthly");
 
     expect(result.active.length).toBeGreaterThan(0);
-    expect(result.available).toHaveLength(0);
+    // Ativos por padrão = todos com defaultVisible: true; widgets opt-in
+    // (defaultVisible: false, ex.: insights) começam em "Disponíveis".
     expect(result.active.every((w) => w.defaultVisible)).toBe(true);
+    expect(result.available.every((w) => !w.defaultVisible)).toBe(true);
   });
 
   it("deve respeitar a ordem salva no banco", async () => {
