@@ -18,6 +18,7 @@ import {
   getSankeyData,
 } from "@/lib/queries/dashboards";
 import { getPinnedAnalyses } from "@/lib/queries/sandbox";
+import { getMemberMonthlyBreakdown } from "@/lib/queries/member-analytics";
 import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
 import { generateInsights } from "@/server/services/insights-service";
@@ -73,18 +74,29 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   const isCurrentMonth = fiscalNow.year === year && fiscalNow.month === month;
 
   // Fetch all data in parallel
-  const [deepDive, sparklineData, comparisonData, treemapData, pinnedAnalyses, budgets, budgetFormOptions, layout, insights] =
-    await Promise.all([
-      getMonthDeepDive(accountId, monthId),
-      getMonthSparklineData(accountId, monthId),
-      getComparisonData(accountId, monthId),
-      getCategoryTreemapData(accountId, monthId),
-      getPinnedAnalyses(accountId, "monthly", monthId),
-      getBudgetsWithProgress(accountId, year, month),
-      getBudgetFormOptions(accountId),
-      getLayout(accountId, "monthly"),
-      generateInsights(accountId, monthId, { isCurrentMonth }),
-    ]);
+  const [
+    deepDive,
+    sparklineData,
+    comparisonData,
+    treemapData,
+    pinnedAnalyses,
+    budgets,
+    budgetFormOptions,
+    layout,
+    insights,
+    memberBreakdown,
+  ] = await Promise.all([
+    getMonthDeepDive(accountId, monthId),
+    getMonthSparklineData(accountId, monthId),
+    getComparisonData(accountId, monthId),
+    getCategoryTreemapData(accountId, monthId),
+    getPinnedAnalyses(accountId, "monthly", monthId),
+    getBudgetsWithProgress(accountId, year, month),
+    getBudgetFormOptions(accountId),
+    getLayout(accountId, "monthly"),
+    generateInsights(accountId, monthId, { isCurrentMonth }),
+    getMemberMonthlyBreakdown(accountId, monthId),
+  ]);
 
   const { sections, sectionTotals, monthTotal, topCategories, topTransactions } = deepDive;
 
@@ -175,6 +187,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         budgets={budgets}
         budgetFormOptions={budgetFormOptions}
         insights={insights}
+        memberBreakdown={memberBreakdown}
         activeWidgets={layout.active}
       />
     </Box>

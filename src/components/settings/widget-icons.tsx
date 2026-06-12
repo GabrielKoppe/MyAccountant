@@ -25,6 +25,8 @@ import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import DynamicFeedIcon from "@mui/icons-material/DynamicFeed";
 import TipsAndUpdatesIcon from "@mui/icons-material/TipsAndUpdates";
+import Diversity3Icon from "@mui/icons-material/Diversity3";
+import MultilineChartIcon from "@mui/icons-material/MultilineChart";
 
 export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   // shared across contexts
@@ -45,6 +47,7 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "section-breakdown": DonutLargeIcon,
   "category-breakdown": BarChartIcon,
   "top-transactions": FormatListNumberedIcon,
+  "member-breakdown": Diversity3Icon,
 
   // yearly
   "kpi-year-total": CalendarTodayIcon,
@@ -54,6 +57,7 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "month-card-grid": GridOnIcon,
   "monthly-bar-chart": BarChartIcon,
   "top-categories": CategoryIcon,
+  "member-trend": MultilineChartIcon,
 
   // month_summary
   "kpi-balance": AccountBalanceIcon,
