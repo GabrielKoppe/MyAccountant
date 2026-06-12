@@ -22,8 +22,10 @@ import type {
   DrillDownTransaction,
 } from "@/lib/queries/dashboards";
 import { getTransactionsByIds } from "@/lib/queries/dashboards";
+import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
 import { KpiSparklineCard } from "./KpiSparklineCard";
+import { MemberBreakdownChart } from "./MemberBreakdownChart";
 import { DailyHeatmap } from "./DailyHeatmap";
 import { CategoryTreemap } from "./CategoryTreemap";
 import { DrillDownDrawer } from "./DrillDownDrawer";
@@ -102,6 +104,7 @@ type Props = {
   budgets: BudgetProgress[];
   budgetFormOptions: BudgetFormOptions;
   insights: Insight[];
+  memberBreakdown: MemberBreakdownRow[];
   activeWidgets: WidgetDef[];
 };
 
@@ -157,6 +160,7 @@ export function MonthlyDashboardClient({
   budgets,
   budgetFormOptions,
   insights,
+  memberBreakdown,
   activeWidgets,
 }: Props) {
   const [compareMode, setCompareMode] = useState<CompareMode>("prevMonth");
@@ -246,14 +250,15 @@ export function MonthlyDashboardClient({
         icon={CategoryIcon}
       />
     ) : null,
-    "kpi-pending": pendingCount > 0 ? (
-      <KpiSparklineCard
-        title={m.dashboards.kpi.pendingCount}
-        value={String(pendingCount)}
-        color="warning"
-        icon={AccessTimeIcon}
-      />
-    ) : null,
+    "kpi-pending":
+      pendingCount > 0 ? (
+        <KpiSparklineCard
+          title={m.dashboards.kpi.pendingCount}
+          value={String(pendingCount)}
+          color="warning"
+          icon={AccessTimeIcon}
+        />
+      ) : null,
     budgets: (
       <>
         {budgets.length > 0 ? (
@@ -282,13 +287,20 @@ export function MonthlyDashboardClient({
                 <Tooltip title={m.budgets.createButton}>
                   <IconButton
                     size="small"
-                    onClick={(e) => { e.stopPropagation(); setBudgetFormOpen(true); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBudgetFormOpen(true);
+                    }}
                   >
                     <AddIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
                 <IconButton size="small">
-                  {budgetsExpanded ? <ExpandLessIcon sx={{ fontSize: 18 }} /> : <ExpandMoreIcon sx={{ fontSize: 18 }} />}
+                  {budgetsExpanded ? (
+                    <ExpandLessIcon sx={{ fontSize: 18 }} />
+                  ) : (
+                    <ExpandMoreIcon sx={{ fontSize: 18 }} />
+                  )}
                 </IconButton>
               </Stack>
             </Box>
@@ -326,22 +338,23 @@ export function MonthlyDashboardClient({
         )}
       </>
     ),
-    "daily-heatmap": subtractSections.length > 0 ? (
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {m.dashboards.sections.calendarHeatmap}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-          Intensidade = total gasto naquele dia (seções de saída)
-        </Typography>
-        <DailyHeatmap
-          year={year}
-          month={month}
-          dailyTotals={dailyTotals}
-          onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
-        />
-      </Paper>
-    ) : null,
+    "daily-heatmap":
+      subtractSections.length > 0 ? (
+        <Paper variant="outlined" sx={{ p: 2.5 }}>
+          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+            {m.dashboards.sections.calendarHeatmap}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+            Intensidade = total gasto naquele dia (seções de saída)
+          </Typography>
+          <DailyHeatmap
+            year={year}
+            month={month}
+            dailyTotals={dailyTotals}
+            onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
+          />
+        </Paper>
+      ) : null,
     "category-treemap": (
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
@@ -353,17 +366,18 @@ export function MonthlyDashboardClient({
         />
       </Paper>
     ),
-    "money-flow": sankeyData.nodes.length > 0 ? (
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {m.dashboards.sections.moneyFlow}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-          Fluxo: entradas → total disponível → categorias de gastos
-        </Typography>
-        <SankeyChart data={sankeyData} />
-      </Paper>
-    ) : null,
+    "money-flow":
+      sankeyData.nodes.length > 0 ? (
+        <Paper variant="outlined" sx={{ p: 2.5 }}>
+          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+            {m.dashboards.sections.moneyFlow}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+            Fluxo: entradas → total disponível → categorias de gastos
+          </Typography>
+          <SankeyChart data={sankeyData} />
+        </Paper>
+      ) : null,
     "section-breakdown": (
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
@@ -390,6 +404,9 @@ export function MonthlyDashboardClient({
       <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
     ),
     insights: <InsightsCard insights={insights} />,
+    "member-breakdown": memberBreakdown.some((r) => BigInt(r.totalCents) > 0n) ? (
+      <MemberBreakdownChart rows={memberBreakdown} />
+    ) : null,
     "top-transactions": (
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
@@ -472,7 +489,9 @@ function TopTransactionTable({ transactions }: { transactions: TxRow[] }) {
             <TableCell sx={{ fontSize: 11, whiteSpace: "nowrap" }}>Data</TableCell>
             <TableCell sx={{ fontSize: 11 }}>Descrição</TableCell>
             <TableCell sx={{ fontSize: 11 }}>Seção</TableCell>
-            <TableCell sx={{ fontSize: 11 }} align="right">Valor</TableCell>
+            <TableCell sx={{ fontSize: 11 }} align="right">
+              Valor
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -494,7 +513,11 @@ function TopTransactionTable({ transactions }: { transactions: TxRow[] }) {
                   }}
                 >
                   {tx.description ?? (
-                    <Typography component="span" variant="caption" sx={{ color: "text.disabled", fontStyle: "italic" }}>
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{ color: "text.disabled", fontStyle: "italic" }}
+                    >
                       Sem descrição
                     </Typography>
                   )}

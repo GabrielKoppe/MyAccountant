@@ -13,6 +13,7 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { getYearOverview } from "@/lib/queries/dashboards";
+import { getMemberYearlyTrend } from "@/lib/queries/member-analytics";
 import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { getLayout } from "@/server/services/dashboard-layout-service";
 import { formatCentsToBrl } from "@/lib/money";
@@ -25,6 +26,7 @@ import { CategoryBarList } from "@/components/dashboards/CategoryBarList";
 import { YearSelector } from "@/components/dashboards/YearSelector";
 import { MonthCardGrid } from "@/components/dashboards/MonthCardGrid";
 import { PinnedAnalysesSection } from "@/components/dashboards/PinnedAnalysesSection";
+import { MemberTrendChart } from "@/components/dashboards/MemberTrendChart";
 import { DashboardWidgetRenderer } from "@/components/dashboards/DashboardWidgetRenderer";
 
 type Props = { params: Promise<{ accountId: string; year: string }> };
@@ -46,12 +48,17 @@ export default async function YearlyDashboardPage({ params }: Props) {
   const year = parseInt(yearStr);
   if (isNaN(year)) redirect(`/${accountId}/dashboards`);
 
-  const [{ sections, monthSummaries, topCategories, pendingCount, allYears }, pinnedAnalyses, layout] =
-    await Promise.all([
-      getYearOverview(accountId, year),
-      getPinnedAnalyses(accountId, "yearly"),
-      getLayout(accountId, "yearly"),
-    ]);
+  const [
+    { sections, monthSummaries, topCategories, pendingCount, allYears },
+    pinnedAnalyses,
+    layout,
+    memberTrend,
+  ] = await Promise.all([
+    getYearOverview(accountId, year),
+    getPinnedAnalyses(accountId, "yearly"),
+    getLayout(accountId, "yearly"),
+    getMemberYearlyTrend(accountId, year),
+  ]);
 
   if (monthSummaries.length === 0) {
     return (
@@ -108,17 +115,13 @@ export default async function YearlyDashboardPage({ params }: Props) {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Typography variant="h5">
-            {m.dashboards.yearlyTitle}
-          </Typography>
+          <Typography variant="h5">{m.dashboards.yearlyTitle}</Typography>
           <YearSelector accountId={accountId} currentYear={year} allYears={allYears} />
         </Box>
 
         {/* Quick links + actions */}
         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-          <YearlyDashboardMenu
-            csvUrl={`/api/v1/accounts/${accountId}/years/${year}/export/csv`}
-          />
+          <YearlyDashboardMenu csvUrl={`/api/v1/accounts/${accountId}/years/${year}/export/csv`} />
           {allYears
             .filter((y) => y !== year)
             .slice(0, 3)
@@ -197,14 +200,15 @@ export default async function YearlyDashboardPage({ params }: Props) {
               color={BigInt(worstMonth.total) < 0n ? "error" : "default"}
             />
           ),
-          "kpi-pending": pendingCount > 0 ? (
-            <KpiSparklineCard
-              title={m.dashboards.kpi.pendingCount}
-              value={String(pendingCount)}
-              color="warning"
-              icon={AccessTimeIcon}
-            />
-          ) : null,
+          "kpi-pending":
+            pendingCount > 0 ? (
+              <KpiSparklineCard
+                title={m.dashboards.kpi.pendingCount}
+                value={String(pendingCount)}
+                color="warning"
+                icon={AccessTimeIcon}
+              />
+            ) : null,
           "month-card-grid": (
             <Paper variant="outlined" sx={{ p: 2.5 }}>
               <MonthCardGrid accountId={accountId} months={monthSummaries} />
@@ -212,7 +216,14 @@ export default async function YearlyDashboardPage({ params }: Props) {
           ),
           "monthly-bar-chart": (
             <Paper variant="outlined" sx={{ p: 2.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  mb: 1.5,
+                }}
+              >
                 <Typography variant="subtitle2" fontWeight="bold">
                   {m.dashboards.sections.monthlyChart}
                 </Typography>
@@ -238,6 +249,15 @@ export default async function YearlyDashboardPage({ params }: Props) {
               <CategoryBarList categories={topCategories} />
             </Paper>
           ),
+          "member-trend":
+            memberTrend.length > 0 ? (
+              <Paper variant="outlined" sx={{ p: 2.5 }}>
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  {m.dashboards.sections.memberTrend}
+                </Typography>
+                <MemberTrendChart series={memberTrend} />
+              </Paper>
+            ) : null,
         }}
       />
     </Box>

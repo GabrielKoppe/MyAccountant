@@ -512,6 +512,19 @@ export const messages = {
       calendarHeatmap: "Gastos por Dia",
       categoryTreemap: "Distribuição por Categoria",
       moneyFlow: "Fluxo de Dinheiro",
+      memberBreakdown: "Gastos por Membro",
+      memberTrend: "Tendência por Membro",
+    },
+    members: {
+      unassigned: "Sem responsável",
+      formerMemberSuffix: "(ex-membro)",
+      uncategorized: "Sem categoria",
+      others: "Outros",
+      whoSpentMost: "Quem mais gastou",
+      viewDonut: "Rosca",
+      viewBars: "Barras",
+      shareLabel: "Participação",
+      emptyTopCategory: "—",
     },
     comparison: {
       label: "Comparar com",
@@ -550,8 +563,7 @@ export const messages = {
       spikeBody: (pct: number, current: string, avg: string) =>
         `Você gastou ${current} este mês — ${pct}% acima da média recente (${avg}).`,
       newCategoryTitle: (category: string) => `Nova categoria: ${category}`,
-      newCategoryBody: (amount: string) =>
-        `Primeira vez com gastos nesta categoria: ${amount}.`,
+      newCategoryBody: (amount: string) => `Primeira vez com gastos nesta categoria: ${amount}.`,
       budgetRiskTitle: (label: string) => `Meta perto do limite: ${label}`,
       budgetRiskBodyCurrent: (percent: number, days: number) =>
         `Você já usou ${percent}% da meta e ${
@@ -584,6 +596,7 @@ export const messages = {
         "pinned-analyses": "Análises Salvas",
         "top-transactions": "Maiores Transações",
         insights: "Insights",
+        "member-breakdown": "Gastos por Membro",
       },
       yearly: {
         "kpi-year-total": "Total do Ano",
@@ -598,6 +611,7 @@ export const messages = {
         "monthly-bar-chart": "Totais por Mês",
         "pinned-analyses": "Análises Salvas",
         "top-categories": "Top Categorias",
+        "member-trend": "Tendência por Membro",
       },
       month_summary: {
         "kpi-income": "Entradas",
@@ -625,6 +639,7 @@ export const messages = {
           "pinned-analyses": "Análises do Sandbox fixadas",
           "top-transactions": "Maiores transações do período",
           insights: "Destaques automáticos: picos, metas em risco e categorias novas",
+          "member-breakdown": "Distribuição e ranking de despesas por pessoa no mês",
         },
         yearly: {
           "kpi-year-total": "Saldo acumulado no ano",
@@ -639,6 +654,7 @@ export const messages = {
           "monthly-bar-chart": "Barras de totais e seções por mês",
           "pinned-analyses": "Análises do Sandbox fixadas",
           "top-categories": "Categorias com maiores gastos",
+          "member-trend": "Evolução da despesa de cada pessoa ao longo do ano",
         },
         month_summary: {
           "kpi-income": "Total de entradas no período",
