@@ -8,7 +8,7 @@
 2. [Tokens](#2-tokens) — cores, tipografia, espacamento, radius
 3. [Sistema de Layout](#3-sistema-de-layout) — page, section, cluster, stack, inline
 4. [ThemeProvider e ThemeToggle](#4-themeprovider-e-themetoggle)
-5. [Componentes Wrapper](#5-componentes-wrapper) — Section, EmptyState, KpiCard, etc.
+5. [Componentes Wrapper](#5-componentes-wrapper) — Section, EmptyState, KpiCard, WidgetContainer, KpiSparklineCard, etc.
 6. [Especificacao de Componentes MUI](#6-especificacao-de-componentes-mui)
 7. [Receitas de UI](#7-receitas-de-ui) — patterns recorrentes
 8. [Dark Mode](#8-dark-mode)
@@ -445,7 +445,169 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 <StatusBadge variant="neutral">Ignorado</StatusBadge>
 ```
 
-### 5.8 `<ExpandableIconButton />`
+### 5.8 `<WidgetContainer />`
+
+Container padronizado para **widgets de painel** (span `half` ou `full`) nos dashboards e no resumo de mês. Aplica o `Paper variant="outlined"`, cabeçalho consistente e suporte a colapso.
+
+```tsx
+import { WidgetContainer } from "@/components/ui/WidgetContainer";
+import { WIDGET_ICONS } from "@/components/dashboards/widget-icons";
+```
+
+**Props:**
+
+| Prop | Tipo | Obrig. | Descrição |
+|---|---|---|---|
+| `title` | `string` | ✅ | Título principal (`subtitle2 bold`) |
+| `subtitle` | `ReactNode` | — | Texto secundário abaixo do título (caption) |
+| `icon` | `ComponentType<SvgIconProps>` | — | Ícone MUI à esquerda — **sempre via `WIDGET_ICONS[id]`** |
+| `tertiary` | `ReactNode` | — | Node inline à direita do título (badges, contadores) |
+| `secondary` | `ReactNode` | — | Slot de ações no canto direito do header (botões, menus) |
+| `collapsible` | `boolean` | — | Ativa seta de colapso (padrão: `false`) |
+| `defaultExpanded` | `boolean` | — | Estado inicial do colapso (padrão: `true`) |
+| `sx` | `SxProps<Theme>` | — | sx extra no `Paper` externo |
+| `children` | `ReactNode` | — | Conteúdo do widget |
+
+**Widget simples (somente título + ícone):**
+```tsx
+<WidgetContainer
+  title={m.dashboards.sections.sectionBreakdown}
+  icon={WIDGET_ICONS["section-breakdown"]}
+>
+  <SectionPieChart sections={sections} sectionTotals={sectionTotals} />
+</WidgetContainer>
+```
+
+**Widget com subtitle (hint ou contagem):**
+```tsx
+<WidgetContainer
+  title={m.dashboards.sections.calendarHeatmap}
+  subtitle="Intensidade = total gasto naquele dia (seções de saída)"
+  icon={WIDGET_ICONS["daily-heatmap"]}
+>
+  <DailyHeatmap ... />
+</WidgetContainer>
+```
+
+**Widget com ação no header (`secondary`) e colapso:**
+```tsx
+<WidgetContainer
+  title={m.budgets.title}
+  subtitle={`${budgets.length} ${budgets.length === 1 ? "meta" : "metas"}`}
+  icon={WIDGET_ICONS["budgets"]}
+  collapsible
+  secondary={
+    <Tooltip title={m.budgets.createButton}>
+      <IconButton size="small" onClick={() => setBudgetFormOpen(true)}>
+        <AddIcon sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Tooltip>
+  }
+>
+  <Stack spacing={1.5}>
+    {budgets.map((b) => <BudgetProgressBar key={b.id} {...b} />)}
+  </Stack>
+</WidgetContainer>
+```
+
+**Widget com caption à direita do header (`secondary` informativo):**
+```tsx
+<WidgetContainer
+  title={m.dashboards.sections.monthlyChart}
+  icon={WIDGET_ICONS["monthly-bar-chart"]}
+  secondary={
+    <Typography variant="caption" color="text.secondary">
+      Clique em uma barra para abrir o mês
+    </Typography>
+  }
+>
+  <MonthlyBarChart ... />
+</WidgetContainer>
+```
+
+**Regras:**
+- **Sempre** usar `WIDGET_ICONS[widgetId]` para o ícone — nunca importar ícone avulso no arquivo do dashboard.
+- O `secondary` recebe `stopPropagation` automaticamente — não é necessário chamar `e.stopPropagation()` manualmente.
+- Quando o widget tem `collapsible`, o estado de abertura é interno — não criar estado externo para isso.
+- Widgets cujos componentes já possuem container próprio com header (`PinnedAnalysesSection`, `InsightsCard`, `MemberBreakdownChart`) **não** devem ser envolvidos por `WidgetContainer` para evitar double-Paper e double-header.
+
+**Anti-patterns:**
+- `<Paper variant="outlined" sx={{ p: 2.5 }}>` + `<Typography variant="subtitle2">` manual — use `WidgetContainer`.
+- Ícone hardcoded no arquivo do dashboard (`import FlagIcon from ...`) — sempre via `WIDGET_ICONS`.
+- `secondary` com `stopPropagation` manual — já está encapsulado.
+
+---
+
+### 5.9 `<KpiSparklineCard />`
+
+Container padronizado para **widgets indicadores** (kind `kpi`) nos dashboards. Exibe valor principal, variação delta vs período e sparkline opcional.
+
+```tsx
+import { KpiSparklineCard } from "@/components/dashboards/KpiSparklineCard";
+```
+
+**Props:**
+
+| Prop | Tipo | Obrig. | Descrição |
+|---|---|---|---|
+| `title` | `string` | ✅ | Label do indicador |
+| `value` | `string` | ✅ | Valor formatado (ex: `"R$ 1.234,56"`, `"12%"`) |
+| `subtitle` | `string` | — | Texto secundário abaixo do valor |
+| `icon` | `SvgIconComponent` | — | Ícone MUI no canto superior direito |
+| `color` | `"default" \| "success" \| "warning" \| "error" \| "info"` | — | Fundo sutil + cor do valor (padrão: `"default"`) |
+| `sparkline` | `SparklinePoint[]` | — | Dados para o mini-gráfico de linha |
+| `currentCents` | `string` | — | Valor atual em centavos (para cálculo de delta) |
+| `prevCents` | `string \| null` | — | Valor anterior em centavos (para cálculo de delta) |
+| `deltaMode` | `"prevMonth" \| "prevYear" \| "avg3m" \| "none"` | — | Label da comparação exibido no delta |
+
+**KPI simples:**
+```tsx
+<KpiSparklineCard
+  title={m.dashboards.kpi.income}
+  value={formatCentsToBrl(incomeBigInt)}
+  color="success"
+  icon={TrendingUpIcon}
+/>
+```
+
+**KPI com sparkline e delta:**
+```tsx
+<KpiSparklineCard
+  title={m.dashboards.kpi.monthTotal}
+  value={formatCentsToBrl(totalBigInt)}
+  color={totalBigInt >= 0n ? "success" : "error"}
+  sparkline={sparklineData.totalSparkline}
+  currentCents={monthTotal}
+  prevCents={compValues.total}
+  deltaMode={compareMode}
+/>
+```
+
+**KPI com subtitle (contexto adicional):**
+```tsx
+<KpiSparklineCard
+  title={m.dashboards.kpi.savingsRate}
+  value={`${savingsRate}%`}
+  subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
+  color={savingsRate >= 20 ? "success" : savingsRate >= 0 ? "warning" : "error"}
+  icon={SavingsIcon}
+/>
+```
+
+**Regras:**
+- `color` é informação financeira — verde para entradas/positivo, vermelho para saídas/negativo, amarelo para alertas. Nunca usar para decoração.
+- `icon` é opcional — usar apenas quando agrega contexto visual (ex: `TrendingUpIcon` em receitas).
+- `value` sempre pré-formatado (`formatCentsToBrl`, `String(n)`, `"n%"`) — o card não formata.
+- Para KPIs condicionais (ex: só exibir se `pendingCount > 0`), retornar `null` no nodeMap — o `DashboardWidgetRenderer` ignora nulos.
+
+**Anti-patterns:**
+- Usar `WidgetContainer` para KPIs — os indicadores têm layout próprio compacto.
+- Passar `BigInt` diretamente em `value` — formatar antes com `formatCentsToBrl`.
+- `color="error"` para saídas absolutas (valor sempre positivo) — a cor já comunica a natureza; não há dupla negação.
+
+---
+
+### 5.10 `<ExpandableIconButton />`
 
 Botao icone que revela texto no hover.
 

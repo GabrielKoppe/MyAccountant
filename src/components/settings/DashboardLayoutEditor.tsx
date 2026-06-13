@@ -33,7 +33,7 @@ import { updateDashboardLayoutAction } from "@/actions/dashboard-layout";
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
 import { WidgetCard } from "@/components/settings/WidgetCard";
-import { WIDGET_ICONS } from "@/components/settings/widget-icons";
+import { WIDGET_ICONS } from "@/components/dashboards/widget-icons";
 import {
   buildSegments,
   resolveLayout,
@@ -181,9 +181,7 @@ export function DashboardLayoutEditor({
     };
   }, []);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const availableKpis = available.filter((w) => w.kind === "kpi");
   const availablePanels = available.filter((w) => w.kind === "panel");
@@ -194,7 +192,14 @@ export function DashboardLayoutEditor({
     <Box>
       {/* ── Canvas ativo ── */}
       <Box sx={{ mb: layout.cluster }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: layout.stack }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: layout.stack,
+          }}
+        >
           <Typography variant="subtitle2" color="text.secondary">
             {m.settings.dashboards.activeWidgets}
           </Typography>
@@ -309,7 +314,14 @@ export function DashboardLayoutEditor({
       {available.length > 0 && (
         <>
           <Divider sx={{ my: layout.stack }} />
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: layout.stack }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: layout.stack,
+            }}
+          >
             <Typography variant="subtitle2" color="text.secondary">
               {m.settings.dashboards.availableWidgets}
             </Typography>
@@ -395,7 +407,6 @@ export function DashboardLayoutEditor({
           )}
         </>
       )}
-
     </Box>
   );
 }

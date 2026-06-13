@@ -6,7 +6,6 @@ import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import ScienceIcon from "@mui/icons-material/Science";
 
 import { AppLink } from "@/components/ui/AppLink";
 import { m } from "@/lib/messages";
@@ -31,48 +30,30 @@ const chartTypeLabel: Record<SandboxChartType, string> = {
 export function PinnedAnalysesSection({ accountId, pinnedAnalyses }: Props) {
   const ms = m.dashboards.sandbox;
 
-  return (
-    <Paper variant="outlined" sx={{ p: 2.5 }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {ms.pinnedTitle}
+  if (pinnedAnalyses.length === 0) {
+    return (
+      <Box sx={{ py: 3, textAlign: "center" }}>
+        <Typography variant="body2" color="text.secondary">
+          {ms.noPinned}
         </Typography>
-        <Button
-          component={AppLink}
-          href={`/${accountId}/dashboards/sandbox`}
-          variant="outlined"
-          size="small"
-          startIcon={<ScienceIcon />}
-          sx={{ fontSize: "0.75rem" }}
-        >
-          {ms.openSandbox}
-        </Button>
+        <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+          {ms.noPinnedHint}
+        </Typography>
       </Box>
-
-      {pinnedAnalyses.length === 0 ? (
-        <Box sx={{ py: 3, textAlign: "center" }}>
-          <Typography variant="body2" color="text.secondary">
-            {ms.noPinned}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-            {ms.noPinnedHint}
-          </Typography>
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
-            gap: 2,
-          }}
-        >
-          {pinnedAnalyses.map((a) => (
-            <PinnedAnalysisCard key={a.id} analysis={a} accountId={accountId} />
-          ))}
-        </Box>
-      )}
-    </Paper>
+    );
+  }
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+        gap: 2,
+      }}
+    >
+      {pinnedAnalyses.map((a) => (
+        <PinnedAnalysisCard key={a.id} analysis={a} accountId={accountId} />
+      ))}
+    </Box>
   );
 }
 

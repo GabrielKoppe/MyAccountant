@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SavingsIcon from "@mui/icons-material/Savings";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import ScienceIcon from "@mui/icons-material/Science";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
@@ -28,6 +28,9 @@ import { MonthCardGrid } from "@/components/dashboards/MonthCardGrid";
 import { PinnedAnalysesSection } from "@/components/dashboards/PinnedAnalysesSection";
 import { MemberTrendChart } from "@/components/dashboards/MemberTrendChart";
 import { DashboardWidgetRenderer } from "@/components/dashboards/DashboardWidgetRenderer";
+import { WidgetContainer } from "@/components/ui/WidgetContainer";
+import { WIDGET_ICONS } from "@/components/dashboards/widget-icons";
+import { Button } from "@mui/material";
 
 type Props = { params: Promise<{ accountId: string; year: string }> };
 
@@ -210,53 +213,67 @@ export default async function YearlyDashboardPage({ params }: Props) {
               />
             ) : null,
           "month-card-grid": (
-            <Paper variant="outlined" sx={{ p: 2.5 }}>
+            <WidgetContainer
+              title={m.dashboards.widgets.yearly["month-card-grid"]}
+              icon={WIDGET_ICONS["month-card-grid"]}
+            >
               <MonthCardGrid accountId={accountId} months={monthSummaries} />
-            </Paper>
+            </WidgetContainer>
           ),
           "monthly-bar-chart": (
-            <Paper variant="outlined" sx={{ p: 2.5 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  mb: 1.5,
-                }}
-              >
-                <Typography variant="subtitle2" fontWeight="bold">
-                  {m.dashboards.sections.monthlyChart}
-                </Typography>
+            <WidgetContainer
+              title={m.dashboards.sections.monthlyChart}
+              icon={WIDGET_ICONS["monthly-bar-chart"]}
+              secondary={
                 <Typography variant="caption" color="text.secondary">
                   Clique em uma barra para abrir o mês
                 </Typography>
-              </Box>
+              }
+            >
               <MonthlyBarChart
                 months={monthSummaries}
                 sections={sections}
                 monthPagePrefix={`/${accountId}/dashboards/monthly/`}
               />
-            </Paper>
+            </WidgetContainer>
           ),
           "pinned-analyses": (
-            <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
+            <WidgetContainer
+              title={m.dashboards.sandbox.pinnedTitle}
+              icon={WIDGET_ICONS["pinned-analyses"]}
+              secondary={
+                <Button
+                  component={AppLink}
+                  href={`/${accountId}/dashboards/sandbox`}
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ScienceIcon />}
+                  sx={{ fontSize: "0.75rem" }}
+                >
+                  {m.dashboards.sandbox.openSandbox}
+                </Button>
+              }
+              collapsible
+            >
+              <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
+            </WidgetContainer>
           ),
           "top-categories": (
-            <Paper variant="outlined" sx={{ p: 2.5 }}>
-              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                {m.dashboards.sections.topCategories}
-              </Typography>
+            <WidgetContainer
+              title={m.dashboards.sections.topCategories}
+              icon={WIDGET_ICONS["top-categories"]}
+            >
               <CategoryBarList categories={topCategories} />
-            </Paper>
+            </WidgetContainer>
           ),
           "member-trend":
             memberTrend.length > 0 ? (
-              <Paper variant="outlined" sx={{ p: 2.5 }}>
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  {m.dashboards.sections.memberTrend}
-                </Typography>
+              <WidgetContainer
+                title={m.dashboards.sections.memberTrend}
+                icon={WIDGET_ICONS["member-trend"]}
+              >
                 <MemberTrendChart series={memberTrend} />
-              </Paper>
+              </WidgetContainer>
             ) : null,
         }}
       />

@@ -41,95 +41,83 @@ export function InsightsCard({ insights }: Props) {
   // Guard "lista vazia → não renderiza" (spec 34 §2.2 / INS-05).
   if (insights.length === 0) return null;
 
+  /* Grid com auto-fill: colunas de tamanho fixo, sem stretch na última linha */
   return (
-    <Box>
-      <Stack direction="row" alignItems="center" gap={0.75} sx={{ mb: 1.5 }}>
-        <TipsAndUpdatesIcon sx={{ fontSize: 15, color: "text.tertiary" }} />
-        <Typography
-          variant="overline"
-          sx={{ color: "text.tertiary", fontSize: "0.65rem", lineHeight: 1.4 }}
-        >
-          {m.dashboards.insights.cardTitle}
-        </Typography>
-      </Stack>
-
-      {/* Grid com auto-fill: colunas de tamanho fixo, sem stretch na última linha */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: 1.5,
-        }}
-      >
-        {insights.map((insight) => {
-          const Icon = INSIGHT_ICON_MAP[insight.icon] ?? TipsAndUpdatesIcon;
-          return (
-            <Paper
-              key={insight.id}
-              variant="outlined"
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+        gap: 1.5,
+      }}
+    >
+      {insights.map((insight) => {
+        const Icon = INSIGHT_ICON_MAP[insight.icon] ?? TipsAndUpdatesIcon;
+        return (
+          <Paper
+            key={insight.id}
+            variant="outlined"
+            sx={{
+              minWidth: 0,
+              px: layout.page,
+              py: layout.inline,
+              borderColor: "border.subtle",
+              borderRadius: "12px",
+              display: "flex",
+              gap: 3,
+              alignItems: "flex-start",
+            }}
+          >
+            <Icon
               sx={{
-                minWidth: 0,
-                px: layout.page,
-                py: layout.inline,
-                borderColor: "border.subtle",
-                borderRadius: "12px",
-                display: "flex",
-                gap: 3,
-                alignItems: "flex-start",
+                fontSize: 20,
+                color: SEVERITY_ICON_COLOR[insight.severity],
+                mt: layout.micro,
+                flexShrink: 0,
               }}
-            >
-              <Icon
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                variant="body2"
                 sx={{
-                  fontSize: 20,
-                  color: SEVERITY_ICON_COLOR[insight.severity],
-                  mt: layout.micro,
-                  flexShrink: 0,
+                  fontWeight: 500,
+                  color: "text.primary",
+                  lineHeight: 1.35,
+                  fontSize: typography.fontSize.xs,
                 }}
-              />
-              <Box sx={{ minWidth: 0 }}>
-                <Typography
-                  variant="body2"
+              >
+                {insight.title}
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  color: "text.secondary",
+                  lineHeight: 1.45,
+                  mt: 0.25,
+                  fontSize: typography.fontSize.xs,
+                }}
+              >
+                {insight.body}
+              </Typography>
+              {insight.action && (
+                <Link
+                  component={AppLink}
+                  href={insight.action.href}
+                  underline="hover"
                   sx={{
+                    display: "inline-block",
+                    fontSize: typography.fontSize.xs,
                     fontWeight: 500,
-                    color: "text.primary",
-                    lineHeight: 1.35,
-                    fontSize: typography.fontSize.xs,
+                    color: "accent.primary",
                   }}
                 >
-                  {insight.title}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: "block",
-                    color: "text.secondary",
-                    lineHeight: 1.45,
-                    mt: 0.25,
-                    fontSize: typography.fontSize.xs,
-                  }}
-                >
-                  {insight.body}
-                </Typography>
-                {insight.action && (
-                  <Link
-                    component={AppLink}
-                    href={insight.action.href}
-                    underline="hover"
-                    sx={{
-                      display: "inline-block",
-                      fontSize: typography.fontSize.xs,
-                      fontWeight: 500,
-                      color: "accent.primary",
-                    }}
-                  >
-                    {insight.action.label}
-                  </Link>
-                )}
-              </Box>
-            </Paper>
-          );
-        })}
-      </Box>
+                  {insight.action.label}
+                </Link>
+              )}
+            </Box>
+          </Paper>
+        );
+      })}
     </Box>
   );
 }

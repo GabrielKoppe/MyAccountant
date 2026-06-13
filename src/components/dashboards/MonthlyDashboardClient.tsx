@@ -3,10 +3,10 @@
 import dynamic from "next/dynamic";
 import React, { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import DonutLargeIcon from "@mui/icons-material/DonutLarge";
+import BarChartIcon from "@mui/icons-material/BarChart";
 
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
@@ -25,7 +25,7 @@ import { getTransactionsByIds } from "@/lib/queries/dashboards";
 import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
 import { KpiSparklineCard } from "./KpiSparklineCard";
-import { MemberBreakdownChart } from "./MemberBreakdownChart";
+import { MemberBreakdownChart, MemberBreakdownView } from "./MemberBreakdownChart";
 import { DailyHeatmap } from "./DailyHeatmap";
 import { CategoryTreemap } from "./CategoryTreemap";
 import { DrillDownDrawer } from "./DrillDownDrawer";
@@ -47,17 +47,20 @@ import SavingsIcon from "@mui/icons-material/Savings";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CategoryIcon from "@mui/icons-material/Category";
 import AddIcon from "@mui/icons-material/Add";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
+import ScienceIcon from "@mui/icons-material/Science";
 import Tooltip from "@mui/material/Tooltip";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { WidgetContainer } from "@/components/ui/WidgetContainer";
+import { WIDGET_ICONS } from "@/components/dashboards/widget-icons";
+import Button from "@mui/material/Button";
+import { AppLink } from "../ui/AppLink";
+import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 
 // @nivo/sankey loaded client-only (no SSR — uses D3 hooks)
 const SankeyChart = dynamic(() => import("./SankeyChart").then((m) => m.SankeyChart), {
@@ -168,8 +171,8 @@ export function MonthlyDashboardClient({
   const [drawerTitle, setDrawerTitle] = useState("");
   const [drawerTxs, setDrawerTxs] = useState<DrillDownTransaction[]>([]);
   const [drawerLoading, startDrawerTransition] = useTransition();
-  const [budgetsExpanded, setBudgetsExpanded] = useState(true);
   const [budgetFormOpen, setBudgetFormOpen] = useState(false);
+  const [view, setView] = useState<MemberBreakdownView>("donut");
 
   const compValues = pickComparisonValues(compareMode, sparklineData, comparisonData);
   const hasPrevYear = !!comparisonData.prevYearSameMonth;
@@ -260,137 +263,99 @@ export function MonthlyDashboardClient({
         />
       ) : null,
     budgets: (
-      <>
+      <WidgetContainer
+        title={m.budgets.title}
+        subtitle={`${budgets.length} ${budgets.length === 1 ? "meta" : "metas"}`}
+        icon={WIDGET_ICONS["budgets"]}
+        collapsible
+        secondary={
+          <Tooltip title={m.budgets.createButton}>
+            <IconButton size="small" onClick={() => setBudgetFormOpen(true)}>
+              <AddIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        }
+      >
         {budgets.length > 0 ? (
-          <Paper variant="outlined">
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                px: 2.5,
-                py: 1.5,
-                cursor: "pointer",
-                userSelect: "none",
-              }}
-              onClick={() => setBudgetsExpanded((v) => !v)}
-            >
-              <Stack direction="row" alignItems="center" gap={1}>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  {m.budgets.title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {budgets.length} {budgets.length === 1 ? "meta" : "metas"}
-                </Typography>
-              </Stack>
-              <Stack direction="row" alignItems="center" gap={0.5}>
-                <Tooltip title={m.budgets.createButton}>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setBudgetFormOpen(true);
-                    }}
-                  >
-                    <AddIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
-                <IconButton size="small">
-                  {budgetsExpanded ? (
-                    <ExpandLessIcon sx={{ fontSize: 18 }} />
-                  ) : (
-                    <ExpandMoreIcon sx={{ fontSize: 18 }} />
-                  )}
-                </IconButton>
-              </Stack>
-            </Box>
-            <Collapse in={budgetsExpanded}>
-              <Box sx={{ px: 2.5, pb: 2, pt: 0.5 }}>
-                <Stack spacing={1.5}>
-                  {budgets.map((b) => (
-                    <BudgetProgressBar
-                      key={b.id}
-                      label={b.label}
-                      amountCents={b.amountCents}
-                      spentCents={b.spentCents}
-                      percent={b.percent}
-                      alertThresholdPercent={b.alertThresholdPercent}
-                    />
-                  ))}
-                </Stack>
-              </Box>
-            </Collapse>
-          </Paper>
+          <Stack spacing={1.5}>
+            {budgets.map((b) => (
+              <BudgetProgressBar
+                key={b.id}
+                label={b.label}
+                amountCents={b.amountCents}
+                spentCents={b.spentCents}
+                percent={b.percent}
+                alertThresholdPercent={b.alertThresholdPercent}
+              />
+            ))}
+          </Stack>
         ) : (
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <Tooltip title="Definir metas de orçamento para acompanhar no dashboard">
-              <Button
-                size="small"
-                variant="text"
-                startIcon={<AddIcon />}
-                onClick={() => setBudgetFormOpen(true)}
-                sx={{ color: "text.secondary", fontSize: "0.75rem" }}
-              >
-                {m.budgets.createButton}
-              </Button>
-            </Tooltip>
-          </Box>
+          <Stack direction="column" alignItems="center" gap={1.5} sx={{ py: 3 }}>
+            <Typography variant="caption" color="text.secondary">
+              Defina metas de orçamento para acompanhar no dashboard.
+            </Typography>
+            <Button
+              size="small"
+              variant="text"
+              startIcon={<AddIcon />}
+              onClick={() => setBudgetFormOpen(true)}
+              sx={{ color: "text.secondary", fontSize: "0.75rem" }}
+            >
+              {m.budgets.createButton}
+            </Button>
+          </Stack>
         )}
-      </>
+      </WidgetContainer>
     ),
     "daily-heatmap":
       subtractSections.length > 0 ? (
-        <Paper variant="outlined" sx={{ p: 2.5 }}>
-          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-            {m.dashboards.sections.calendarHeatmap}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-            Intensidade = total gasto naquele dia (seções de saída)
-          </Typography>
+        <WidgetContainer
+          title={m.dashboards.sections.calendarHeatmap}
+          subtitle="Intensidade = total gasto naquele dia (seções de saída)"
+          icon={WIDGET_ICONS["daily-heatmap"]}
+        >
           <DailyHeatmap
             year={year}
             month={month}
             dailyTotals={dailyTotals}
             onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
           />
-        </Paper>
+        </WidgetContainer>
       ) : null,
     "category-treemap": (
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {m.dashboards.sections.categoryTreemap}
-        </Typography>
+      <WidgetContainer
+        title={m.dashboards.sections.categoryTreemap}
+        icon={WIDGET_ICONS["category-treemap"]}
+      >
         <CategoryTreemap
           categories={treemapData}
           onDrillDown={(ids, label) => openDrawer(ids, label)}
         />
-      </Paper>
+      </WidgetContainer>
     ),
     "money-flow":
       sankeyData.nodes.length > 0 ? (
-        <Paper variant="outlined" sx={{ p: 2.5 }}>
-          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-            {m.dashboards.sections.moneyFlow}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-            Fluxo: entradas → total disponível → categorias de gastos
-          </Typography>
+        <WidgetContainer
+          title={m.dashboards.sections.moneyFlow}
+          subtitle="Fluxo: entradas → total disponível → categorias de gastos"
+          icon={WIDGET_ICONS["money-flow"]}
+        >
           <SankeyChart data={sankeyData} />
-        </Paper>
+        </WidgetContainer>
       ) : null,
     "section-breakdown": (
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {m.dashboards.sections.sectionBreakdown}
-        </Typography>
+      <WidgetContainer
+        title={m.dashboards.sections.sectionBreakdown}
+        icon={WIDGET_ICONS["section-breakdown"]}
+      >
         <SectionPieChart sections={sections} sectionTotals={sectionTotals} />
-      </Paper>
+      </WidgetContainer>
     ),
     "category-breakdown": (
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {m.dashboards.sections.categoryBreakdown}
-        </Typography>
+      <WidgetContainer
+        title={m.dashboards.sections.categoryBreakdown}
+        icon={WIDGET_ICONS["category-breakdown"]}
+      >
         {topCategories.length > 0 ? (
           <CategoryPieChart categories={topCategories} />
         ) : (
@@ -398,22 +363,68 @@ export function MonthlyDashboardClient({
             Sem categorias neste mês.
           </Typography>
         )}
-      </Paper>
+      </WidgetContainer>
     ),
     "pinned-analyses": (
-      <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
+      <WidgetContainer
+        title={m.dashboards.sandbox.pinnedTitle}
+        icon={WIDGET_ICONS["pinned-analyses"]}
+        secondary={
+          <Button
+            component={AppLink}
+            href={`/${accountId}/dashboards/sandbox`}
+            variant="outlined"
+            size="small"
+            startIcon={<ScienceIcon />}
+            sx={{ fontSize: "0.75rem" }}
+          >
+            {m.dashboards.sandbox.openSandbox}
+          </Button>
+        }
+        collapsible
+      >
+        <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
+      </WidgetContainer>
     ),
-    insights: <InsightsCard insights={insights} />,
+    insights: (
+      <WidgetContainer title={m.dashboards.insights.cardTitle} icon={WIDGET_ICONS["insights"]}>
+        <InsightsCard insights={insights} />
+      </WidgetContainer>
+    ),
     "member-breakdown": memberBreakdown.some((r) => BigInt(r.totalCents) > 0n) ? (
-      <MemberBreakdownChart rows={memberBreakdown} />
+      <WidgetContainer
+        title={m.dashboards.sections.memberBreakdown}
+        icon={WIDGET_ICONS["member-breakdown"]}
+        secondary={
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={view}
+            onChange={(_, v: MemberBreakdownView | null) => v && setView(v)}
+          >
+            <ToggleButton value="donut" aria-label={m.dashboards.members.viewDonut}>
+              <Tooltip title={m.dashboards.members.viewDonut}>
+                <DonutLargeIcon sx={{ fontSize: 16 }} />
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton value="bars" aria-label={m.dashboards.members.viewBars}>
+              <Tooltip title={m.dashboards.members.viewBars}>
+                <BarChartIcon sx={{ fontSize: 16 }} />
+              </Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        }
+      >
+        <MemberBreakdownChart rows={memberBreakdown} view={{ type: view, onChange: setView }} />
+      </WidgetContainer>
     ) : null,
     "top-transactions": (
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          {m.dashboards.sections.biggestTransactions}
-        </Typography>
+      <WidgetContainer
+        title={m.dashboards.sections.biggestTransactions}
+        icon={WIDGET_ICONS["top-transactions"]}
+      >
         <TopTransactionTable transactions={topTransactions} />
-      </Paper>
+      </WidgetContainer>
     ),
   };
 
