@@ -17,6 +17,8 @@ import { KpiSparklineCard } from "@/components/dashboards/KpiSparklineCard";
 import { BudgetProgressBar } from "@/components/budgets/BudgetProgressBar";
 import { DashboardWidgetRenderer } from "@/components/dashboards/DashboardWidgetRenderer";
 import { InsightsCard } from "@/components/dashboards/InsightsCard";
+import { WidgetContainer } from "@/components/ui/WidgetContainer";
+import { WIDGET_ICONS } from "@/components/dashboards/widget-icons";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { BudgetProgress } from "@/lib/queries/budgets";
@@ -149,7 +151,12 @@ export function MonthSummary({
             >
               <Stack spacing={0.25}>
                 <Stack direction="row" alignItems="center" gap={0.5} flexWrap="wrap">
-                  <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: "0.7rem" }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    noWrap
+                    sx={{ fontSize: "0.7rem" }}
+                  >
                     {section.name}
                   </Typography>
                   <Chip
@@ -171,10 +178,12 @@ export function MonthSummary({
                     variant="caption"
                     sx={{
                       fontSize: "0.65rem",
-                      color: delta === 0 ? "text.disabled" : delta > 0 ? "success.main" : "danger.main",
+                      color:
+                        delta === 0 ? "text.disabled" : delta > 0 ? "success.main" : "danger.main",
                     }}
                   >
-                    {delta > 0 ? "+" : ""}{delta.toFixed(1)}%
+                    {delta > 0 ? "+" : ""}
+                    {delta.toFixed(1)}%
                   </Typography>
                 )}
               </Stack>
@@ -201,35 +210,64 @@ export function MonthSummary({
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 1 }}>
             <PendingActionsIcon sx={{ fontSize: 14, color: "warning.main" }} />
-            <Typography variant="caption" fontWeight={600}>Pendentes</Typography>
+            <Typography variant="caption" fontWeight={600}>
+              Pendentes
+            </Typography>
             {pendingTransactions.length > 0 && (
-              <Chip label={pendingTransactions.length} size="small" color="warning"
-                sx={{ height: 16, fontSize: "0.6rem", "& .MuiChip-label": { px: 0.75 } }} />
+              <Chip
+                label={pendingTransactions.length}
+                size="small"
+                color="warning"
+                sx={{ height: 16, fontSize: "0.6rem", "& .MuiChip-label": { px: 0.75 } }}
+              />
             )}
           </Stack>
-          <TransactionQuickList accountId={accountId} monthId={monthId} transactions={pendingTransactions} mode="pending" />
+          <TransactionQuickList
+            accountId={accountId}
+            monthId={monthId}
+            transactions={pendingTransactions}
+            mode="pending"
+          />
         </Paper>
       </Grid>
       <Grid item xs={12} md={4}>
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 1 }}>
             <StarIcon sx={{ fontSize: 14, color: "warning.main" }} />
-            <Typography variant="caption" fontWeight={600}>Favoritas</Typography>
+            <Typography variant="caption" fontWeight={600}>
+              Favoritas
+            </Typography>
             {favoriteTransactions.length > 0 && (
-              <Chip label={favoriteTransactions.length} size="small" color="warning"
-                sx={{ height: 16, fontSize: "0.6rem", "& .MuiChip-label": { px: 0.75 } }} />
+              <Chip
+                label={favoriteTransactions.length}
+                size="small"
+                color="warning"
+                sx={{ height: 16, fontSize: "0.6rem", "& .MuiChip-label": { px: 0.75 } }}
+              />
             )}
           </Stack>
-          <TransactionQuickList accountId={accountId} monthId={monthId} transactions={favoriteTransactions} mode="favorite" />
+          <TransactionQuickList
+            accountId={accountId}
+            monthId={monthId}
+            transactions={favoriteTransactions}
+            mode="favorite"
+          />
         </Paper>
       </Grid>
       <Grid item xs={12} md={4}>
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 1 }}>
             <ScheduleIcon sx={{ fontSize: 14, color: "text.tertiary" }} />
-            <Typography variant="caption" fontWeight={600}>Últimas adicionadas</Typography>
+            <Typography variant="caption" fontWeight={600}>
+              Últimas adicionadas
+            </Typography>
           </Stack>
-          <TransactionQuickList accountId={accountId} monthId={monthId} transactions={recentTransactions} mode="recent" />
+          <TransactionQuickList
+            accountId={accountId}
+            monthId={monthId}
+            transactions={recentTransactions}
+            mode="recent"
+          />
         </Paper>
       </Grid>
     </Grid>
@@ -238,9 +276,14 @@ export function MonthSummary({
   return (
     <Box sx={{ p: 3 }}>
       {/* ── Total + link para dashboard — header fixo ── */}
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 2.5 }}>
+      <Box
+        sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 2.5 }}
+      >
         <Box>
-          <Typography variant="overline" sx={{ color: "text.tertiary", fontSize: "0.65rem", lineHeight: 1.4 }}>
+          <Typography
+            variant="overline"
+            sx={{ color: "text.tertiary", fontSize: "0.65rem", lineHeight: 1.4 }}
+          >
             {m.months.monthTotal}
           </Typography>
           <Typography
@@ -268,7 +311,13 @@ export function MonthSummary({
       </Box>
 
       {sections.length === 0 && (
-        <Typography variant="caption" color="text.secondary" textAlign="center" display="block" mt={3}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          textAlign="center"
+          display="block"
+          mt={3}
+        >
           Configure seções em Configurações → Seções para organizar seus dados.
         </Typography>
       )}
@@ -304,29 +353,48 @@ export function MonthSummary({
               deltaMode={prevSectionTotals ? "prevMonth" : "none"}
             />
           ),
-          budgets: summaryBudgets && summaryBudgets.length > 0 ? (
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="caption" fontWeight={600} display="block" sx={{ mb: 1.5 }}>
-                {m.budgets.title}
-              </Typography>
-              <Stack spacing={1.25}>
-                {summaryBudgets.map((b) => (
-                  <BudgetProgressBar
-                    key={b.id}
-                    label={b.label}
-                    amountCents={b.amountCents}
-                    spentCents={b.spentCents}
-                    percent={b.percent}
-                    alertThresholdPercent={b.alertThresholdPercent}
-                    compact
-                  />
-                ))}
-              </Stack>
-            </Paper>
-          ) : null,
-          "section-cards": sectionCardsNode,
-          "activity-lists": activityListsNode,
-          insights: <InsightsCard insights={insights} />,
+          budgets:
+            summaryBudgets && summaryBudgets.length > 0 ? (
+              <WidgetContainer title={m.budgets.title} icon={WIDGET_ICONS["budgets"]}>
+                <Stack spacing={1.25}>
+                  {summaryBudgets.map((b) => (
+                    <BudgetProgressBar
+                      key={b.id}
+                      label={b.label}
+                      amountCents={b.amountCents}
+                      spentCents={b.spentCents}
+                      percent={b.percent}
+                      alertThresholdPercent={b.alertThresholdPercent}
+                      compact
+                    />
+                  ))}
+                </Stack>
+              </WidgetContainer>
+            ) : null,
+          "section-cards": (
+            <WidgetContainer
+              title={m.dashboards.widgets.month_summary["section-cards"]}
+              icon={WIDGET_ICONS["section-cards"]}
+            >
+              {sectionCardsNode}
+            </WidgetContainer>
+          ),
+          "activity-lists": (
+            <WidgetContainer
+              title={m.dashboards.widgets.month_summary["activity-lists"]}
+              icon={WIDGET_ICONS["activity-lists"]}
+            >
+              {activityListsNode}
+            </WidgetContainer>
+          ),
+          insights: (
+            <WidgetContainer
+              title={m.dashboards.insights.cardTitle}
+              icon={WIDGET_ICONS["insights"]}
+            >
+              <InsightsCard insights={insights} />
+            </WidgetContainer>
+          ),
         }}
       />
     </Box>

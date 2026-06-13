@@ -16,6 +16,7 @@
 - **EST-06**: Strings de UI hardcoded fora de `src/lib/messages/` (violação do CLAUDE.md §5.10): em `src/components/transactions/TransactionRow.tsx:446,641,650`, tooltips em pt-BR estão inline ("Ocultar notas", "Marcar como concluída", "Adicionar aos favoritos"), enquanto linhas vizinhas (ex: `:660`) já usam `m.transactions.actions.*`.
 - **EST-07**: Componentes muito acima do limite de 200 linhas da spec 15 §9.1, misturando responsabilidades: `src/components/transactions/TransactionRow.tsx` (706 linhas: linha + editor inline + menu + notas), `src/components/transactions/TransactionTable.tsx` (527: tabela + filtros + seleção + paginação) e `src/components/finance-tables/FinanceTableCard.tsx` (444: card + modais + ações).
 - **EST-08**: A camada `src/lib/queries/` (3 arquivos, sendo `dashboards.ts` com 850 linhas) não está prevista na spec 15 nem documentada em nenhum skill. Ela contém código server-only (importa Prisma) morando em `src/lib/`, que a spec 15 §3 define como "utilitários compartilhados (server + client)" — a fronteira server/client fica implícita e o padrão de leitura para RSCs fica sem dono.
+- **EST-09**: Utilizar o arquivo de `design-token.ts` em todas estruturas de estilo do projeto para manter a estrutura e padronização do código.
 
 ---
 
