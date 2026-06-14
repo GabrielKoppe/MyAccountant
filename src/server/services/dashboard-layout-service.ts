@@ -1,5 +1,5 @@
 import { prisma } from "@/server/prisma";
-import { WIDGET_REGISTRY, resolveLayout, type DashboardContext } from "@/components/dashboards/widget-registry";
+import { WIDGET_REGISTRY, resolveLayout, type DashboardContext } from "@/components/dashboards/_core/widget-registry";
 import type { UpdateDashboardLayoutInput } from "@/lib/schemas/dashboard-layout";
 import type { ActionContext } from "@/server/api/define-action";
 

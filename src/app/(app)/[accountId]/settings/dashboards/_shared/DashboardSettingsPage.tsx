@@ -6,7 +6,7 @@ import { getLayout } from "@/server/services/dashboard-layout-service";
 import { m } from "@/lib/messages";
 import { DashboardLayoutEditor } from "@/components/settings/DashboardLayoutEditor";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
-import type { DashboardContext } from "@/components/dashboards/widget-registry";
+import type { DashboardContext } from "@/components/dashboards/_core/widget-registry";
 
 type Props = { accountId: string; context: DashboardContext };
 

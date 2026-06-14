@@ -25,7 +25,7 @@ import { getChartColors } from "@/lib/design-tokens";
 import type { ThemeMode } from "@/lib/design-tokens";
 import type { SandboxConfig, SandboxMetric } from "@/lib/schemas/sandbox";
 import type { SandboxResult } from "@/lib/queries/sandbox";
-import { ChartTooltip } from "@/components/dashboards/ChartTooltip";
+import { ChartTooltip } from "@/components/dashboards/_shared/ChartTooltip";
 
 type Props = {
   result: SandboxResult;

@@ -6,12 +6,13 @@ import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import ScienceIcon from "@mui/icons-material/Science";
 
 import { AppLink } from "@/components/ui/AppLink";
 import { m } from "@/lib/messages";
 import type { PinnedAnalysisData } from "@/lib/queries/sandbox";
 import type { SandboxChartType } from "@/lib/schemas/sandbox";
-import { SandboxChart } from "./sandbox/SandboxChart";
+import { SandboxChart } from "@/components/dashboards/sandbox/SandboxChart";
 
 type Props = {
   accountId: string;
@@ -115,5 +116,20 @@ function PinnedAnalysisCard({
         showLegend={analysis.result.series.length <= 4}
       />
     </Paper>
+  );
+}
+
+export function PinnedAnalysesSectionSecondary({ accountId }: { accountId: string }) {
+  return (
+    <Button
+      component={AppLink}
+      href={`/${accountId}/dashboards/sandbox`}
+      variant="outlined"
+      size="small"
+      startIcon={<ScienceIcon />}
+      sx={{ fontSize: "0.75rem" }}
+    >
+      {m.dashboards.sandbox.openSandbox}
+    </Button>
   );
 }

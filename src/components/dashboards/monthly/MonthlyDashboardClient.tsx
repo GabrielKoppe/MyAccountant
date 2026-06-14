@@ -5,15 +5,12 @@ import React, { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import DonutLargeIcon from "@mui/icons-material/DonutLarge";
-import BarChartIcon from "@mui/icons-material/BarChart";
 
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type {
   SectionMeta,
   CategorySum,
-  TopTransaction,
   MonthSparklineResult,
   ComparisonResult,
   DayTotal,
@@ -21,26 +18,33 @@ import type {
   SankeyData,
   DrillDownTransaction,
 } from "@/lib/queries/dashboards";
-import { getTransactionsByIds } from "@/lib/queries/dashboards";
 import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
-import { KpiSparklineCard } from "./KpiSparklineCard";
-import { MemberBreakdownChart, MemberBreakdownView } from "./MemberBreakdownChart";
-import { DailyHeatmap } from "./DailyHeatmap";
-import { CategoryTreemap } from "./CategoryTreemap";
-import { DrillDownDrawer } from "./DrillDownDrawer";
+import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
+import {
+  MemberBreakdownChart,
+  MemberBreakdownChartSecondary,
+  MemberBreakdownView,
+} from "@/components/dashboards/panels/MemberBreakdownChart";
+import { DailyHeatmap } from "@/components/dashboards/charts/DailyHeatmap";
+import { CategoryTreemap } from "@/components/dashboards/charts/CategoryTreemap";
+import { CategoryPieChart } from "@/components/dashboards/charts/CategoryPieChart";
+import { DrillDownDrawer } from "@/components/dashboards/panels/DrillDownDrawer";
 import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
-import { SectionPieChart } from "./SectionPieChart";
-import { CategoryPieChart } from "./CategoryPieChart";
-import { PinnedAnalysesSection } from "./PinnedAnalysesSection";
-import { InsightsCard } from "./InsightsCard";
-import { DashboardWidgetRenderer } from "./DashboardWidgetRenderer";
+import { SectionPieChart } from "@/components/dashboards/charts/SectionPieChart";
+import {
+  PinnedAnalysesSection,
+  PinnedAnalysesSectionSecondary,
+} from "@/components/dashboards/panels/PinnedAnalysesSection";
+import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
+import { DashboardWidgetRenderer } from "@/components/dashboards/_core/DashboardWidgetRenderer";
+import { TopTransactionTable } from "../panels/TopTransactionTable";
+import { BudgetWidgetContent } from "@/components/budgets/BudgetWidgetContent";
 import type { Insight } from "@/server/services/insights-service";
 import type { PinnedAnalysisData } from "@/lib/queries/sandbox";
-import { BudgetProgressBar } from "@/components/budgets/BudgetProgressBar";
 import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
 import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
-import type { WidgetDef } from "@/components/dashboards/widget-registry";
+import type { WidgetDef } from "@/components/dashboards/_core/widget-registry";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
@@ -48,40 +52,26 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CategoryIcon from "@mui/icons-material/Category";
 import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import ScienceIcon from "@mui/icons-material/Science";
 import Tooltip from "@mui/material/Tooltip";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
-import { WIDGET_ICONS } from "@/components/dashboards/widget-icons";
-import Button from "@mui/material/Button";
-import { AppLink } from "../ui/AppLink";
-import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 
 // @nivo/sankey loaded client-only (no SSR — uses D3 hooks)
-const SankeyChart = dynamic(() => import("./SankeyChart").then((m) => m.SankeyChart), {
-  ssr: false,
-  loading: () => (
-    <Box sx={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <Typography variant="caption" color="text.secondary">
-        Carregando fluxo...
-      </Typography>
-    </Box>
-  ),
-});
+const SankeyChart = dynamic(
+  () => import("@/components/dashboards/charts/SankeyChart").then((m) => m.SankeyChart),
+  {
+    ssr: false,
+    loading: () => (
+      <Box sx={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Typography variant="caption" color="text.secondary">
+          Carregando fluxo...
+        </Typography>
+      </Box>
+    ),
+  },
+);
 
-type TxRow = {
-  id: string;
-  description: string | null;
-  occurredOn: string;
-  amountCents: string;
-  sectionName: string;
-  sectionCountType: string;
-};
+import type { TxRow } from "../panels/TopTransactionTable";
 
 type Props = {
   accountId: string;
@@ -276,35 +266,7 @@ export function MonthlyDashboardClient({
           </Tooltip>
         }
       >
-        {budgets.length > 0 ? (
-          <Stack spacing={1.5}>
-            {budgets.map((b) => (
-              <BudgetProgressBar
-                key={b.id}
-                label={b.label}
-                amountCents={b.amountCents}
-                spentCents={b.spentCents}
-                percent={b.percent}
-                alertThresholdPercent={b.alertThresholdPercent}
-              />
-            ))}
-          </Stack>
-        ) : (
-          <Stack direction="column" alignItems="center" gap={1.5} sx={{ py: 3 }}>
-            <Typography variant="caption" color="text.secondary">
-              Defina metas de orçamento para acompanhar no dashboard.
-            </Typography>
-            <Button
-              size="small"
-              variant="text"
-              startIcon={<AddIcon />}
-              onClick={() => setBudgetFormOpen(true)}
-              sx={{ color: "text.secondary", fontSize: "0.75rem" }}
-            >
-              {m.budgets.createButton}
-            </Button>
-          </Stack>
-        )}
+        <BudgetWidgetContent budgets={budgets} onAddClick={() => setBudgetFormOpen(true)} />
       </WidgetContainer>
     ),
     "daily-heatmap":
@@ -356,31 +318,14 @@ export function MonthlyDashboardClient({
         title={m.dashboards.sections.categoryBreakdown}
         icon={WIDGET_ICONS["category-breakdown"]}
       >
-        {topCategories.length > 0 ? (
-          <CategoryPieChart categories={topCategories} />
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            Sem categorias neste mês.
-          </Typography>
-        )}
+        <CategoryPieChart categories={topCategories} />
       </WidgetContainer>
     ),
     "pinned-analyses": (
       <WidgetContainer
         title={m.dashboards.sandbox.pinnedTitle}
         icon={WIDGET_ICONS["pinned-analyses"]}
-        secondary={
-          <Button
-            component={AppLink}
-            href={`/${accountId}/dashboards/sandbox`}
-            variant="outlined"
-            size="small"
-            startIcon={<ScienceIcon />}
-            sx={{ fontSize: "0.75rem" }}
-          >
-            {m.dashboards.sandbox.openSandbox}
-          </Button>
-        }
+        secondary={<PinnedAnalysesSectionSecondary accountId={accountId} />}
         collapsible
       >
         <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
@@ -395,25 +340,7 @@ export function MonthlyDashboardClient({
       <WidgetContainer
         title={m.dashboards.sections.memberBreakdown}
         icon={WIDGET_ICONS["member-breakdown"]}
-        secondary={
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={view}
-            onChange={(_, v: MemberBreakdownView | null) => v && setView(v)}
-          >
-            <ToggleButton value="donut" aria-label={m.dashboards.members.viewDonut}>
-              <Tooltip title={m.dashboards.members.viewDonut}>
-                <DonutLargeIcon sx={{ fontSize: 16 }} />
-              </Tooltip>
-            </ToggleButton>
-            <ToggleButton value="bars" aria-label={m.dashboards.members.viewBars}>
-              <Tooltip title={m.dashboards.members.viewBars}>
-                <BarChartIcon sx={{ fontSize: 16 }} />
-              </Tooltip>
-            </ToggleButton>
-          </ToggleButtonGroup>
-        }
+        secondary={<MemberBreakdownChartSecondary view={view} onChange={setView} />}
       >
         <MemberBreakdownChart rows={memberBreakdown} view={{ type: view, onChange: setView }} />
       </WidgetContainer>
@@ -469,92 +396,4 @@ async function fetchDrawerTransactions(
   const { getDrawerTransactionsAction } = await import("@/actions/dashboards");
   const result = await getDrawerTransactionsAction(accountId, ids);
   return result.ok ? result.data : [];
-}
-
-// Determina a cor do valor com base no impacto financeiro real da transação.
-// Para "subtract" o sinal é invertido (R$ 500 num cartão = -500 no total).
-// Para "neutral" usa o sinal próprio do valor.
-// Para "ignore" sem cor (a seção não conta no total).
-function getAmountColor(amountCents: bigint, countType: string): string {
-  if (countType === "ignore") return "text.disabled";
-  const impact = countType === "subtract" ? -amountCents : amountCents;
-  if (impact > 0n) return "success.main";
-  if (impact < 0n) return "danger.main";
-  return "text.tertiary";
-}
-
-function TopTransactionTable({ transactions }: { transactions: TxRow[] }) {
-  if (transactions.length === 0) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        Nenhuma transação.
-      </Typography>
-    );
-  }
-
-  return (
-    <Box sx={{ overflowX: "auto" }}>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ fontSize: 11, whiteSpace: "nowrap" }}>Data</TableCell>
-            <TableCell sx={{ fontSize: 11 }}>Descrição</TableCell>
-            <TableCell sx={{ fontSize: 11 }}>Seção</TableCell>
-            <TableCell sx={{ fontSize: 11 }} align="right">
-              Valor
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {transactions.map((tx) => {
-            const cents = BigInt(tx.amountCents);
-            const amountColor = getAmountColor(cents, tx.sectionCountType);
-            return (
-              <TableRow key={tx.id} hover>
-                <TableCell sx={{ fontSize: 12, whiteSpace: "nowrap" }}>
-                  {tx.occurredOn.slice(8, 10)}/{tx.occurredOn.slice(5, 7)}
-                </TableCell>
-                <TableCell
-                  sx={{
-                    fontSize: 12,
-                    maxWidth: 220,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {tx.description ?? (
-                    <Typography
-                      component="span"
-                      variant="caption"
-                      sx={{ color: "text.disabled", fontStyle: "italic" }}
-                    >
-                      Sem descrição
-                    </Typography>
-                  )}
-                </TableCell>
-                <TableCell sx={{ fontSize: 11 }}>
-                  <StatusBadge variant="neutral">{tx.sectionName}</StatusBadge>
-                </TableCell>
-                <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
-                  <Typography
-                    component="span"
-                    variant="caption"
-                    sx={{
-                      fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
-                      fontWeight: 500,
-                      fontVariantNumeric: "tabular-nums",
-                      color: amountColor,
-                    }}
-                  >
-                    {formatCentsToBrl(cents)}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </Box>
-  );
 }

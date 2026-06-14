@@ -24,8 +24,11 @@ import { getChartColors } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
-import { ChartTooltip, PieLegend } from "./ChartTooltip";
-import { buildMemberColorMap, memberDisplayName } from "./member-display";
+import { ChartTooltip, PieLegend } from "@/components/dashboards/_shared/ChartTooltip";
+import { buildMemberColorMap, memberDisplayName } from "@/components/dashboards/_shared/member-display";
+import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+import DonutLargeIcon from "@mui/icons-material/DonutLarge";
+import BarChartIcon from "@mui/icons-material/BarChart";
 
 export type MemberBreakdownView = "donut" | "bars";
 
@@ -212,5 +215,33 @@ export function MemberBreakdownChart({ rows, view }: Props) {
         )}
       </Box>
     </Box>
+  );
+}
+
+export function MemberBreakdownChartSecondary({
+  view,
+  onChange,
+}: {
+  view: MemberBreakdownView;
+  onChange: (view: MemberBreakdownView) => void;
+}) {
+  return (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      value={view}
+      onChange={(_, v: MemberBreakdownView | null) => v && onChange(v)}
+    >
+      <ToggleButton value="donut" aria-label={m.dashboards.members.viewDonut}>
+        <Tooltip title={m.dashboards.members.viewDonut}>
+          <DonutLargeIcon sx={{ fontSize: 16 }} />
+        </Tooltip>
+      </ToggleButton>
+      <ToggleButton value="bars" aria-label={m.dashboards.members.viewBars}>
+        <Tooltip title={m.dashboards.members.viewBars}>
+          <BarChartIcon sx={{ fontSize: 16 }} />
+        </Tooltip>
+      </ToggleButton>
+    </ToggleButtonGroup>
   );
 }

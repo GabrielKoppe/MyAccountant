@@ -25,8 +25,8 @@ import { generateInsights } from "@/server/services/insights-service";
 import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
 import { AppLink } from "@/components/ui/AppLink";
 import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
-import { MonthlyDashboardMenu } from "@/components/dashboards/MonthlyDashboardMenu";
-import { MonthlyDashboardClient } from "@/components/dashboards/MonthlyDashboardClient";
+import { MonthlyDashboardMenu } from "@/components/dashboards/monthly/MonthlyDashboardMenu";
+import { MonthlyDashboardClient } from "@/components/dashboards/monthly/MonthlyDashboardClient";
 
 type Props = { params: Promise<{ accountId: string; monthId: string }> };
 

@@ -33,13 +33,13 @@ import { updateDashboardLayoutAction } from "@/actions/dashboard-layout";
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
 import { WidgetCard } from "@/components/settings/WidgetCard";
-import { WIDGET_ICONS } from "@/components/dashboards/widget-icons";
+import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import {
   buildSegments,
   resolveLayout,
   type DashboardContext,
   type WidgetDef,
-} from "@/components/dashboards/widget-registry";
+} from "@/components/dashboards/_core/widget-registry";
 
 const DEBOUNCE_REORDER_MS = 600;
 

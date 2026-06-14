@@ -12,7 +12,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import type { SvgIconProps } from "@mui/material/SvgIcon";
 
 import { m } from "@/lib/messages";
-import type { WidgetDef } from "@/components/dashboards/widget-registry";
+import type { WidgetDef } from "@/components/dashboards/_core/widget-registry";
 import { layout } from "@/lib/design-tokens";
 
 type CommonProps = {
