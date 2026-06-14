@@ -1,35 +1,34 @@
 "use client";
 
+import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { formatCentsToBrl } from "@/lib/money";
 import { getChartColors } from "@/lib/design-tokens";
-import { ChartTooltip, PieLegend } from "./ChartTooltip";
-import type { SectionMeta } from "@/lib/queries/dashboards";
+import { ChartTooltip, PieLegend } from "@/components/dashboards/_shared/ChartTooltip";
+import type { CategorySum } from "@/lib/queries/dashboards";
 
 type Props = {
-  sections: SectionMeta[];
-  sectionTotals: Record<string, string>;
+  categories: CategorySum[];
 };
 
-export function SectionPieChart({ sections, sectionTotals }: Props) {
+export function CategoryPieChart({ categories }: Props) {
   const theme = useTheme();
   const palette = getChartColors(theme.palette.mode as "light" | "dark");
 
-  const data = sections
-    .filter((s) => s.countType !== "ignore")
-    .map((s) => ({
-      name: s.name,
-      value: Math.abs(Number(BigInt(sectionTotals[s.id] ?? "0")) / 100),
-      raw: sectionTotals[s.id] ?? "0",
+  const data = categories
+    .map((c) => ({
+      name: c.name,
+      value: Math.abs(Number(BigInt(c.totalCents)) / 100),
+      raw: c.totalCents,
     }))
     .filter((d) => d.value > 0);
 
   if (data.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
-        Sem seções com valores neste mês.
+        Sem categorias registradas neste mês.
       </Typography>
     );
   }

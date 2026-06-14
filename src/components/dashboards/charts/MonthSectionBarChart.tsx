@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import type { SectionCountType } from "@prisma/client";
 import { formatCentsToBrl } from "@/lib/money";
-import { ChartTooltip } from "@/components/dashboards/ChartTooltip";
+import { ChartTooltip } from "@/components/dashboards/_shared/ChartTooltip";
 
 type Props = {
   sections: { id: string; name: string; countType: SectionCountType }[];

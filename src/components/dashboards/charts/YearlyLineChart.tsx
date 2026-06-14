@@ -1,10 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,13 +14,12 @@ import {
 } from "recharts";
 import { formatCentsToBrl } from "@/lib/money";
 import { getChartColors } from "@/lib/design-tokens";
-import { ChartTooltip, PieLegend } from "./ChartTooltip";
+import { ChartTooltip } from "@/components/dashboards/_shared/ChartTooltip";
 import type { MonthSummary, SectionMeta } from "@/lib/queries/dashboards";
 
 type Props = {
   months: MonthSummary[];
   sections: SectionMeta[];
-  monthPagePrefix?: string;
 };
 
 type ChartRow = Record<string, string | number>;
@@ -36,39 +34,26 @@ function formatReais(reais: number): string {
 
 const compactPtBR = new Intl.NumberFormat("pt-BR", { notation: "compact", compactDisplay: "short" });
 
-export function MonthlyBarChart({ months, sections, monthPagePrefix }: Props) {
-  const router = useRouter();
+export function YearlyLineChart({ months, sections }: Props) {
   const theme = useTheme();
   const palette = getChartColors(theme.palette.mode as "light" | "dark");
   const tickColor = theme.palette.text.secondary;
   const gridColor = theme.palette.divider;
+  const totalLineColor = theme.palette.text.secondary;
 
   const visibleSections = sections.filter((s) => s.countType !== "ignore");
 
   const data: ChartRow[] = months.map((m) => {
-    const row: ChartRow = { name: m.label, monthId: m.id };
+    const row: ChartRow = { name: m.label, Total: centsToReais(m.total) };
     for (const s of visibleSections) {
-      const raw = centsToReais(m.sectionTotals[s.id] ?? "0");
-      row[s.name] = s.countType === "subtract" ? -Math.abs(raw) : raw;
+      row[s.name] = centsToReais(m.sectionTotals[s.id] ?? "0");
     }
     return row;
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function handleClick(chartState: any) {
-    if (!monthPagePrefix || !chartState?.activePayload?.[0]) return;
-    const row = chartState.activePayload[0].payload as ChartRow;
-    router.push(`${monthPagePrefix}${row.monthId}`);
-  }
-
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <BarChart
-        data={data}
-        onClick={handleClick}
-        style={{ cursor: monthPagePrefix ? "pointer" : "default" }}
-        barCategoryGap="30%"
-      >
+      <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
 
         <XAxis
@@ -86,7 +71,7 @@ export function MonthlyBarChart({ months, sections, monthPagePrefix }: Props) {
         />
 
         <Tooltip
-          cursor={{ fill: theme.palette.action.hover }}
+          cursor={{ stroke: gridColor, strokeWidth: 1, strokeDasharray: "3 3" }}
           content={(props: any) => (
             <ChartTooltip {...props} formatValue={formatReais} />
           )}
@@ -104,15 +89,29 @@ export function MonthlyBarChart({ months, sections, monthPagePrefix }: Props) {
 
         <ReferenceLine y={0} stroke={gridColor} />
 
+        {/* Linha Total — tracejada, usa cor secundária para não competir com seções */}
+        <Line
+          type="monotone"
+          dataKey="Total"
+          stroke={totalLineColor}
+          strokeWidth={1.5}
+          strokeDasharray="5 4"
+          dot={{ r: 2, fill: totalLineColor }}
+          activeDot={{ r: 4 }}
+        />
+
         {visibleSections.map((s, i) => (
-          <Bar
+          <Line
             key={s.id}
+            type="monotone"
             dataKey={s.name}
-            fill={palette[i % palette.length]}
-            radius={[3, 3, 0, 0]}
+            stroke={palette[i % palette.length]}
+            strokeWidth={2}
+            dot={{ r: 2, fill: palette[i % palette.length] }}
+            activeDot={{ r: 4 }}
           />
         ))}
-      </BarChart>
+      </LineChart>
     </ResponsiveContainer>
   );
 }

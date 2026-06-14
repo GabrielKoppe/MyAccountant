@@ -16,8 +16,8 @@ import { formatCentsToBrl } from "@/lib/money";
 import { getChartColors } from "@/lib/design-tokens";
 import type { MemberTrendSeries } from "@/lib/queries/member-analytics";
 
-import { ChartTooltip } from "./ChartTooltip";
-import { buildMemberColorMap, memberDisplayName } from "./member-display";
+import { ChartTooltip } from "@/components/dashboards/_shared/ChartTooltip";
+import { buildMemberColorMap, memberDisplayName } from "@/components/dashboards/_shared/member-display";
 
 type Props = {
   series: MemberTrendSeries[];

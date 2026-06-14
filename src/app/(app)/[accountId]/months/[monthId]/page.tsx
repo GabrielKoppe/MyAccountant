@@ -16,7 +16,7 @@ import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/date
 import { parseHiddenColumns } from "@/lib/schemas/settings";
 import { MonthHeader } from "@/components/months/MonthHeader";
 import { MonthTabs } from "@/components/months/MonthTabs";
-import { MonthSummary } from "@/components/months/MonthSummary";
+import { MonthSummary } from "@/components/dashboards/monthly/MonthSummary";
 import { SectionView } from "@/components/months/SectionView";
 import { MonthFilterProvider, type MonthFilterState } from "@/components/months/MonthFilterContext";
 import { ActiveFilterChips } from "@/components/transactions/ActiveFilterChips";
