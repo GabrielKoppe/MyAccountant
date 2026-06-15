@@ -2,20 +2,17 @@
 
 import React from "react";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SavingsIcon from "@mui/icons-material/Savings";
-import ScienceIcon from "@mui/icons-material/Science";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { SectionMeta, CategorySum, MonthSummary } from "@/lib/queries/dashboards";
-import type { PinnedAnalysisData } from "@/lib/queries/sandbox";
 import type { MemberTrendSeries } from "@/lib/queries/member-analytics";
 
 import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
@@ -23,7 +20,6 @@ import { MonthlyBarChart } from "@/components/dashboards/charts/MonthlyBarChart"
 import { CategoryBarList } from "@/components/dashboards/charts/CategoryBarList";
 import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { MemberTrendChart } from "@/components/dashboards/charts/MemberTrendChart";
-import { PinnedAnalysesSection } from "@/components/dashboards/panels/PinnedAnalysesSection";
 import { DashboardWidgetRenderer } from "@/components/dashboards/_core/DashboardWidgetRenderer";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { AppLink } from "@/components/ui/AppLink";
@@ -51,7 +47,6 @@ type Props = {
   monthSummaries: MonthSummary[];
   sections: SectionMeta[];
   topCategories: CategorySum[];
-  pinnedAnalyses: PinnedAnalysisData[];
   memberTrend: MemberTrendSeries[];
   activeWidgets: WidgetDef[];
 };
@@ -73,7 +68,6 @@ export function YearlyDashboardClient({
   monthSummaries,
   sections,
   topCategories,
-  pinnedAnalyses,
   memberTrend,
   activeWidgets,
 }: Props) {
@@ -172,27 +166,6 @@ export function YearlyDashboardClient({
           sections={sections}
           monthPagePrefix={`/${accountId}/dashboards/monthly/`}
         />
-      </WidgetContainer>
-    ),
-    "pinned-analyses": (
-      <WidgetContainer
-        title={m.dashboards.sandbox.pinnedTitle}
-        icon={WIDGET_ICONS["pinned-analyses"]}
-        secondary={
-          <Button
-            component={AppLink}
-            href={`/${accountId}/dashboards/sandbox`}
-            variant="outlined"
-            size="small"
-            startIcon={<ScienceIcon />}
-            sx={{ fontSize: "0.75rem" }}
-          >
-            {m.dashboards.sandbox.openSandbox}
-          </Button>
-        }
-        collapsible
-      >
-        <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
       </WidgetContainer>
     ),
     "top-categories": (

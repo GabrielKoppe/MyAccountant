@@ -2,7 +2,7 @@ import type { Prisma, SectionCountType } from "@prisma/client";
 
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel } from "@/lib/dates";
-import type { SandboxConfig, SandboxMetric, SandboxDashboardContext } from "@/lib/schemas/sandbox";
+import type { SandboxConfig, SandboxMetric } from "@/lib/schemas/sandbox";
 
 // ─── Public types ──────────────────────────────────────────────────────────
 
@@ -21,15 +21,6 @@ export type SandboxResult = {
   series: SandboxSeries[];
   rows: SandboxRow[];
   grandTotalCents: bigint;
-};
-
-export type PinnedAnalysisData = {
-  id: string;
-  name: string;
-  config: SandboxConfig;
-  dashboardContext: SandboxDashboardContext;
-  pinnedOrder: number;
-  result: SandboxResult;
 };
 
 // ─── Internal helpers ──────────────────────────────────────────────────────
@@ -401,65 +392,4 @@ export async function getSandboxData(
   }
 
   return { series, rows, grandTotalCents };
-}
-
-// ─── Pinned analyses loader ────────────────────────────────────────────────
-
-export async function getPinnedAnalyses(
-  accountId: string,
-  context: "yearly" | "monthly",
-  currentMonthId?: string,
-): Promise<PinnedAnalysisData[]> {
-  const pinned = await prisma.savedAnalysis.findMany({
-    where: {
-      accountId,
-      isPinned: true,
-      dashboardContext: { in: [context, "both"] },
-    },
-    orderBy: { pinnedOrder: "asc" },
-    take: 4,
-  });
-
-  return Promise.all(
-    pinned.map(async (a) => {
-      const config = a.config as unknown as SandboxConfig;
-      const result = await getSandboxData(accountId, config, { currentMonthId });
-      return {
-        id: a.id,
-        name: a.name,
-        config,
-        dashboardContext: a.dashboardContext as SandboxDashboardContext,
-        pinnedOrder: a.pinnedOrder,
-        result,
-      } satisfies PinnedAnalysisData;
-    }),
-  );
-}
-
-// ─── Saved analyses list ──────────────────────────────────────────────────
-
-export type SavedAnalysisSummary = {
-  id: string;
-  name: string;
-  config: SandboxConfig;
-  dashboardContext: SandboxDashboardContext;
-  isPinned: boolean;
-  pinnedOrder: number;
-  createdById: string;
-};
-
-export async function listSavedAnalyses(accountId: string): Promise<SavedAnalysisSummary[]> {
-  const rows = await prisma.savedAnalysis.findMany({
-    where: { accountId },
-    orderBy: [{ isPinned: "desc" }, { pinnedOrder: "asc" }, { createdAt: "desc" }],
-  });
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    config: r.config as unknown as SandboxConfig,
-    dashboardContext: r.dashboardContext as SandboxDashboardContext,
-    isPinned: r.isPinned,
-    pinnedOrder: r.pinnedOrder,
-    createdById: r.createdById,
-  }));
 }

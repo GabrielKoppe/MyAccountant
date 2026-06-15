@@ -81,7 +81,6 @@ model User {
   catsCreated       Category[]      @relation("CategoryCreatedBy")
   instCreated       Institution[]   @relation("InstitutionCreatedBy")
   templatesCreated      CsvTemplate[]     @relation("TemplateCreatedBy")
-  analysesCreated       SavedAnalysis[]   @relation("AnalysisCreatedBy")
   tableModelsCreated    TableTemplate[]   @relation("TableTemplateCreatedBy")
   monthsCreated         Month[]           @relation("MonthCreatedBy")
   budgetsAsMember       Budget[]          @relation("BudgetMember")
@@ -152,7 +151,6 @@ model Account {
   subcategories Subcategory[]
   institutions  Institution[]
   templates          CsvTemplate[]
-  savedAnalyses      SavedAnalysis[]
   tableModels        TableTemplate[]
   tableModelItems    TableTemplateItem[]
   settings           AccountSettings?
@@ -410,31 +408,6 @@ model Institution {
   @@map("institutions")
 }
 
-// =========================================
-// Domain — Sandbox de Análise
-// =========================================
-
-model SavedAnalysis {
-  id               String   @id @default(cuid())
-  accountId        String   @map("account_id")
-  createdById      String   @map("created_by_id")
-  name             String
-  config           Json
-  isPinned         Boolean  @default(false) @map("is_pinned")
-  pinnedOrder      Int      @default(0)     @map("pinned_order")
-  dashboardContext String   @default("yearly") @map("dashboard_context")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt      @map("updated_at")
-
-  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdBy User    @relation("AnalysisCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-
-  @@unique([accountId, name])
-  @@index([accountId])
-  @@index([accountId, isPinned])
-  @@map("saved_analyses")
-}
-
 model CsvTemplate {
   id          String   @id @default(cuid())
   accountId   String   @map("account_id")
@@ -553,7 +526,7 @@ model DashboardLayout {
   id        String                 @id @default(cuid())
   accountId String                 @map("account_id")
   context   DashboardLayoutContext
-  widgets   Json                   // string[] — array ordenado de widgetIds ativos
+  widgets   Json                   // StoredWidget[] (spec 36) — instâncias configuráveis em grade 2D
   createdAt DateTime               @default(now()) @map("created_at")
   updatedAt DateTime               @updatedAt @map("updated_at")
 

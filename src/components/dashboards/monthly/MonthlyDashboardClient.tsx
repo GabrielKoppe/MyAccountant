@@ -32,16 +32,11 @@ import { CategoryPieChart } from "@/components/dashboards/charts/CategoryPieChar
 import { DrillDownDrawer } from "@/components/dashboards/panels/DrillDownDrawer";
 import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
 import { SectionPieChart } from "@/components/dashboards/charts/SectionPieChart";
-import {
-  PinnedAnalysesSection,
-  PinnedAnalysesSectionSecondary,
-} from "@/components/dashboards/panels/PinnedAnalysesSection";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
 import { DashboardWidgetRenderer } from "@/components/dashboards/_core/DashboardWidgetRenderer";
 import { TopTransactionTable } from "../panels/TopTransactionTable";
 import { BudgetWidgetContent } from "@/components/budgets/BudgetWidgetContent";
 import type { Insight } from "@/server/services/insights-service";
-import type { PinnedAnalysisData } from "@/lib/queries/sandbox";
 import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
 import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
 import type { WidgetDef } from "@/components/dashboards/_core/widget-registry";
@@ -93,7 +88,6 @@ type Props = {
   dailyTotals: DayTotal[];
   treemapData: TreemapCategory[];
   sankeyData: SankeyData;
-  pinnedAnalyses: PinnedAnalysisData[];
   budgets: BudgetProgress[];
   budgetFormOptions: BudgetFormOptions;
   insights: Insight[];
@@ -149,7 +143,6 @@ export function MonthlyDashboardClient({
   dailyTotals,
   treemapData,
   sankeyData,
-  pinnedAnalyses,
   budgets,
   budgetFormOptions,
   insights,
@@ -319,16 +312,6 @@ export function MonthlyDashboardClient({
         icon={WIDGET_ICONS["category-breakdown"]}
       >
         <CategoryPieChart categories={topCategories} />
-      </WidgetContainer>
-    ),
-    "pinned-analyses": (
-      <WidgetContainer
-        title={m.dashboards.sandbox.pinnedTitle}
-        icon={WIDGET_ICONS["pinned-analyses"]}
-        secondary={<PinnedAnalysesSectionSecondary accountId={accountId} />}
-        collapsible
-      >
-        <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
       </WidgetContainer>
     ),
     insights: (
