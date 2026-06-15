@@ -27,6 +27,7 @@ import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
 import { ChartTooltip, PieLegend } from "@/components/dashboards/_shared/ChartTooltip";
 import { buildMemberColorMap, memberDisplayName } from "@/components/dashboards/_shared/member-display";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+import MuiTooltip from "@mui/material/Tooltip";
 import DonutLargeIcon from "@mui/icons-material/DonutLarge";
 import BarChartIcon from "@mui/icons-material/BarChart";
 
@@ -233,14 +234,14 @@ export function MemberBreakdownChartSecondary({
       onChange={(_, v: MemberBreakdownView | null) => v && onChange(v)}
     >
       <ToggleButton value="donut" aria-label={m.dashboards.members.viewDonut}>
-        <Tooltip title={m.dashboards.members.viewDonut}>
+        <MuiTooltip title={m.dashboards.members.viewDonut}>
           <DonutLargeIcon sx={{ fontSize: 16 }} />
-        </Tooltip>
+        </MuiTooltip>
       </ToggleButton>
       <ToggleButton value="bars" aria-label={m.dashboards.members.viewBars}>
-        <Tooltip title={m.dashboards.members.viewBars}>
+        <MuiTooltip title={m.dashboards.members.viewBars}>
           <BarChartIcon sx={{ fontSize: 16 }} />
-        </Tooltip>
+        </MuiTooltip>
       </ToggleButton>
     </ToggleButtonGroup>
   );
