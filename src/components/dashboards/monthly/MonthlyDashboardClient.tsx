@@ -33,13 +33,13 @@ import { DrillDownDrawer } from "@/components/dashboards/panels/DrillDownDrawer"
 import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
 import { SectionPieChart } from "@/components/dashboards/charts/SectionPieChart";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
-import { DashboardWidgetRenderer } from "@/components/dashboards/_core/DashboardWidgetRenderer";
+import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { TopTransactionTable } from "../panels/TopTransactionTable";
 import { BudgetWidgetContent } from "@/components/budgets/BudgetWidgetContent";
 import type { Insight } from "@/server/services/insights-service";
 import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
 import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
-import type { WidgetDef } from "@/components/dashboards/_core/widget-registry";
+import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
@@ -92,7 +92,7 @@ type Props = {
   budgetFormOptions: BudgetFormOptions;
   insights: Insight[];
   memberBreakdown: MemberBreakdownRow[];
-  activeWidgets: WidgetDef[];
+  widgets: StoredWidget[];
 };
 
 function pickComparisonValues(
@@ -147,7 +147,7 @@ export function MonthlyDashboardClient({
   budgetFormOptions,
   insights,
   memberBreakdown,
-  activeWidgets,
+  widgets,
 }: Props) {
   const [compareMode, setCompareMode] = useState<CompareMode>("prevMonth");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -182,7 +182,7 @@ export function MonthlyDashboardClient({
     });
   }
 
-  const nodeMap: Record<string, React.ReactNode> = {
+  const nodeByWidgetId: Record<string, React.ReactNode> = {
     "kpi-month-total": (
       <KpiSparklineCard
         title={m.dashboards.kpi.monthTotal}
@@ -338,6 +338,12 @@ export function MonthlyDashboardClient({
     ),
   };
 
+  // nodeMap por instanceId: cada instância resolve seu nó pelo widgetId.
+  const nodeMap: Record<string, React.ReactNode> = {};
+  for (const w of widgets) {
+    nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+  }
+
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
@@ -349,7 +355,7 @@ export function MonthlyDashboardClient({
         />
       </Box>
 
-      <DashboardWidgetRenderer active={activeWidgets} nodeMap={nodeMap} />
+      <DashboardGrid widgets={widgets} nodeMap={nodeMap} cols={6} />
 
       <DrillDownDrawer
         open={drawerOpen}
