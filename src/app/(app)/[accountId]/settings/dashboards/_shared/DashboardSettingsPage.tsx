@@ -10,7 +10,9 @@ import type { DashboardContext } from "@/components/dashboards/_core/widget-regi
 
 type Props = { accountId: string; context: DashboardContext };
 
-function buildWidgetMeta(context: DashboardContext): Record<string, { label: string; description: string }> {
+function buildWidgetMeta(
+  context: DashboardContext,
+): Record<string, { label: string; description: string }> {
   const labels = m.dashboards.widgets[context] as Record<string, string>;
   const descriptions = m.dashboards.widgets.descriptions[context] as Record<string, string>;
   return Object.fromEntries(

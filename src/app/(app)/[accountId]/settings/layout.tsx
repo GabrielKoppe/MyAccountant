@@ -44,12 +44,14 @@ export default async function SettingsLayout({ children, params }: Props) {
   const ownerLinks = isOwner ? [{ href: "members", label: m.settings.nav.members }] : [];
 
   return (
-    <Box sx={{ display: "flex", minHeight: "calc(100vh - 48px)", flexDirection: { xs: "column", md: "row" } }}>
-      <SettingsNav
-        accountId={accountId}
-        editorLinks={editorLinks}
-        ownerLinks={ownerLinks}
-      />
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "calc(100vh - 48px)",
+        flexDirection: { xs: "column", md: "row" },
+      }}
+    >
+      <SettingsNav accountId={accountId} editorLinks={editorLinks} ownerLinks={ownerLinks} />
       <Box sx={{ flex: 1, overflow: "auto" }}>{children}</Box>
     </Box>
   );

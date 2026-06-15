@@ -2,11 +2,7 @@ import type { Prisma, SectionCountType } from "@prisma/client";
 
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel } from "@/lib/dates";
-import type {
-  SandboxConfig,
-  SandboxMetric,
-  SandboxDashboardContext,
-} from "@/lib/schemas/sandbox";
+import type { SandboxConfig, SandboxMetric, SandboxDashboardContext } from "@/lib/schemas/sandbox";
 
 // ─── Public types ──────────────────────────────────────────────────────────
 
@@ -123,10 +119,8 @@ export async function getSandboxData(
   const monthIds = await resolveMonthIds(accountId, config, context?.currentMonthId);
   if (monthIds.length === 0) return { series: [], rows: [], grandTotalCents: 0n };
 
-  const needsInstitution =
-    config.groupBy === "institution" || config.seriesBy === "institution";
-  const needsTableType =
-    config.groupBy === "table_type" || config.seriesBy === "table_type";
+  const needsInstitution = config.groupBy === "institution" || config.seriesBy === "institution";
+  const needsTableType = config.groupBy === "table_type" || config.seriesBy === "table_type";
 
   const [sections, categories, members, months, institutionsRaw, financeTablesRaw] =
     await Promise.all([
@@ -230,9 +224,7 @@ export async function getSandboxData(
     monthId: { in: monthIds },
     table: { countInMonth: true },
     sectionId: { in: sectionIdFilter },
-    ...(config.filterCategoryIds?.length
-      ? { categoryId: { in: config.filterCategoryIds } }
-      : {}),
+    ...(config.filterCategoryIds?.length ? { categoryId: { in: config.filterCategoryIds } } : {}),
     ...(config.filterMemberIds?.length
       ? { responsibleUserId: { in: config.filterMemberIds } }
       : {}),
@@ -251,22 +243,33 @@ export async function getSandboxData(
   // Key helpers — map a raw row to its X-axis key and series key
   const getXKey = (row: RawGroupRow): string => {
     switch (config.groupBy) {
-      case "month": return row.monthId ?? "unknown";
-      case "section": return row.sectionId ?? "unknown";
-      case "category": return row.categoryId ?? "sem-categoria";
-      case "institution": return row.institutionId ?? "sem-instituicao";
-      case "table_type": return tableIdToType.get(row.tableId ?? "")?.typeId ?? "sem-tipo";
+      case "month":
+        return row.monthId ?? "unknown";
+      case "section":
+        return row.sectionId ?? "unknown";
+      case "category":
+        return row.categoryId ?? "sem-categoria";
+      case "institution":
+        return row.institutionId ?? "sem-instituicao";
+      case "table_type":
+        return tableIdToType.get(row.tableId ?? "")?.typeId ?? "sem-tipo";
     }
   };
 
   const getSeriesKey = (row: RawGroupRow): string => {
     switch (config.seriesBy) {
-      case "section": return row.sectionId ?? "unknown";
-      case "category": return row.categoryId ?? "sem-categoria";
-      case "member": return row.responsibleUserId ?? "nao-atribuido";
-      case "institution": return row.institutionId ?? "sem-instituicao";
-      case "table_type": return tableIdToType.get(row.tableId ?? "")?.typeId ?? "sem-tipo";
-      default: return "total";
+      case "section":
+        return row.sectionId ?? "unknown";
+      case "category":
+        return row.categoryId ?? "sem-categoria";
+      case "member":
+        return row.responsibleUserId ?? "nao-atribuido";
+      case "institution":
+        return row.institutionId ?? "sem-instituicao";
+      case "table_type":
+        return tableIdToType.get(row.tableId ?? "")?.typeId ?? "sem-tipo";
+      default:
+        return "total";
     }
   };
 
@@ -279,8 +282,14 @@ export async function getSandboxData(
   for (const row of rawRows) {
     const xKey = getXKey(row);
     const sKey = getSeriesKey(row);
-    if (!xKeySet.has(xKey)) { xKeySet.add(xKey); xKeyOrder.push(xKey); }
-    if (!seriesKeySet.has(sKey)) { seriesKeySet.add(sKey); seriesKeyOrder.push(sKey); }
+    if (!xKeySet.has(xKey)) {
+      xKeySet.add(xKey);
+      xKeyOrder.push(xKey);
+    }
+    if (!seriesKeySet.has(sKey)) {
+      seriesKeySet.add(sKey);
+      seriesKeyOrder.push(sKey);
+    }
   }
 
   // Sort xKeys
@@ -313,7 +322,8 @@ export async function getSandboxData(
               label = key === "nao-atribuido" ? "Não atribuído" : (memberMap.get(key) ?? "Membro");
               break;
             case "institution":
-              label = key === "sem-instituicao" ? "Sem instituição" : (institutionMap.get(key) ?? key);
+              label =
+                key === "sem-instituicao" ? "Sem instituição" : (institutionMap.get(key) ?? key);
               break;
             case "table_type":
               label = key === "sem-tipo" ? "Manual" : (typeIdToName.get(key) ?? key);
@@ -339,8 +349,7 @@ export async function getSandboxData(
     const cents = row._sum.amountCents ?? 0n;
     const count = row._count._all;
     // sectionId is always available for total/avg (we added it to bySet)
-    const sectionId =
-      row.sectionId ?? (config.groupBy === "section" ? xKey : undefined);
+    const sectionId = row.sectionId ?? (config.groupBy === "section" ? xKey : undefined);
     const section = sectionId ? sectionMap.get(sectionId) : undefined;
     const value = applyMetric(cents, count, section?.countType, config.metric);
 
@@ -368,7 +377,8 @@ export async function getSandboxData(
         xLabel = xKey === "sem-categoria" ? "Sem categoria" : (categoryMap.get(xKey) ?? xKey);
         break;
       case "institution":
-        xLabel = xKey === "sem-instituicao" ? "Sem instituição" : (institutionMap.get(xKey) ?? xKey);
+        xLabel =
+          xKey === "sem-instituicao" ? "Sem instituição" : (institutionMap.get(xKey) ?? xKey);
         break;
       case "table_type":
         xLabel = xKey === "sem-tipo" ? "Manual" : (typeIdToName.get(xKey) ?? xKey);

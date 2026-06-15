@@ -1,5 +1,9 @@
 import { prisma } from "@/server/prisma";
-import { WIDGET_REGISTRY, resolveLayout, type DashboardContext } from "@/components/dashboards/_core/widget-registry";
+import {
+  WIDGET_REGISTRY,
+  resolveLayout,
+  type DashboardContext,
+} from "@/components/dashboards/_core/widget-registry";
 import type { UpdateDashboardLayoutInput } from "@/lib/schemas/dashboard-layout";
 import type { ActionContext } from "@/server/api/define-action";
 
@@ -13,10 +17,7 @@ export async function getLayout(accountId: string, context: DashboardContext) {
   return resolveLayout(context, stored);
 }
 
-export async function upsertLayout(
-  input: UpdateDashboardLayoutInput,
-  ctx: ActionContext,
-) {
+export async function upsertLayout(input: UpdateDashboardLayoutInput, ctx: ActionContext) {
   const { accountId, context, widgets } = input;
   const knownIds = new Set(WIDGET_REGISTRY[context as DashboardContext].map((w) => w.id));
   const filtered = widgets.filter((id) => knownIds.has(id));
