@@ -3,20 +3,18 @@
 import { useState, useTransition, useCallback, useEffect } from "react";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 
 import { m } from "@/lib/messages";
 import type { SandboxConfig } from "@/lib/schemas/sandbox";
-import type { SandboxResult, SavedAnalysisSummary } from "@/lib/queries/sandbox";
+import type { SandboxResult } from "@/lib/queries/sandbox";
 import type { SectionMeta } from "@/lib/queries/dashboards";
-import { getSandboxDataClientAction, listSavedAnalysesAction } from "@/actions/sandbox";
+import { getSandboxDataClientAction } from "@/actions/sandbox";
 import { SandboxControls } from "./SandboxControls";
 import { SandboxChart } from "./SandboxChart";
 import { SandboxDataTable } from "./SandboxDataTable";
-import { SavedAnalysisList } from "./SavedAnalysisList";
 
 // AppBar with variant="dense" is 48px
 const APP_BAR_HEIGHT = 48;
@@ -26,27 +24,21 @@ type MemberMeta = { userId: string; name: string };
 
 type Props = {
   accountId: string;
-  currentUserId: string;
-  role: string;
   allYears: number[];
   allMonths: Array<{ id: string; label: string; year: number; month: number }>;
   sections: SectionMeta[];
   categories: CategoryMeta[];
   members: MemberMeta[];
-  savedAnalyses: SavedAnalysisSummary[];
   initialConfig: SandboxConfig;
 };
 
 export function SandboxPage({
   accountId,
-  currentUserId,
-  role,
   allYears,
   allMonths,
   sections,
   categories,
   members,
-  savedAnalyses: initialAnalyses,
   initialConfig,
 }: Props) {
   const theme = useTheme();
@@ -55,7 +47,6 @@ export function SandboxPage({
 
   const [config, setConfig] = useState<SandboxConfig>(initialConfig);
   const [result, setResult] = useState<SandboxResult | null>(null);
-  const [analyses, setAnalyses] = useState<SavedAnalysisSummary[]>(initialAnalyses);
   const [isPending, startTransition] = useTransition();
 
   const runQuery = useCallback(
@@ -82,18 +73,6 @@ export function SandboxPage({
   function handleConfigChange(newConfig: SandboxConfig) {
     setConfig(newConfig);
     runQuery(newConfig);
-  }
-
-  function handleLoad(cfg: SandboxConfig) {
-    setConfig(cfg);
-    runQuery(cfg);
-  }
-
-  async function handleRefreshAnalyses() {
-    const result = await listSavedAnalysesAction(accountId, {});
-    if (result.ok) {
-      setAnalyses(result.data);
-    }
   }
 
   return (
@@ -157,18 +136,6 @@ export function SandboxPage({
             sections={sections}
             categories={categories}
             members={members}
-          />
-
-          <Divider sx={{ my: 2 }} />
-
-          <SavedAnalysisList
-            accountId={accountId}
-            analyses={analyses}
-            currentConfig={config}
-            currentUserId={currentUserId}
-            role={role}
-            onLoad={handleLoad}
-            onRefresh={handleRefreshAnalyses}
           />
         </Box>
 

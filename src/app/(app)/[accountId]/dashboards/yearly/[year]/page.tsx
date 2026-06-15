@@ -7,7 +7,6 @@ import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { getYearOverview } from "@/lib/queries/dashboards";
 import { getMemberYearlyTrend } from "@/lib/queries/member-analytics";
-import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { getLayout } from "@/server/services/dashboard-layout-service";
 import { m } from "@/lib/messages";
 import { YearlyDashboardClient } from "@/components/dashboards/yearly/YearlyDashboardClient";
@@ -33,12 +32,10 @@ export default async function YearlyDashboardPage({ params }: Props) {
 
   const [
     { sections, monthSummaries, topCategories, pendingCount, allYears },
-    pinnedAnalyses,
     layout,
     memberTrend,
   ] = await Promise.all([
     getYearOverview(accountId, year),
-    getPinnedAnalyses(accountId, "yearly"),
     getLayout(accountId, "yearly"),
     getMemberYearlyTrend(accountId, year),
   ]);
@@ -101,7 +98,6 @@ export default async function YearlyDashboardPage({ params }: Props) {
       monthSummaries={monthSummaries}
       sections={sections}
       topCategories={topCategories}
-      pinnedAnalyses={pinnedAnalyses}
       memberTrend={memberTrend}
       activeWidgets={layout.active}
     />

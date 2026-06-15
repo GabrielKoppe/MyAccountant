@@ -13,7 +13,6 @@ import GridViewIcon from "@mui/icons-material/GridView";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import DonutLargeIcon from "@mui/icons-material/DonutLarge";
 import BarChartIcon from "@mui/icons-material/BarChart";
-import PushPinIcon from "@mui/icons-material/PushPin";
 import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
@@ -41,7 +40,6 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "kpi-savings-rate": SavingsIcon,
   "kpi-pending": AccessTimeIcon,
   budgets: FlagIcon,
-  "pinned-analyses": PushPinIcon,
   insights: TipsAndUpdatesIcon,
 
   // monthly

@@ -64,26 +64,6 @@ export const sandboxConfigSchema = z
 
 export type SandboxConfig = z.infer<typeof sandboxConfigSchema>;
 
-export const saveSandboxAnalysisSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(1, "Nome obrigatório").max(100),
-  config: sandboxConfigSchema,
-  dashboardContext: z.enum(SANDBOX_DASHBOARD_CONTEXTS).default("yearly"),
-  isPinned: z.boolean().default(false),
-});
-
-export type SaveSandboxAnalysisInput = z.infer<typeof saveSandboxAnalysisSchema>;
-
-export const togglePinSchema = z.object({
-  analysisId: z.string(),
-  isPinned: z.boolean(),
-  dashboardContext: z.enum(SANDBOX_DASHBOARD_CONTEXTS).optional(),
-});
-
-export const deleteAnalysisSchema = z.object({
-  analysisId: z.string(),
-});
-
 export const getSandboxDataSchema = z.object({
   config: sandboxConfigSchema,
   currentMonthId: z.string().optional(),

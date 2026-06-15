@@ -17,7 +17,6 @@ import {
   getCategoryTreemapData,
   getSankeyData,
 } from "@/lib/queries/dashboards";
-import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { getMemberMonthlyBreakdown } from "@/lib/queries/member-analytics";
 import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
@@ -79,7 +78,6 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     sparklineData,
     comparisonData,
     treemapData,
-    pinnedAnalyses,
     budgets,
     budgetFormOptions,
     layout,
@@ -90,7 +88,6 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     getMonthSparklineData(accountId, monthId),
     getComparisonData(accountId, monthId),
     getCategoryTreemapData(accountId, monthId),
-    getPinnedAnalyses(accountId, "monthly", monthId),
     getBudgetsWithProgress(accountId, year, month),
     getBudgetFormOptions(accountId),
     getLayout(accountId, "monthly"),
@@ -183,7 +180,6 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         dailyTotals={dailyTotals}
         treemapData={treemapData}
         sankeyData={sankeyData}
-        pinnedAnalyses={pinnedAnalyses}
         budgets={budgets}
         budgetFormOptions={budgetFormOptions}
         insights={insights}
