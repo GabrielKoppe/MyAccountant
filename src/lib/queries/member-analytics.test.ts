@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, type Mock } from "vitest";
 
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { m } from "@/lib/messages";
@@ -9,7 +9,7 @@ const ACCOUNT_ID = "acc-test-1";
 
 beforeEach(() => {
   // Defaults vazios — cada teste sobrescreve o que precisa.
-  prismaMock.transaction.groupBy.mockResolvedValue([] as never);
+  (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue([] as never);
   prismaMock.accountMember.findMany.mockResolvedValue([] as never);
   prismaMock.user.findMany.mockResolvedValue([] as never);
   prismaMock.category.findMany.mockResolvedValue([] as never);
@@ -19,7 +19,7 @@ beforeEach(() => {
 describe("getMemberMonthlyBreakdown", () => {
   it("agrega por responsável, calcula share, topCategory e ranking com zerados ao fim", async () => {
     // 1ª groupBy (por responsável)
-    prismaMock.transaction.groupBy
+    (prismaMock.transaction.groupBy as unknown as Mock)
       .mockResolvedValueOnce([
         { responsibleUserId: "uA", _sum: { amountCents: 30000n } },
         { responsibleUserId: "uX", _sum: { amountCents: 10000n } }, // ex-membro
@@ -85,7 +85,7 @@ describe("getMemberMonthlyBreakdown", () => {
   it("filtra por accountId e base de despesa (multi-tenancy)", async () => {
     await getMemberMonthlyBreakdown(ACCOUNT_ID, "month-1");
 
-    expect(prismaMock.transaction.groupBy).toHaveBeenCalledWith(
+    expect((prismaMock.transaction.groupBy as unknown as Mock)).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           accountId: ACCOUNT_ID,
@@ -102,7 +102,7 @@ describe("getMemberMonthlyBreakdown", () => {
   });
 
   it("não consulta User quando todos os responsáveis são membros atuais", async () => {
-    prismaMock.transaction.groupBy
+    (prismaMock.transaction.groupBy as unknown as Mock)
       .mockResolvedValueOnce([{ responsibleUserId: "uA", _sum: { amountCents: 1000n } }] as never)
       .mockResolvedValueOnce([
         { responsibleUserId: "uA", categoryId: "c1", _sum: { amountCents: 1000n } },
@@ -137,7 +137,7 @@ describe("getMemberYearlyTrend", () => {
     ] as never);
 
     // 6 responsáveis com gastos diferentes → 5 viram série, 1 cai em "Outros".
-    prismaMock.transaction.groupBy.mockResolvedValue([
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue([
       { responsibleUserId: "u1", monthId: "m1", _sum: { amountCents: 60000n } },
       { responsibleUserId: "u2", monthId: "m1", _sum: { amountCents: 50000n } },
       { responsibleUserId: "u3", monthId: "m1", _sum: { amountCents: 40000n } },

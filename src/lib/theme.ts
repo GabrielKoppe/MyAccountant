@@ -488,6 +488,7 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
       },
 
       MuiDialog: {
+        defaultProps: { disableScrollLock: true },
         styleOverrides: {
           paper: {
             borderRadius: radius.lg,
@@ -497,6 +498,7 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
       },
 
       MuiDrawer: {
+        defaultProps: { disableScrollLock: true },
         styleOverrides: {
           paper: {
             backgroundColor: c.background.surface,
@@ -510,12 +512,6 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
       // Cada componente precisa do seu próprio defaultProp porque cada um chama
       // useThemeProps com seu próprio nome antes de repassar ao Modal interno.
       MuiModal: {
-        defaultProps: { disableScrollLock: true },
-      },
-      MuiDialog: {
-        defaultProps: { disableScrollLock: true },
-      },
-      MuiDrawer: {
         defaultProps: { disableScrollLock: true },
       },
       MuiPopover: {

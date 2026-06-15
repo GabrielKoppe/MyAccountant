@@ -25,14 +25,12 @@ export default async function TemplatesPage({ params }: Props) {
     select: { id: true, name: true, mapping: true, createdAt: true },
   });
 
-  const serialized = templates.map(
-    (t: { id: string; name: string; mapping: ImportMapping; createdAt: Date }) => ({
-      id: t.id,
-      name: t.name,
-      mapping: t.mapping as ImportMapping,
-      createdAt: t.createdAt.toISOString(),
-    }),
-  );
+  const serialized = templates.map((t) => ({
+    id: t.id,
+    name: t.name,
+    mapping: t.mapping as unknown as ImportMapping,
+    createdAt: t.createdAt.toISOString(),
+  }));
 
   return <TemplatesManager accountId={accountId} initialTemplates={serialized} />;
 }
