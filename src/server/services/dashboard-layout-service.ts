@@ -5,51 +5,14 @@ import {
   WIDGET_REGISTRY,
   GRID_CONFIG,
   resolveLayout,
-  resolveGridLayout,
   type DashboardContext,
 } from "@/components/dashboards/_core/widget-registry";
-import type {
-  UpdateDashboardLayoutInput,
-  GridLayoutUpdateInput,
-  StoredWidget,
-} from "@/lib/schemas/dashboard-layout";
+import type { UpdateDashboardLayoutInput, StoredWidget } from "@/lib/schemas/dashboard-layout";
 import type { ActionContext } from "@/server/api/define-action";
 import { AppError } from "@/server/api/errors";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPAT (spec 33) — formato string[] / ResolvedLayout. Consumido pelo editor de
-// lista e pelos dashboards legados. Removido nas fases 2/3.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** @deprecated spec 33 — substituído por `getGridLayout`. */
-export async function getLayout(accountId: string, context: DashboardContext) {
-  const record = await prisma.dashboardLayout.findUnique({
-    where: { accountId_context: { accountId, context } },
-    select: { widgets: true },
-  });
-
-  const stored = record ? (record.widgets as string[]) : null;
-  return resolveLayout(context, stored);
-}
-
-/** @deprecated spec 33 — substituído por `upsertGridLayout`. */
-export async function upsertLayout(input: UpdateDashboardLayoutInput, ctx: ActionContext) {
-  const { context, widgets } = input;
-  const knownIds = new Set(WIDGET_REGISTRY[context as DashboardContext].map((w) => w.id));
-  const filtered = widgets.filter((id) => knownIds.has(id));
-
-  await prisma.dashboardLayout.upsert({
-    where: { accountId_context: { accountId: ctx.accountId, context } },
-    create: { accountId: ctx.accountId, context, widgets: filtered },
-    update: { widgets: filtered },
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Spec 36 — formato StoredWidget[] / grade 2D
-// ─────────────────────────────────────────────────────────────────────────────
-
-export async function getGridLayout(
+// Spec 36 — layout em grade 2D (StoredWidget[]). Filtra sempre por accountId.
+export async function getLayout(
   accountId: string,
   context: DashboardContext,
 ): Promise<StoredWidget[]> {
@@ -58,11 +21,11 @@ export async function getGridLayout(
     select: { widgets: true },
   });
   const stored = record ? (record.widgets as StoredWidget[]) : null;
-  return resolveGridLayout(context, stored);
+  return resolveLayout(context, stored);
 }
 
-export async function upsertGridLayout(
-  input: GridLayoutUpdateInput,
+export async function upsertLayout(
+  input: UpdateDashboardLayoutInput,
   ctx: ActionContext,
 ): Promise<void> {
   const { context, widgets } = input;

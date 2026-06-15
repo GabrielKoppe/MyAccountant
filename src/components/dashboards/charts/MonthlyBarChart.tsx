@@ -62,7 +62,7 @@ export function MonthlyBarChart({ months, sections, monthPagePrefix }: Props) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={160}>
       <BarChart
         data={data}
         onClick={handleClick}

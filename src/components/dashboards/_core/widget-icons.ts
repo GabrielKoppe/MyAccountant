@@ -26,11 +26,14 @@ import DynamicFeedIcon from "@mui/icons-material/DynamicFeed";
 import TipsAndUpdatesIcon from "@mui/icons-material/TipsAndUpdates";
 import Diversity3Icon from "@mui/icons-material/Diversity3";
 import MultilineChartIcon from "@mui/icons-material/MultilineChart";
+import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import TuneIcon from "@mui/icons-material/Tune";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
 
 /**
  * Mapa centralizado: widget ID → componente de ícone MUI.
  * Fonte única para todos os contextos de dashboard (monthly, yearly, month_summary).
- * Usado tanto na UI de settings (DashboardLayoutEditor) quanto nos próprios widgets
+ * Usado tanto no editor de grade (DashboardGridCanvas) quanto nos próprios widgets
  * via WidgetContainer.
  */
 export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
@@ -67,4 +70,9 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "kpi-balance": AccountBalanceIcon,
   "section-cards": ViewModuleIcon,
   "activity-lists": DynamicFeedIcon,
+
+  // instanciáveis (spec 36 §2.3)
+  analysis: AutoGraphIcon,
+  "kpi-custom": TuneIcon,
+  "filtered-transactions": FilterAltIcon,
 };

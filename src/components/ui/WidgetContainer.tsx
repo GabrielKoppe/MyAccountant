@@ -57,10 +57,20 @@ export function WidgetContainer({
   const hasRightContent = secondary !== undefined || collapsible;
 
   return (
-    <Paper variant="outlined" sx={sx}>
+    <Paper
+      variant="outlined"
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        ...sx,
+      }}
+    >
       {/* ── Cabeçalho ── */}
       <Box
         sx={{
+          flexShrink: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -116,11 +126,13 @@ export function WidgetContainer({
 
       {/* ── Conteúdo ── */}
       {collapsible ? (
-        <Collapse in={expanded}>
+        <Collapse in={expanded} sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
           <Box sx={{ px: 2.5, pb: 2, pt: 0.5 }}>{children}</Box>
         </Collapse>
       ) : (
-        <Box sx={{ px: 2.5, pb: 2.5, pt: 0 }}>{children}</Box>
+        <Box sx={{ px: 2.5, pb: 2.5, pt: 0, flex: 1, minHeight: 0, overflow: "auto" }}>
+          {children}
+        </Box>
       )}
     </Paper>
   );

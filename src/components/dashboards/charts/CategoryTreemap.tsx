@@ -155,7 +155,7 @@ export function CategoryTreemap({ categories, onDrillDown }: Props) {
   }
 
   return (
-    <Box>
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 200 }}>
       {drillCategoryId && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
           <Button
@@ -180,7 +180,7 @@ export function CategoryTreemap({ categories, onDrillDown }: Props) {
         </Box>
       )}
 
-      <ResponsiveContainer width="100%" height={280}>
+      <ResponsiveContainer width="100%" height="100%" minHeight={180}>
         <Treemap
           data={data}
           dataKey="value"
