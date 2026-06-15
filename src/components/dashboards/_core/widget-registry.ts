@@ -29,32 +29,10 @@ export const GRID_CONFIG: Record<DashboardContext, DashboardGridConfig> = {
   month_summary: { cols: 6, initialRows: 6, maxRows: 10 },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPAT (spec 33) — mantido enquanto o editor de lista e o renderer sequencial
-// coexistem com a nova grade 2D. Removido nas fases 2/3.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** @deprecated spec 33 — substituído por `sizeVariants`. Removido nas fases 2/3. */
-export type WidgetSpan = "half" | "full";
-
-/** @deprecated spec 33 — formato de retorno da `resolveLayout` legada. */
-export type ResolvedLayout = {
-  active: WidgetDef[];
-  available: WidgetDef[];
-};
-
-/** @deprecated spec 33 — segmentos do renderer sequencial. */
-export type Segment =
-  | { type: "kpis"; widgets: WidgetDef[] }
-  | { type: "halves"; widgets: [WidgetDef] | [WidgetDef, WidgetDef] }
-  | { type: "full"; widget: WidgetDef };
-
 export type WidgetDef = {
   id: string;
   labelKey: string;
   kind: WidgetKind;
-  /** @deprecated spec 33 — usar `sizeVariants`. Mantido para o renderer/editor legados. */
-  span?: WidgetSpan;
   sizeVariants: WidgetSizeVariant[]; // sizeVariants[0] = variante default
   defaultVisible: boolean;
   instantiable?: boolean; // default false = singleton
@@ -190,7 +168,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "budgets",
       labelKey: "budgets",
       kind: "panel",
-      span: "full",
       sizeVariants: BUDGETS_VARIANTS,
       defaultVisible: true,
     },
@@ -198,7 +175,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "daily-heatmap",
       labelKey: "dailyHeatmap",
       kind: "panel",
-      span: "half",
       sizeVariants: SQUARE_CHART_VARIANTS,
       defaultVisible: true,
     },
@@ -206,7 +182,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "category-treemap",
       labelKey: "categoryTreemap",
       kind: "panel",
-      span: "half",
       sizeVariants: SQUARE_CHART_VARIANTS,
       defaultVisible: true,
     },
@@ -214,7 +189,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "money-flow",
       labelKey: "moneyFlow",
       kind: "panel",
-      span: "full",
       sizeVariants: MONEY_FLOW_VARIANTS,
       defaultVisible: true,
     },
@@ -222,7 +196,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "section-breakdown",
       labelKey: "sectionBreakdown",
       kind: "panel",
-      span: "half",
       sizeVariants: PIE_VARIANTS,
       defaultVisible: true,
     },
@@ -230,7 +203,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "category-breakdown",
       labelKey: "categoryBreakdown",
       kind: "panel",
-      span: "half",
       sizeVariants: PIE_VARIANTS,
       defaultVisible: true,
     },
@@ -238,7 +210,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "top-transactions",
       labelKey: "topTransactions",
       kind: "panel",
-      span: "full",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: true,
     },
@@ -246,7 +217,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "insights",
       labelKey: "insights",
       kind: "panel",
-      span: "full",
       sizeVariants: INSIGHTS_VARIANTS,
       defaultVisible: false,
     },
@@ -254,7 +224,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "member-breakdown",
       labelKey: "memberBreakdown",
       kind: "panel",
-      span: "full",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
     },
@@ -336,7 +305,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "month-card-grid",
       labelKey: "monthCardGrid",
       kind: "panel",
-      span: "full",
       sizeVariants: MONTH_CARD_GRID_VARIANTS,
       defaultVisible: true,
     },
@@ -344,7 +312,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "monthly-bar-chart",
       labelKey: "monthlyBarChart",
       kind: "panel",
-      span: "full",
       sizeVariants: MONTHLY_BAR_CHART_VARIANTS,
       defaultVisible: true,
     },
@@ -352,7 +319,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "top-categories",
       labelKey: "topCategories",
       kind: "panel",
-      span: "full",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: true,
     },
@@ -360,7 +326,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "member-trend",
       labelKey: "memberTrend",
       kind: "panel",
-      span: "full",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
     },
@@ -368,7 +333,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "insights",
       labelKey: "insights",
       kind: "panel",
-      span: "full",
       sizeVariants: INSIGHTS_VARIANTS,
       defaultVisible: false,
     },
@@ -415,7 +379,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "budgets",
       labelKey: "budgets",
       kind: "panel",
-      span: "full",
       sizeVariants: BUDGETS_VARIANTS,
       defaultVisible: true,
     },
@@ -423,7 +386,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "section-cards",
       labelKey: "sectionCards",
       kind: "panel",
-      span: "full",
       sizeVariants: SECTION_CARDS_VARIANTS,
       defaultVisible: true,
     },
@@ -431,7 +393,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "activity-lists",
       labelKey: "activityLists",
       kind: "panel",
-      span: "full",
       sizeVariants: ACTIVITY_LISTS_VARIANTS,
       defaultVisible: true,
     },
@@ -439,7 +400,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "insights",
       labelKey: "insights",
       kind: "panel",
-      span: "full",
       sizeVariants: INSIGHTS_VARIANTS,
       defaultVisible: false,
     },
@@ -539,7 +499,7 @@ function binPack(
 // - widgetId desconhecido → descartado silenciosamente.
 // - sizeVariantId desconhecido → fallback para sizeVariants[0].
 // - defaultVisible ausente no layout salvo → auto-inserido (compat-forward).
-export function resolveGridLayout(
+export function resolveLayout(
   context: DashboardContext,
   stored: StoredWidget[] | null,
 ): StoredWidget[] {
@@ -573,75 +533,4 @@ export function resolveGridLayout(
   }
 
   return result;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPAT (spec 33) — `buildSegments` e `resolveLayout` legados.
-// Operam sobre o catálogo (WidgetDef) e o formato string[]. Removidos nas fases 2/3.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** @deprecated spec 33 — substituído por `DashboardGrid` (spec 36). */
-export function buildSegments(active: WidgetDef[]): Segment[] {
-  const segments: Segment[] = [];
-  let i = 0;
-
-  while (i < active.length) {
-    const w = active[i];
-
-    if (w.kind === "kpi") {
-      const group: WidgetDef[] = [w];
-      while (i + 1 < active.length && active[i + 1].kind === "kpi") {
-        i++;
-        group.push(active[i]);
-      }
-      segments.push({ type: "kpis", widgets: group });
-      i++;
-      continue;
-    }
-
-    if (w.span === "half") {
-      if (i + 1 < active.length && active[i + 1].span === "half") {
-        segments.push({ type: "halves", widgets: [w, active[i + 1]] });
-        i += 2;
-      } else {
-        segments.push({ type: "halves", widgets: [w] });
-        i++;
-      }
-      continue;
-    }
-
-    segments.push({ type: "full", widget: w });
-    i++;
-  }
-
-  return segments;
-}
-
-/** @deprecated spec 33 — substituído por `resolveGridLayout` (spec 36). */
-export function resolveLayout(context: DashboardContext, stored: string[] | null): ResolvedLayout {
-  const registry = WIDGET_REGISTRY[context];
-  const byId = new Map(registry.map((w) => [w.id, w]));
-  const active: WidgetDef[] = [];
-  const seen = new Set<string>();
-
-  if (stored === null) {
-    for (const def of registry) {
-      if (def.defaultVisible) {
-        active.push(def);
-        seen.add(def.id);
-      }
-    }
-  } else {
-    for (const id of stored) {
-      const def = byId.get(id);
-      if (!def || seen.has(id)) continue;
-      seen.add(id);
-      active.push(def);
-    }
-  }
-
-  const activeIds = new Set(active.map((w) => w.id));
-  const available = registry.filter((w) => !activeIds.has(w.id));
-
-  return { active, available };
 }

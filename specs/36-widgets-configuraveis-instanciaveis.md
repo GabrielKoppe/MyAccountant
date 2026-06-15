@@ -69,7 +69,7 @@ O editor de lista do spec 33 (`DashboardLayoutEditor.tsx`) é **substituído** p
 - **`DashboardGridEditor.tsx`** (cliente) — orquestra o canvas da grade, a paleta lateral e o estado de layout.
 - **`DashboardGridCanvas.tsx`** (cliente) — canvas interativo da grade: drag-and-drop de reposicionamento, alças de resize com snap de variante, indicador visual de drop zone durante drag.
 - **`WidgetPalette.tsx`** (cliente) — painel lateral com widgets disponíveis. Para singletons: exibe apenas os não instanciados. Para instanciáveis: sempre disponíveis na paleta (sem limite por tipo — o limite é o espaço da grade).
-- **`WidgetConfigDialog.tsx`** (cliente) — `DialogShell` + form RHF/Zod para o `configSchema` do widget.
+- **`WidgetSettingsPanel.tsx`** (cliente) — painel lateral de configurações da instância **selecionada** (substitui o menu de contexto ⋮ e o modal de config). Centraliza, na mesma lateral do canvas (onde a paleta aparece quando nada está selecionado): o **tamanho** (miniaturas de variante), as **ações** (duplicar/remover) e o **form de config** (RHF/Zod do `configSchema`, quando houver). Sem `DialogShell`/modal — tudo visível na lateral, sem sobreposição nem perda de contexto.
 
 **Como adicionar widgets:** o usuário arrasta da paleta lateral para uma célula da grade. O widget é inserido com sua variante default (`sizeVariants[0]`); a posição é onde foi solto (ou a célula livre mais próxima se houver colisão com push).
 
@@ -85,11 +85,11 @@ O editor de lista do spec 33 (`DashboardLayoutEditor.tsx`) é **substituído** p
 | Resize de variante | Arrastar alça → snap para variante mais próxima | Debounce 600 ms |
 | Ocultar / Reativar | Toggle `VisibilityOffIcon` no widget | Debounce 600 ms |
 | Adicionar widget | Drag da paleta para a grade | Imediato |
-| Remover instância | Botão ✕ no menu de contexto do widget | Imediato |
-| Duplicar instância | Menu de contexto → "Duplicar" | Imediato |
-| Editar config (⚙) | Abre `WidgetConfigDialog` → botão "Salvar" | Save explícito no dialog |
+| Remover instância | Botão "Remover" no painel lateral (instância selecionada) | Imediato |
+| Duplicar instância | Botão "Duplicar" no painel lateral (instância selecionada) | Imediato |
+| Editar config | Form de config no painel lateral → botão "Salvar" | Save explícito no painel |
 
-**Seletor de variante:** ao selecionar um widget na grade, um painel lateral exibe as variantes disponíveis como miniaturas mostrando a pegada na grade. O usuário pode clicar para mudar a variante ou arrastar a alça de resize — o sistema faz snap para a variante declarada cujo `(w, h)` é mais próximo.
+**Seleção e painel lateral:** ao clicar num widget da grade, ele fica selecionado e a lateral passa a exibir o `WidgetSettingsPanel` daquela instância — tamanho (miniaturas de variante), ações e config. Quando nada está selecionado, a lateral mostra a paleta. Mudar a variante clicando numa miniatura, ou arrastando a alça de resize do canto do card (snap para a variante declarada cujo `(w, h)` é mais próximo), reflete imediatamente na grade.
 
 ### 2.5 Grade posicionável (WGT-07)
 
@@ -224,9 +224,9 @@ O widget `pinned-analyses` e o model `SavedAnalysis` são **removidos completame
 
 ### WGT-02 — Configuração de singletons existentes
 
-- QUANDO o usuário abre a configuração (⚙) de um singleton com `configSchema`, O DIALOG DEVE exibir apenas as opções daquele `configSchema`.
-- QUANDO o usuário clica "Salvar" no dialog, O `config` DEVE ser persistido na instância; ao renderizar, O WIDGET DEVE usar esse `config` (ou `defaultConfig` se ausente).
-- Singletons **sem** `configSchema` NÃO DEVEM exibir o botão ⚙.
+- QUANDO o usuário seleciona um singleton com `configSchema`, O PAINEL LATERAL DEVE exibir a seção de config apenas com as opções daquele `configSchema`.
+- QUANDO o usuário clica "Salvar" na seção de config do painel, O `config` DEVE ser persistido na instância; ao renderizar, O WIDGET DEVE usar esse `config` (ou `defaultConfig` se ausente).
+- Singletons **sem** `configSchema` NÃO DEVEM exibir a seção de config no painel lateral.
 
 ### WGT-03 / WGT-04 — Widgets genéricos instanciáveis
 
@@ -242,7 +242,7 @@ O widget `pinned-analyses` e o model `SavedAnalysis` são **removidos completame
 - QUANDO o usuário arrasta um widget existente para nova posição, A MUDANÇA DEVE refletir imediatamente (otimista) e auto-salvar com debounce de 600 ms.
 - QUANDO o usuário arrasta a alça de resize, O SISTEMA DEVE fazer snap para a `sizeVariant` mais próxima ao soltar e auto-salvar com debounce de 600 ms.
 - QUANDO o usuário oculta um widget, ELE DEVE aparecer no canvas como ghost (opacidade reduzida + `VisibilityOffIcon`) e auto-salvar com debounce de 600 ms. Widgets ocultos NÃO DEVEM ser renderizados nos dashboards.
-- QUANDO o usuário abre ⚙ de uma instância, O DIALOG DEVE usar `DialogShell` + form RHF/Zod do `configSchema`; ao clicar "Salvar" no dialog, O `config` DEVE ser persistido.
+- QUANDO o usuário seleciona uma instância com `configSchema`, O PAINEL LATERAL (`WidgetSettingsPanel`) DEVE exibir um form RHF/Zod do `configSchema`; ao clicar "Salvar" na seção de config, O `config` DEVE ser persistido. NÃO DEVE haver modal/`DialogShell` para config.
 - QUANDO o auto-save falha, O SISTEMA DEVE reverter o estado otimista e exibir snackbar de erro.
 - SE o membro for `viewer`, A ROTA de settings DEVE redirecioná-lo.
 - O drag-and-drop DEVE ser operável por teclado (`KeyboardSensor` do `@dnd-kit`).
@@ -284,7 +284,7 @@ O widget `pinned-analyses` e o model `SavedAnalysis` são **removidos completame
 - **Tornar todos os singletons do spec 33 instanciáveis** (ex.: múltiplos Sankeys) — apenas os 3 novos tipos são `instantiable`.
 - **Migrar `SavedAnalysis` existentes para instâncias `analysis`** — remoção total sem migração (projeto em desenvolvimento).
 - **Responsividade avançada em mobile** — o fallback sequencial em `xs`/`sm` é provisório; experiência de dashboard em mobile fica para **spec 28**.
-- **Configuração inline no card** (popover dentro do widget no dashboard) — toda config via `DialogShell` no editor de settings.
+- **Configuração inline no card** (popover dentro do widget no dashboard) — toda config no painel lateral (`WidgetSettingsPanel`) do editor de settings, nunca em modal.
 - **Novos tipos de gráfico além dos do Sandbox** — o catálogo de `chartType` é o do `sandboxConfigSchema`.
 - **Compartilhar configurações de widget entre Accounts** — fora de escopo.
 
@@ -301,9 +301,10 @@ O widget `pinned-analyses` e o model `SavedAnalysis` são **removidos completame
 | Crescimento do canvas | Automático ao arrastar abaixo da última linha | Mais fluido que botão explícito; `maxRows` garante contenção |
 | Editor | Substituição total por grade 2D (`DashboardGridEditor`) | Posicionamento livre requer canvas 2D; lista vertical não suporta coordenadas |
 | Adição de widgets | Paleta lateral + drag para a grade | Intuitivo; usuário controla onde o widget cai |
+| Ações e config da instância | Painel lateral (`WidgetSettingsPanel`) ao selecionar o card — **sem menu de contexto ⋮ nem modal** | Tudo visível na mesma lateral (tamanho + ações + config), sem sobreposição nem perda de contexto; selecionar o card abre o painel, e a paleta volta quando nada está selecionado |
 | Instâncias ocultas | Ghost na grade (opacidade + `VisibilityOffIcon`) | Preserva posição e config; visível no editor, invisível no dashboard |
 | Colisões | Push (empurra widgets para baixo) | Mais fluido que bloquear; menos disruptivo que swap com widgets de tamanhos diferentes |
-| Auto-save | Layout (drag/resize/ocultar/add/remove): debounce 600 ms. Config interna: save explícito no dialog | Config é mais crítica — botão explícito dá controle; auto-save flui para ações de posicionamento |
+| Auto-save | Layout (drag/resize/ocultar/add/remove): debounce 600 ms. Config interna: save explícito no painel lateral | Config é mais crítica — botão explícito dá controle; auto-save flui para ações de posicionamento |
 | `pinned-analyses` / `SavedAnalysis` | Remoção total | Projeto em desenvolvimento; `analysis` é o caminho canônico; sem usuários em produção para migrar |
 | Fluxo Sandbox → Dashboard | Botão "Adicionar ao dashboard" | Elimina redundância de dois sistemas; mantém Sandbox para exploração |
 | `kpi-custom` | Complemento (novas métricas); componente pode ser base interna dos KPIs fixos | Fixos continuam como antes para o usuário; reutilização de componente é decisão de implementação |
@@ -330,7 +331,8 @@ O widget `pinned-analyses` e o model `SavedAnalysis` são **removidos completame
 | WGT-06 | `src/components/settings/DashboardGridEditor.tsx` (novo — substitui `DashboardLayoutEditor.tsx`) |
 | WGT-06 | `src/components/settings/DashboardGridCanvas.tsx` (novo) |
 | WGT-06 | `src/components/settings/WidgetPalette.tsx` (novo) |
-| WGT-06 | `src/components/settings/WidgetConfigDialog.tsx` (novo) |
+| WGT-06 | `src/components/settings/WidgetSettingsPanel.tsx` (novo — painel lateral: tamanho + ações + config da instância selecionada; substitui o menu de contexto e o modal de config) |
+| WGT-06 | `src/components/settings/WidgetCardBody.tsx` (novo — card compartilhado entre canvas e paleta) |
 | WGT-09 | Remover: `PinnedAnalysesSection.tsx`, `settings/analyses/`, `saveSandboxAnalysisAction`, `togglePinAction`, `saveSandboxAnalysisSchema`, `togglePinSchema` |
 | WGT-09 | Sandbox: substituir "Salvar/Fixar" por "Adicionar ao dashboard" com modal de seleção de contexto |
 | Mensagens | `src/lib/messages/pt-BR.ts` — labels de variantes de tamanho, textos do editor de grade, "Adicionar ao dashboard", `dashboards.widgets.*` para widgets novos |
@@ -1003,8 +1005,8 @@ docker compose exec app pnpm typecheck
 **Critérios de conclusão**:
 - Paleta lateral visível com singletons não instanciados e widgets instanciáveis
 - Arrastar da paleta para a grade → widget inserido na posição com `sizeVariants[0]`
-- Menu de contexto no widget do canvas → "Duplicar" e "Remover" funcionam
-- Seletor de variante (miniaturas) → mudar variante atualiza `(w, h)` na grade imediatamente
+- Selecionar um widget → painel lateral (`WidgetSettingsPanel`) com "Duplicar" e "Remover" funcionando
+- Seletor de variante (miniaturas) no painel → mudar variante atualiza `(w, h)` na grade imediatamente
 - `pnpm typecheck` sem erros
 
 #### 4.1 Criar `src/components/settings/WidgetPalette.tsx`
@@ -1023,29 +1025,29 @@ type Props = {
 **Regras de exibição**:
 - Singletons (`instantiable !== true`): exibir apenas se `activeWidgetIds` não contém o `widgetId` (só pode haver uma instância)
 - Instanciáveis (`instantiable: true`): exibir sempre (pode adicionar N vezes)
-- Cards usam `WidgetCard` em `mode="available"` com label, descrição e ícone do `WIDGET_ICONS`
-- Arrastar um card da paleta dispara `onAdd` com a posição de drop
+- Cards usam o **`WidgetCardBody`** compartilhado (mesmo card do canvas, sem alça de drag) com label, descrição e ícone do `WIDGET_ICONS`
+- O card inteiro é arrastável; soltá-lo na grade adiciona a instância na célula de destino (ou na próxima livre)
 
-**Integrar no `DashboardGridEditor`**: adicionar `WidgetPalette` ao lado do canvas em layout de 2 colunas (`Box sx={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 2 }}`). Em mobile: paleta fica acima do canvas (não disponível para edição, conforme spec §2.5).
+**Integrar no `DashboardGridEditor`**: a paleta fica ao lado do canvas (layout de 2 colunas; em mobile empilha acima). A mesma coluna lateral alterna para o `WidgetSettingsPanel` quando há um widget selecionado.
 
-#### 4.2 Adicionar menu de contexto no canvas
+#### 4.2 Ações da instância no painel lateral
 
-Em cada widget do `DashboardGridCanvas`, adicionar um `IconButton` com `MoreVertIcon` que abre um `Menu` MUI com as opções:
-- **Duplicar** (apenas se `instantiable: true` no def): cria nova instância com mesmo `widgetId`, novo `instanceId` (usar `crypto.randomUUID()` ou `cuid()`), mesma `config`, posicionada na próxima célula livre → save imediato
-- **Remover**: remove instância do array → save imediato
+**Sem menu de contexto (⋮).** Ao selecionar um widget no canvas, o `WidgetSettingsPanel` (na lateral) exibe a seção **Ações**:
+- **Duplicar** (apenas se `instantiable: true` no def): cria nova instância com mesmo `widgetId`, novo `instanceId` (`crypto.randomUUID()`), mesma `config`, posicionada na próxima célula livre → save imediato
+- **Remover**: remove a instância do array → save imediato
 
-#### 4.3 Seletor de variante
+#### 4.3 Seletor de variante (no painel lateral)
 
-Quando o usuário clica num widget no canvas (não no drag handle), exibir um painel lateral de detalhes (drawer ou sidebar secundária) mostrando:
-- Nome do widget
-- Grade de miniaturas das `sizeVariants` disponíveis (cada miniatura mostra o `id` da variante e uma representação proporcional de `w × h` em células)
+O `WidgetSettingsPanel` também exibe a seção **Tamanho**:
+- Cabeçalho "Configurações do widget" + nome do widget como contexto
+- Miniaturas das `sizeVariants` disponíveis (cada uma com label da variante e representação proporcional de `w × h`)
 - Variante ativa destacada
 
-Ao clicar em uma miniatura: atualizar `sizeVariantId`, `w`, `h` da instância → debounce 600ms → save.
+Ao clicar numa miniatura: atualizar `sizeVariantId`, `w`, `h` (com push/deslocamento para caber em `cols × maxRows`) → debounce 600ms → save. Sem espaço → snackbar de aviso.
 
-#### 4.4 Alças de resize no canvas
+#### 4.4 Alça de resize no canvas
 
-Em cada widget do canvas (desktop apenas), renderizar alças nas bordas direita e inferior. O drag da alça calcula o tamanho arrastado e faz snap para a `sizeVariant` cujo `(w, h)` minimiza `Math.abs(dragW - v.w) + Math.abs(dragH - v.h)` (distância de Manhattan). Atualizar instância com a variante mais próxima → debounce 600ms → save.
+Em cada widget do canvas (desktop), renderizar **uma alça sutil no canto inferior-direito** (grip neutro), com interação via **pointer capture** (sem listeners de window). O drag calcula o tamanho arrastado e faz snap para a `sizeVariant` cujo `(w, h)` minimiza `Math.abs(dragW - v.w) + Math.abs(dragH - v.h)` (distância de Manhattan), deslocando o card para caber se necessário → debounce 600ms → save.
 
 **Verificação final da fase**:
 ```bash
@@ -1057,36 +1059,27 @@ docker compose exec app pnpm typecheck
 
 ### Fase 5 — Configuração interna de widgets (`configSchema`)
 
-**Objetivo**: widgets com `configSchema` exibem botão ⚙. O dialog de configuração salva o `config` na instância. Os componentes de dashboard usam o `config` salvo para adaptar a apresentação.
+**Objetivo**: widgets com `configSchema` exibem uma **seção de config no painel lateral** (`WidgetSettingsPanel`). Salvar grava o `config` na instância. Os componentes de dashboard usam o `config` salvo para adaptar a apresentação. **Sem modal/`DialogShell`.**
 
 **Critérios de conclusão**:
-- `kpi-month-total`, `money-flow`, `category-treemap`, `budgets`, `top-transactions` exibem ⚙ no canvas
-- Abrir ⚙ → dialog com form correto para o widget
-- Salvar config → fechar dialog → widget no dashboard usa novo config
+- Selecionar `kpi-month-total`, `money-flow`, `category-treemap`, `budgets` ou `top-transactions` → painel lateral mostra a seção de config
+- Editar config no painel → "Salvar" → widget no dashboard usa o novo config
 - `kpi-custom` adicionado da paleta → configurado com métrica/período → renderiza KPI correto
 - `filtered-transactions` em `month_summary` → configurado com filtros → lista filtrada renderiza
-- Widgets sem `configSchema` não exibem ⚙
+- Widgets sem `configSchema` não exibem a seção de config
 - `pnpm typecheck` sem erros
 
-#### 5.1 Criar `src/components/settings/WidgetConfigDialog.tsx`
+#### 5.1 Adicionar a seção de config ao `WidgetSettingsPanel`
 
-Dialog de configuração para uma instância de widget.
+A config vive numa **seção do painel lateral** (não em modal). O `WidgetSettingsPanel` ganha, abaixo de "Tamanho", uma seção **Configuração** quando `def.configSchema` está definido.
 
 ```ts
-// Props
-type Props = {
-  open: boolean;
-  widget: StoredWidget;
-  def: WidgetDef;
-  context: DashboardContext;         // para filtrar opções por contexto (ex: analysis)
-  onSave: (config: unknown) => void;
-  onClose: () => void;
-};
+// O painel recebe um callback de salvar config além das ações já existentes:
+onSaveConfig: (config: unknown) => void;
 ```
 
 **Estrutura**:
-- Usa `<DialogShell>` de `@/components/ui/DialogShell`
-- Detecta o widget pelo `def.id` e renderiza o form correspondente:
+- Detecta o widget pelo `def.id` e renderiza o sub-form correspondente dentro do painel:
   - `kpi-month-total`: `<DeltaModeConfigForm>` (RadioGroup: Mês anterior / Ano anterior / Sem comparação)
   - `money-flow`: `<GroupByConfigForm>` (RadioGroup: Por seção / Por categoria)
   - `category-treemap`: `<TopNConfigForm>` (Select: 5 / 10 / 20 / Todos)
@@ -1096,11 +1089,11 @@ type Props = {
   - `filtered-transactions`: `<FilteredTransactionsConfigForm>` (filtros do spec 19 + limit)
   - `analysis`: `<AnalysisConfigForm>` (reusar `SandboxControls` com opções filtradas por contexto)
 - Cada sub-form usa `useForm` com `zodResolver(def.configSchema!)` e `defaultValues` de `widget.config ?? def.defaultConfig`
-- Botão "Salvar" no dialog chama `form.handleSubmit(onSave)`; save explícito (sem debounce)
+- Botão "Salvar" da seção chama `form.handleSubmit(onSaveConfig)`; save explícito (sem debounce)
 
-#### 5.2 Adicionar botão ⚙ no canvas
+#### 5.2 Ligar a config ao canvas
 
-Em `DashboardGridCanvas.tsx`, em cada widget, exibir `<IconButton><SettingsIcon /></IconButton>` somente se `def.configSchema` está definido. Ao clicar, abrir `WidgetConfigDialog`. Ao `onSave`: atualizar `config` na instância → save imediato (não debounce — é ação deliberada).
+No `DashboardGridCanvas.tsx`, passar `onSaveConfig` ao `WidgetSettingsPanel` da instância selecionada. Ao salvar: atualizar `config` na instância → save imediato (ação deliberada). A seção de config só aparece quando `def.configSchema` está definido.
 
 #### 5.3 Adicionar `configSchema` ao registry
 
@@ -1180,7 +1173,7 @@ docker compose exec app pnpm test
 **Objetivo**: o widget `analysis` instanciável renderiza gráficos configurados. O Sandbox tem o botão "Adicionar ao dashboard". A página `settings/analyses` não existe mais.
 
 **Critérios de conclusão**:
-- Adicionar widget `analysis` pelo editor, configurar via ⚙ → gráfico renderiza no dashboard
+- Adicionar widget `analysis` pelo editor, configurar pela seção de config do painel lateral → gráfico renderiza no dashboard
 - No Sandbox, "Adicionar ao dashboard" abre modal, escolher contexto → instância `analysis` criada no layout
 - Navegar para o dashboard → instância `analysis` visível com o gráfico configurado
 - Rota `/[accountId]/settings/analyses` retorna 404
@@ -1240,7 +1233,7 @@ for (const inst of widgets.filter(w => w.widgetId === "analysis")) {
 }
 ```
 
-#### 6.3 Form de configuração do `analysis` em `WidgetConfigDialog`
+#### 6.3 Form de configuração do `analysis` no `WidgetSettingsPanel`
 
 O form para `analysis` reutiliza `SandboxControls` (ou os campos individuais do sandbox — verificar se o componente é reutilizável). Filtrar opções por contexto na UI:
 
@@ -1325,4 +1318,220 @@ docker compose exec app pnpm typecheck
 docker compose exec app pnpm test
 # Fluxo completo: Sandbox → Adicionar ao dashboard → Dashboard mostra gráfico
 # Verificar 404 em /settings/analyses
+```
+
+---
+
+### Fase 7 — Finalização: limpeza, cobertura e skill de widgets
+
+**Objetivo**: garantir que nenhum resíduo das fases anteriores persiste no codebase, a cobertura de testes está dentro do threshold do projeto, o skill `dashboard-widgets` está atualizado para refletir a nova arquitetura, e o `docs/widgets.md` tem a correção de `member-breakdown` registrada. Ao final desta fase o spec está 100% implementado e documentado.
+
+**Critérios de conclusão**:
+- `pnpm typecheck` sem erros
+- `pnpm test` passando com cobertura ≥ 60% (threshold do projeto)
+- Nenhuma referência a `span`, `buildSegments`, `ResolvedLayout`, `PinnedAnalysesSection`, `SavedAnalysis`, `savedAnalyses`, `saveSandboxAnalysisAction`, `togglePinAnalysisAction`, `pinned-analyses` no codebase
+- `skills/dashboard-widgets/SKILL.md` reflete a nova arquitetura de grade 2D
+- `docs/widgets.md` corrigido para `member-breakdown`
+
+#### 7.1 Auditoria de resíduos
+
+Executar os seguintes greps para confirmar que não há referências órfãs antes de declarar a spec concluída:
+
+```bash
+# Nenhum resultado esperado para cada comando
+docker compose exec app grep -r "buildSegments\|ResolvedLayout\|WidgetSpan\b" src/ --include="*.ts" --include="*.tsx" -l
+
+docker compose exec app grep -r "PinnedAnalysesSection\|PinnedAnalysesSectionSecondary" src/ --include="*.ts" --include="*.tsx" -l
+
+docker compose exec app grep -r "savedAnalysis\|SavedAnalysis\|saved_analyses\|saveSandboxAnalysis\|togglePinAnalysis\|togglePinSchema\|pinned-analyses" src/ --include="*.ts" --include="*.tsx" -l
+
+docker compose exec app grep -r '"span"' src/components/dashboards/ --include="*.ts" --include="*.tsx" -l
+
+docker compose exec app grep -r "DashboardWidgetRenderer\|DashboardLayoutEditor" src/ --include="*.ts" --include="*.tsx" -l
+```
+
+Para cada arquivo retornado, remover a referência residual. Após limpar, rodar `pnpm typecheck` para confirmar que não há erros introduzidos.
+
+#### 7.2 Auditoria de imports quebrados
+
+```bash
+# Verificar imports de arquivos deletados
+docker compose exec app pnpm typecheck 2>&1 | grep "Cannot find module"
+```
+
+Cada `Cannot find module` indica um import apontando para arquivo deletado em fases anteriores. Corrigir um a um.
+
+#### 7.3 Cobertura de testes
+
+Rodar cobertura e verificar threshold:
+
+```bash
+docker compose exec app pnpm test:coverage
+```
+
+Se algum arquivo novo das fases 1–6 estiver abaixo de 60% de cobertura, adicionar os casos de teste faltantes. Focar em:
+
+- `src/components/dashboards/_core/widget-registry.ts` — função `binPack` (casos: KPIs na mesma linha, widget `w > 1` que não cabe na linha atual vai para a próxima, grade completamente cheia retorna sem posicionar)
+- `src/server/services/dashboard-layout-service.ts` — `upsertLayout` com config inválida, limites da grade
+- `src/actions/dashboard-layout.ts` — `addAnalysisToDashboardAction` com grade cheia
+
+**Casos de teste adicionais para `binPack`**:
+
+```ts
+// src/components/dashboards/_core/widget-registry.test.ts
+import { describe, it, expect } from "vitest";
+import { resolveLayout, GRID_CONFIG } from "./widget-registry";
+
+describe("binPack — casos de borda", () => {
+  it("KPIs consecutivos ficam na mesma linha quando há espaço", () => {
+    const result = resolveLayout("monthly", null);
+    const kpis = result.filter(w => w.kind === "kpi");
+    // KPIs do monthly têm w:1 — os primeiros 6 devem estar em y=0
+    const firstRowKpis = kpis.filter(w => w.y === 0);
+    expect(firstRowKpis.length).toBe(6); // 6 KPIs defaultVisible no monthly
+  });
+
+  it("widget que não cabe na linha atual avança para a próxima", () => {
+    const result = resolveLayout("monthly", null);
+    result.forEach(w => {
+      expect(w.x + w.w).toBeLessThanOrEqual(GRID_CONFIG["monthly"].cols);
+    });
+  });
+
+  it("stored = [] respeita escolha do usuário (sem auto-inserção)", () => {
+    const result = resolveLayout("monthly", []);
+    // stored = [] significa usuário removeu tudo — não auto-inserir
+    // (comportamento definido: stored vazio é respeitado, diferente de stored = null)
+    // Verificar que o resultado preserva a intenção: nenhum widget ativo
+    // exceto os defaultVisible ausentes que devem ser auto-inseridos (compat-forward)
+    // Nota: ajustar este teste conforme a implementação final de resolveLayout
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it("widgets com visible: false são preservados no resultado", () => {
+    const ghost: import("@/lib/schemas/dashboard-layout").StoredWidget = {
+      instanceId: "ghost-1", widgetId: "kpi-income", visible: false,
+      x: 0, y: 0, w: 1, h: 1, sizeVariantId: "default",
+    };
+    const result = resolveLayout("monthly", [ghost]);
+    const found = result.find(w => w.instanceId === "ghost-1");
+    expect(found?.visible).toBe(false);
+  });
+});
+```
+
+#### 7.4 Correção de `docs/widgets.md`
+
+O spec §2.6 registra: _"`docs/widgets.md` declara `member-breakdown` com `default: 6w/1h` mas range `h:2-3`. O default correto é `6w/2h`"_.
+
+Arquivo: `docs/widgets.md`
+
+```
+# Linha incorreta:
+Gastos por Membro:
+- w:3-6
+- h:2-3
+- default: 6w / 1h   ← ERRADO
+
+# Corrigir para:
+Gastos por Membro:
+- w:3-6
+- h:2-3
+- default: 6w / 2h   ← CORRETO (mínimo do range declarado)
+```
+
+#### 7.5 Atualizar `skills/dashboard-widgets/SKILL.md`
+
+O skill atual descreve a arquitetura do spec 33 (lista sequencial, `buildSegments`, `ResolvedLayout`, `nodeMap` por `widget.id`). Reescrever para refletir a nova arquitetura do spec 36.
+
+**Seções a atualizar obrigatoriamente**:
+
+1. **Diagrama de arquitetura** (topo do arquivo): substituir o fluxo atual pelo novo:
+
+```
+WIDGET_REGISTRY (_core/widget-registry.ts)
+        ↓  resolveLayout(context, StoredWidget[] | null)
+  StoredWidget[]  (com x, y, w, h, visible, config)
+        ↓  passado como props para o Client Component do dashboard
+  DashboardGrid (_core/DashboardGrid.tsx)
+        ↓  nodeMap[instanceId] → ReactNode
+  CSS Grid posicionado por gridColumn/gridRow
+        ↓
+  Componente filho recebe renderMode da sizeVariant ativa
+```
+
+2. **Checklist de implementação**: atualizar os 6 passos para refletir `sizeVariants` em vez de `span`, e `instanceId` em vez de `widget.id` no `nodeMap`:
+
+```
+1. WIDGET_REGISTRY   → registrar id/kind/sizeVariants/defaultVisible (sem span)
+2. messages/pt-BR.ts → label + description + labels de sizeVariants
+3. widget-icons.ts   → ícone MUI para o card da paleta
+4. Query             → função em src/lib/queries/ ou service
+5. Componente        → src/components/dashboards/; receber prop renderMode
+6. nodeMap           → integrar no Client Component por widgetId (mapeado para instanceId)
+```
+
+3. **Seção "Passo 1 — Registro"**: substituir o exemplo de `span` por `sizeVariants`:
+
+```ts
+// ✅ Novo padrão — sizeVariants obrigatório, sem span
+{ 
+  id: "meu-widget", 
+  labelKey: "meuWidget", 
+  kind: "panel", 
+  defaultVisible: false,
+  sizeVariants: [
+    { id: "default", labelKey: "padrão", w: 3, h: 2, renderMode: "default" },
+    { id: "large",   labelKey: "grande",  w: 6, h: 3, renderMode: "expanded" },
+  ],
+}
+
+// ❌ Padrão antigo (spec 33) — NÃO USAR
+{ id: "meu-widget", kind: "panel", span: "half", defaultVisible: false }
+```
+
+4. **Adicionar seção "nodeMap por instanceId"**: explicar que o mapa agora usa `instanceId` (não `widgetId`) e como construir o `nodeByWidgetId` intermediário:
+
+```ts
+// ✅ Padrão correto (spec 36) — nodeMap por instanceId
+const nodeByWidgetId: Record<string, ReactNode> = {
+  "meu-widget": <MeuWidget renderMode={instancia.sizeVariantId} ... />,
+};
+const nodeMap: Record<string, ReactNode> = {};
+for (const w of widgets) {
+  nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+}
+
+// ❌ Padrão antigo (spec 33) — nodeMap por widgetId direto
+const nodeMap: Record<string, ReactNode> = {
+  "meu-widget": <MeuWidget />,
+};
+```
+
+5. **Adicionar seção "renderMode"**: documentar que cada componente de widget deve receber `renderMode` como prop e adaptar apresentação — nunca ler `w`/`h` diretamente.
+
+6. **Remover** qualquer menção a `buildSegments`, `Segment`, `ResolvedLayout`, `span`, `WidgetSpan`.
+
+#### 7.6 Verificação final completa
+
+```bash
+# Suite completa — deve passar com zero erros e cobertura ≥ 60%
+docker compose exec app pnpm typecheck
+docker compose exec app pnpm lint
+docker compose exec app pnpm test:coverage
+
+# Checklist manual no browser (testar em light e dark mode):
+# ✅ Dashboard mensal — widgets na grade, sem erros de console
+# ✅ Dashboard anual — idem
+# ✅ Resumo do mês — idem
+# ✅ Settings → Visualização → Dashboard Mensal — editor de grade abre
+# ✅ Reposicionar widget → auto-save → refresh mantém posição
+# ✅ Ocultar widget → não aparece no dashboard → reativar → volta
+# ✅ Paleta lateral → arrastar widget para grade → inserido
+# ✅ Selecionar widget → painel lateral → Duplicar (instanciável) / Remover
+# ✅ Painel lateral → seção Tamanho → mudar variante → grade atualiza
+# ✅ Painel lateral → seção Configuração (configSchema) → salvar → widget usa config
+# ✅ Sandbox → "Adicionar ao dashboard" → modal contexto → confirmar → dashboard tem o widget
+# ✅ /settings/analyses → 404
+# ✅ Viewport xs/sm → widgets em lista vertical (sem grade 2D)
 ```

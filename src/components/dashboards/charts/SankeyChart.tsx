@@ -58,7 +58,7 @@ export function SankeyChart({ data }: Props) {
   const chartHeight = Math.max(220, data.nodes.length * 38);
 
   return (
-    <Box sx={{ height: chartHeight, width: "100%" }}>
+    <Box sx={{ height: "100%", minHeight: chartHeight, width: "100%" }}>
       <ResponsiveSankey
         data={nivoData}
         margin={{ top: 10, right: 160, bottom: 10, left: 10 }}

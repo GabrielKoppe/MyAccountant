@@ -8,6 +8,11 @@ import { useTheme } from "@mui/material/styles";
 import { layout } from "@/lib/design-tokens";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 
+// Altura base de cada linha da grade (px). Um widget de altura h ocupa h linhas,
+// então seu footprint vertical é h * ROW_HEIGHT (+ gaps). Mantém o conteúdo
+// proporcional ao tamanho declarado na grade, em vez de altura natural do conteúdo.
+const ROW_HEIGHT = 120;
+
 type Props = {
   widgets: StoredWidget[];
   nodeMap: Record<string, ReactNode>;
@@ -39,9 +44,9 @@ export function DashboardGrid({ widgets, nodeMap, cols }: Props) {
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+        gridAutoRows: `${ROW_HEIGHT}px`,
         gap: layout.cluster,
-        alignItems: "start",
       }}
     >
       {visibleWidgets.map((w) => (
@@ -49,6 +54,7 @@ export function DashboardGrid({ widgets, nodeMap, cols }: Props) {
           key={w.instanceId}
           sx={{
             minWidth: 0,
+            minHeight: 0,
             gridColumn: `${w.x + 1} / span ${w.w}`,
             gridRow: `${w.y + 1} / span ${w.h}`,
           }}

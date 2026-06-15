@@ -10,7 +10,7 @@ import {
   calculateMonthTotal,
 } from "@/server/services/month-service";
 import { getBudgetsWithProgress } from "@/lib/queries/budgets";
-import { getGridLayout } from "@/server/services/dashboard-layout-service";
+import { getLayout } from "@/server/services/dashboard-layout-service";
 import { generateInsights } from "@/server/services/insights-service";
 import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
 import { parseHiddenColumns } from "@/lib/schemas/settings";
@@ -157,7 +157,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
         where: { userId: user.id },
         select: { timezone: true },
       }),
-      getGridLayout(accountId, "month_summary"),
+      getLayout(accountId, "month_summary"),
     ]);
 
   const timezone = userSettings?.timezone ?? "America/Sao_Paulo";
