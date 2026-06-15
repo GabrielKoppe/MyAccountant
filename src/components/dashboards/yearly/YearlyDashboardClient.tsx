@@ -20,13 +20,13 @@ import { MonthlyBarChart } from "@/components/dashboards/charts/MonthlyBarChart"
 import { CategoryBarList } from "@/components/dashboards/charts/CategoryBarList";
 import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { MemberTrendChart } from "@/components/dashboards/charts/MemberTrendChart";
-import { DashboardWidgetRenderer } from "@/components/dashboards/_core/DashboardWidgetRenderer";
+import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { AppLink } from "@/components/ui/AppLink";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { YearSelector } from "@/components/dashboards/_shared/YearSelector";
 import { YearlyDashboardMenu } from "./YearlyDashboardMenu";
-import type { WidgetDef } from "@/components/dashboards/_core/widget-registry";
+import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 
 type Props = {
   accountId: string;
@@ -48,7 +48,7 @@ type Props = {
   sections: SectionMeta[];
   topCategories: CategorySum[];
   memberTrend: MemberTrendSeries[];
-  activeWidgets: WidgetDef[];
+  widgets: StoredWidget[];
 };
 
 export function YearlyDashboardClient({
@@ -69,13 +69,13 @@ export function YearlyDashboardClient({
   sections,
   topCategories,
   memberTrend,
-  activeWidgets,
+  widgets,
 }: Props) {
   const yearTotalBigInt = BigInt(yearTotal);
   const yearlyIncomeBigInt = BigInt(yearlyIncome);
   const yearlyExpenseBigInt = BigInt(yearlyExpense);
 
-  const nodeMap: Record<string, React.ReactNode> = {
+  const nodeByWidgetId: Record<string, React.ReactNode> = {
     "kpi-year-total": (
       <KpiSparklineCard
         title={m.dashboards.kpi.yearTotal}
@@ -187,6 +187,12 @@ export function YearlyDashboardClient({
       ) : null,
   };
 
+  // nodeMap por instanceId: cada instância resolve seu nó pelo widgetId.
+  const nodeMap: Record<string, React.ReactNode> = {};
+  for (const w of widgets) {
+    nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+  }
+
   return (
     <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
       {/* Header */}
@@ -225,7 +231,7 @@ export function YearlyDashboardClient({
         </Box>
       </Box>
 
-      <DashboardWidgetRenderer active={activeWidgets} nodeMap={nodeMap} />
+      <DashboardGrid widgets={widgets} nodeMap={nodeMap} cols={6} />
     </Box>
   );
 }

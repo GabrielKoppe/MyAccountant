@@ -9,7 +9,7 @@ import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
 import { BudgetWidgetContent } from "@/components/budgets/BudgetWidgetContent";
 import { SectionCards } from "../panels/SectionCards";
 import { ActivityLists } from "../panels/ActivityLists";
-import { DashboardWidgetRenderer } from "@/components/dashboards/_core/DashboardWidgetRenderer";
+import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
@@ -17,7 +17,8 @@ import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { BudgetProgress } from "@/lib/queries/budgets";
 import type { Insight } from "@/server/services/insights-service";
-import type { WidgetDef } from "@/components/dashboards/_core/widget-registry";
+import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import type { ReactNode } from "react";
 
 type SectionItem = {
   id: string;
@@ -54,7 +55,7 @@ type Props = {
   prevSectionTotals?: Record<string, string>;
   summaryBudgets?: BudgetProgress[];
   insights: Insight[];
-  activeWidgets: WidgetDef[];
+  widgets: StoredWidget[];
 };
 
 export function MonthSummary({
@@ -70,7 +71,7 @@ export function MonthSummary({
   prevSectionTotals,
   summaryBudgets,
   insights,
-  activeWidgets,
+  widgets,
 }: Props) {
   const totalBigInt = BigInt(monthTotal);
 
@@ -98,6 +99,83 @@ export function MonthSummary({
 
   // Seções sem atividade — delegado ao SectionCards
   const dashboardHref = `/${accountId}/dashboards/monthly/${monthId}`;
+
+  const nodeByWidgetId: Record<string, ReactNode> = {
+    "kpi-income": (
+      <KpiSparklineCard
+        title="Receitas"
+        value={formatCentsToBrl(incomeTotal)}
+        color="success"
+        currentCents={incomeTotal.toString()}
+        prevCents={prevSectionTotals ? prevIncomeTotal.toString() : null}
+        deltaMode={prevSectionTotals ? "prevMonth" : "none"}
+      />
+    ),
+    "kpi-expenses": (
+      <KpiSparklineCard
+        title="Despesas"
+        value={formatCentsToBrl(expenseTotal)}
+        color="error"
+        deltaMode="none"
+      />
+    ),
+    "kpi-balance": (
+      <KpiSparklineCard
+        title="Saldo"
+        value={formatCentsToBrl(totalBigInt)}
+        color={totalBigInt >= 0n ? "success" : "error"}
+        currentCents={monthTotal}
+        prevCents={prevSectionTotals ? prevMonthTotal.toString() : null}
+        deltaMode={prevSectionTotals ? "prevMonth" : "none"}
+      />
+    ),
+    budgets:
+      summaryBudgets && summaryBudgets.length > 0 ? (
+        <WidgetContainer title={m.budgets.title} icon={WIDGET_ICONS["budgets"]}>
+          <BudgetWidgetContent budgets={summaryBudgets} compact />
+        </WidgetContainer>
+      ) : null,
+    "section-cards": (
+      <WidgetContainer
+        title={m.dashboards.widgets.month_summary["section-cards"]}
+        icon={WIDGET_ICONS["section-cards"]}
+      >
+        <SectionCards
+          sections={sections}
+          sectionTotals={sectionTotals}
+          prevSectionTotals={prevSectionTotals}
+          accountId={accountId}
+          monthId={monthId}
+          tables={tables}
+        />
+      </WidgetContainer>
+    ),
+    "activity-lists": (
+      <WidgetContainer
+        title={m.dashboards.widgets.month_summary["activity-lists"]}
+        icon={WIDGET_ICONS["activity-lists"]}
+      >
+        <ActivityLists
+          accountId={accountId}
+          monthId={monthId}
+          pendingTransactions={pendingTransactions}
+          favoriteTransactions={favoriteTransactions}
+          recentTransactions={recentTransactions}
+        />
+      </WidgetContainer>
+    ),
+    insights: (
+      <WidgetContainer title={m.dashboards.insights.cardTitle} icon={WIDGET_ICONS["insights"]}>
+        <InsightsCard insights={insights} />
+      </WidgetContainer>
+    ),
+  };
+
+  // nodeMap por instanceId: cada instância resolve seu nó pelo widgetId.
+  const nodeMap: Record<string, ReactNode> = {};
+  for (const w of widgets) {
+    nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -148,82 +226,7 @@ export function MonthSummary({
         </Typography>
       )}
 
-      <DashboardWidgetRenderer
-        active={activeWidgets}
-        nodeMap={{
-          "kpi-income": (
-            <KpiSparklineCard
-              title="Receitas"
-              value={formatCentsToBrl(incomeTotal)}
-              color="success"
-              currentCents={incomeTotal.toString()}
-              prevCents={prevSectionTotals ? prevIncomeTotal.toString() : null}
-              deltaMode={prevSectionTotals ? "prevMonth" : "none"}
-            />
-          ),
-          "kpi-expenses": (
-            <KpiSparklineCard
-              title="Despesas"
-              value={formatCentsToBrl(expenseTotal)}
-              color="error"
-              deltaMode="none"
-            />
-          ),
-          "kpi-balance": (
-            <KpiSparklineCard
-              title="Saldo"
-              value={formatCentsToBrl(totalBigInt)}
-              color={totalBigInt >= 0n ? "success" : "error"}
-              currentCents={monthTotal}
-              prevCents={prevSectionTotals ? prevMonthTotal.toString() : null}
-              deltaMode={prevSectionTotals ? "prevMonth" : "none"}
-            />
-          ),
-          budgets:
-            summaryBudgets && summaryBudgets.length > 0 ? (
-              <WidgetContainer title={m.budgets.title} icon={WIDGET_ICONS["budgets"]}>
-                <BudgetWidgetContent budgets={summaryBudgets} compact />
-              </WidgetContainer>
-            ) : null,
-          "section-cards": (
-            <WidgetContainer
-              title={m.dashboards.widgets.month_summary["section-cards"]}
-              icon={WIDGET_ICONS["section-cards"]}
-            >
-              <SectionCards
-                sections={sections}
-                sectionTotals={sectionTotals}
-                prevSectionTotals={prevSectionTotals}
-                accountId={accountId}
-                monthId={monthId}
-                tables={tables}
-              />
-            </WidgetContainer>
-          ),
-          "activity-lists": (
-            <WidgetContainer
-              title={m.dashboards.widgets.month_summary["activity-lists"]}
-              icon={WIDGET_ICONS["activity-lists"]}
-            >
-              <ActivityLists
-                accountId={accountId}
-                monthId={monthId}
-                pendingTransactions={pendingTransactions}
-                favoriteTransactions={favoriteTransactions}
-                recentTransactions={recentTransactions}
-              />
-            </WidgetContainer>
-          ),
-          insights: (
-            <WidgetContainer
-              title={m.dashboards.insights.cardTitle}
-              icon={WIDGET_ICONS["insights"]}
-            >
-              <InsightsCard insights={insights} />
-            </WidgetContainer>
-          ),
-        }}
-      />
+      <DashboardGrid widgets={widgets} nodeMap={nodeMap} cols={6} />
     </Box>
   );
 }

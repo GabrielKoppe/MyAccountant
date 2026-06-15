@@ -19,7 +19,7 @@ import {
 } from "@/lib/queries/dashboards";
 import { getMemberMonthlyBreakdown } from "@/lib/queries/member-analytics";
 import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
-import { getLayout } from "@/server/services/dashboard-layout-service";
+import { getGridLayout } from "@/server/services/dashboard-layout-service";
 import { generateInsights } from "@/server/services/insights-service";
 import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
 import { AppLink } from "@/components/ui/AppLink";
@@ -80,7 +80,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     treemapData,
     budgets,
     budgetFormOptions,
-    layout,
+    widgets,
     insights,
     memberBreakdown,
   ] = await Promise.all([
@@ -90,7 +90,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     getCategoryTreemapData(accountId, monthId),
     getBudgetsWithProgress(accountId, year, month),
     getBudgetFormOptions(accountId),
-    getLayout(accountId, "monthly"),
+    getGridLayout(accountId, "monthly"),
     generateInsights(accountId, monthId, { isCurrentMonth }),
     getMemberMonthlyBreakdown(accountId, monthId),
   ]);
@@ -184,7 +184,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         budgetFormOptions={budgetFormOptions}
         insights={insights}
         memberBreakdown={memberBreakdown}
-        activeWidgets={layout.active}
+        widgets={widgets}
       />
     </Box>
   );
