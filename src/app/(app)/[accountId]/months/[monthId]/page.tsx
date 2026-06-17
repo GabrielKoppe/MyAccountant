@@ -11,6 +11,8 @@ import {
 } from "@/server/services/month-service";
 import { getBudgetsWithProgress } from "@/lib/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
+import { getKpiCustomDataMap } from "@/lib/queries/kpi-custom";
+import { getFilteredTransactionsMap } from "@/lib/queries/filtered-transactions";
 import { generateInsights } from "@/server/services/insights-service";
 import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
 import { parseHiddenColumns } from "@/lib/schemas/settings";
@@ -283,6 +285,14 @@ export default async function MonthPage({ params, searchParams }: Props) {
     ? await generateInsights(accountId, monthId, { isCurrentMonth })
     : [];
 
+  // Dados das instâncias kpi-custom e filtered-transactions do resumo do mês.
+  const [summaryKpiCustomData, summaryFilteredTransactions] = showSummary
+    ? await Promise.all([
+        getKpiCustomDataMap(accountId, summaryWidgets, [monthId]),
+        getFilteredTransactionsMap(accountId, summaryWidgets, monthId),
+      ])
+    : [{}, {}];
+
   return (
     <MonthFilterProvider
       initialFilters={initialFilters}
@@ -323,6 +333,8 @@ export default async function MonthPage({ params, searchParams }: Props) {
               summaryBudgets={summaryBudgets}
               insights={insights}
               widgets={summaryWidgets}
+              kpiCustomData={summaryKpiCustomData}
+              filteredTransactionsData={summaryFilteredTransactions}
             />
           ) : (
             <SectionView

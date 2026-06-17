@@ -5,7 +5,6 @@ import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import UndoIcon from "@mui/icons-material/Undo";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
@@ -20,6 +19,7 @@ import {
 import { getMemberMonthlyBreakdown } from "@/lib/queries/member-analytics";
 import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
+import { getKpiCustomDataMap } from "@/lib/queries/kpi-custom";
 import { generateInsights } from "@/server/services/insights-service";
 import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
 import { AppLink } from "@/components/ui/AppLink";
@@ -117,8 +117,25 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     .filter((s) => s.countType === "subtract" || s.countType === "neutral")
     .map((s) => s.id);
 
-  const dailyTotals = await getDailyTotals(accountId, monthId, subtractSectionIds);
-  const sankeyData = await getSankeyData(accountId, monthId, sections, sectionTotals);
+  // daily-heatmap: modo "all_activity" mostra toda a atividade financeira (countInMonth);
+  // modo "expense" (padrão) mostra apenas seções de saída.
+  const heatmapConfig = widgets.find((w) => w.widgetId === "daily-heatmap")?.config as
+    | { metric?: string }
+    | undefined;
+  const heatmapSectionIds = heatmapConfig?.metric === "all_activity" ? null : subtractSectionIds;
+  const dailyTotals = await getDailyTotals(accountId, monthId, heatmapSectionIds);
+  // money-flow: agrupa por seção ou categoria conforme a config da instância (spec 36 §2.2).
+  const moneyFlowConfig = widgets.find((w) => w.widgetId === "money-flow")?.config as
+    | { groupBy?: "section" | "category" }
+    | undefined;
+  const sankeyData = await getSankeyData(
+    accountId,
+    monthId,
+    sections,
+    sectionTotals,
+    moneyFlowConfig?.groupBy ?? "category",
+  );
+  const kpiCustomData = await getKpiCustomDataMap(accountId, widgets, [monthId]);
 
   return (
     <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
@@ -185,6 +202,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         insights={insights}
         memberBreakdown={memberBreakdown}
         widgets={widgets}
+        kpiCustomData={kpiCustomData}
       />
     </Box>
   );

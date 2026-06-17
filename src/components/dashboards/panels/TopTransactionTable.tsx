@@ -7,7 +7,11 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 
 import { formatCentsToBrl } from "@/lib/money";
+import { m } from "@/lib/messages";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { WidgetContainer } from "@/components/ui/WidgetContainer";
+import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
+import type { TopTransactionsConfig } from "@/lib/schemas/widget-config";
 
 export type TxRow = {
   id: string;
@@ -26,7 +30,7 @@ function getAmountColor(amountCents: bigint, countType: string): string {
   return "text.tertiary";
 }
 
-export function TopTransactionTable({ transactions }: { transactions: TxRow[] }) {
+function TxTable({ transactions }: { transactions: TxRow[] }) {
   if (transactions.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
@@ -99,5 +103,25 @@ export function TopTransactionTable({ transactions }: { transactions: TxRow[] })
         </TableBody>
       </Table>
     </Box>
+  );
+}
+
+export function TopTransactionTable({
+  transactions,
+  config,
+}: {
+  transactions: TxRow[];
+  config?: TopTransactionsConfig;
+}) {
+  const limit = config?.limit ?? 10;
+  const shown = transactions.slice(0, limit);
+
+  return (
+    <WidgetContainer
+      title={m.dashboards.sections.biggestTransactions}
+      icon={WIDGET_ICONS["top-transactions"]}
+    >
+      <TxTable transactions={shown} />
+    </WidgetContainer>
   );
 }

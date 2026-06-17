@@ -1,6 +1,18 @@
 import type { z } from "zod";
 
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import {
+  budgetsConfigSchema,
+  dailyHeatmapConfigSchema,
+  filteredTransactionsConfigSchema,
+  kpiCustomConfigSchema,
+  memberBreakdownConfigSchema,
+  moneyFlowConfigSchema,
+  pieChartConfigSchema,
+  topCategoriesConfigSchema,
+  topTransactionsConfigSchema,
+  treemapConfigSchema,
+} from "@/lib/schemas/widget-config";
 
 export type WidgetKind = "kpi" | "panel";
 export type DashboardContext = "monthly" | "yearly" | "month_summary";
@@ -24,7 +36,9 @@ export type DashboardGridConfig = {
 };
 
 export const GRID_CONFIG: Record<DashboardContext, DashboardGridConfig> = {
-  monthly: { cols: 6, initialRows: 10, maxRows: 12 },
+  // initialRows=13: acomoda o layout padrão (top-transactions termina em y+h=13).
+  // maxRows=14: margem de uma linha acima do layout padrão gerado pelo binPack.
+  monthly: { cols: 6, initialRows: 13, maxRows: 14 },
   yearly: { cols: 6, initialRows: 8, maxRows: 12 },
   month_summary: { cols: 6, initialRows: 6, maxRows: 10 },
 };
@@ -63,11 +77,17 @@ const SQUARE_CHART_VARIANTS: WidgetSizeVariant[] = [
   { id: "large", labelKey: "large", w: 4, h: 3, renderMode: "full" },
 ];
 
-// default 3×2, compact 2×2, large 4×3
+// daily-heatmap: compact 2×3, default 3×4 (sem "large" — mais lindo = não necessário).
+const DAILY_HEATMAP_VARIANTS: WidgetSizeVariant[] = [
+  { id: "default", labelKey: "default", w: 3, h: 4, renderMode: "default" },
+  { id: "compact", labelKey: "compact", w: 2, h: 3, renderMode: "compact" },
+];
+
+// default 3×3, compact 2×2, large 4×4
 const PIE_VARIANTS: WidgetSizeVariant[] = [
-  { id: "default", labelKey: "default", w: 3, h: 2, renderMode: "default" },
+  { id: "default", labelKey: "default", w: 3, h: 3, renderMode: "default" },
   { id: "compact", labelKey: "compact", w: 2, h: 2, renderMode: "compact" },
-  { id: "large", labelKey: "large", w: 4, h: 3, renderMode: "full" },
+  { id: "large", labelKey: "large", w: 4, h: 4, renderMode: "full" },
 ];
 
 const BUDGETS_VARIANTS: WidgetSizeVariant[] = [
@@ -78,8 +98,9 @@ const BUDGETS_VARIANTS: WidgetSizeVariant[] = [
 
 const SECTION_CARDS_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 6, h: 1, renderMode: "default" },
-  { id: "compact", labelKey: "compact", w: 2, h: 1, renderMode: "compact" },
-  { id: "expanded", labelKey: "expanded", w: 6, h: 2, renderMode: "expanded" },
+  { id: "small", labelKey: "small", w: 4, h: 1, renderMode: "small" },
+  // compact é invertido: 1 coluna × 2 linhas — lista vertical de links coloridos.
+  { id: "compact", labelKey: "compact", w: 1, h: 2, renderMode: "compact" },
 ];
 
 const ACTIVITY_LISTS_VARIANTS: WidgetSizeVariant[] = [
@@ -95,7 +116,7 @@ const INSIGHTS_VARIANTS: WidgetSizeVariant[] = [
 
 const MONEY_FLOW_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 6, h: 3, renderMode: "default" },
-  { id: "compact", labelKey: "compact", w: 2, h: 2, renderMode: "compact" },
+  { id: "compact", labelKey: "compact", w: 3, h: 3, renderMode: "compact" },
 ];
 
 const MONTH_CARD_GRID_VARIANTS: WidgetSizeVariant[] = [
@@ -170,13 +191,17 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: BUDGETS_VARIANTS,
       defaultVisible: true,
+      configSchema: budgetsConfigSchema,
+      defaultConfig: { showOnly: "all" },
     },
     {
       id: "daily-heatmap",
       labelKey: "dailyHeatmap",
       kind: "panel",
-      sizeVariants: SQUARE_CHART_VARIANTS,
+      sizeVariants: DAILY_HEATMAP_VARIANTS,
       defaultVisible: true,
+      configSchema: dailyHeatmapConfigSchema,
+      defaultConfig: { metric: "expense" },
     },
     {
       id: "category-treemap",
@@ -184,6 +209,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: SQUARE_CHART_VARIANTS,
       defaultVisible: true,
+      configSchema: treemapConfigSchema,
+      defaultConfig: { topN: "all" },
     },
     {
       id: "money-flow",
@@ -191,6 +218,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: MONEY_FLOW_VARIANTS,
       defaultVisible: true,
+      configSchema: moneyFlowConfigSchema,
+      defaultConfig: { groupBy: "category" },
     },
     {
       id: "section-breakdown",
@@ -198,6 +227,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: PIE_VARIANTS,
       defaultVisible: true,
+      configSchema: pieChartConfigSchema,
+      defaultConfig: { chartType: "pie" },
     },
     {
       id: "category-breakdown",
@@ -205,6 +236,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: PIE_VARIANTS,
       defaultVisible: true,
+      configSchema: pieChartConfigSchema,
+      defaultConfig: { chartType: "pie" },
     },
     {
       id: "top-transactions",
@@ -212,6 +245,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: true,
+      configSchema: topTransactionsConfigSchema,
+      defaultConfig: { limit: 10 },
     },
     {
       id: "insights",
@@ -226,6 +261,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
+      configSchema: memberBreakdownConfigSchema,
+      defaultConfig: { view: "donut" },
     },
     {
       id: "analysis",
@@ -242,6 +279,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
       instantiable: true,
+      configSchema: kpiCustomConfigSchema,
+      defaultConfig: { metric: "total" },
     },
   ],
   yearly: [
@@ -321,6 +360,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: true,
+      configSchema: topCategoriesConfigSchema,
+      defaultConfig: { limit: 10 },
     },
     {
       id: "member-trend",
@@ -351,6 +392,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
       instantiable: true,
+      configSchema: kpiCustomConfigSchema,
+      defaultConfig: { metric: "total" },
     },
   ],
   month_summary: [
@@ -410,6 +453,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
       instantiable: true,
+      configSchema: kpiCustomConfigSchema,
+      defaultConfig: { metric: "total" },
     },
     {
       id: "filtered-transactions",
@@ -418,6 +463,15 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
       instantiable: true,
+      configSchema: filteredTransactionsConfigSchema,
+      defaultConfig: {
+        categories: [],
+        institutions: [],
+        responsible: [],
+        pending: false,
+        favorite: false,
+        limit: 10,
+      },
     },
   ],
 };
@@ -458,10 +512,13 @@ function markOccupied(occ: Set<string>, x: number, y: number, w: number, h: numb
 // Posiciona uma lista de WidgetDef em células livres, linha por linha,
 // esquerda para direita, usando a variante default (sizeVariants[0]).
 // Para singletons no layout inicial, instanceId === widgetId.
+// maxRows (opcional): não posiciona widgets além desse limite — garante que o
+// layout gerado passe na validação de upsertLayout.
 function binPack(
   defs: WidgetDef[],
   cols: number,
   existingItems: StoredWidget[] = [],
+  maxRows?: number,
 ): StoredWidget[] {
   const occ = buildOccupancy(existingItems);
   const result: StoredWidget[] = [];
@@ -470,7 +527,9 @@ function binPack(
     const variant = def.sizeVariants[0];
     const w = Math.min(variant.w, cols);
     let placed = false;
-    for (let y = 0; !placed; y++) {
+    // Limite superior de y: se maxRows definido, widget deve caber inteiramente.
+    const yLimit = maxRows !== undefined ? maxRows - variant.h : Infinity;
+    for (let y = 0; y <= yLimit && !placed; y++) {
       for (let x = 0; x + w <= cols; x++) {
         if (fitsAt(occ, x, y, w, variant.h)) {
           markOccupied(occ, x, y, w, variant.h);
@@ -489,6 +548,8 @@ function binPack(
         }
       }
     }
+    // Se não coube dentro de maxRows, o widget é omitido do layout inicial
+    // (comportamento explícito: grade cheia é sinal de que maxRows precisa crescer).
   }
 
   return result;
@@ -507,9 +568,12 @@ export function resolveLayout(
   const { cols } = GRID_CONFIG[context];
 
   if (stored === null) {
+    const { maxRows } = GRID_CONFIG[context];
     return binPack(
       registry.filter((w) => w.defaultVisible),
       cols,
+      [],
+      maxRows,
     );
   }
 
@@ -518,19 +582,38 @@ export function resolveLayout(
 
   result = result.map((s) => {
     const def = registry.find((d) => d.id === s.widgetId)!;
-    const variantExists = def.sizeVariants.some((v) => v.id === s.sizeVariantId);
-    if (!variantExists) {
+    const variant = def.sizeVariants.find((v) => v.id === s.sizeVariantId);
+    if (!variant) {
       const v = def.sizeVariants[0];
       return { ...s, sizeVariantId: v.id, w: v.w, h: v.h };
     }
-    return s;
+    // Sincroniza w/h com a definição atual da variante (detecta mudanças de dimensões entre deploys).
+    return { ...s, w: variant.w, h: variant.h };
   });
 
   const present = new Set(result.map((s) => s.widgetId));
   const toAdd = registry.filter((d) => d.defaultVisible && !present.has(d.id));
   if (toAdd.length > 0) {
-    result = [...result, ...binPack(toAdd, cols, result)];
+    const { maxRows } = GRID_CONFIG[context];
+    result = [...result, ...binPack(toAdd, cols, result, maxRows)];
   }
 
   return result;
+}
+
+// Resolve o renderMode da instância de um widget singleton no layout salvo.
+// Reutilizável em qualquer dashboard client — evita duplicar o lookup nos clientes.
+// Para widgets instanciáveis (instantiable: true), use a instância diretamente.
+export function getRenderMode(
+  widgets: StoredWidget[],
+  context: DashboardContext,
+  widgetId: string,
+  fallback = "default",
+): string {
+  const inst = widgets.find((w) => w.widgetId === widgetId);
+  return (
+    WIDGET_REGISTRY[context]
+      .find((d) => d.id === widgetId)
+      ?.sizeVariants.find((v) => v.id === inst?.sizeVariantId)?.renderMode ?? fallback
+  );
 }

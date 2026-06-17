@@ -108,6 +108,34 @@ describe("upsertLayout", () => {
       ),
     ).rejects.toThrow();
   });
+
+  it("aceita config válida para widget com configSchema (money-flow)", async () => {
+    prismaMock.dashboardLayout.upsert.mockResolvedValue({} as never);
+    await upsertLayout(
+      {
+        context: "monthly",
+        widgets: [
+          buildStored({ widgetId: "money-flow", w: 6, h: 3, config: { groupBy: "section" } }),
+        ],
+      },
+      TEST_CTX,
+    );
+    expect(prismaMock.dashboardLayout.upsert).toHaveBeenCalled();
+  });
+
+  it("rejeita config inválida para widget com configSchema (money-flow)", async () => {
+    await expect(
+      upsertLayout(
+        {
+          context: "monthly",
+          widgets: [
+            buildStored({ widgetId: "money-flow", w: 6, h: 3, config: { groupBy: "bogus" } }),
+          ],
+        },
+        TEST_CTX,
+      ),
+    ).rejects.toThrow();
+  });
 });
 
 // ─── resolveLayout — bin-packing ───────────────────────────────────

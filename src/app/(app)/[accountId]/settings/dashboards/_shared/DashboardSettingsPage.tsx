@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { getLayout } from "@/server/services/dashboard-layout-service";
+import { getWidgetConfigOptions } from "@/lib/queries/widget-config-options";
 import { m } from "@/lib/messages";
 import { containers } from "@/lib/design-tokens";
 import { DashboardGridEditor } from "@/components/settings/DashboardGridEditor";
@@ -21,12 +22,20 @@ export async function DashboardSettingsPage({ accountId, context }: Props) {
   const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
   if (member.role === "viewer") redirect(`/${accountId}`);
 
-  const widgets = await getLayout(accountId, context);
+  const [widgets, configOptions] = await Promise.all([
+    getLayout(accountId, context),
+    getWidgetConfigOptions(accountId),
+  ]);
   const title = CONTEXT_TITLES[context];
 
   return (
     <PageSettingsContainer title={title} secondary={null} maxWidth={containers.lg}>
-      <DashboardGridEditor accountId={accountId} context={context} initialWidgets={widgets} />
+      <DashboardGridEditor
+        accountId={accountId}
+        context={context}
+        initialWidgets={widgets}
+        configOptions={configOptions}
+      />
     </PageSettingsContainer>
   );
 }

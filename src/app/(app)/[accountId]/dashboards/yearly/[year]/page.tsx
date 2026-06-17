@@ -8,6 +8,7 @@ import { prisma } from "@/server/prisma";
 import { getYearOverview } from "@/lib/queries/dashboards";
 import { getMemberYearlyTrend } from "@/lib/queries/member-analytics";
 import { getLayout } from "@/server/services/dashboard-layout-service";
+import { getKpiCustomDataMap } from "@/lib/queries/kpi-custom";
 import { m } from "@/lib/messages";
 import { YearlyDashboardClient } from "@/components/dashboards/yearly/YearlyDashboardClient";
 
@@ -80,6 +81,10 @@ export default async function YearlyDashboardPage({ params }: Props) {
       ? Math.round((Number(yearlyIncome - yearlyExpense) / Number(yearlyIncome)) * 100)
       : 0;
 
+  // kpi-custom: período = todos os meses do ano.
+  const yearMonthIds = monthSummaries.map((ms) => ms.id);
+  const kpiCustomData = await getKpiCustomDataMap(accountId, widgets, yearMonthIds);
+
   return (
     <YearlyDashboardClient
       accountId={accountId}
@@ -100,6 +105,7 @@ export default async function YearlyDashboardPage({ params }: Props) {
       topCategories={topCategories}
       memberTrend={memberTrend}
       widgets={widgets}
+      kpiCustomData={kpiCustomData}
     />
   );
 }

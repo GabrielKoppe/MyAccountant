@@ -23,6 +23,7 @@ const PageSettingsContainer: React.FC<PageSettingsContainerProps> = ({
         p: layout.page,
         maxWidth,
         display: "flex",
+        justifyContent: "flex-start",
         flexDirection: "column",
         gap: 4,
       }}

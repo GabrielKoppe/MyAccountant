@@ -18,7 +18,13 @@ import { m } from "@/lib/messages";
 import type { BudgetProgress } from "@/lib/queries/budgets";
 import type { Insight } from "@/server/services/insights-service";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import { kpiCustomConfigSchema } from "@/lib/schemas/widget-config";
+import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
+import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
+import { FilteredTransactionsWidget } from "@/components/dashboards/panels/FilteredTransactionsWidget";
+import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
 import type { ReactNode } from "react";
+import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 
 type SectionItem = {
   id: string;
@@ -56,6 +62,8 @@ type Props = {
   summaryBudgets?: BudgetProgress[];
   insights: Insight[];
   widgets: StoredWidget[];
+  kpiCustomData: Record<string, KpiCustomResult>;
+  filteredTransactionsData: Record<string, TxRow[]>;
 };
 
 export function MonthSummary({
@@ -72,6 +80,8 @@ export function MonthSummary({
   summaryBudgets,
   insights,
   widgets,
+  kpiCustomData,
+  filteredTransactionsData,
 }: Props) {
   const totalBigInt = BigInt(monthTotal);
 
@@ -99,6 +109,11 @@ export function MonthSummary({
 
   // Seções sem atividade — delegado ao SectionCards
   const dashboardHref = `/${accountId}/dashboards/monthly/${monthId}`;
+
+  const sectionCardsRenderMode = getRenderMode(widgets, "month_summary", "section-cards") as
+    | "default"
+    | "small"
+    | "compact";
 
   const nodeByWidgetId: Record<string, ReactNode> = {
     "kpi-income": (
@@ -136,19 +151,15 @@ export function MonthSummary({
         </WidgetContainer>
       ) : null,
     "section-cards": (
-      <WidgetContainer
-        title={m.dashboards.widgets.month_summary["section-cards"]}
-        icon={WIDGET_ICONS["section-cards"]}
-      >
-        <SectionCards
-          sections={sections}
-          sectionTotals={sectionTotals}
-          prevSectionTotals={prevSectionTotals}
-          accountId={accountId}
-          monthId={monthId}
-          tables={tables}
-        />
-      </WidgetContainer>
+      <SectionCards
+        sections={sections}
+        sectionTotals={sectionTotals}
+        prevSectionTotals={prevSectionTotals}
+        accountId={accountId}
+        monthId={monthId}
+        tables={tables}
+        renderMode={sectionCardsRenderMode}
+      />
     ),
     "activity-lists": (
       <WidgetContainer
@@ -171,10 +182,28 @@ export function MonthSummary({
     ),
   };
 
-  // nodeMap por instanceId: cada instância resolve seu nó pelo widgetId.
+  // nodeMap por instanceId: singletons pelo widgetId; instâncias kpi-custom e
+  // filtered-transactions têm config + dados próprios por instância.
   const nodeMap: Record<string, ReactNode> = {};
   for (const w of widgets) {
-    nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+    if (w.widgetId === "kpi-custom") {
+      const parsed = kpiCustomConfigSchema.safeParse(w.config);
+      const config = parsed.success ? parsed.data : kpiCustomConfigSchema.parse({});
+      const data = kpiCustomData[w.instanceId];
+      nodeMap[w.instanceId] = data ? <KpiCustomWidget config={config} data={data} /> : null;
+    } else if (w.widgetId === "filtered-transactions") {
+      const rows = filteredTransactionsData[w.instanceId] ?? [];
+      nodeMap[w.instanceId] = (
+        <WidgetContainer
+          title={m.dashboards.widgets.month_summary["filtered-transactions"]}
+          icon={WIDGET_ICONS["filtered-transactions"]}
+        >
+          <FilteredTransactionsWidget transactions={rows} />
+        </WidgetContainer>
+      );
+    } else {
+      nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+    }
   }
 
   return (

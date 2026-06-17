@@ -32,6 +32,9 @@ type Props = {
   currentCents?: string;
   prevCents?: string | null;
   deltaMode?: DeltaMode;
+  // Para KPIs percentuais (ex.: taxa de poupança): variação em pontos percentuais
+  // vs o período comparado. Usado quando o delta monetário (cents) não se aplica.
+  deltaPp?: { current: number; prev: number | null };
 };
 
 // MUI token aliases — success.50 não existe no v6, usar success.light (= subtle no nosso tema)
@@ -74,6 +77,15 @@ function computeDelta(
   return { pct, label, positive };
 }
 
+// Delta em pontos percentuais para KPIs que já são uma porcentagem.
+function computePpDelta(
+  deltaPp: { current: number; prev: number | null } | undefined,
+): { pct: number; label: string; positive: boolean } | null {
+  if (!deltaPp || deltaPp.prev == null) return null;
+  const diff = Math.round(deltaPp.current - deltaPp.prev);
+  return { pct: diff, label: `${diff >= 0 ? "+" : ""}${diff} pp`, positive: diff > 0 };
+}
+
 export function KpiSparklineCard({
   title,
   value,
@@ -84,13 +96,14 @@ export function KpiSparklineCard({
   currentCents,
   prevCents,
   deltaMode = "none",
+  deltaPp,
 }: Props) {
   const theme = useTheme();
   const chartPalette = getChartColors(theme.palette.mode as "light" | "dark");
   const lineColor = chartPalette[PALETTE_IDX[color] ?? 0];
   const textToken = TEXT_TOKEN[color];
   const bgToken = BG_TOKEN[color];
-  const delta = computeDelta(currentCents, prevCents);
+  const delta = computeDelta(currentCents, prevCents) ?? computePpDelta(deltaPp);
   const hasSpark = sparkline && sparkline.length > 1;
 
   const tooltipStyle = {

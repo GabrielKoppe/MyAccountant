@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import React, { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 import { formatCentsToBrl } from "@/lib/money";
@@ -28,18 +27,32 @@ import {
 } from "@/components/dashboards/panels/MemberBreakdownChart";
 import { DailyHeatmap } from "@/components/dashboards/charts/DailyHeatmap";
 import { CategoryTreemap } from "@/components/dashboards/charts/CategoryTreemap";
-import { CategoryPieChart } from "@/components/dashboards/charts/CategoryPieChart";
 import { DrillDownDrawer } from "@/components/dashboards/panels/DrillDownDrawer";
 import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
-import { SectionPieChart } from "@/components/dashboards/charts/SectionPieChart";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
+import { SectionBreakdownWidget } from "@/components/dashboards/panels/SectionBreakdownWidget";
+import { CategoryBreakdownWidget } from "@/components/dashboards/panels/CategoryBreakdownWidget";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
+import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 import { TopTransactionTable } from "../panels/TopTransactionTable";
 import { BudgetWidgetContent } from "@/components/budgets/BudgetWidgetContent";
 import type { Insight } from "@/server/services/insights-service";
 import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
 import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import {
+  kpiCustomConfigSchema,
+  type BudgetsConfig,
+  type MemberBreakdownConfig,
+  type PieChartConfig,
+  type TopTransactionsConfig,
+  type TreemapConfig,
+} from "@/lib/schemas/widget-config";
+import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
+import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
+
+// Limite (%) a partir do qual uma meta é considerada "próxima do limite".
+const BUDGET_NEAR_LIMIT_PCT = 80;
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
@@ -93,6 +106,7 @@ type Props = {
   insights: Insight[];
   memberBreakdown: MemberBreakdownRow[];
   widgets: StoredWidget[];
+  kpiCustomData: Record<string, KpiCustomResult>;
 };
 
 function pickComparisonValues(
@@ -148,6 +162,7 @@ export function MonthlyDashboardClient({
   insights,
   memberBreakdown,
   widgets,
+  kpiCustomData,
 }: Props) {
   const [compareMode, setCompareMode] = useState<CompareMode>("prevMonth");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -155,7 +170,6 @@ export function MonthlyDashboardClient({
   const [drawerTxs, setDrawerTxs] = useState<DrillDownTransaction[]>([]);
   const [drawerLoading, startDrawerTransition] = useTransition();
   const [budgetFormOpen, setBudgetFormOpen] = useState(false);
-  const [view, setView] = useState<MemberBreakdownView>("donut");
 
   const compValues = pickComparisonValues(compareMode, sparklineData, comparisonData);
   const hasPrevYear = !!comparisonData.prevYearSameMonth;
@@ -172,6 +186,34 @@ export function MonthlyDashboardClient({
   const subtractSections = sections.filter(
     (s) => s.countType === "subtract" || s.countType === "neutral",
   );
+
+  // Config interna por widget (singletons) — aplicada à apresentação.
+  const configOf = (widgetId: string): unknown =>
+    widgets.find((w) => w.widgetId === widgetId)?.config;
+
+  const treemapTopN = (configOf("category-treemap") as TreemapConfig | undefined)?.topN ?? "all";
+  const treemapShown = treemapTopN === "all" ? treemapData : treemapData.slice(0, treemapTopN);
+
+  const budgetsShowOnly = (configOf("budgets") as BudgetsConfig | undefined)?.showOnly ?? "all";
+  const budgetsShown =
+    budgetsShowOnly === "near_limit"
+      ? budgets.filter((b) => b.percent >= BUDGET_NEAR_LIMIT_PCT)
+      : budgets;
+
+  // member-breakdown: view inicializada da config persistida; o toggle in-widget altera apenas o estado local.
+  const memberBreakdownDefaultView =
+    (configOf("member-breakdown") as MemberBreakdownConfig | undefined)?.view ?? "donut";
+  const [view, setView] = useState<MemberBreakdownView>(memberBreakdownDefaultView);
+
+  // Comparação global → também a taxa de poupança (variação em pontos percentuais).
+  const prevSavingsRate =
+    compValues.income != null && compValues.expense != null && BigInt(compValues.income) > 0n
+      ? Math.round(
+          ((Number(BigInt(compValues.income)) - Number(BigInt(compValues.expense))) /
+            Number(BigInt(compValues.income))) *
+            100,
+        )
+      : null;
 
   function openDrawer(ids: string[], title: string) {
     setDrawerTitle(title);
@@ -225,6 +267,8 @@ export function MonthlyDashboardClient({
         subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
         color={savingsRate >= 20 ? "success" : savingsRate >= 0 ? "warning" : "error"}
         icon={SavingsIcon}
+        deltaPp={{ current: savingsRate, prev: prevSavingsRate }}
+        deltaMode={compareMode}
       />
     ),
     "kpi-top-category": topCategory ? (
@@ -248,9 +292,8 @@ export function MonthlyDashboardClient({
     budgets: (
       <WidgetContainer
         title={m.budgets.title}
-        subtitle={`${budgets.length} ${budgets.length === 1 ? "meta" : "metas"}`}
+        subtitle={`${budgetsShown.length} ${budgetsShown.length === 1 ? "meta" : "metas"}`}
         icon={WIDGET_ICONS["budgets"]}
-        collapsible
         secondary={
           <Tooltip title={m.budgets.createButton}>
             <IconButton size="small" onClick={() => setBudgetFormOpen(true)}>
@@ -259,60 +302,50 @@ export function MonthlyDashboardClient({
           </Tooltip>
         }
       >
-        <BudgetWidgetContent budgets={budgets} onAddClick={() => setBudgetFormOpen(true)} />
+        <BudgetWidgetContent budgets={budgetsShown} onAddClick={() => setBudgetFormOpen(true)} />
       </WidgetContainer>
     ),
-    "daily-heatmap":
-      subtractSections.length > 0 ? (
-        <WidgetContainer
-          title={m.dashboards.sections.calendarHeatmap}
-          subtitle="Intensidade = total gasto naquele dia (seções de saída)"
-          icon={WIDGET_ICONS["daily-heatmap"]}
-        >
-          <DailyHeatmap
-            year={year}
-            month={month}
-            dailyTotals={dailyTotals}
-            onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
-          />
-        </WidgetContainer>
-      ) : null,
+    "daily-heatmap": (
+      <DailyHeatmap
+        year={year}
+        month={month}
+        dailyTotals={dailyTotals}
+        onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
+        monthSummaryHref={`/${accountId}/months/${monthId}`}
+      />
+    ),
     "category-treemap": (
       <WidgetContainer
         title={m.dashboards.sections.categoryTreemap}
         icon={WIDGET_ICONS["category-treemap"]}
       >
         <CategoryTreemap
-          categories={treemapData}
+          categories={treemapShown}
           onDrillDown={(ids, label) => openDrawer(ids, label)}
         />
       </WidgetContainer>
     ),
-    "money-flow":
-      sankeyData.nodes.length > 0 ? (
-        <WidgetContainer
-          title={m.dashboards.sections.moneyFlow}
-          subtitle="Fluxo: entradas → total disponível → categorias de gastos"
-          icon={WIDGET_ICONS["money-flow"]}
-        >
-          <SankeyChart data={sankeyData} />
-        </WidgetContainer>
-      ) : null,
+    "money-flow": (
+      <SankeyChart
+        data={sankeyData}
+        monthSummaryHref={`/${accountId}/months/${monthId}`}
+        renderMode={getRenderMode(widgets, "monthly", "money-flow")}
+      />
+    ),
     "section-breakdown": (
-      <WidgetContainer
-        title={m.dashboards.sections.sectionBreakdown}
-        icon={WIDGET_ICONS["section-breakdown"]}
-      >
-        <SectionPieChart sections={sections} sectionTotals={sectionTotals} />
-      </WidgetContainer>
+      <SectionBreakdownWidget
+        sections={sections}
+        sectionTotals={sectionTotals}
+        config={configOf("section-breakdown") as PieChartConfig | undefined}
+        renderMode={getRenderMode(widgets, "monthly", "section-breakdown") as "compact" | "default" | "full"}
+      />
     ),
     "category-breakdown": (
-      <WidgetContainer
-        title={m.dashboards.sections.categoryBreakdown}
-        icon={WIDGET_ICONS["category-breakdown"]}
-      >
-        <CategoryPieChart categories={topCategories} />
-      </WidgetContainer>
+      <CategoryBreakdownWidget
+        categories={topCategories}
+        config={configOf("category-breakdown") as PieChartConfig | undefined}
+        renderMode={getRenderMode(widgets, "monthly", "category-breakdown") as "compact" | "default" | "full"}
+      />
     ),
     insights: (
       <WidgetContainer title={m.dashboards.insights.cardTitle} icon={WIDGET_ICONS["insights"]}>
@@ -329,19 +362,25 @@ export function MonthlyDashboardClient({
       </WidgetContainer>
     ) : null,
     "top-transactions": (
-      <WidgetContainer
-        title={m.dashboards.sections.biggestTransactions}
-        icon={WIDGET_ICONS["top-transactions"]}
-      >
-        <TopTransactionTable transactions={topTransactions} />
-      </WidgetContainer>
+      <TopTransactionTable
+        transactions={topTransactions}
+        config={configOf("top-transactions") as TopTransactionsConfig | undefined}
+      />
     ),
   };
 
-  // nodeMap por instanceId: cada instância resolve seu nó pelo widgetId.
+  // nodeMap por instanceId: singletons resolvem pelo widgetId; instâncias
+  // kpi-custom têm config + dados próprios por instância.
   const nodeMap: Record<string, React.ReactNode> = {};
   for (const w of widgets) {
-    nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+    if (w.widgetId === "kpi-custom") {
+      const parsed = kpiCustomConfigSchema.safeParse(w.config);
+      const config = parsed.success ? parsed.data : kpiCustomConfigSchema.parse({});
+      const data = kpiCustomData[w.instanceId];
+      nodeMap[w.instanceId] = data ? <KpiCustomWidget config={config} data={data} /> : null;
+    } else {
+      nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+    }
   }
 
   return (
