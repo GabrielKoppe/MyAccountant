@@ -31,6 +31,7 @@ import {
   snapToNearestVariant,
 } from "@/components/dashboards/_core/grid-layout";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import type { WidgetConfigOptions } from "@/lib/queries/widget-config-options";
 import { WidgetCardBody } from "./WidgetCardBody";
 import { PALETTE_DRAG_PREFIX, WidgetPalette } from "./WidgetPalette";
 import { WidgetSettingsPanel } from "./WidgetSettingsPanel";
@@ -43,6 +44,7 @@ type LayoutChangeOpts = { immediate?: boolean };
 type Props = {
   widgets: StoredWidget[];
   registry: WidgetDef[];
+  configOptions: WidgetConfigOptions;
   cols: number;
   maxRows: number;
   initialRows: number;
@@ -245,6 +247,7 @@ function GuideCell({ x, y, droppable }: { x: number; y: number; droppable: boole
 export function DashboardGridCanvas({
   widgets,
   registry,
+  configOptions,
   cols,
   maxRows,
   initialRows,
@@ -469,6 +472,15 @@ export function DashboardGridCanvas({
     else flashError(m.settings.dashboards.sizeNoRoom);
   }
 
+  // Config interna (configSchema) — salva na hora (ação deliberada do form).
+  function handleSaveConfig(config: unknown) {
+    if (!selectedId) return;
+    onLayoutChange(
+      widgets.map((w) => (w.instanceId === selectedId ? { ...w, config } : w)),
+      { immediate: true },
+    );
+  }
+
   // ─── Resize por alça (pointer capture; snap para variante mais próxima) ──
 
   function beginResize(instanceId: string, clientX: number, clientY: number) {
@@ -632,7 +644,9 @@ export function DashboardGridCanvas({
         context={context}
         widget={selectedWidget}
         def={selectedDef}
+        configOptions={configOptions}
         onSelectVariant={handleSelectVariant}
+        onSaveConfig={handleSaveConfig}
         onDuplicate={handleDuplicate}
         onRemove={handleRemove}
         onClose={() => setSelectedId(null)}

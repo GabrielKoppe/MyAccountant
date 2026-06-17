@@ -171,9 +171,59 @@ export const messages = {
         small: "Pequeno",
         expanded: "Expandido",
       },
+      configSection: "Configuração",
+      configSave: "Salvar",
+      configSaved: "Configuração salva.",
+      config: {
+        // money-flow
+        groupByLabel: "Agrupar por",
+        groupBySection: "Por seção",
+        groupByCategory: "Por categoria",
+        // category-treemap
+        topNLabel: "Categorias exibidas",
+        topNAll: "Todas",
+        topNValue: (n: number) => `Top ${n}`,
+        // budgets
+        showOnlyLabel: "Exibir",
+        showOnlyAll: "Todas as metas",
+        showOnlyNearLimit: "Apenas próximas do limite",
+        // top-transactions / filtered-transactions
+        limitLabel: "Quantidade",
+        // kpi-custom
+        labelLabel: "Rótulo",
+        labelPlaceholder: "Ex.: Gastos com lazer",
+        metricLabel: "Métrica",
+        sectionsLabel: "Seções",
+        categoriesLabel: "Categorias",
+        membersLabel: "Membros",
+        institutionsLabel: "Instituições",
+        responsibleLabel: "Responsáveis",
+        pendingLabel: "Apenas pendentes",
+        favoriteLabel: "Apenas favoritas",
+        allOption: "Todas",
+        noneSelected: "Sem filtro",
+        // member-breakdown
+        viewLabel: "Visualização",
+        viewDonut: "Rosca",
+        viewBars: "Barras",
+        // section-breakdown / category-breakdown
+        chartTypeLabel: "Tipo de gráfico",
+        chartTypePie: "Pizza",
+        chartTypeBar: "Barras",
+        // daily-heatmap
+        heatmapMetricLabel: "Exibir",
+        heatmapMetricExpense: "Despesas",
+        heatmapMetricAll: "Toda atividade",
+        // top-categories (reusa topNLabel/topNValue/topNAll)
+      },
       addWidget: "Adicionar widget",
       addAll: "Adicionar todos",
       resetToDefault: "Restaurar padrão",
+      resetToDefaultConfirmTitle: "Restaurar layout padrão?",
+      resetToDefaultConfirmDescription:
+        "O layout voltará ao arranjo padrão. Posições, tamanhos e configurações personalizadas serão perdidos.",
+      resetToDefaultConfirm: "Restaurar",
+      resetToDefaultSuccess: "Layout restaurado ao padrão.",
       removeWidget: "Remover widget",
       widgetTypeKpi: "Indicador",
       widgetTypePanelHalf: "Painel · Metade",

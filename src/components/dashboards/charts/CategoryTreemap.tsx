@@ -190,7 +190,8 @@ export function CategoryTreemap({ categories, onDrillDown }: Props) {
           content={<CustomCell />}
         >
           <Tooltip
-            content={({ active, payload }) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            content={({ active, payload }: any) => {
               if (!active || !payload?.length) return null;
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const node = (payload[0] as any)?.payload as TreemapNode | undefined;
@@ -208,7 +209,12 @@ export function CategoryTreemap({ categories, onDrillDown }: Props) {
                     pointerEvents: "none",
                   }}
                 >
-                  <Typography variant="caption" fontWeight={600} display="block" color="text.primary">
+                  <Typography
+                    variant="caption"
+                    fontWeight={600}
+                    display="block"
+                    color="text.primary"
+                  >
                     {node.name}
                   </Typography>
                   <Typography
@@ -224,7 +230,12 @@ export function CategoryTreemap({ categories, onDrillDown }: Props) {
                     {formatCentsToBrl(BigInt(node.totalCents))}
                   </Typography>
                   {!drillCategoryId && node.categoryId && (
-                    <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.disabled"
+                      display="block"
+                      sx={{ mt: 0.5 }}
+                    >
                       Clique para ver subcategorias
                     </Typography>
                   )}

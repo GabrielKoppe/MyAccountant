@@ -39,6 +39,8 @@ type Props = {
   children?: React.ReactNode;
   /** sx adicional aplicado ao Paper externo */
   sx?: SxProps<Theme>;
+  /** sx adicional aplicado à área de conteúdo (p.ex. `{ overflow: "hidden" }` para impedir scroll interno) */
+  contentSx?: SxProps<Theme>;
 };
 
 export function WidgetContainer({
@@ -51,6 +53,7 @@ export function WidgetContainer({
   defaultExpanded = true,
   children,
   sx,
+  contentSx,
 }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -127,10 +130,12 @@ export function WidgetContainer({
       {/* ── Conteúdo ── */}
       {collapsible ? (
         <Collapse in={expanded} sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-          <Box sx={{ px: 2.5, pb: 2, pt: 0.5 }}>{children}</Box>
+          <Box sx={{ px: 2.5, pb: 2, pt: 0.5, ...contentSx }}>{children}</Box>
         </Collapse>
       ) : (
-        <Box sx={{ px: 2.5, pb: 2.5, pt: 0, flex: 1, minHeight: 0, overflow: "auto" }}>
+        <Box
+          sx={{ px: 2.5, pb: 2.5, pt: 0, flex: 1, minHeight: 0, overflow: "auto", ...contentSx }}
+        >
           {children}
         </Box>
       )}

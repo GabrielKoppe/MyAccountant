@@ -17,16 +17,20 @@ import type {
   WidgetSizeVariant,
 } from "@/components/dashboards/_core/widget-registry";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import type { WidgetConfigOptions } from "@/lib/queries/widget-config-options";
 import { widgetLabel } from "./widget-display";
+import { WidgetConfigForm } from "./WidgetConfigForm";
 
 // Painel lateral único para as ações e configurações da instância selecionada.
-// Substitui o menu de contexto (⋮) e — nas próximas fases — o modal de config:
-// tudo fica visível na lateral, sem sobreposição nem perda de contexto.
+// Substitui o menu de contexto (⋮) e o modal de config: tudo fica visível na
+// lateral (tamanho + config + ações), sem sobreposição nem perda de contexto.
 type Props = {
   context: DashboardContext;
   widget: StoredWidget;
   def: WidgetDef;
+  configOptions: WidgetConfigOptions;
   onSelectVariant: (variantId: string) => void;
+  onSaveConfig: (config: unknown) => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onClose: () => void;
@@ -100,7 +104,9 @@ export function WidgetSettingsPanel({
   context,
   widget,
   def,
+  configOptions,
   onSelectVariant,
+  onSaveConfig,
   onDuplicate,
   onRemove,
   onClose,
@@ -170,6 +176,29 @@ export function WidgetSettingsPanel({
         </Box>
       </Box>
 
+      {/* Seção: configuração (apenas widgets com configSchema) */}
+      {def.configSchema && (
+        <>
+          <Divider />
+          <Box>
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 500, display: "block", mb: 0.75, color: "text.secondary" }}
+            >
+              {m.settings.dashboards.configSection}
+            </Typography>
+            {/* key por instanceId → reseta o form ao trocar de widget selecionado */}
+            <WidgetConfigForm
+              key={widget.instanceId}
+              def={def}
+              widget={widget}
+              options={configOptions}
+              onSave={onSaveConfig}
+            />
+          </Box>
+        </>
+      )}
+
       <Divider />
 
       {/* Seção: ações */}
@@ -180,7 +209,7 @@ export function WidgetSettingsPanel({
         >
           {m.settings.dashboards.actionsSection}
         </Typography>
-        <Box sx={{ display: "flex", flexDirection: "row", gap: 1 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {def.instantiable && (
             <Button
               variant="outlined"
@@ -200,7 +229,13 @@ export function WidgetSettingsPanel({
             startIcon={<DeleteOutlineIcon sx={{ fontSize: 14 }} />}
             onClick={onRemove}
             fullWidth
-            sx={{ justifyContent: "flex-start", fontSize: "0.8rem", alignItems: "flex-start" }}
+            sx={{
+              justifyContent: "flex-start",
+              fontSize: "0.8rem",
+              alignItems: "flex-start",
+              color: "error.main",
+              borderColor: "error.main",
+            }}
           >
             {m.settings.dashboards.remove}
           </Button>

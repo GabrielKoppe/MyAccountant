@@ -46,7 +46,7 @@ export function DashboardGrid({ widgets, nodeMap, cols }: Props) {
         display: "grid",
         gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
         gridAutoRows: `${ROW_HEIGHT}px`,
-        gap: layout.cluster,
+        gap: layout.page,
       }}
     >
       {visibleWidgets.map((w) => (

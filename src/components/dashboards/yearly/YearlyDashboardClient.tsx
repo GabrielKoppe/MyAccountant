@@ -17,7 +17,7 @@ import type { MemberTrendSeries } from "@/lib/queries/member-analytics";
 
 import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
 import { MonthlyBarChart } from "@/components/dashboards/charts/MonthlyBarChart";
-import { CategoryBarList } from "@/components/dashboards/charts/CategoryBarList";
+import { BarList } from "@/components/dashboards/charts/BarList";
 import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { MemberTrendChart } from "@/components/dashboards/charts/MemberTrendChart";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
@@ -27,6 +27,9 @@ import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { YearSelector } from "@/components/dashboards/_shared/YearSelector";
 import { YearlyDashboardMenu } from "./YearlyDashboardMenu";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import { kpiCustomConfigSchema, type TopCategoriesConfig } from "@/lib/schemas/widget-config";
+import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
+import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 
 type Props = {
   accountId: string;
@@ -49,6 +52,7 @@ type Props = {
   topCategories: CategorySum[];
   memberTrend: MemberTrendSeries[];
   widgets: StoredWidget[];
+  kpiCustomData: Record<string, KpiCustomResult>;
 };
 
 export function YearlyDashboardClient({
@@ -70,10 +74,19 @@ export function YearlyDashboardClient({
   topCategories,
   memberTrend,
   widgets,
+  kpiCustomData,
 }: Props) {
   const yearTotalBigInt = BigInt(yearTotal);
   const yearlyIncomeBigInt = BigInt(yearlyIncome);
   const yearlyExpenseBigInt = BigInt(yearlyExpense);
+
+  // Config interna por widget (singletons)
+  const configOf = (widgetId: string): unknown =>
+    widgets.find((w) => w.widgetId === widgetId)?.config;
+
+  const topCategoriesLimit =
+    (configOf("top-categories") as TopCategoriesConfig | undefined)?.limit ?? 10;
+  const topCategoriesShown = topCategories.slice(0, topCategoriesLimit);
 
   const nodeByWidgetId: Record<string, React.ReactNode> = {
     "kpi-year-total": (
@@ -173,7 +186,13 @@ export function YearlyDashboardClient({
         title={m.dashboards.sections.topCategories}
         icon={WIDGET_ICONS["top-categories"]}
       >
-        <CategoryBarList categories={topCategories} />
+        <BarList
+          items={topCategoriesShown.map((c) => ({
+            id: c.categoryId,
+            name: c.name,
+            valueCents: c.totalCents,
+          }))}
+        />
       </WidgetContainer>
     ),
     "member-trend":
@@ -187,10 +206,17 @@ export function YearlyDashboardClient({
       ) : null,
   };
 
-  // nodeMap por instanceId: cada instância resolve seu nó pelo widgetId.
+  // nodeMap por instanceId: singletons pelo widgetId; kpi-custom por instância.
   const nodeMap: Record<string, React.ReactNode> = {};
   for (const w of widgets) {
-    nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+    if (w.widgetId === "kpi-custom") {
+      const parsed = kpiCustomConfigSchema.safeParse(w.config);
+      const config = parsed.success ? parsed.data : kpiCustomConfigSchema.parse({});
+      const data = kpiCustomData[w.instanceId];
+      nodeMap[w.instanceId] = data ? <KpiCustomWidget config={config} data={data} /> : null;
+    } else {
+      nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+    }
   }
 
   return (

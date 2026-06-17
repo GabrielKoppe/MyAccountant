@@ -9,6 +9,7 @@ import { getChartColors } from "@/lib/design-tokens";
 import { ChartTooltip, PieLegend } from "@/components/dashboards/_shared/ChartTooltip";
 import type { CategorySum } from "@/lib/queries/dashboards";
 
+
 type Props = {
   categories: CategorySum[];
 };
