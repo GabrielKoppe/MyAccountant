@@ -68,7 +68,7 @@ export type TopCategoriesConfig = z.infer<typeof topCategoriesConfigSchema>;
 
 // section-breakdown / category-breakdown: tipo de gráfico.
 export const pieChartConfigSchema = z.object({
-  chartType: z.enum(["pie", "bar"]).default("pie"),
+  chartType: z.enum(["pie", "bar", "hbar", "vbar"]).default("pie"),
 });
 export type PieChartConfig = z.infer<typeof pieChartConfigSchema>;
 

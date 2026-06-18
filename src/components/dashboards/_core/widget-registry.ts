@@ -121,8 +121,8 @@ const MONEY_FLOW_VARIANTS: WidgetSizeVariant[] = [
 
 const MONTH_CARD_GRID_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 6, h: 1, renderMode: "default" },
+  { id: "small", labelKey: "small", w: 4, h: 1, renderMode: "small" },
   { id: "compact", labelKey: "compact", w: 2, h: 1, renderMode: "compact" },
-  { id: "expanded", labelKey: "expanded", w: 6, h: 2, renderMode: "expanded" },
 ];
 
 const MONTHLY_BAR_CHART_VARIANTS: WidgetSizeVariant[] = [

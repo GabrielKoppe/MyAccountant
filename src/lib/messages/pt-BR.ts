@@ -209,7 +209,9 @@ export const messages = {
         // section-breakdown / category-breakdown
         chartTypeLabel: "Tipo de gráfico",
         chartTypePie: "Pizza",
-        chartTypeBar: "Barras",
+        chartTypeBar: "Barras (lista)",
+        chartTypeHBar: "Barras horizontais",
+        chartTypeVBar: "Colunas verticais",
         // daily-heatmap
         heatmapMetricLabel: "Exibir",
         heatmapMetricExpense: "Despesas",

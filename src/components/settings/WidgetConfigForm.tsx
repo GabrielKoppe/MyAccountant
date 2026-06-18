@@ -394,6 +394,18 @@ function PieChartForm({ widget, onSave }: { widget: StoredWidget; onSave: (c: un
                   label={m.settings.dashboards.config.chartTypeBar}
                   sx={radioLabelSx}
                 />
+                <FormControlLabel
+                  value="hbar"
+                  control={<Radio size="small" />}
+                  label={m.settings.dashboards.config.chartTypeHBar}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="vbar"
+                  control={<Radio size="small" />}
+                  label={m.settings.dashboards.config.chartTypeVBar}
+                  sx={radioLabelSx}
+                />
               </RadioGroup>
             )}
           />
