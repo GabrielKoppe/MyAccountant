@@ -1,87 +1,163 @@
+"use client";
+
+import { useState } from "react";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import Paper from "@mui/material/Paper";
+import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+
 import { AppLink } from "@/components/ui/AppLink";
+import { WidgetContainer } from "@/components/ui/WidgetContainer";
+import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { formatCentsToBrl } from "@/lib/money";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { m } from "@/lib/messages";
 import type { MonthSummary } from "@/lib/queries/dashboards";
 
 type Props = {
   accountId: string;
   months: MonthSummary[];
   currentMonthId?: string;
+  renderMode?: string;
 };
 
-const MONTH_NAMES = [
-  "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
+// Quantos cards visíveis por renderMode
+const CARDS_VISIBLE: Record<string, number> = {
+  default: 6,
+  small: 4,
+  compact: 2,
+};
 
-export function MonthCardGrid({ accountId, months, currentMonthId }: Props) {
+export function MonthCardGrid({
+  accountId,
+  months,
+  currentMonthId,
+  renderMode = "default",
+}: Props) {
+  const [startIdx, setStartIdx] = useState(0);
+
   if (months.length === 0) return null;
 
+  const visibleCount = CARDS_VISIBLE[renderMode] ?? 6;
+  const canScroll = months.length > visibleCount;
+
+  const maxStart = Math.max(0, months.length - visibleCount);
+  const handlePrev = () => setStartIdx((i) => Math.max(0, i - 1));
+  const handleNext = () => setStartIdx((i) => Math.min(maxStart, i + 1));
+
+  const shown = months.slice(startIdx, startIdx + visibleCount);
+
   return (
-    <Box>
-      <Typography variant="subtitle2" fontWeight="bold" mb={1.5}>
-        Ir para um mês específico
-      </Typography>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)", lg: "repeat(6, 1fr)" },
-          gap: 1.5,
-        }}
-      >
-        {months.map((m) => {
-          const total = BigInt(m.total);
-          const isCurrent = m.id === currentMonthId;
-          return (
-            <Paper
-              key={m.id}
-              variant="outlined"
-              component={AppLink}
-              href={`/${accountId}/dashboards/monthly/${m.id}`}
-              sx={{
-                p: 1.5,
-                textDecoration: "none",
-                color: "inherit",
-                display: "flex",
-                flexDirection: "column",
-                gap: 0.5,
-                borderColor: isCurrent ? "primary.main" : "divider",
-                borderWidth: isCurrent ? 2 : 1,
-                "&:hover": {
-                  bgcolor: "action.hover",
-                  borderColor: "primary.main",
-                },
-                transition: "all 0.15s",
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <Typography variant="caption" color="text.secondary" fontWeight="medium">
-                  {MONTH_NAMES[m.month]}
-                </Typography>
-                {isCurrent && (
-                  <Chip label="atual" size="small" color="primary" sx={{ height: 16, fontSize: 9 }} />
-                )}
-              </Box>
-              <Typography
-                variant="body2"
-                fontWeight="bold"
-                color={total >= 0n ? "success.main" : "error.main"}
-                sx={{ fontSize: 13 }}
+    <WidgetContainer
+      title={m.dashboards.widgets.yearly["month-card-grid"]}
+      icon={WIDGET_ICONS["month-card-grid"]}
+      contentSx={{
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "stretch", gap: 0.5 }}>
+        {canScroll && (
+          <IconButton
+            size="small"
+            onClick={handlePrev}
+            disabled={startIdx === 0}
+            sx={{ flexShrink: 0, alignSelf: "center" }}
+          >
+            <ChevronLeftIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        )}
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${shown.length}, 1fr)`,
+            gap: 2,
+            flex: 1,
+            minWidth: 0,
+            overflow: "hidden",
+          }}
+        >
+          {shown.map((mo) => {
+            const total = BigInt(mo.total);
+            return (
+              <Box
+                key={mo.id}
+                component={AppLink}
+                href={`/${accountId}/dashboards/monthly/${mo.id}`}
+                sx={{
+                  textDecoration: "none",
+                  color: "inherit",
+                  p: 2,
+                  borderRadius: 1,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.25,
+                  overflow: "hidden",
+                  transition: "border-color 0.15s, background-color 0.15s",
+                  "&:hover": { bgcolor: "action.hover", borderColor: "primary.main" },
+                  "&:hover .month-card-arrow": { transform: "translateX(3px)" },
+                  minHeight: 64,
+                }}
               >
-                {formatCentsToBrl(total)}
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", mt: 0.5 }}>
-                <ArrowForwardIcon sx={{ fontSize: 13, color: "text.disabled" }} />
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography
+                    variant="kpi"
+                    color="text.secondary"
+                    noWrap
+                    sx={{ fontSize: "0.85rem", fontWeight: 400, lineHeight: 1.2 }}
+                  >
+                    {mo.label}
+                  </Typography>
+                  <ArrowForwardIcon
+                    className="month-card-arrow"
+                    sx={{
+                      fontSize: 16,
+                      color: "text.secondary",
+                      transition: "transform 0.15s",
+                    }}
+                  />
+                </Box>
+                <Typography
+                  noWrap
+                  sx={{
+                    fontFamily: "var(--font-jetbrains-mono), monospace",
+                    fontWeight: 600,
+                    fontSize: "0.75rem",
+                    color: total >= 0n ? "success.main" : "danger.main",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {formatCentsToBrl(total)}
+                </Typography>
               </Box>
-            </Paper>
-          );
-        })}
+            );
+          })}
+        </Box>
+
+        {canScroll && (
+          <IconButton
+            size="small"
+            onClick={handleNext}
+            disabled={startIdx >= maxStart}
+            sx={{ flexShrink: 0, alignSelf: "center" }}
+          >
+            <ChevronRightIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        )}
       </Box>
-    </Box>
+    </WidgetContainer>
   );
 }

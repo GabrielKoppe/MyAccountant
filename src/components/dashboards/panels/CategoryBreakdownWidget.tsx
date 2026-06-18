@@ -4,6 +4,7 @@ import Box from "@mui/material/Box";
 
 import { BarList, type BarItem } from "@/components/dashboards/charts/BarList";
 import { PieBreakdown, type PieRenderMode } from "@/components/dashboards/charts/PieBreakdown";
+import { BreakdownBarChart } from "@/components/dashboards/charts/BreakdownBarChart";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { m } from "@/lib/messages";
@@ -40,6 +41,20 @@ export function CategoryBreakdownWidget({ categories, config, renderMode = "defa
         <Box sx={{ overflow: "auto", flex: 1, minHeight: 0 }}>
           <BarList items={barItems} emptyMessage="Nenhuma categoria com transações." />
         </Box>
+      ) : chartType === "hbar" ? (
+        <BreakdownBarChart
+          items={pieItems}
+          orientation="hbar"
+          renderMode={renderMode}
+          emptyMessage="Nenhuma categoria com transações."
+        />
+      ) : chartType === "vbar" ? (
+        <BreakdownBarChart
+          items={pieItems}
+          orientation="vbar"
+          renderMode={renderMode}
+          emptyMessage="Nenhuma categoria com transações."
+        />
       ) : (
         <PieBreakdown
           items={pieItems}

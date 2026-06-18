@@ -164,12 +164,11 @@ export function YearlyDashboardClient({
         />
       ) : null,
     "month-card-grid": (
-      <WidgetContainer
-        title={m.dashboards.widgets.yearly["month-card-grid"]}
-        icon={WIDGET_ICONS["month-card-grid"]}
-      >
-        <MonthCardGrid accountId={accountId} months={monthSummaries} />
-      </WidgetContainer>
+      <MonthCardGrid
+        accountId={accountId}
+        months={monthSummaries}
+        renderMode={getRenderMode(widgets, "yearly", "month-card-grid")}
+      />
     ),
     "monthly-bar-chart": (
       <MonthlyBarChart

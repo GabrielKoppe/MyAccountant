@@ -175,9 +175,9 @@ export function TopCategoriesWidget({ categories, config, renderMode = "default"
               </Typography>
               <IconButton size="small" sx={{ p: 0.25 }}>
                 {detailOpen ? (
-                  <ExpandLessIcon sx={{ fontSize: 14 }} />
-                ) : (
                   <ExpandMoreIcon sx={{ fontSize: 14 }} />
+                ) : (
+                  <ExpandLessIcon sx={{ fontSize: 14 }} />
                 )}
               </IconButton>
             </Stack>
@@ -194,7 +194,9 @@ export function TopCategoriesWidget({ categories, config, renderMode = "default"
                   <TableHead>
                     <TableRow>
                       <TableCell sx={{ fontSize: "0.65rem", py: 0.5, width: 28 }}>#</TableCell>
-                      <TableCell sx={{ fontSize: "0.65rem", py: 0.5 }}>Categoria</TableCell>
+                      <TableCell sx={{ fontSize: "0.65rem", py: 0.5, width: 150 }}>
+                        Categoria
+                      </TableCell>
                       <TableCell align="right" sx={{ fontSize: "0.65rem", py: 0.5, width: 68 }}>
                         % do total
                       </TableCell>
