@@ -21,9 +21,7 @@ import { TopCategoriesWidget } from "@/components/dashboards/panels/TopCategorie
 import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { MemberTrendChart } from "@/components/dashboards/charts/MemberTrendChart";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
-import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { AppLink } from "@/components/ui/AppLink";
-import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { YearSelector } from "@/components/dashboards/_shared/YearSelector";
 import { YearlyDashboardMenu } from "./YearlyDashboardMenu";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
@@ -185,15 +183,12 @@ export function YearlyDashboardClient({
         renderMode={getRenderMode(widgets, "yearly", "top-categories")}
       />
     ),
-    "member-trend":
-      memberTrend.length > 0 ? (
-        <WidgetContainer
-          title={m.dashboards.sections.memberTrend}
-          icon={WIDGET_ICONS["member-trend"]}
-        >
-          <MemberTrendChart series={memberTrend} />
-        </WidgetContainer>
-      ) : null,
+    "member-trend": (
+      <MemberTrendChart
+        series={memberTrend}
+        renderMode={getRenderMode(widgets, "yearly", "member-trend")}
+      />
+    ),
   };
 
   // nodeMap por instanceId: singletons pelo widgetId; kpi-custom por instância.

@@ -69,7 +69,11 @@ const WIDE_CHART_VARIANTS: WidgetSizeVariant[] = [
   { id: "compact", labelKey: "compact", w: 3, h: 2, renderMode: "compact" },
   { id: "large", labelKey: "large", w: 6, h: 3, renderMode: "expanded" },
 ];
-
+// member-trend: compact 3×2 e default 6×2 (sem large)
+const MEMBER_TREND_VARIANTS: WidgetSizeVariant[] = [
+  { id: "default", labelKey: "default", w: 6, h: 2, renderMode: "default" },
+  { id: "compact", labelKey: "compact", w: 3, h: 2, renderMode: "compact" },
+];
 // default 3×3, compact 2×2, large 4×3
 const SQUARE_CHART_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 3, h: 3, renderMode: "default" },
@@ -371,7 +375,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "member-trend",
       labelKey: "memberTrend",
       kind: "panel",
-      sizeVariants: WIDE_CHART_VARIANTS,
+      sizeVariants: MEMBER_TREND_VARIANTS,
       defaultVisible: false,
     },
     {
