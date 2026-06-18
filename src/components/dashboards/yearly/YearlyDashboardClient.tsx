@@ -17,7 +17,7 @@ import type { MemberTrendSeries } from "@/lib/queries/member-analytics";
 
 import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
 import { MonthlyBarChart } from "@/components/dashboards/charts/MonthlyBarChart";
-import { BarList } from "@/components/dashboards/charts/BarList";
+import { TopCategoriesWidget } from "@/components/dashboards/panels/TopCategoriesWidget";
 import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { MemberTrendChart } from "@/components/dashboards/charts/MemberTrendChart";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
@@ -26,6 +26,7 @@ import { AppLink } from "@/components/ui/AppLink";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { YearSelector } from "@/components/dashboards/_shared/YearSelector";
 import { YearlyDashboardMenu } from "./YearlyDashboardMenu";
+import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import { kpiCustomConfigSchema, type TopCategoriesConfig } from "@/lib/schemas/widget-config";
 import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
@@ -84,9 +85,7 @@ export function YearlyDashboardClient({
   const configOf = (widgetId: string): unknown =>
     widgets.find((w) => w.widgetId === widgetId)?.config;
 
-  const topCategoriesLimit =
-    (configOf("top-categories") as TopCategoriesConfig | undefined)?.limit ?? 10;
-  const topCategoriesShown = topCategories.slice(0, topCategoriesLimit);
+  const kpiRm = (id: string) => getRenderMode(widgets, "yearly", id);
 
   const nodeByWidgetId: Record<string, React.ReactNode> = {
     "kpi-year-total": (
@@ -95,6 +94,7 @@ export function YearlyDashboardClient({
         value={formatCentsToBrl(yearTotalBigInt)}
         subtitle={`${monthCount} ${monthCount === 1 ? "mês" : "meses"}`}
         color={yearTotalBigInt >= 0n ? "success" : "error"}
+        renderMode={kpiRm("kpi-year-total")}
       />
     ),
     "kpi-income": (
@@ -103,6 +103,7 @@ export function YearlyDashboardClient({
         value={formatCentsToBrl(yearlyIncomeBigInt)}
         color="success"
         icon={TrendingUpIcon}
+        renderMode={kpiRm("kpi-income")}
       />
     ),
     "kpi-expenses": (
@@ -111,6 +112,7 @@ export function YearlyDashboardClient({
         value={formatCentsToBrl(yearlyExpenseBigInt)}
         color="error"
         icon={TrendingDownIcon}
+        renderMode={kpiRm("kpi-expenses")}
       />
     ),
     "kpi-savings-rate": (
@@ -120,6 +122,7 @@ export function YearlyDashboardClient({
         subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
         color={savingsRate >= 20 ? "success" : savingsRate >= 0 ? "warning" : "error"}
         icon={SavingsIcon}
+        renderMode={kpiRm("kpi-savings-rate")}
       />
     ),
     "kpi-monthly-avg": (
@@ -127,6 +130,7 @@ export function YearlyDashboardClient({
         title={m.dashboards.kpi.monthlyAvg}
         value={formatCentsToBrl(BigInt(monthAvg))}
         icon={CalendarMonthIcon}
+        renderMode={kpiRm("kpi-monthly-avg")}
       />
     ),
     "kpi-best-month": (
@@ -136,6 +140,7 @@ export function YearlyDashboardClient({
         subtitle={bestMonth.label}
         icon={TrendingUpIcon}
         color="success"
+        renderMode={kpiRm("kpi-best-month")}
       />
     ),
     "kpi-worst-month": (
@@ -145,6 +150,7 @@ export function YearlyDashboardClient({
         subtitle={worstMonth.label}
         icon={TrendingDownIcon}
         color={BigInt(worstMonth.total) < 0n ? "error" : "default"}
+        renderMode={kpiRm("kpi-worst-month")}
       />
     ),
     "kpi-pending":
@@ -154,6 +160,7 @@ export function YearlyDashboardClient({
           value={String(pendingCount)}
           color="warning"
           icon={AccessTimeIcon}
+          renderMode={kpiRm("kpi-pending")}
         />
       ) : null,
     "month-card-grid": (
@@ -165,35 +172,19 @@ export function YearlyDashboardClient({
       </WidgetContainer>
     ),
     "monthly-bar-chart": (
-      <WidgetContainer
-        title={m.dashboards.sections.monthlyChart}
-        icon={WIDGET_ICONS["monthly-bar-chart"]}
-        secondary={
-          <Typography variant="caption" color="text.secondary">
-            Clique em uma barra para abrir o mês
-          </Typography>
-        }
-      >
-        <MonthlyBarChart
-          months={monthSummaries}
-          sections={sections}
-          monthPagePrefix={`/${accountId}/dashboards/monthly/`}
-        />
-      </WidgetContainer>
+      <MonthlyBarChart
+        months={monthSummaries}
+        sections={sections}
+        monthDashboardPrefix={`/${accountId}/dashboards/monthly/`}
+        renderMode={getRenderMode(widgets, "yearly", "monthly-bar-chart")}
+      />
     ),
     "top-categories": (
-      <WidgetContainer
-        title={m.dashboards.sections.topCategories}
-        icon={WIDGET_ICONS["top-categories"]}
-      >
-        <BarList
-          items={topCategoriesShown.map((c) => ({
-            id: c.categoryId,
-            name: c.name,
-            valueCents: c.totalCents,
-          }))}
-        />
-      </WidgetContainer>
+      <TopCategoriesWidget
+        categories={topCategories}
+        config={configOf("top-categories") as TopCategoriesConfig | undefined}
+        renderMode={getRenderMode(widgets, "yearly", "top-categories")}
+      />
     ),
     "member-trend":
       memberTrend.length > 0 ? (

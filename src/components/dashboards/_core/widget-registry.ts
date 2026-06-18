@@ -127,7 +127,7 @@ const MONTH_CARD_GRID_VARIANTS: WidgetSizeVariant[] = [
 
 const MONTHLY_BAR_CHART_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 6, h: 2, renderMode: "default" },
-  { id: "compact", labelKey: "compact", w: 3, h: 1, renderMode: "compact" },
+  { id: "compact", labelKey: "compact", w: 3, h: 2, renderMode: "compact" },
   { id: "large", labelKey: "large", w: 6, h: 3, renderMode: "expanded" },
 ];
 
@@ -358,7 +358,11 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "top-categories",
       labelKey: "topCategories",
       kind: "panel",
-      sizeVariants: WIDE_CHART_VARIANTS,
+      sizeVariants: [
+        { id: "default", labelKey: "default", w: 3, h: 2, renderMode: "default" },
+        { id: "compact", labelKey: "compact", w: 2, h: 2, renderMode: "compact" },
+        { id: "large", labelKey: "large", w: 6, h: 3, renderMode: "full" },
+      ],
       defaultVisible: true,
       configSchema: topCategoriesConfigSchema,
       defaultConfig: { limit: 10 },

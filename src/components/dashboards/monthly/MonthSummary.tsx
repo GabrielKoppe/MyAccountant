@@ -6,7 +6,7 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 
 import { AppLink } from "@/components/ui/AppLink";
 import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
-import { BudgetWidgetContent } from "@/components/budgets/BudgetWidgetContent";
+import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
 import { SectionCards } from "../panels/SectionCards";
 import { ActivityLists } from "../panels/ActivityLists";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
@@ -25,7 +25,6 @@ import { FilteredTransactionsWidget } from "@/components/dashboards/panels/Filte
 import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
 import type { ReactNode } from "react";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
-
 type SectionItem = {
   id: string;
   name: string;
@@ -115,6 +114,8 @@ export function MonthSummary({
     | "small"
     | "compact";
 
+  const kpiRm = (id: string) => getRenderMode(widgets, "month_summary", id);
+
   const nodeByWidgetId: Record<string, ReactNode> = {
     "kpi-income": (
       <KpiSparklineCard
@@ -124,6 +125,7 @@ export function MonthSummary({
         currentCents={incomeTotal.toString()}
         prevCents={prevSectionTotals ? prevIncomeTotal.toString() : null}
         deltaMode={prevSectionTotals ? "prevMonth" : "none"}
+        renderMode={kpiRm("kpi-income")}
       />
     ),
     "kpi-expenses": (
@@ -132,6 +134,7 @@ export function MonthSummary({
         value={formatCentsToBrl(expenseTotal)}
         color="error"
         deltaMode="none"
+        renderMode={kpiRm("kpi-expenses")}
       />
     ),
     "kpi-balance": (
@@ -142,13 +145,19 @@ export function MonthSummary({
         currentCents={monthTotal}
         prevCents={prevSectionTotals ? prevMonthTotal.toString() : null}
         deltaMode={prevSectionTotals ? "prevMonth" : "none"}
+        renderMode={kpiRm("kpi-balance")}
       />
     ),
     budgets:
-      summaryBudgets && summaryBudgets.length > 0 ? (
-        <WidgetContainer title={m.budgets.title} icon={WIDGET_ICONS["budgets"]}>
-          <BudgetWidgetContent budgets={summaryBudgets} compact />
-        </WidgetContainer>
+      (summaryBudgets ?? []).length > 0 ? (
+        <BudgetsWidget
+          budgets={summaryBudgets!}
+          accountId={accountId}
+          monthId={monthId}
+          renderMode={
+            getRenderMode(widgets, "month_summary", "budgets") as "compact" | "default" | "full"
+          }
+        />
       ) : null,
     "section-cards": (
       <SectionCards

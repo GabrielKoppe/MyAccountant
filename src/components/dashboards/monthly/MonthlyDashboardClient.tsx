@@ -35,14 +35,12 @@ import { CategoryBreakdownWidget } from "@/components/dashboards/panels/Category
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 import { TopTransactionTable } from "../panels/TopTransactionTable";
-import { BudgetWidgetContent } from "@/components/budgets/BudgetWidgetContent";
+import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
 import type { Insight } from "@/server/services/insights-service";
-import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
 import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   kpiCustomConfigSchema,
-  type BudgetsConfig,
   type MemberBreakdownConfig,
   type PieChartConfig,
   type TopTransactionsConfig,
@@ -50,9 +48,6 @@ import {
 } from "@/lib/schemas/widget-config";
 import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
-
-// Limite (%) a partir do qual uma meta é considerada "próxima do limite".
-const BUDGET_NEAR_LIMIT_PCT = 80;
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
@@ -169,7 +164,6 @@ export function MonthlyDashboardClient({
   const [drawerTitle, setDrawerTitle] = useState("");
   const [drawerTxs, setDrawerTxs] = useState<DrillDownTransaction[]>([]);
   const [drawerLoading, startDrawerTransition] = useTransition();
-  const [budgetFormOpen, setBudgetFormOpen] = useState(false);
 
   const compValues = pickComparisonValues(compareMode, sparklineData, comparisonData);
   const hasPrevYear = !!comparisonData.prevYearSameMonth;
@@ -193,12 +187,6 @@ export function MonthlyDashboardClient({
 
   const treemapTopN = (configOf("category-treemap") as TreemapConfig | undefined)?.topN ?? "all";
   const treemapShown = treemapTopN === "all" ? treemapData : treemapData.slice(0, treemapTopN);
-
-  const budgetsShowOnly = (configOf("budgets") as BudgetsConfig | undefined)?.showOnly ?? "all";
-  const budgetsShown =
-    budgetsShowOnly === "near_limit"
-      ? budgets.filter((b) => b.percent >= BUDGET_NEAR_LIMIT_PCT)
-      : budgets;
 
   // member-breakdown: view inicializada da config persistida; o toggle in-widget altera apenas o estado local.
   const memberBreakdownDefaultView =
@@ -224,12 +212,15 @@ export function MonthlyDashboardClient({
     });
   }
 
+  const kpiRm = (id: string) => getRenderMode(widgets, "monthly", id);
+
   const nodeByWidgetId: Record<string, React.ReactNode> = {
     "kpi-month-total": (
       <KpiSparklineCard
         title={m.dashboards.kpi.monthTotal}
         value={formatCentsToBrl(totalBigInt)}
         color={totalBigInt >= 0n ? "success" : "error"}
+        renderMode={kpiRm("kpi-month-total")}
         sparkline={sparklineData.totalSparkline}
         currentCents={monthTotal}
         prevCents={compValues.total}
@@ -246,6 +237,7 @@ export function MonthlyDashboardClient({
         currentCents={incomeTotal}
         prevCents={compValues.income}
         deltaMode={compareMode}
+        renderMode={kpiRm("kpi-income")}
       />
     ),
     "kpi-expenses": (
@@ -258,6 +250,7 @@ export function MonthlyDashboardClient({
         currentCents={expenseTotal}
         prevCents={compValues.expense}
         deltaMode={compareMode}
+        renderMode={kpiRm("kpi-expenses")}
       />
     ),
     "kpi-savings-rate": (
@@ -269,6 +262,7 @@ export function MonthlyDashboardClient({
         icon={SavingsIcon}
         deltaPp={{ current: savingsRate, prev: prevSavingsRate }}
         deltaMode={compareMode}
+        renderMode={kpiRm("kpi-savings-rate")}
       />
     ),
     "kpi-top-category": topCategory ? (
@@ -278,6 +272,7 @@ export function MonthlyDashboardClient({
         subtitle={topCategory.name}
         color="info"
         icon={CategoryIcon}
+        renderMode={kpiRm("kpi-top-category")}
       />
     ) : null,
     "kpi-pending":
@@ -287,23 +282,20 @@ export function MonthlyDashboardClient({
           value={String(pendingCount)}
           color="warning"
           icon={AccessTimeIcon}
+          renderMode={kpiRm("kpi-pending")}
         />
       ) : null,
     budgets: (
-      <WidgetContainer
-        title={m.budgets.title}
-        subtitle={`${budgetsShown.length} ${budgetsShown.length === 1 ? "meta" : "metas"}`}
-        icon={WIDGET_ICONS["budgets"]}
-        secondary={
-          <Tooltip title={m.budgets.createButton}>
-            <IconButton size="small" onClick={() => setBudgetFormOpen(true)}>
-              <AddIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
+      <BudgetsWidget
+        budgets={budgets}
+        accountId={accountId}
+        monthId={monthId}
+        formOptions={budgetFormOptions}
+        config={
+          configOf("budgets") as import("@/lib/schemas/widget-config").BudgetsConfig | undefined
         }
-      >
-        <BudgetWidgetContent budgets={budgetsShown} onAddClick={() => setBudgetFormOpen(true)} />
-      </WidgetContainer>
+        renderMode={getRenderMode(widgets, "monthly", "budgets") as "compact" | "default" | "full"}
+      />
     ),
     "daily-heatmap": (
       <DailyHeatmap
@@ -337,14 +329,18 @@ export function MonthlyDashboardClient({
         sections={sections}
         sectionTotals={sectionTotals}
         config={configOf("section-breakdown") as PieChartConfig | undefined}
-        renderMode={getRenderMode(widgets, "monthly", "section-breakdown") as "compact" | "default" | "full"}
+        renderMode={
+          getRenderMode(widgets, "monthly", "section-breakdown") as "compact" | "default" | "full"
+        }
       />
     ),
     "category-breakdown": (
       <CategoryBreakdownWidget
         categories={topCategories}
         config={configOf("category-breakdown") as PieChartConfig | undefined}
-        renderMode={getRenderMode(widgets, "monthly", "category-breakdown") as "compact" | "default" | "full"}
+        renderMode={
+          getRenderMode(widgets, "monthly", "category-breakdown") as "compact" | "default" | "full"
+        }
       />
     ),
     insights: (
@@ -402,14 +398,6 @@ export function MonthlyDashboardClient({
         title={drawerTitle}
         transactions={drawerTxs}
         loading={drawerLoading}
-      />
-
-      <BudgetFormDialog
-        open={budgetFormOpen}
-        onClose={() => setBudgetFormOpen(false)}
-        accountId={accountId}
-        formOptions={budgetFormOptions}
-        onSuccess={() => setBudgetFormOpen(false)}
       />
     </Box>
   );
