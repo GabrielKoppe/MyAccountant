@@ -12,6 +12,8 @@ import { useTheme } from "@mui/material/styles";
 import {
   LineChart,
   Line,
+  XAxis,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
 } from "recharts";
@@ -32,9 +34,9 @@ type Props = {
   currentCents?: string;
   prevCents?: string | null;
   deltaMode?: DeltaMode;
-  // Para KPIs percentuais (ex.: taxa de poupança): variação em pontos percentuais
-  // vs o período comparado. Usado quando o delta monetário (cents) não se aplica.
   deltaPp?: { current: number; prev: number | null };
+  /** "wide" quando o widget está na variante larga (2×1). */
+  renderMode?: string;
 };
 
 // MUI token aliases — success.50 não existe no v6, usar success.light (= subtle no nosso tema)
@@ -42,25 +44,25 @@ const BG_TOKEN: Record<CardColor, string> = {
   default: "background.paper",
   success: "success.light",
   warning: "warning.light",
-  error:   "error.light",
-  info:    "info.light",
+  error: "error.light",
+  info: "info.light",
 };
 
 const TEXT_TOKEN: Record<CardColor, string> = {
   default: "text.primary",
   success: "success.main",
   warning: "warning.main",
-  error:   "error.main",
-  info:    "info.main",
+  error: "error.main",
+  info: "info.main",
 };
 
 // Índice na paleta de gráficos do design system por tipo de card
 const PALETTE_IDX: Record<CardColor, number> = {
-  default: 0,  // índigo
-  success: 1,  // verde-musgo
-  warning: 2,  // mostarda
-  error:   3,  // terracota
-  info:    4,  // azul-cinza
+  default: 0, // índigo
+  success: 1, // verde-musgo
+  warning: 2, // mostarda
+  error: 3, // terracota
+  info: 4, // azul-cinza
 };
 
 function computeDelta(
@@ -97,6 +99,7 @@ export function KpiSparklineCard({
   prevCents,
   deltaMode = "none",
   deltaPp,
+  renderMode = "default",
 }: Props) {
   const theme = useTheme();
   const chartPalette = getChartColors(theme.palette.mode as "light" | "dark");
@@ -105,6 +108,8 @@ export function KpiSparklineCard({
   const bgToken = BG_TOKEN[color];
   const delta = computeDelta(currentCents, prevCents) ?? computePpDelta(deltaPp);
   const hasSpark = sparkline && sparkline.length > 1;
+  const isWide = renderMode === "wide";
+  const tickColor = theme.palette.text.secondary;
 
   const tooltipStyle = {
     background: theme.palette.background.paper,
@@ -115,6 +120,7 @@ export function KpiSparklineCard({
     color: theme.palette.text.primary,
     fontFamily: "'JetBrains Mono', monospace",
     boxShadow: "none",
+    width: "100%",
   };
 
   return (
@@ -131,7 +137,15 @@ export function KpiSparklineCard({
         borderRadius: "12px",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 0.5 }}>
+      {/* ── Cabeçalho: título (esq) + ícone (dir) ── */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          mb: 0.5,
+        }}
+      >
         <Typography
           variant="overline"
           sx={{ color: "text.tertiary", fontSize: "0.65rem", lineHeight: 1.4 }}
@@ -139,11 +153,10 @@ export function KpiSparklineCard({
         >
           {title}
         </Typography>
-        {Icon && (
-          <Icon sx={{ color: textToken, fontSize: 16, opacity: 0.55, flexShrink: 0 }} />
-        )}
+        {Icon && <Icon sx={{ color: textToken, fontSize: 16, opacity: 0.55, flexShrink: 0 }} />}
       </Box>
 
+      {/* ── Valor + delta (sempre igual nos dois modos) ── */}
       <Typography
         variant="h5"
         sx={{
@@ -164,34 +177,6 @@ export function KpiSparklineCard({
         </Typography>
       )}
 
-      {hasSpark && (
-        <Box sx={{ flex: 1, mt: 1.5, minHeight: 32 }}>
-          <ResponsiveContainer width="100%" height={32}>
-            <LineChart data={sparkline} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-              <RechartsTooltip
-                contentStyle={tooltipStyle}
-                itemStyle={{ color: theme.palette.text.primary }}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                formatter={(v: any) => [
-                  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v)),
-                  "",
-                ]}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                labelFormatter={(label: any) => String(label)}
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke={lineColor}
-                strokeWidth={1.5}
-                dot={false}
-                activeDot={{ r: 3, fill: lineColor }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </Box>
-      )}
-
       {delta && deltaMode !== "none" && (
         <Tooltip
           title={
@@ -202,7 +187,7 @@ export function KpiSparklineCard({
                 : "vs média 3 meses"
           }
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: "auto", pt: 0.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             {delta.positive ? (
               <TrendingUpIcon sx={{ fontSize: 14, color: "success.main" }} />
             ) : delta.pct === 0 ? (
@@ -212,13 +197,67 @@ export function KpiSparklineCard({
             )}
             <Typography
               variant="caption"
-              color={delta.positive ? "success.main" : delta.pct === 0 ? "text.disabled" : "error.main"}
+              color={
+                delta.positive ? "success.main" : delta.pct === 0 ? "text.disabled" : "error.main"
+              }
               sx={{ fontSize: 11 }}
             >
               {delta.label}
             </Typography>
           </Box>
         </Tooltip>
+      )}
+
+      {/* ── Sparkline ──
+           default: decorativo (32px, sem eixos)
+           wide:    informativo (58px + XAxis com rótulos de mês)
+      */}
+      {hasSpark && (
+        <Box sx={{ flex: 1, mt: -1.75, minHeight: isWide ? 88 : 32 }}>
+          <ResponsiveContainer width="100%" height={isWide ? 88 : 32}>
+            <LineChart
+              data={sparkline}
+              margin={{
+                top: 2,
+                right: 4,
+                bottom: isWide ? 18 : 2,
+                left: 4,
+              }}
+            >
+              {isWide && (
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: tickColor, fontSize: 9, fontFamily: theme.typography.fontFamily }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                />
+              )}
+              {isWide && <ReferenceLine y={0} stroke={theme.palette.divider} />}
+              <RechartsTooltip
+                contentStyle={tooltipStyle}
+                itemStyle={{ color: theme.palette.text.primary }}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={(v: any) => [
+                  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                    Number(v),
+                  ),
+                  "",
+                ]}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                labelFormatter={(label: any) => String(label)}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke={lineColor}
+                strokeWidth={isWide ? 2 : 1.5}
+                dot={false}
+                activeDot={{ r: isWide ? 4 : 3, fill: lineColor }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
       )}
     </Paper>
   );
