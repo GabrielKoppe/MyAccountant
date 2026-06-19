@@ -20,11 +20,6 @@ import type {
 import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
 import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
-import {
-  MemberBreakdownChart,
-  MemberBreakdownChartSecondary,
-  MemberBreakdownView,
-} from "@/components/dashboards/panels/MemberBreakdownChart";
 import { DailyHeatmap } from "@/components/dashboards/charts/DailyHeatmap";
 import { CategoryTreemap } from "@/components/dashboards/charts/CategoryTreemap";
 import { DrillDownDrawer } from "@/components/dashboards/panels/DrillDownDrawer";
@@ -32,6 +27,9 @@ import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
 import { SectionBreakdownWidget } from "@/components/dashboards/panels/SectionBreakdownWidget";
 import { CategoryBreakdownWidget } from "@/components/dashboards/panels/CategoryBreakdownWidget";
+import { MemberBreakdownWidget } from "@/components/dashboards/panels/MemberBreakdownWidget";
+import { MemberListWidget } from "@/components/dashboards/panels/MemberListWidget";
+import { MemberRadarWidget } from "@/components/dashboards/panels/MemberRadarWidget";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 import { TopTransactionTable } from "../panels/TopTransactionTable";
@@ -41,7 +39,6 @@ import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   kpiCustomConfigSchema,
-  type MemberBreakdownConfig,
   type PieChartConfig,
   type TopTransactionsConfig,
   type TreemapConfig,
@@ -53,9 +50,6 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CategoryIcon from "@mui/icons-material/Category";
-import AddIcon from "@mui/icons-material/Add";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 
@@ -177,21 +171,9 @@ export function MonthlyDashboardClient({
       ? Math.round(((Number(incomeBigInt) - Number(expenseBigInt)) / Number(incomeBigInt)) * 100)
       : 0;
 
-  const subtractSections = sections.filter(
-    (s) => s.countType === "subtract" || s.countType === "neutral",
-  );
-
   // Config interna por widget (singletons) — aplicada à apresentação.
   const configOf = (widgetId: string): unknown =>
     widgets.find((w) => w.widgetId === widgetId)?.config;
-
-  const treemapTopN = (configOf("category-treemap") as TreemapConfig | undefined)?.topN ?? "all";
-  const treemapShown = treemapTopN === "all" ? treemapData : treemapData.slice(0, treemapTopN);
-
-  // member-breakdown: view inicializada da config persistida; o toggle in-widget altera apenas o estado local.
-  const memberBreakdownDefaultView =
-    (configOf("member-breakdown") as MemberBreakdownConfig | undefined)?.view ?? "donut";
-  const [view, setView] = useState<MemberBreakdownView>(memberBreakdownDefaultView);
 
   // Comparação global → também a taxa de poupança (variação em pontos percentuais).
   const prevSavingsRate =
@@ -307,15 +289,11 @@ export function MonthlyDashboardClient({
       />
     ),
     "category-treemap": (
-      <WidgetContainer
-        title={m.dashboards.sections.categoryTreemap}
-        icon={WIDGET_ICONS["category-treemap"]}
-      >
-        <CategoryTreemap
-          categories={treemapShown}
-          onDrillDown={(ids, label) => openDrawer(ids, label)}
-        />
-      </WidgetContainer>
+      <CategoryTreemap
+        categories={treemapData}
+        config={configOf("category-treemap") as TreemapConfig | undefined}
+        onDrillDown={(ids, label) => openDrawer(ids, label)}
+      />
     ),
     "money-flow": (
       <SankeyChart
@@ -344,19 +322,34 @@ export function MonthlyDashboardClient({
       />
     ),
     insights: (
-      <WidgetContainer title={m.dashboards.insights.cardTitle} icon={WIDGET_ICONS["insights"]}>
-        <InsightsCard insights={insights} />
-      </WidgetContainer>
+      <InsightsCard
+        insights={insights}
+        renderMode={getRenderMode(widgets, "monthly", "insights") as "compact" | "default" | "full"}
+      />
     ),
-    "member-breakdown": memberBreakdown.some((r) => BigInt(r.totalCents) > 0n) ? (
-      <WidgetContainer
-        title={m.dashboards.sections.memberBreakdown}
-        icon={WIDGET_ICONS["member-breakdown"]}
-        secondary={<MemberBreakdownChartSecondary view={view} onChange={setView} />}
-      >
-        <MemberBreakdownChart rows={memberBreakdown} view={{ type: view, onChange: setView }} />
-      </WidgetContainer>
-    ) : null,
+    "member-breakdown": (
+      <MemberBreakdownWidget
+        rows={memberBreakdown}
+        config={configOf("member-breakdown") as PieChartConfig | undefined}
+        renderMode={
+          getRenderMode(widgets, "monthly", "member-breakdown") as "compact" | "default" | "full"
+        }
+      />
+    ),
+    "member-list": (
+      <MemberListWidget
+        rows={memberBreakdown}
+        renderMode={
+          getRenderMode(widgets, "monthly", "member-list") as "compact" | "default" | "full"
+        }
+      />
+    ),
+    "member-radar": (
+      <MemberRadarWidget
+        rows={memberBreakdown}
+        renderMode={getRenderMode(widgets, "monthly", "member-radar") as "compact" | "default"}
+      />
+    ),
     "top-transactions": (
       <TopTransactionTable
         transactions={topTransactions}

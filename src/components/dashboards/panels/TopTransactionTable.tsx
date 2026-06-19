@@ -18,6 +18,7 @@ export type TxRow = {
   description: string | null;
   occurredOn: string;
   amountCents: string;
+  sectionId: string;
   sectionName: string;
   sectionCountType: string;
 };
@@ -114,12 +115,25 @@ export function TopTransactionTable({
   config?: TopTransactionsConfig;
 }) {
   const limit = config?.limit ?? 10;
-  const shown = transactions.slice(0, limit);
+  const excludeIds = config?.excludeSectionIds ?? [];
+
+  const filtered =
+    excludeIds.length > 0
+      ? transactions.filter((tx) => !excludeIds.includes(tx.sectionId))
+      : transactions;
+
+  const shown = filtered.slice(0, limit);
+
+  const subtitle =
+    excludeIds.length > 0
+      ? `Top ${limit} · ${excludeIds.length} seção ignorada${excludeIds.length > 1 ? "s" : ""}`
+      : `Top ${limit}`;
 
   return (
     <WidgetContainer
       title={m.dashboards.sections.biggestTransactions}
       icon={WIDGET_ICONS["top-transactions"]}
+      subtitle={subtitle}
     >
       <TxTable transactions={shown} />
     </WidgetContainer>

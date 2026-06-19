@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
-import Stack from "@mui/material/Stack";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
@@ -103,56 +103,68 @@ function CarouselCard({
       sx={{
         textDecoration: "none",
         color: "inherit",
-        px: 2,
-        py: 1,
+        p: 2,
         borderRadius: 1,
         border: 1,
         borderColor: "border.subtle",
-        display: "block",
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        gap: 1,
+        minWidth: 0,
         overflow: "hidden",
-        transition: "border-color 120ms",
-        "&:hover": { borderColor: "border.default" },
+        transition: "border-color 0.15s, background-color 0.15s",
+        "&:hover": { bgcolor: "action.hover", borderColor: "primary.main" },
+        "&:hover .month-card-arrow": { transform: "translateX(3px)" },
         minHeight: "68px",
       }}
     >
-      <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-        <Stack direction="column" gap={0}>
-          <Stack direction="row" alignItems="center" gap={0.5} sx={{ minWidth: 0 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              noWrap
-              sx={{ fontSize: "0.7rem", flex: 1, minWidth: 0 }}
-            >
-              {section.name}
-            </Typography>
-            <Chip
-              size="small"
-              label={m.settings.sections.countTypes[section.countType]}
-              color={COUNT_TYPE_CHIP_COLORS[section.countType]}
-              sx={{
-                height: 14,
-                fontSize: "0.6rem",
-                "& .MuiChip-label": { px: 0.75 },
-                flexShrink: 0,
-              }}
-            />
-          </Stack>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          minWidth: 0,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 0.5,
+            minWidth: 0,
+          }}
+        >
           <Typography
-            variant="body2"
-            fontWeight={500}
+            variant="kpi"
+            color="text.secondary"
             noWrap
-            sx={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: "0.8rem" }}
+            sx={{ fontSize: "0.85rem", fontWeight: 600, flex: 1, minWidth: 0 }}
+          >
+            {section.name}
+          </Typography>
+          <Typography
+            fontWeight={400}
+            noWrap
+            sx={{
+              fontFamily: "var(--font-jetbrains-mono), monospace",
+              fontSize: "0.75rem",
+              lineHeight: 1.2,
+              color: "text.primary",
+            }}
           >
             {formatCentsToBrl(cur)}
           </Typography>
-        </Stack>
+        </Box>
         {delta !== null && (
           <Typography
             variant="caption"
             noWrap
             sx={{
-              fontSize: "0.65rem",
+              mb: -0.4,
+              fontSize: "0.6rem",
               color: delta === 0 ? "text.disabled" : delta > 0 ? "success.main" : "danger.main",
             }}
           >
@@ -160,7 +172,37 @@ function CarouselCard({
             {delta.toFixed(1)}%
           </Typography>
         )}
-      </Stack>
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 0.5,
+          minWidth: 0,
+        }}
+      >
+        <ArrowForwardIcon
+          className="month-card-arrow"
+          sx={{
+            fontSize: 16,
+            color: "text.secondary",
+            transition: "transform 0.15s",
+          }}
+        />
+        <Chip
+          size="small"
+          label={m.settings.sections.countTypes[section.countType]}
+          color={COUNT_TYPE_CHIP_COLORS[section.countType]}
+          sx={{
+            height: 14,
+            fontSize: "0.7rem",
+            "& .MuiChip-label": { px: 0.75 },
+            flexShrink: 0,
+          }}
+        />
+      </Box>
     </Box>
   );
 }
@@ -302,7 +344,7 @@ export function SectionCards({
           sx={{
             display: "grid",
             gridTemplateColumns: `repeat(${shownCards.length}, 1fr)`,
-            gap: 1,
+            gap: 2,
             flex: 1,
             minWidth: 0,
             overflow: "hidden",

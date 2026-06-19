@@ -42,6 +42,7 @@ export type TopTransaction = {
   description: string | null;
   occurredOn: string;
   amountCents: string;
+  sectionId: string;
   sectionName: string;
   sectionCountType: string;
 };
@@ -170,13 +171,13 @@ export async function getMonthDeepDive(accountId: string, monthId: string) {
     prisma.transaction.findMany({
       where: { accountId, monthId, table: { countInMonth: true } },
       orderBy: { amountCents: "desc" },
-      take: 10,
+      take: 50,
       select: {
         id: true,
         description: true,
         occurredOn: true,
         amountCents: true,
-        section: { select: { name: true, countType: true } },
+        section: { select: { id: true, name: true, countType: true } },
       },
     }),
     prisma.transaction.findMany({
@@ -188,7 +189,7 @@ export async function getMonthDeepDive(accountId: string, monthId: string) {
         description: true,
         occurredOn: true,
         amountCents: true,
-        section: { select: { name: true, countType: true } },
+        section: { select: { id: true, name: true, countType: true } },
       },
     }),
     prisma.transaction.groupBy({
@@ -233,6 +234,7 @@ export async function getMonthDeepDive(accountId: string, monthId: string) {
     description: t.description,
     occurredOn: t.occurredOn.toISOString().slice(0, 10),
     amountCents: t.amountCents.toString(),
+    sectionId: t.section.id,
     sectionName: t.section.name,
     sectionCountType: t.section.countType,
   }));
@@ -242,6 +244,7 @@ export async function getMonthDeepDive(accountId: string, monthId: string) {
     description: t.description,
     occurredOn: t.occurredOn.toISOString().slice(0, 10),
     amountCents: t.amountCents.toString(),
+    sectionId: t.section.id,
     sectionName: t.section.name,
     sectionCountType: t.section.countType,
   }));

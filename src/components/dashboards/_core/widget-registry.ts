@@ -6,7 +6,6 @@ import {
   dailyHeatmapConfigSchema,
   filteredTransactionsConfigSchema,
   kpiCustomConfigSchema,
-  memberBreakdownConfigSchema,
   moneyFlowConfigSchema,
   pieChartConfigSchema,
   topCategoriesConfigSchema,
@@ -69,12 +68,27 @@ const WIDE_CHART_VARIANTS: WidgetSizeVariant[] = [
   { id: "compact", labelKey: "compact", w: 3, h: 2, renderMode: "compact" },
   { id: "large", labelKey: "large", w: 6, h: 3, renderMode: "expanded" },
 ];
+// top-transactions: compact 3×2, default 3×3, large 4×3
+const TOP_TX_VARIANTS: WidgetSizeVariant[] = [
+  { id: "default", labelKey: "default", w: 3, h: 3, renderMode: "default" },
+  { id: "compact", labelKey: "compact", w: 3, h: 2, renderMode: "compact" },
+  { id: "large", labelKey: "large", w: 4, h: 3, renderMode: "expanded" },
+];
 // member-trend: compact 3×2 e default 6×2 (sem large)
 const MEMBER_TREND_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 6, h: 2, renderMode: "default" },
   { id: "compact", labelKey: "compact", w: 3, h: 2, renderMode: "compact" },
 ];
-// default 3×3, compact 2×2, large 4×3
+// member-list: compact 2×1 (carrossel), default 2×3 (ranking), full 3×3 (ranking + categorias)
+const MEMBER_LIST_VARIANTS: WidgetSizeVariant[] = [
+  { id: "default", labelKey: "default", w: 2, h: 3, renderMode: "default" },
+  { id: "compact", labelKey: "compact", w: 2, h: 1, renderMode: "compact" },
+  { id: "full", labelKey: "full", w: 3, h: 3, renderMode: "full" },
+]; // member-radar: compact 2×2, default 3×3
+const MEMBER_RADAR_VARIANTS: WidgetSizeVariant[] = [
+  { id: "default", labelKey: "default", w: 3, h: 3, renderMode: "default" },
+  { id: "compact", labelKey: "compact", w: 2, h: 2, renderMode: "compact" },
+]; // default 3×3, compact 2×2, large 4×3
 const SQUARE_CHART_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 3, h: 3, renderMode: "default" },
   { id: "compact", labelKey: "compact", w: 2, h: 2, renderMode: "compact" },
@@ -111,11 +125,18 @@ const ACTIVITY_LISTS_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 6, h: 3, renderMode: "default" },
   { id: "compact", labelKey: "compact", w: 6, h: 2, renderMode: "compact" },
 ];
+// pending/favorite/recent: compact 1×2, default 2×3, large 3×3
+const ACTIVITY_ITEM_VARIANTS: WidgetSizeVariant[] = [
+  { id: "default", labelKey: "default", w: 2, h: 3, renderMode: "default" },
+  { id: "compact", labelKey: "compact", w: 1, h: 2, renderMode: "compact" },
+  { id: "large", labelKey: "large", w: 3, h: 3, renderMode: "full" },
+];
 
+// insights: compact 2×1, default 3×1, large 3×2
 const INSIGHTS_VARIANTS: WidgetSizeVariant[] = [
-  { id: "default", labelKey: "default", w: 3, h: 2, renderMode: "default" },
+  { id: "default", labelKey: "default", w: 3, h: 1, renderMode: "default" },
   { id: "compact", labelKey: "compact", w: 2, h: 1, renderMode: "compact" },
-  { id: "large", labelKey: "large", w: 6, h: 3, renderMode: "expanded" },
+  { id: "large", labelKey: "large", w: 3, h: 2, renderMode: "full" },
 ];
 
 const MONEY_FLOW_VARIANTS: WidgetSizeVariant[] = [
@@ -247,7 +268,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "top-transactions",
       labelKey: "topTransactions",
       kind: "panel",
-      sizeVariants: WIDE_CHART_VARIANTS,
+      sizeVariants: TOP_TX_VARIANTS,
       defaultVisible: true,
       configSchema: topTransactionsConfigSchema,
       defaultConfig: { limit: 10 },
@@ -263,10 +284,24 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "member-breakdown",
       labelKey: "memberBreakdown",
       kind: "panel",
-      sizeVariants: WIDE_CHART_VARIANTS,
+      sizeVariants: PIE_VARIANTS,
       defaultVisible: false,
-      configSchema: memberBreakdownConfigSchema,
-      defaultConfig: { view: "donut" },
+      configSchema: pieChartConfigSchema,
+      defaultConfig: { chartType: "pie" },
+    },
+    {
+      id: "member-list",
+      labelKey: "memberList",
+      kind: "panel",
+      sizeVariants: MEMBER_LIST_VARIANTS,
+      defaultVisible: false,
+    },
+    {
+      id: "member-radar",
+      labelKey: "memberRadar",
+      kind: "panel",
+      sizeVariants: MEMBER_RADAR_VARIANTS,
+      defaultVisible: false,
     },
     {
       id: "analysis",
@@ -448,6 +483,27 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       defaultVisible: true,
     },
     {
+      id: "pending-transactions",
+      labelKey: "pendingTransactions",
+      kind: "panel",
+      sizeVariants: ACTIVITY_ITEM_VARIANTS,
+      defaultVisible: false,
+    },
+    {
+      id: "favorite-transactions",
+      labelKey: "favoriteTransactions",
+      kind: "panel",
+      sizeVariants: ACTIVITY_ITEM_VARIANTS,
+      defaultVisible: false,
+    },
+    {
+      id: "recent-transactions",
+      labelKey: "recentTransactions",
+      kind: "panel",
+      sizeVariants: ACTIVITY_ITEM_VARIANTS,
+      defaultVisible: false,
+    },
+    {
       id: "insights",
       labelKey: "insights",
       kind: "panel",
@@ -567,7 +623,7 @@ function binPack(
 // - stored = null → layout inicial: bin-pack de todos os defaultVisible.
 // - widgetId desconhecido → descartado silenciosamente.
 // - sizeVariantId desconhecido → fallback para sizeVariants[0].
-// - defaultVisible ausente no layout salvo → auto-inserido (compat-forward).
+// - widgets removidos pelo usuário NÃO são re-adicionados automaticamente.
 export function resolveLayout(
   context: DashboardContext,
   stored: StoredWidget[] | null,
@@ -598,13 +654,6 @@ export function resolveLayout(
     // Sincroniza w/h com a definição atual da variante (detecta mudanças de dimensões entre deploys).
     return { ...s, w: variant.w, h: variant.h };
   });
-
-  const present = new Set(result.map((s) => s.widgetId));
-  const toAdd = registry.filter((d) => d.defaultVisible && !present.has(d.id));
-  if (toAdd.length > 0) {
-    const { maxRows } = GRID_CONFIG[context];
-    result = [...result, ...binPack(toAdd, cols, result, maxRows)];
-  }
 
   return result;
 }
