@@ -228,9 +228,11 @@ function BudgetsForm({ widget, onSave }: { widget: StoredWidget; onSave: (c: unk
 
 function TopTransactionsForm({
   widget,
+  options,
   onSave,
 }: {
   widget: StoredWidget;
+  options: WidgetConfigOptions;
   onSave: (c: unknown) => void;
 }) {
   const { control, handleSubmit } = useForm<z.infer<typeof topTransactionsConfigSchema>>({
@@ -264,6 +266,18 @@ function TopTransactionsForm({
             )}
           />
         </Box>
+        <Controller
+          control={control}
+          name="excludeSectionIds"
+          render={({ field }) => (
+            <OptionsAutocomplete
+              label={m.settings.dashboards.config.excludeSectionsLabel}
+              options={options.sections}
+              value={field.value ?? []}
+              onChange={field.onChange}
+            />
+          )}
+        />
         <SaveButton />
       </Stack>
     </form>
@@ -713,7 +727,7 @@ export function WidgetConfigForm({ def, widget, options, onSave }: Props) {
     case "budgets":
       return <BudgetsForm widget={widget} onSave={onSave} />;
     case "top-transactions":
-      return <TopTransactionsForm widget={widget} onSave={onSave} />;
+      return <TopTransactionsForm widget={widget} options={options} onSave={onSave} />;
     case "member-breakdown":
       return <MemberBreakdownForm widget={widget} onSave={onSave} />;
     case "top-categories":

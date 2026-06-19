@@ -86,81 +86,92 @@ export default async function MonthPage({ params, searchParams }: Props) {
   const { year: monthYear, month: monthMonth } = currentMonth;
 
   // Dados em paralelo
-  const [sections, tablesRaw, allTransactionsRaw, categories, institutions, accountMembers, accountSettings, accountTableTypes, summaryBudgets, userSettings, summaryWidgets] =
-    await Promise.all([
-      getMonthSections(accountId, monthId),
-      prisma.financeTable.findMany({
-        where: { accountId, monthId },
-        orderBy: { displayOrder: "asc" },
-        select: {
-          id: true,
-          name: true,
-          sectionId: true,
-          countInMonth: true,
-          tableType: { select: { name: true, hiddenColumns: true } },
-          _count: { select: { transactions: true } },
-        },
-      }),
-      prisma.transaction.findMany({
-        where: { accountId, monthId },
-        orderBy: { occurredOn: "desc" },
-        select: {
-          id: true,
-          tableId: true,
-          sectionId: true,
-          occurredOn: true,
-          amountCents: true,
-          description: true,
-          notes: true,
-          isPending: true,
-          isFavorite: true,
-          categoryId: true,
-          subcategoryId: true,
-          institutionId: true,
-          institutionText: true,
-          responsibleUserId: true,
-          cardInstallment: true,
-          investmentType: true,
-          createdById: true,
-          createdAt: true,
-          updatedById: true,
-          updatedAt: true,
-        },
-      }),
-      prisma.category.findMany({
-        where: { accountId },
-        orderBy: { name: "asc" },
-        select: {
-          id: true,
-          name: true,
-          subcategories: { orderBy: { name: "asc" }, select: { id: true, name: true } },
-        },
-      }),
-      prisma.institution.findMany({
-        where: { accountId },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      }),
-      prisma.accountMember.findMany({
-        where: { accountId },
-        include: { user: { select: { id: true, name: true, email: true, image: true } } },
-      }),
-      prisma.accountSettings.findUnique({
-        where: { accountId },
-        select: { defaultResponsibleUserId: true, monthStartDay: true },
-      }),
-      prisma.tableType.findMany({
-        where: { accountId },
-        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-        select: { id: true, name: true, isDefault: true },
-      }),
-      getBudgetsWithProgress(accountId, monthYear, monthMonth, true),
-      prisma.userSettings.findUnique({
-        where: { userId: user.id },
-        select: { timezone: true },
-      }),
-      getLayout(accountId, "month_summary"),
-    ]);
+  const [
+    sections,
+    tablesRaw,
+    allTransactionsRaw,
+    categories,
+    institutions,
+    accountMembers,
+    accountSettings,
+    accountTableTypes,
+    summaryBudgets,
+    userSettings,
+    summaryWidgets,
+  ] = await Promise.all([
+    getMonthSections(accountId, monthId),
+    prisma.financeTable.findMany({
+      where: { accountId, monthId },
+      orderBy: { displayOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        sectionId: true,
+        countInMonth: true,
+        tableType: { select: { name: true, hiddenColumns: true } },
+        _count: { select: { transactions: true } },
+      },
+    }),
+    prisma.transaction.findMany({
+      where: { accountId, monthId },
+      orderBy: { occurredOn: "desc" },
+      select: {
+        id: true,
+        tableId: true,
+        sectionId: true,
+        occurredOn: true,
+        amountCents: true,
+        description: true,
+        notes: true,
+        isPending: true,
+        isFavorite: true,
+        categoryId: true,
+        subcategoryId: true,
+        institutionId: true,
+        institutionText: true,
+        responsibleUserId: true,
+        cardInstallment: true,
+        investmentType: true,
+        createdById: true,
+        createdAt: true,
+        updatedById: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.category.findMany({
+      where: { accountId },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        subcategories: { orderBy: { name: "asc" }, select: { id: true, name: true } },
+      },
+    }),
+    prisma.institution.findMany({
+      where: { accountId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.accountMember.findMany({
+      where: { accountId },
+      include: { user: { select: { id: true, name: true, email: true, image: true } } },
+    }),
+    prisma.accountSettings.findUnique({
+      where: { accountId },
+      select: { defaultResponsibleUserId: true, monthStartDay: true },
+    }),
+    prisma.tableType.findMany({
+      where: { accountId },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, isDefault: true },
+    }),
+    getBudgetsWithProgress(accountId, monthYear, monthMonth, true),
+    prisma.userSettings.findUnique({
+      where: { userId: user.id },
+      select: { timezone: true },
+    }),
+    getLayout(accountId, "month_summary"),
+  ]);
 
   const timezone = userSettings?.timezone ?? "America/Sao_Paulo";
 
@@ -181,7 +192,9 @@ export default async function MonthPage({ params, searchParams }: Props) {
       institutionText: tx.institutionText,
       responsibleUserId: tx.responsibleUserId,
       cardInstallment: tx.cardInstallment,
-      investmentType: tx.investmentType as import("@/lib/schemas/transaction").InvestmentType | null,
+      investmentType: tx.investmentType as
+        | import("@/lib/schemas/transaction").InvestmentType
+        | null,
       createdById: tx.createdById,
       createdAt: tx.createdAt.toISOString(),
       updatedById: tx.updatedById,
@@ -210,7 +223,11 @@ export default async function MonthPage({ params, searchParams }: Props) {
   }));
 
   // Totais por seção e mês
-  const sectionTotalsRaw = await getSectionTotals(accountId, monthId, sections.map((s: any) => s.id));
+  const sectionTotalsRaw = await getSectionTotals(
+    accountId,
+    monthId,
+    sections.map((s: any) => s.id),
+  );
   const monthTotalRaw = calculateMonthTotal(sections, sectionTotalsRaw);
 
   const sectionTotals: Record<string, string> = {};
@@ -226,28 +243,61 @@ export default async function MonthPage({ params, searchParams }: Props) {
 
   let prevSectionTotals: Record<string, string> | undefined;
   if (prevMonthItem) {
-    const prevTotalsRaw = await getSectionTotals(accountId, prevMonthItem.id, sections.map((s: any) => s.id));
+    const prevTotalsRaw = await getSectionTotals(
+      accountId,
+      prevMonthItem.id,
+      sections.map((s: any) => s.id),
+    );
     prevSectionTotals = Object.fromEntries(
       Object.entries(prevTotalsRaw).map(([id, val]) => [id, val.toString()]),
     );
   }
 
   // Listas para o resumo
-  type QuickTx = { id: string; description: string | null; amountCents: string; sectionId: string };
+  const sectionNameMap = new Map(sections.map((s: any) => [s.id, s.name as string]));
+  type QuickTx = {
+    id: string;
+    description: string | null;
+    amountCents: string;
+    sectionId: string;
+    sectionName: string;
+    occurredOn: string;
+  };
 
   const pendingTransactions: QuickTx[] = allTransactionsRaw
     .filter((tx: any) => tx.isPending)
     .slice(0, 20)
-    .map((tx: any) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
+    .map((tx: any) => ({
+      id: tx.id,
+      description: tx.description,
+      amountCents: tx.amountCents.toString(),
+      sectionId: tx.sectionId,
+      sectionName: sectionNameMap.get(tx.sectionId) ?? "",
+      occurredOn: tx.occurredOn.toISOString().slice(0, 10),
+    }));
 
   const favoriteTransactions: QuickTx[] = allTransactionsRaw
     .filter((tx: any) => tx.isFavorite)
     .slice(0, 20)
-    .map((tx: any) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
+    .map((tx: any) => ({
+      id: tx.id,
+      description: tx.description,
+      amountCents: tx.amountCents.toString(),
+      sectionId: tx.sectionId,
+      sectionName: sectionNameMap.get(tx.sectionId) ?? "",
+      occurredOn: tx.occurredOn.toISOString().slice(0, 10),
+    }));
 
-  const recentTransactions: QuickTx[] = allTransactionsRaw
-    .slice(0, 8)
-    .map((tx: any) => ({ id: tx.id, description: tx.description, amountCents: tx.amountCents.toString(), sectionId: tx.sectionId }));
+  const recentTransactions: QuickTx[] = [...allTransactionsRaw]
+    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map((tx: any) => ({
+      id: tx.id,
+      description: tx.description,
+      amountCents: tx.amountCents.toString(),
+      sectionId: tx.sectionId,
+      sectionName: sectionNameMap.get(tx.sectionId) ?? "",
+      occurredOn: tx.createdAt.toISOString().slice(0, 10),
+    }));
 
   // Source tables para o modal de cópia
   const allAccountTablesRaw = await prisma.financeTable.findMany({
@@ -267,7 +317,9 @@ export default async function MonthPage({ params, searchParams }: Props) {
     monthYear: formatMonthLabel(t.month.year, t.month.month),
   }));
 
-  const allSections = sections.filter((s: any) => s.isActive).map((s: any) => ({ id: s.id, name: s.name }));
+  const allSections = sections
+    .filter((s: any) => s.isActive)
+    .map((s: any) => ({ id: s.id, name: s.name }));
   const members = accountMembers.map((m: any) => ({
     id: m.user.id,
     name: m.user.name,
@@ -310,12 +362,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
 
         <ActiveFilterChips />
 
-        <MonthTabs
-          accountId={accountId}
-          monthId={monthId}
-          sections={sections}
-          activeTab={tab}
-        />
+        <MonthTabs accountId={accountId} monthId={monthId} sections={sections} activeTab={tab} />
 
         <Box sx={{ flex: 1, overflow: "auto" }}>
           {showSummary ? (

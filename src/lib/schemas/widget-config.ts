@@ -28,6 +28,7 @@ export type BudgetsConfig = z.infer<typeof budgetsConfigSchema>;
 // top-transactions: quantas transações exibir.
 export const topTransactionsConfigSchema = z.object({
   limit: z.union([z.literal(5), z.literal(10), z.literal(20)]).default(10),
+  excludeSectionIds: z.array(z.string()).default([]),
 });
 export type TopTransactionsConfig = z.infer<typeof topTransactionsConfigSchema>;
 

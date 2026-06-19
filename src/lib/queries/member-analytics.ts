@@ -7,6 +7,12 @@ import { m } from "@/lib/messages";
 // ─── Tipos ─────────────────────────────────────────────────────────
 // Todos os cents serializados como string (BigInt seguro na fronteira RSC→Client).
 
+export type MemberCategoryBreakdown = {
+  name: string;
+  cents: string; // serializado como string (BigInt seguro)
+  sharePercent: number; // percentual sobre o total deste membro (1 casa decimal)
+};
+
 export type MemberBreakdownRow = {
   userId: string | null; // null = "Sem responsável"
   name: string; // base, sem sufixo; resolvido via AccountMember/User; fallback email
@@ -14,6 +20,7 @@ export type MemberBreakdownRow = {
   totalCents: string;
   sharePercent: number; // 1 casa decimal
   topCategoryName: string | null; // null quando membro sem despesa (→ "—" na UI)
+  categories: MemberCategoryBreakdown[]; // todas as categorias deste membro, desc
 };
 
 export type MemberTrendPoint = { monthLabel: string; totalCents: string };
@@ -120,14 +127,17 @@ export const getMemberMonthlyBreakdown = cache(
       }
     }
 
-    // Resolver nomes de categorias-top (1 query).
-    const topCatIds = [
-      ...new Set([...topCatByResp.values()].map((v) => v.categoryId).filter(Boolean) as string[]),
+    // Resolver nomes de TODAS as categorias presentes em byMemberCategory (1 query).
+    // catNameMap cobre tanto a categoria-top quanto todas as usadas na listagem de detalhes.
+    const allCatIds = [
+      ...new Set(
+        byMemberCategory.map((r) => r.categoryId).filter((id): id is string => id !== null),
+      ),
     ];
     const catNames =
-      topCatIds.length > 0
+      allCatIds.length > 0
         ? await prisma.category.findMany({
-            where: { id: { in: topCatIds } },
+            where: { id: { in: allCatIds } },
             select: { id: true, name: true },
           })
         : [];
@@ -168,6 +178,25 @@ export const getMemberMonthlyBreakdown = cache(
       return catNameMap.get(top.categoryId) ?? m.dashboards.members.uncategorized;
     }
 
+    // Categorias ordenadas desc para um responsável específico.
+    function categoriesFor(key: string, memberTotal: bigint): MemberCategoryBreakdown[] {
+      return byMemberCategory
+        .filter((r) => (r.responsibleUserId ?? UNASSIGNED_KEY) === key)
+        .map((r) => {
+          const cents = r._sum.amountCents ?? 0n;
+          const name = r.categoryId
+            ? (catNameMap.get(r.categoryId) ?? m.dashboards.members.uncategorized)
+            : m.dashboards.members.uncategorized;
+          return {
+            name,
+            cents: cents.toString(),
+            sharePercent: sharePercent(cents, memberTotal),
+          };
+        })
+        .filter((c) => BigInt(c.cents) > 0n)
+        .sort((a, b) => Number(BigInt(b.cents) - BigInt(a.cents)));
+    }
+
     // Linhas com despesa (responsável real, ex-membro ou "Sem responsável").
     const spendRows: MemberBreakdownRow[] = byMember.map((g) => {
       const total = g._sum.amountCents ?? 0n;
@@ -179,6 +208,7 @@ export const getMemberMonthlyBreakdown = cache(
           totalCents: total.toString(),
           sharePercent: sharePercent(total, grandTotal),
           topCategoryName: topCategoryName(UNASSIGNED_KEY),
+          categories: categoriesFor(UNASSIGNED_KEY, total),
         };
       }
       const identity = identityFor(g.responsibleUserId);
@@ -189,6 +219,7 @@ export const getMemberMonthlyBreakdown = cache(
         totalCents: total.toString(),
         sharePercent: sharePercent(total, grandTotal),
         topCategoryName: topCategoryName(g.responsibleUserId),
+        categories: categoriesFor(g.responsibleUserId, total),
       };
     });
 
@@ -205,6 +236,7 @@ export const getMemberMonthlyBreakdown = cache(
         totalCents: "0",
         sharePercent: 0,
         topCategoryName: null,
+        categories: [],
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 

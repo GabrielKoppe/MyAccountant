@@ -8,7 +8,12 @@ import { AppLink } from "@/components/ui/AppLink";
 import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
 import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
 import { SectionCards } from "../panels/SectionCards";
-import { ActivityLists } from "../panels/ActivityLists";
+import {
+  PendingTransactionsWidget,
+  FavoriteTransactionsWidget,
+  RecentTransactionsWidget,
+  type ActivityTx,
+} from "../panels/ActivityWidget";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
@@ -40,12 +45,7 @@ type FinanceTableItem = {
   transactionCount: number;
 };
 
-type QuickTx = {
-  id: string;
-  description: string | null;
-  amountCents: string;
-  sectionId: string;
-};
+type QuickTx = ActivityTx;
 
 type Props = {
   sections: SectionItem[];
@@ -148,17 +148,16 @@ export function MonthSummary({
         renderMode={kpiRm("kpi-balance")}
       />
     ),
-    budgets:
-      (summaryBudgets ?? []).length > 0 ? (
-        <BudgetsWidget
-          budgets={summaryBudgets!}
-          accountId={accountId}
-          monthId={monthId}
-          renderMode={
-            getRenderMode(widgets, "month_summary", "budgets") as "compact" | "default" | "full"
-          }
-        />
-      ) : null,
+    budgets: (
+      <BudgetsWidget
+        budgets={summaryBudgets!}
+        accountId={accountId}
+        monthId={monthId}
+        renderMode={
+          getRenderMode(widgets, "month_summary", "budgets") as "compact" | "default" | "full"
+        }
+      />
+    ),
     "section-cards": (
       <SectionCards
         sections={sections}
@@ -170,24 +169,53 @@ export function MonthSummary({
         renderMode={sectionCardsRenderMode}
       />
     ),
-    "activity-lists": (
-      <WidgetContainer
-        title={m.dashboards.widgets.month_summary["activity-lists"]}
-        icon={WIDGET_ICONS["activity-lists"]}
-      >
-        <ActivityLists
-          accountId={accountId}
-          monthId={monthId}
-          pendingTransactions={pendingTransactions}
-          favoriteTransactions={favoriteTransactions}
-          recentTransactions={recentTransactions}
-        />
-      </WidgetContainer>
+    "activity-lists": null,
+    "pending-transactions": (
+      <PendingTransactionsWidget
+        transactions={pendingTransactions}
+        accountId={accountId}
+        monthId={monthId}
+        renderMode={
+          getRenderMode(widgets, "month_summary", "pending-transactions") as
+            | "compact"
+            | "default"
+            | "full"
+        }
+      />
+    ),
+    "favorite-transactions": (
+      <FavoriteTransactionsWidget
+        transactions={favoriteTransactions}
+        accountId={accountId}
+        monthId={monthId}
+        renderMode={
+          getRenderMode(widgets, "month_summary", "favorite-transactions") as
+            | "compact"
+            | "default"
+            | "full"
+        }
+      />
+    ),
+    "recent-transactions": (
+      <RecentTransactionsWidget
+        transactions={recentTransactions}
+        accountId={accountId}
+        monthId={monthId}
+        renderMode={
+          getRenderMode(widgets, "month_summary", "recent-transactions") as
+            | "compact"
+            | "default"
+            | "full"
+        }
+      />
     ),
     insights: (
-      <WidgetContainer title={m.dashboards.insights.cardTitle} icon={WIDGET_ICONS["insights"]}>
-        <InsightsCard insights={insights} />
-      </WidgetContainer>
+      <InsightsCard
+        insights={insights}
+        renderMode={
+          getRenderMode(widgets, "month_summary", "insights") as "compact" | "default" | "full"
+        }
+      />
     ),
   };
 
