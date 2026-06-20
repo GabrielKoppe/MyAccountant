@@ -12,7 +12,11 @@ import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
 // Transações de um mês filtradas pelo config do widget filtered-transactions,
 // ordenadas da mais recente para a mais antiga e limitadas por `limit`.
 export const getFilteredTransactions = cache(
-  async (accountId: string, monthId: string, config: FilteredTransactionsConfig): Promise<TxRow[]> => {
+  async (
+    accountId: string,
+    monthId: string,
+    config: FilteredTransactionsConfig,
+  ): Promise<TxRow[]> => {
     const where: Prisma.TransactionWhereInput = {
       accountId,
       monthId,
@@ -33,6 +37,7 @@ export const getFilteredTransactions = cache(
         description: true,
         occurredOn: true,
         amountCents: true,
+        sectionId: true,
         section: { select: { name: true, countType: true } },
       },
     });
@@ -42,6 +47,7 @@ export const getFilteredTransactions = cache(
       description: t.description,
       occurredOn: t.occurredOn.toISOString().slice(0, 10),
       amountCents: t.amountCents.toString(),
+      sectionId: t.sectionId ?? "",
       sectionName: t.section.name,
       sectionCountType: t.section.countType,
     }));

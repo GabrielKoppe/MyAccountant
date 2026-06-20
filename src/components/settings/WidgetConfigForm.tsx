@@ -3,9 +3,16 @@
 import { Controller, useForm, type DefaultValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
 import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import { useState } from "react";
+import Collapse from "@mui/material/Collapse";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Radio from "@mui/material/Radio";
@@ -17,7 +24,16 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
 import { m } from "@/lib/messages";
-import { SANDBOX_METRICS } from "@/lib/schemas/sandbox";
+import {
+  sandboxConfigSchema,
+  SANDBOX_METRICS,
+  getValidSeriesBy,
+  getValidChartTypes,
+  getValidMetrics,
+  autoFixConfig,
+  type SandboxConfig,
+  type SandboxGroupBy,
+} from "@/lib/schemas/sandbox";
 import {
   budgetsConfigSchema,
   dailyHeatmapConfigSchema,
@@ -30,11 +46,12 @@ import {
   topTransactionsConfigSchema,
   treemapConfigSchema,
 } from "@/lib/schemas/widget-config";
-import type { WidgetDef } from "@/components/dashboards/_core/widget-registry";
+import type { DashboardContext, WidgetDef } from "@/components/dashboards/_core/widget-registry";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import type { ConfigFormOption, WidgetConfigOptions } from "@/lib/queries/widget-config-options";
 
 type Props = {
+  context: DashboardContext;
   def: WidgetDef;
   widget: StoredWidget;
   options: WidgetConfigOptions;
@@ -50,10 +67,11 @@ function resolveDefaults<S extends z.ZodTypeAny>(schema: S, config: unknown): z.
 
 // ─── Design tokens locais (mesmo padrão do SandboxControls) ─────────────────
 
-const selectSx = { fontSize: "0.8125rem" };
-const menuItemSx = { fontSize: "0.8125rem" };
-const radioLabelSx = { "& .MuiFormControlLabel-label": { fontSize: "0.8125rem" } };
-const switchLabelSx = { "& .MuiFormControlLabel-label": { fontSize: "0.8125rem" } };
+const selectSx = { fontSize: "0.75rem" };
+const menuItemSx = { fontSize: "0.75rem" };
+const radioLabelSx = { "& .MuiFormControlLabel-label": { fontSize: "0.75rem" } };
+const radioSx = { py: 1, px: 4, "& .MuiSvgIcon-root": { fontSize: 16, padding: 0 } };
+const switchLabelSx = { "& .MuiFormControlLabel-label": { fontSize: "0.75rem" } };
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -118,13 +136,13 @@ function MoneyFlowForm({ widget, onSave }: { widget: StoredWidget; onSave: (c: u
               <RadioGroup {...field}>
                 <FormControlLabel
                   value="category"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.groupByCategory}
                   sx={radioLabelSx}
                 />
                 <FormControlLabel
                   value="section"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.groupBySection}
                   sx={radioLabelSx}
                 />
@@ -204,13 +222,13 @@ function BudgetsForm({ widget, onSave }: { widget: StoredWidget; onSave: (c: unk
               <RadioGroup {...field}>
                 <FormControlLabel
                   value="all"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.showOnlyAll}
                   sx={radioLabelSx}
                 />
                 <FormControlLabel
                   value="near_limit"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.showOnlyNearLimit}
                   sx={radioLabelSx}
                 />
@@ -311,13 +329,13 @@ function MemberBreakdownForm({
               <RadioGroup {...field}>
                 <FormControlLabel
                   value="donut"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.viewDonut}
                   sx={radioLabelSx}
                 />
                 <FormControlLabel
                   value="bars"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.viewBars}
                   sx={radioLabelSx}
                 />
@@ -398,25 +416,25 @@ function PieChartForm({ widget, onSave }: { widget: StoredWidget; onSave: (c: un
               <RadioGroup {...field}>
                 <FormControlLabel
                   value="pie"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.chartTypePie}
                   sx={radioLabelSx}
                 />
                 <FormControlLabel
                   value="bar"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.chartTypeBar}
                   sx={radioLabelSx}
                 />
                 <FormControlLabel
                   value="hbar"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.chartTypeHBar}
                   sx={radioLabelSx}
                 />
                 <FormControlLabel
                   value="vbar"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.chartTypeVBar}
                   sx={radioLabelSx}
                 />
@@ -457,13 +475,13 @@ function DailyHeatmapForm({
               <RadioGroup {...field}>
                 <FormControlLabel
                   value="expense"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.heatmapMetricExpense}
                   sx={radioLabelSx}
                 />
                 <FormControlLabel
                   value="all_activity"
-                  control={<Radio size="small" />}
+                  control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.heatmapMetricAll}
                   sx={radioLabelSx}
                 />
@@ -716,9 +734,467 @@ function FilteredTransactionsForm({
   );
 }
 
+// ─── analysis (instanciável) ─────────────────────────────────────────────────
+
+const PERIOD_LABELS_MONTHLY: Record<string, string> = {
+  current_month: m.dashboards.sandbox.controls.periodCurrentMonth,
+  last_3_months: m.dashboards.sandbox.controls.periodLast3,
+  last_6_months: m.dashboards.sandbox.controls.periodLast6,
+};
+
+const GROUP_BY_LABELS: Record<string, string> = {
+  month: m.dashboards.sandbox.controls.groupByMonth,
+  section: m.dashboards.sandbox.controls.groupBySection,
+  category: m.dashboards.sandbox.controls.groupByCategory,
+  institution: m.dashboards.sandbox.controls.groupByInstitution,
+  table_type: m.dashboards.sandbox.controls.groupByTableType,
+};
+
+const SERIES_BY_LABELS: Record<string, string> = {
+  section: m.dashboards.sandbox.controls.seriesBySection,
+  category: m.dashboards.sandbox.controls.seriesByCategory,
+  member: m.dashboards.sandbox.controls.seriesByMember,
+  institution: m.dashboards.sandbox.controls.seriesByInstitution,
+  table_type: m.dashboards.sandbox.controls.seriesByTableType,
+  none: m.dashboards.sandbox.controls.seriesByNone,
+};
+
+const CHART_TYPE_LABELS: Record<string, string> = {
+  bar_grouped: m.dashboards.sandbox.controls.chartBarGrouped,
+  bar_stacked: m.dashboards.sandbox.controls.chartBarStacked,
+  line: m.dashboards.sandbox.controls.chartLine,
+  area: m.dashboards.sandbox.controls.chartArea,
+  pie: m.dashboards.sandbox.controls.chartPie,
+  donut: m.dashboards.sandbox.controls.chartDonut,
+};
+
+const METRIC_LABELS_MAP: Record<(typeof SANDBOX_METRICS)[number], string> = {
+  total: m.dashboards.sandbox.controls.metricTotal,
+  income: m.dashboards.sandbox.controls.metricIncome,
+  expense: m.dashboards.sandbox.controls.metricExpense,
+  count: m.dashboards.sandbox.controls.metricCount,
+  avg: m.dashboards.sandbox.controls.metricAvg,
+};
+
+function AnalysisForm({
+  widget,
+  options,
+  context,
+  onSave,
+}: {
+  widget: StoredWidget;
+  options: WidgetConfigOptions;
+  context: DashboardContext;
+  onSave: (c: unknown) => void;
+}) {
+  const defaults = (() => {
+    const parsed = sandboxConfigSchema.safeParse(widget.config);
+    if (parsed.success) return parsed.data;
+    return context === "yearly"
+      ? ({
+          periodType: "year",
+          year: new Date().getFullYear(),
+          groupBy: "category",
+          seriesBy: "none",
+          metric: "total",
+          chartType: "bar_grouped",
+        } as SandboxConfig)
+      : ({
+          periodType: "current_month",
+          groupBy: "category",
+          seriesBy: "none",
+          metric: "total",
+          chartType: "bar_grouped",
+        } as SandboxConfig);
+  })();
+
+  const { control, handleSubmit, watch, setValue } = useForm<SandboxConfig>({
+    resolver: zodResolver(sandboxConfigSchema),
+    defaultValues: defaults as DefaultValues<SandboxConfig>,
+  });
+
+  const groupBy = watch("groupBy") as SandboxGroupBy;
+  const seriesBy = watch("seriesBy");
+  const metric = watch("metric");
+  const chartType = watch("chartType");
+  const periodType = watch("periodType");
+  const filterSectionIds = watch("filterSectionIds");
+  const filterCategoryIds = watch("filterCategoryIds");
+  const filterMemberIds = watch("filterMemberIds");
+
+  const validSeriesBy = getValidSeriesBy(groupBy);
+  const validChartTypes = getValidChartTypes(seriesBy);
+  const validMetrics = getValidMetrics(groupBy);
+
+  function handleGroupByChange(newGroupBy: SandboxGroupBy) {
+    const fixed = autoFixConfig({ ...defaults, groupBy: newGroupBy });
+    setValue("groupBy", fixed.groupBy);
+    setValue("seriesBy", fixed.seriesBy);
+    setValue("metric", fixed.metric);
+    setValue("chartType", fixed.chartType);
+  }
+
+  // ─── Labels e valores para o preview e painel de detalhes ─────────────────
+  const _metricLabels: Record<string, string> = {
+    total: "Total",
+    income: "Entradas",
+    expense: "Despesas",
+    count: "Qtd. transações",
+    avg: "Média",
+  };
+  const _groupLabels: Record<string, string> = {
+    month: "mês a mês",
+    section: "por seção",
+    category: "por categoria",
+    institution: "por instituição",
+    table_type: "por tipo de tabela",
+  };
+  const _seriesLabels: Record<string, string> = {
+    section: "por seção",
+    category: "por categoria",
+    member: "por membro",
+    institution: "por instituição",
+    table_type: "por tipo de tabela",
+  };
+  const _chartLabels: Record<string, string> = {
+    bar_grouped: "em barras",
+    bar_stacked: "em barras empilhadas",
+    line: "em linhas",
+    area: "em área",
+    pie: "em pizza",
+    donut: "em rosca",
+  };
+  // Labels descritivos para o painel de detalhes (mais legíveis que os abreviados acima)
+  const _groupDetail: Record<string, string> = {
+    month: "Meses",
+    section: "Seções",
+    category: "Categorias",
+    institution: "Instituições",
+    table_type: "Tipos de tabela",
+  };
+  const _seriesDetail: Record<string, string> = {
+    section: "Seções",
+    category: "Categorias",
+    member: "Membros",
+    institution: "Instituições",
+    table_type: "Tipos de tabela",
+  };
+  const _chartDetail: Record<string, string> = {
+    bar_grouped: "Barras agrupadas",
+    bar_stacked: "Barras empilhadas",
+    line: "Linhas",
+    area: "Área",
+    pie: "Pizza",
+    donut: "Rosca",
+  };
+  const _metricDetail: Record<string, string> = {
+    total: "Total (líquido)",
+    income: "Entradas",
+    expense: "Despesas",
+    count: "Qtd. transações",
+    avg: "Média por transação",
+  };
+
+  const periodLabel =
+    context === "yearly"
+      ? "ano atual"
+      : (PERIOD_LABELS_MONTHLY[periodType as keyof typeof PERIOD_LABELS_MONTHLY] ?? periodType);
+
+  const filterNames: string[] = [
+    ...(filterSectionIds ?? []).map((id) => options.sections.find((s) => s.id === id)?.name ?? id),
+    ...(filterCategoryIds ?? []).map(
+      (id) => options.categories.find((c) => c.id === id)?.name ?? id,
+    ),
+    ...(filterMemberIds ?? []).map(
+      (id) => options.members.find((mem) => mem.id === id)?.name ?? id,
+    ),
+  ];
+
+  const seriesPart =
+    seriesBy && seriesBy !== "none" ? ` ${_seriesLabels[seriesBy] ?? seriesBy}` : "";
+  const filterPart = filterNames.length > 0 ? ` · filtrado por ${filterNames.join(", ")}` : "";
+  const autoName = `${_metricLabels[metric] ?? metric} ${_groupLabels[groupBy] ?? groupBy}${seriesPart} ${_chartLabels[chartType] ?? chartType} (${periodLabel})${filterPart}`;
+
+  const activeFilterCount =
+    (filterSectionIds?.length ?? 0) +
+    (filterCategoryIds?.length ?? 0) +
+    (filterMemberIds?.length ?? 0);
+
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  return (
+    <form onSubmit={handleSubmit(onSave)}>
+      <Stack spacing={1.25}>
+        {/* Preview do nome — clícavel para expandir detalhes do gráfico */}
+        <Box>
+          <Box
+            component="button"
+            type="button"
+            onClick={() => setDetailOpen((v) => !v)}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              width: "100%",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              p: 0,
+              textAlign: "left",
+            }}
+          >
+            <ExpandMoreIcon
+              sx={{
+                fontSize: 16,
+                color: "text.disabled",
+                flexShrink: 0,
+                transform: detailOpen ? "rotate(0deg)" : "rotate(-90deg)",
+                transition: "transform 150ms ease",
+              }}
+            />
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", fontWeight: 600, lineHeight: 1.4 }}
+            >
+              {autoName}
+            </Typography>
+          </Box>
+          <Collapse in={detailOpen}>
+            <Box sx={{ mt: 0.75, pl: 2.5, display: "flex", flexDirection: "column", gap: 0.4 }}>
+              {(
+                [
+                  ["Eixo X", _groupDetail[groupBy] ?? groupBy],
+                  ["Eixo Y", _metricDetail[metric] ?? metric],
+                  ...(seriesBy && seriesBy !== "none"
+                    ? ([["Séries", _seriesDetail[seriesBy] ?? seriesBy]] as [string, string][])
+                    : []),
+                  ["Gráfico", _chartDetail[chartType] ?? chartType],
+                  ["Período", periodLabel],
+                  ...(filterNames.length > 0
+                    ? ([["Filtros", filterNames.join(", ")]] as [string, string][])
+                    : []),
+                ] as [string, string][]
+              ).map(([label, value]) => (
+                <Box key={label} sx={{ display: "flex", gap: 0.75 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "0.65rem",
+                      color: "text.disabled",
+                      flexShrink: 0,
+                      minWidth: 52,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{ fontSize: "0.75rem", color: "text.secondary", lineHeight: 1.6 }}
+                  >
+                    {value}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Collapse>
+        </Box>
+
+        {/* Período — filtrado por contexto */}
+        {context === "monthly" && (
+          <Box>
+            <FieldLabel>{m.dashboards.sandbox.controls.period}</FieldLabel>
+            <Controller
+              control={control}
+              name="periodType"
+              render={({ field }) => (
+                <RadioGroup {...field}>
+                  {Object.entries(PERIOD_LABELS_MONTHLY).map(([value, label]) => (
+                    <FormControlLabel
+                      key={value}
+                      value={value}
+                      control={<Radio size="small" sx={radioSx} />}
+                      label={label}
+                      sx={radioLabelSx}
+                    />
+                  ))}
+                </RadioGroup>
+              )}
+            />
+          </Box>
+        )}
+        {/* {context === "yearly" && (
+          <Typography
+            variant="caption"
+            sx={{ color: "text.secondary", display: "block", fontStyle: "italic" }}
+          >
+            {m.settings.dashboards.config.analysisYearNote}
+          </Typography>
+        )} */}
+
+        {/* Agrupar por */}
+        <Box>
+          <FieldLabel>{m.dashboards.sandbox.controls.groupBy}</FieldLabel>
+          <Controller
+            control={control}
+            name="groupBy"
+            render={({ field }) => (
+              <Select
+                size="small"
+                fullWidth
+                sx={selectSx}
+                value={field.value}
+                onChange={(e) => handleGroupByChange(e.target.value as SandboxGroupBy)}
+              >
+                {Object.entries(GROUP_BY_LABELS).map(([value, label]) => (
+                  <MenuItem key={value} value={value} sx={menuItemSx}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          />
+        </Box>
+
+        {/* Séries por */}
+        <Box>
+          <FieldLabel>{m.dashboards.sandbox.controls.seriesBy}</FieldLabel>
+          <Controller
+            control={control}
+            name="seriesBy"
+            render={({ field }) => (
+              <Select size="small" fullWidth sx={selectSx} {...field}>
+                {validSeriesBy.map((value) => (
+                  <MenuItem key={value} value={value} sx={menuItemSx}>
+                    {SERIES_BY_LABELS[value] ?? value}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          />
+        </Box>
+
+        {/* Métrica */}
+        <Box>
+          <FieldLabel>{m.dashboards.sandbox.controls.metric}</FieldLabel>
+          <Controller
+            control={control}
+            name="metric"
+            render={({ field }) => (
+              <Select size="small" fullWidth sx={selectSx} {...field}>
+                {validMetrics.map((m2) => (
+                  <MenuItem key={m2} value={m2} sx={menuItemSx}>
+                    {METRIC_LABELS_MAP[m2]}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          />
+        </Box>
+
+        {/* Tipo de gráfico */}
+        <Box>
+          <FieldLabel>{m.dashboards.sandbox.controls.chartType}</FieldLabel>
+          <Controller
+            control={control}
+            name="chartType"
+            render={({ field }) => (
+              <Select size="small" fullWidth sx={selectSx} {...field}>
+                {validChartTypes.map((ct) => (
+                  <MenuItem key={ct} value={ct} sx={menuItemSx}>
+                    {CHART_TYPE_LABELS[ct] ?? ct}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          />
+        </Box>
+
+        {/* Filtros — accordion sem contraste, integrado ao form */}
+        <Accordion
+          disableGutters
+          elevation={0}
+          sx={{
+            background: "transparent",
+            "&:before": { display: "none" },
+            borderTop: 1,
+            borderColor: "divider",
+            mt: 0.5,
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon sx={{ fontSize: 14, color: "text.disabled" }} />}
+            sx={{
+              minHeight: 32,
+              px: 0,
+              py: 0,
+              "& .MuiAccordionSummary-content": { my: 0.75, alignItems: "center", gap: 0.75 },
+            }}
+          >
+            <FilterListIcon sx={{ fontSize: 13, color: "text.disabled" }} />
+            <Typography sx={{ fontSize: "0.75rem", color: "text.tertiary" }}>Filtros</Typography>
+            {activeFilterCount > 0 && (
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: "0.65rem",
+                  color: "primary.main",
+                  fontWeight: 600,
+                }}
+              >
+                {activeFilterCount}
+              </Typography>
+            )}
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: 0, pb: 1, pt: 0 }}>
+            <Stack spacing={1.25}>
+              <Controller
+                control={control}
+                name="filterSectionIds"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.dashboards.sandbox.controls.filterSections}
+                    options={options.sections}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="filterCategoryIds"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.dashboards.sandbox.controls.filterCategories}
+                    options={options.categories}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="filterMemberIds"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.dashboards.sandbox.controls.filterMembers}
+                    options={options.members}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
+        <SaveButton />
+      </Stack>
+    </form>
+  );
+}
+
 // ─── Dispatcher ──────────────────────────────────────────────────────────────
 
-export function WidgetConfigForm({ def, widget, options, onSave }: Props) {
+export function WidgetConfigForm({ context, def, widget, options, onSave }: Props) {
   switch (def.id) {
     case "money-flow":
       return <MoneyFlowForm widget={widget} onSave={onSave} />;
@@ -741,6 +1217,8 @@ export function WidgetConfigForm({ def, widget, options, onSave }: Props) {
       return <KpiCustomForm widget={widget} options={options} onSave={onSave} />;
     case "filtered-transactions":
       return <FilteredTransactionsForm widget={widget} options={options} onSave={onSave} />;
+    case "analysis":
+      return <AnalysisForm widget={widget} options={options} context={context} onSave={onSave} />;
     default:
       return null;
   }

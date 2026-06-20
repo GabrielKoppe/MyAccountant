@@ -22,6 +22,7 @@ import { getLayout } from "@/server/services/dashboard-layout-service";
 import { getKpiCustomDataMap } from "@/lib/queries/kpi-custom";
 import { generateInsights } from "@/server/services/insights-service";
 import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
+import { getSandboxDataMap } from "@/lib/queries/sandbox";
 import { AppLink } from "@/components/ui/AppLink";
 import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
 import { MonthlyDashboardMenu } from "@/components/dashboards/monthly/MonthlyDashboardMenu";
@@ -136,6 +137,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     moneyFlowConfig?.groupBy ?? "category",
   );
   const kpiCustomData = await getKpiCustomDataMap(accountId, widgets, [monthId]);
+  const analysisData = await getSandboxDataMap(accountId, widgets, { currentMonthId: monthId });
 
   return (
     <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
@@ -203,6 +205,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         memberBreakdown={memberBreakdown}
         widgets={widgets}
         kpiCustomData={kpiCustomData}
+        analysisData={analysisData}
       />
     </Box>
   );

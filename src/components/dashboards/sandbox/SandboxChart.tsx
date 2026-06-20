@@ -30,7 +30,9 @@ import { ChartTooltip } from "@/components/dashboards/_shared/ChartTooltip";
 type Props = {
   result: SandboxResult;
   config: SandboxConfig;
-  height?: number;
+  // "100%" preenche o container pai (usado no AnalysisWidget com flex: 1).
+  // Número fixo para uso direto (SandboxPage, etc.).
+  height?: number | `${number}%`;
   showLegend?: boolean;
 };
 
@@ -81,14 +83,7 @@ export function SandboxChart({ result, config, height = 320, showLegend = true }
     if (!active || !payload?.length) return null;
     const visible = payload.filter((e: any) => e.value !== 0 && e.value != null);
     if (!visible.length) return null;
-    return (
-      <ChartTooltip
-        active
-        payload={visible}
-        label={label}
-        formatValue={fmtVal}
-      />
-    );
+    return <ChartTooltip active payload={visible} label={label} formatValue={fmtVal} />;
   };
 
   // Pie / donut — no inline labels, rely on legend
@@ -234,13 +229,12 @@ export function SandboxChart({ result, config, height = 320, showLegend = true }
   const isVertical = config.groupBy !== "month" && rows.length > 5;
 
   if (isVertical) {
+    // Quando height é percentagem, deixa o container controlar; caso contrário usa Math.max.
+    const verticalHeight =
+      typeof height === "number" ? Math.max(height, rows.length * 28 + 60) : height;
     return (
-      <ResponsiveContainer width="100%" height={Math.max(height, rows.length * 28 + 60)}>
-        <BarChart
-          data={rows}
-          layout="vertical"
-          margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
-        >
+      <ResponsiveContainer width="100%" height={verticalHeight ?? rows.length * 28 + 60}>
+        <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} horizontal={false} />
           <XAxis
             type="number"
