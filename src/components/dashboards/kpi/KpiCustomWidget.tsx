@@ -18,11 +18,15 @@ const METRIC_LABELS: Record<KpiCustomConfig["metric"], string> = {
 
 type Props = {
   config: KpiCustomConfig;
-  data: KpiCustomResult;
+  data: KpiCustomResult | null;
 };
 
 export function KpiCustomWidget({ config, data }: Props) {
   const title = config.label?.trim() || METRIC_LABELS[config.metric];
+
+  if (!data) {
+    return <KpiSparklineCard title={title} value="—" icon={TuneIcon} />;
+  }
 
   const value =
     data.metric === "count" ? String(data.count) : formatCentsToBrl(BigInt(data.valueCents));

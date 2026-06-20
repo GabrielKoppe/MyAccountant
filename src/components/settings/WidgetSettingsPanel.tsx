@@ -190,6 +190,7 @@ export function WidgetSettingsPanel({
             {/* key por instanceId → reseta o form ao trocar de widget selecionado */}
             <WidgetConfigForm
               key={widget.instanceId}
+              context={context}
               def={def}
               widget={widget}
               options={configOptions}

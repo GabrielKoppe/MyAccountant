@@ -29,6 +29,8 @@ import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import { kpiCustomConfigSchema, type TopCategoriesConfig } from "@/lib/schemas/widget-config";
 import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
+import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
+import type { SerializedSandboxResult } from "@/lib/queries/sandbox";
 
 type Props = {
   accountId: string;
@@ -52,6 +54,7 @@ type Props = {
   memberTrend: MemberTrendSeries[];
   widgets: StoredWidget[];
   kpiCustomData: Record<string, KpiCustomResult>;
+  analysisData: Record<string, SerializedSandboxResult>;
 };
 
 export function YearlyDashboardClient({
@@ -74,6 +77,7 @@ export function YearlyDashboardClient({
   memberTrend,
   widgets,
   kpiCustomData,
+  analysisData,
 }: Props) {
   const yearTotalBigInt = BigInt(yearTotal);
   const yearlyIncomeBigInt = BigInt(yearlyIncome);
@@ -151,16 +155,15 @@ export function YearlyDashboardClient({
         renderMode={kpiRm("kpi-worst-month")}
       />
     ),
-    "kpi-pending":
-      pendingCount > 0 ? (
-        <KpiSparklineCard
-          title={m.dashboards.kpi.pendingCount}
-          value={String(pendingCount)}
-          color="warning"
-          icon={AccessTimeIcon}
-          renderMode={kpiRm("kpi-pending")}
-        />
-      ) : null,
+    "kpi-pending": (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.pendingCount}
+        value={String(pendingCount)}
+        color={pendingCount > 0 ? "warning" : "default"}
+        icon={AccessTimeIcon}
+        renderMode={kpiRm("kpi-pending")}
+      />
+    ),
     "month-card-grid": (
       <MonthCardGrid
         accountId={accountId}
@@ -191,14 +194,23 @@ export function YearlyDashboardClient({
     ),
   };
 
-  // nodeMap por instanceId: singletons pelo widgetId; kpi-custom por instância.
+  // nodeMap por instanceId: singletons pelo widgetId; kpi-custom por instância; analysis por instância.
   const nodeMap: Record<string, React.ReactNode> = {};
   for (const w of widgets) {
     if (w.widgetId === "kpi-custom") {
       const parsed = kpiCustomConfigSchema.safeParse(w.config);
       const config = parsed.success ? parsed.data : kpiCustomConfigSchema.parse({});
-      const data = kpiCustomData[w.instanceId];
-      nodeMap[w.instanceId] = data ? <KpiCustomWidget config={config} data={data} /> : null;
+      nodeMap[w.instanceId] = (
+        <KpiCustomWidget config={config} data={kpiCustomData[w.instanceId] ?? null} />
+      );
+    } else if (w.widgetId === "analysis") {
+      nodeMap[w.instanceId] = (
+        <AnalysisWidget
+          rawConfig={w.config}
+          data={analysisData[w.instanceId] ?? null}
+          sizeVariantId={w.sizeVariantId}
+        />
+      );
     } else {
       nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
     }

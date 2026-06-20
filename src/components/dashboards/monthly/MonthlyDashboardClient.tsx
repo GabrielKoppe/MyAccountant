@@ -45,13 +45,13 @@ import {
 } from "@/lib/schemas/widget-config";
 import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
+import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
+import type { SerializedSandboxResult } from "@/lib/queries/sandbox";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CategoryIcon from "@mui/icons-material/Category";
-import { WidgetContainer } from "@/components/ui/WidgetContainer";
-import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 
 // @nivo/sankey loaded client-only (no SSR — uses D3 hooks)
 const SankeyChart = dynamic(
@@ -96,6 +96,7 @@ type Props = {
   memberBreakdown: MemberBreakdownRow[];
   widgets: StoredWidget[];
   kpiCustomData: Record<string, KpiCustomResult>;
+  analysisData: Record<string, SerializedSandboxResult>;
 };
 
 function pickComparisonValues(
@@ -152,6 +153,7 @@ export function MonthlyDashboardClient({
   memberBreakdown,
   widgets,
   kpiCustomData,
+  analysisData,
 }: Props) {
   const [compareMode, setCompareMode] = useState<CompareMode>("prevMonth");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -247,26 +249,25 @@ export function MonthlyDashboardClient({
         renderMode={kpiRm("kpi-savings-rate")}
       />
     ),
-    "kpi-top-category": topCategory ? (
+    "kpi-top-category": (
       <KpiSparklineCard
         title={m.dashboards.kpi.topCategory}
-        value={formatCentsToBrl(BigInt(topCategory.totalCents))}
-        subtitle={topCategory.name}
+        value={topCategory ? formatCentsToBrl(BigInt(topCategory.totalCents)) : "—"}
+        subtitle={topCategory?.name}
         color="info"
         icon={CategoryIcon}
         renderMode={kpiRm("kpi-top-category")}
       />
-    ) : null,
-    "kpi-pending":
-      pendingCount > 0 ? (
-        <KpiSparklineCard
-          title={m.dashboards.kpi.pendingCount}
-          value={String(pendingCount)}
-          color="warning"
-          icon={AccessTimeIcon}
-          renderMode={kpiRm("kpi-pending")}
-        />
-      ) : null,
+    ),
+    "kpi-pending": (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.pendingCount}
+        value={String(pendingCount)}
+        color={pendingCount > 0 ? "warning" : "default"}
+        icon={AccessTimeIcon}
+        renderMode={kpiRm("kpi-pending")}
+      />
+    ),
     budgets: (
       <BudgetsWidget
         budgets={budgets}
@@ -359,14 +360,23 @@ export function MonthlyDashboardClient({
   };
 
   // nodeMap por instanceId: singletons resolvem pelo widgetId; instâncias
-  // kpi-custom têm config + dados próprios por instância.
+  // kpi-custom têm config + dados próprios por instância; analysis têm dados por instância.
   const nodeMap: Record<string, React.ReactNode> = {};
   for (const w of widgets) {
     if (w.widgetId === "kpi-custom") {
       const parsed = kpiCustomConfigSchema.safeParse(w.config);
       const config = parsed.success ? parsed.data : kpiCustomConfigSchema.parse({});
-      const data = kpiCustomData[w.instanceId];
-      nodeMap[w.instanceId] = data ? <KpiCustomWidget config={config} data={data} /> : null;
+      nodeMap[w.instanceId] = (
+        <KpiCustomWidget config={config} data={kpiCustomData[w.instanceId] ?? null} />
+      );
+    } else if (w.widgetId === "analysis") {
+      nodeMap[w.instanceId] = (
+        <AnalysisWidget
+          rawConfig={w.config}
+          data={analysisData[w.instanceId] ?? null}
+          sizeVariantId={w.sizeVariantId}
+        />
+      );
     } else {
       nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
     }

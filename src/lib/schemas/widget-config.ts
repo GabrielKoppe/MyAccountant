@@ -78,3 +78,8 @@ export const dailyHeatmapConfigSchema = z.object({
   metric: z.enum(["expense", "all_activity"]).default("expense"),
 });
 export type DailyHeatmapConfig = z.infer<typeof dailyHeatmapConfigSchema>;
+
+// analysis (instanciável): re-exporta sandboxConfigSchema como configSchema do widget.
+// Mantém schema único — UI filtra opções por contexto no formulário de config.
+export { sandboxConfigSchema as analysisConfigSchema } from "@/lib/schemas/sandbox";
+export type { SandboxConfig as AnalysisConfig } from "@/lib/schemas/sandbox";

@@ -2,6 +2,7 @@ import type { z } from "zod";
 
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
+  analysisConfigSchema,
   budgetsConfigSchema,
   dailyHeatmapConfigSchema,
   filteredTransactionsConfigSchema,
@@ -158,8 +159,11 @@ const MONTHLY_BAR_CHART_VARIANTS: WidgetSizeVariant[] = [
 
 const ANALYSIS_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 3, h: 3, renderMode: "default" },
-  { id: "compact", labelKey: "compact", w: 2, h: 2, renderMode: "compact" },
-  { id: "large", labelKey: "large", w: 6, h: 4, renderMode: "expanded" },
+  { id: "small", labelKey: "small", w: 2, h: 2, renderMode: "compact" },
+  { id: "compact", labelKey: "compact", w: 3, h: 2, renderMode: "compact" },
+  { id: "medium", labelKey: "medium", w: 4, h: 3, renderMode: "default" },
+  { id: "large", labelKey: "large", w: 4, h: 4, renderMode: "expanded" },
+  { id: "giant", labelKey: "giant", w: 6, h: 4, renderMode: "expanded" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -310,6 +314,14 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       sizeVariants: ANALYSIS_VARIANTS,
       defaultVisible: false,
       instantiable: true,
+      configSchema: analysisConfigSchema,
+      defaultConfig: {
+        periodType: "current_month",
+        groupBy: "category",
+        seriesBy: "none",
+        metric: "total",
+        chartType: "bar_grouped",
+      },
     },
     {
       id: "kpi-custom",
@@ -427,6 +439,14 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       sizeVariants: ANALYSIS_VARIANTS,
       defaultVisible: false,
       instantiable: true,
+      configSchema: analysisConfigSchema,
+      defaultConfig: {
+        periodType: "year",
+        groupBy: "category",
+        seriesBy: "none",
+        metric: "total",
+        chartType: "bar_grouped",
+      },
     },
     {
       id: "kpi-custom",
@@ -623,7 +643,8 @@ function binPack(
 // - stored = null → layout inicial: bin-pack de todos os defaultVisible.
 // - widgetId desconhecido → descartado silenciosamente.
 // - sizeVariantId desconhecido → fallback para sizeVariants[0].
-// - widgets removidos pelo usuário NÃO são re-adicionados automaticamente.
+// - Widgets defaultVisible ausentes do layout salvo são auto-inseridos (compat-forward:
+//   garante que novos widgets adicionados ao registry apareçam nos dashboards existentes).
 export function resolveLayout(
   context: DashboardContext,
   stored: StoredWidget[] | null,
@@ -654,6 +675,17 @@ export function resolveLayout(
     // Sincroniza w/h com a definição atual da variante (detecta mudanças de dimensões entre deploys).
     return { ...s, w: variant.w, h: variant.h };
   });
+
+  // Auto-inserir widgets defaultVisible singletons ausentes (compat-forward).
+  // Apenas singletons (instantiable !== true) — widgets instanciáveis não são auto-adicionados.
+  const presentWidgetIds = new Set(result.map((s) => s.widgetId));
+  const toAdd = registry.filter(
+    (d) => d.defaultVisible && !d.instantiable && !presentWidgetIds.has(d.id),
+  );
+  if (toAdd.length > 0) {
+    const { maxRows } = GRID_CONFIG[context];
+    result = [...result, ...binPack(toAdd, cols, result, maxRows)];
+  }
 
   return result;
 }

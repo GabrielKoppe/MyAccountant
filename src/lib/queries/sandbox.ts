@@ -393,3 +393,61 @@ export async function getSandboxData(
 
   return { series, rows, grandTotalCents };
 }
+
+// ─── Serialized result (para fronteira RSC → Client) ──────────────────────
+// `grandTotalCents` serializado como string para evitar erro de serialização Next.js.
+
+export type SerializedSandboxResult = {
+  series: SandboxSeries[];
+  rows: SandboxRow[];
+  grandTotalCents: string;
+};
+
+export function serializeSandboxResult(result: SandboxResult): SerializedSandboxResult {
+  return {
+    series: result.series,
+    rows: result.rows,
+    grandTotalCents: result.grandTotalCents.toString(),
+  };
+}
+
+export function deserializeSandboxResult(result: SerializedSandboxResult): SandboxResult {
+  return {
+    series: result.series,
+    rows: result.rows,
+    grandTotalCents: BigInt(result.grandTotalCents),
+  };
+}
+
+// Calcula os dados de todas as instâncias `analysis` visíveis de um layout,
+// indexados por instanceId. Usado pelas páginas RSC (monthly/yearly).
+// `currentYear`: quando fornecido, sobrescreve `config.year` para widgets com
+// `periodType: "year"` — garante que o widget analysis do dashboard anual
+// sempre exibe o ano do dashboard, não o salvo na config.
+export async function getSandboxDataMap(
+  accountId: string,
+  widgets: import("@/lib/schemas/dashboard-layout").StoredWidget[],
+  context?: { currentMonthId?: string; currentYear?: number },
+): Promise<Record<string, SerializedSandboxResult>> {
+  const instances = widgets.filter((w) => w.widgetId === "analysis" && w.visible);
+  const map: Record<string, SerializedSandboxResult> = {};
+  await Promise.all(
+    instances.map(async (inst) => {
+      const { sandboxConfigSchema } = await import("@/lib/schemas/sandbox");
+      const parsed = sandboxConfigSchema.safeParse(inst.config);
+      if (!parsed.success) return;
+      // Para dashboards anuais: injetar o ano do dashboard na config
+      const finalConfig =
+        context?.currentYear != null && parsed.data.periodType === "year"
+          ? { ...parsed.data, year: context.currentYear }
+          : parsed.data;
+      try {
+        const result = await getSandboxData(accountId, finalConfig, context);
+        map[inst.instanceId] = serializeSandboxResult(result);
+      } catch {
+        // Se a query falhar (ex: config inválida pra o contexto), omite a instância
+      }
+    }),
+  );
+  return map;
+}

@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 
@@ -12,6 +14,28 @@ import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 // então seu footprint vertical é h * ROW_HEIGHT (+ gaps). Mantém o conteúdo
 // proporcional ao tamanho declarado na grade, em vez de altura natural do conteúdo.
 const ROW_HEIGHT = 120;
+
+// Placeholder exibido quando nodeMap retorna null para um widget visível.
+// Garante que nenhuma célula do grid fique em branco — o único jeito de um
+// widget não aparecer é tendo visible: false.
+function WidgetFallback() {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: 0.35,
+      }}
+    >
+      <Typography variant="caption" color="text.disabled">
+        —
+      </Typography>
+    </Paper>
+  );
+}
 
 type Props = {
   widgets: StoredWidget[];
@@ -34,7 +58,7 @@ export function DashboardGrid({ widgets, nodeMap, cols }: Props) {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {sorted.map((w) => (
-          <Box key={w.instanceId}>{nodeMap[w.instanceId] ?? null}</Box>
+          <Box key={w.instanceId}>{nodeMap[w.instanceId] ?? <WidgetFallback />}</Box>
         ))}
       </Box>
     );
@@ -59,7 +83,7 @@ export function DashboardGrid({ widgets, nodeMap, cols }: Props) {
             gridRow: `${w.y + 1} / span ${w.h}`,
           }}
         >
-          {nodeMap[w.instanceId] ?? null}
+          {nodeMap[w.instanceId] ?? <WidgetFallback />}
         </Box>
       ))}
     </Box>
