@@ -149,11 +149,13 @@ describe("resolveLayout — bin-packing", () => {
     });
   });
 
-  it("auto-insere widgets defaultVisible ausentes no layout salvo", () => {
-    // Layout salvo só com kpi-income — os demais defaultVisible devem ser auto-inseridos
+  it("respeita o layout salvo sem auto-inserir widgets ausentes", () => {
+    // Layout salvo só com kpi-income — os demais NÃO devem ser auto-inseridos;
+    // o usuário pode ter removido os outros explicitamente.
     const result = resolveLayout("monthly", [buildStored({ widgetId: "kpi-income" })]);
     const ids = result.map((w) => w.widgetId);
     expect(ids).toContain("kpi-income");
-    expect(ids).toContain("kpi-expenses"); // defaultVisible ausente → auto-inserido
+    // kpi-expenses não deve aparecer — o layout salvo é a fonte da verdade
+    expect(ids).not.toContain("kpi-expenses");
   });
 });

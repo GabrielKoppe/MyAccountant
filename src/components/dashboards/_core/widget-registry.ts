@@ -678,14 +678,10 @@ export function resolveLayout(
 
   // Auto-inserir widgets defaultVisible singletons ausentes (compat-forward).
   // Apenas singletons (instantiable !== true) — widgets instanciáveis não são auto-adicionados.
-  const presentWidgetIds = new Set(result.map((s) => s.widgetId));
-  const toAdd = registry.filter(
-    (d) => d.defaultVisible && !d.instantiable && !presentWidgetIds.has(d.id),
-  );
-  if (toAdd.length > 0) {
-    const { maxRows } = GRID_CONFIG[context];
-    result = [...result, ...binPack(toAdd, cols, result, maxRows)];
-  }
+  // NOTA: compat-forward desativado — o layout salvo é a fonte da verdade.
+  // Novos widgets adicionados ao registry NÃO são auto-inseridos em layouts existentes;
+  // o usuário os adiciona manualmente pela paleta quando quiser.
+  // Isso garante que remoções feitas pelo usuário sejam persistidas corretamente.
 
   return result;
 }
