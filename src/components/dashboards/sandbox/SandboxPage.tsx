@@ -2,21 +2,26 @@
 
 import { useState, useTransition, useCallback, useEffect } from "react";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import Divider from "@mui/material/Divider";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
+import AddToPhotosIcon from "@mui/icons-material/AddToPhotos";
+import { useSnackbar } from "notistack";
 
 import { m } from "@/lib/messages";
 import type { SandboxConfig } from "@/lib/schemas/sandbox";
-import type { SandboxResult, SavedAnalysisSummary } from "@/lib/queries/sandbox";
+import type { SandboxResult } from "@/lib/queries/sandbox";
 import type { SectionMeta } from "@/lib/queries/dashboards";
-import { getSandboxDataClientAction, listSavedAnalysesAction } from "@/actions/sandbox";
+import { getSandboxDataClientAction } from "@/actions/sandbox";
+import { addAnalysisToDashboardAction } from "@/actions/dashboard-layout";
+import { DialogShell } from "@/components/ui/DialogShell";
 import { SandboxControls } from "./SandboxControls";
 import { SandboxChart } from "./SandboxChart";
 import { SandboxDataTable } from "./SandboxDataTable";
-import { SavedAnalysisList } from "./SavedAnalysisList";
 
 // AppBar with variant="dense" is 48px
 const APP_BAR_HEIGHT = 48;
@@ -26,37 +31,36 @@ type MemberMeta = { userId: string; name: string };
 
 type Props = {
   accountId: string;
-  currentUserId: string;
-  role: string;
   allYears: number[];
   allMonths: Array<{ id: string; label: string; year: number; month: number }>;
   sections: SectionMeta[];
   categories: CategoryMeta[];
   members: MemberMeta[];
-  savedAnalyses: SavedAnalysisSummary[];
   initialConfig: SandboxConfig;
 };
 
 export function SandboxPage({
   accountId,
-  currentUserId,
-  role,
   allYears,
   allMonths,
   sections,
   categories,
   members,
-  savedAnalyses: initialAnalyses,
   initialConfig,
 }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const ms = m.dashboards.sandbox;
+  const { enqueueSnackbar } = useSnackbar();
 
   const [config, setConfig] = useState<SandboxConfig>(initialConfig);
   const [result, setResult] = useState<SandboxResult | null>(null);
-  const [analyses, setAnalyses] = useState<SavedAnalysisSummary[]>(initialAnalyses);
   const [isPending, startTransition] = useTransition();
+
+  // Estado do modal "Adicionar ao dashboard"
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addContext, setAddContext] = useState<"monthly" | "yearly">("monthly");
+  const [isAdding, startAddTransition] = useTransition();
 
   const runQuery = useCallback(
     (cfg: SandboxConfig) => {
@@ -84,16 +88,19 @@ export function SandboxPage({
     runQuery(newConfig);
   }
 
-  function handleLoad(cfg: SandboxConfig) {
-    setConfig(cfg);
-    runQuery(cfg);
-  }
-
-  async function handleRefreshAnalyses() {
-    const result = await listSavedAnalysesAction(accountId, {});
-    if (result.ok) {
-      setAnalyses(result.data);
-    }
+  function handleAddToDashboard() {
+    startAddTransition(async () => {
+      const res = await addAnalysisToDashboardAction(accountId, {
+        context: addContext,
+        config,
+      });
+      if (res.ok) {
+        enqueueSnackbar(ms.addToDashboardSuccess, { variant: "success" });
+        setAddDialogOpen(false);
+      } else {
+        enqueueSnackbar(res.error.message || ms.addToDashboardError, { variant: "error" });
+      }
+    });
   }
 
   return (
@@ -106,6 +113,41 @@ export function SandboxPage({
         bgcolor: "background.default",
       }}
     >
+      {/* Modal: Adicionar ao dashboard */}
+      <DialogShell
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        title={ms.addToDashboardTitle}
+        description={ms.addToDashboardDescription}
+        loading={isAdding}
+        maxWidth="xs"
+        actions={
+          <>
+            <Button onClick={() => setAddDialogOpen(false)} disabled={isAdding}>
+              Cancelar
+            </Button>
+            <Button variant="contained" onClick={handleAddToDashboard} disabled={isAdding}>
+              {ms.addToDashboardConfirm}
+            </Button>
+          </>
+        }
+      >
+        <Box sx={{ mt: 1 }}>
+          <Typography variant="caption" sx={{ display: "block", mb: 0.5, color: "text.secondary" }}>
+            {ms.addToDashboardContextLabel}
+          </Typography>
+          <Select
+            value={addContext}
+            onChange={(e) => setAddContext(e.target.value as "monthly" | "yearly")}
+            size="small"
+            fullWidth
+          >
+            <MenuItem value="monthly">{ms.addToDashboardContextMonthly}</MenuItem>
+            <MenuItem value="yearly">{ms.addToDashboardContextYearly}</MenuItem>
+          </Select>
+        </Box>
+      </DialogShell>
+
       {/* Sticky title bar */}
       <Box
         sx={{
@@ -116,12 +158,23 @@ export function SandboxPage({
           flexShrink: 0,
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           gap: 1.5,
           bgcolor: "background.paper",
         }}
       >
-        <Typography variant="h6">{ms.title}</Typography>
-        {isPending && <CircularProgress size={14} thickness={5} />}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Typography variant="h6">{ms.title}</Typography>
+          {isPending && <CircularProgress size={14} thickness={5} />}
+        </Box>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AddToPhotosIcon fontSize="small" />}
+          onClick={() => setAddDialogOpen(true)}
+        >
+          {ms.addToDashboard}
+        </Button>
       </Box>
 
       {/* Main content */}
@@ -157,18 +210,6 @@ export function SandboxPage({
             sections={sections}
             categories={categories}
             members={members}
-          />
-
-          <Divider sx={{ my: 2 }} />
-
-          <SavedAnalysisList
-            accountId={accountId}
-            analyses={analyses}
-            currentConfig={config}
-            currentUserId={currentUserId}
-            role={role}
-            onLoad={handleLoad}
-            onRefresh={handleRefreshAnalyses}
           />
         </Box>
 

@@ -1,30 +1,278 @@
 # Skill: Dashboard Widgets
 
 > Como criar, registrar e integrar novos widgets nos dashboards configuráveis do MyAccountant.
+> **Arquitetura**: Spec 36 (grade 2D, instâncias configuráveis). Documentação atualizada em 2026-06-20.
 
 ---
 
-## Arquitetura do sistema
+## Arquitetura do sistema (Spec 36)
 
 ```
-WIDGET_REGISTRY (widget-registry.ts)
-        ↓  resolveLayout(context, storedIds)
-  ResolvedLayout { active[], available[] }
+WIDGET_REGISTRY (_core/widget-registry.ts)
+        ↓  resolveLayout(context, StoredWidget[] | null)
+  StoredWidget[]  (com x, y, w, h, visible, config)
         ↓  passado como props para o Client Component do dashboard
-  DashboardWidgetRenderer
-        ↓  buildSegments(active) → Segment[]
-  Grid responsivo → nodeMap[widget.id]
+  DashboardGrid (_core/DashboardGrid.tsx)
+        ↓  nodeMap[instanceId] → ReactNode
+  CSS Grid posicionado por gridColumn/gridRow
         ↓
-  Componente do widget (KPI ou Panel)
+  Componente filho recebe renderMode da sizeVariant ativa
 ```
 
 **Fluxo completo:**
 
 1. `WIDGET_REGISTRY` é a fonte da verdade. Nunca no banco.
-2. `DashboardLayout` no banco armazena só `widgets: string[]` (ids ativos, por ordem).
-3. `resolveLayout` reconcilia o banco com o registry: adiciona novos widgets com `defaultVisible: true`, remove ids órfãos.
-4. No Client Component do dashboard, um `nodeMap: Record<string, ReactNode>` mapeia cada `widget.id` ao seu componente renderizado.
-5. `DashboardWidgetRenderer` recebe `active` + `nodeMap`, chama `buildSegments`, monta os grids.
+2. `DashboardLayout` no banco armazena `widgets: StoredWidget[]` (posição, tamanho, config por instância).
+3. `resolveLayout` reconcilia o banco com o registry: descarta `widgetId` desconhecidos, faz fallback de variante desconhecida para `sizeVariants[0]`. **Sem compat-forward** — o layout salvo é respeitado integralmente.
+4. No Client Component do dashboard, um `nodeMap: Record<string, ReactNode>` mapeia cada `instanceId` ao seu componente renderizado.
+5. `DashboardGrid` recebe `widgets` + `nodeMap`, posiciona via CSS Grid (`gridColumn`, `gridRow`).
+6. Componente filho recebe `renderMode` da `sizeVariant` ativa e adapta a apresentação.
+
+**Tipos de widget:**
+- **Singleton** (`instantiable !== true`): uma única instância por contexto. O usuário pode adicionar/remover/reposicionar.
+- **Instanciável** (`instantiable: true`): N instâncias permitidas (`analysis`, `kpi-custom`, `filtered-transactions`). Cada uma tem seu próprio `config`.
+
+---
+
+## Checklist de implementação (6 passos)
+
+```
+1. WIDGET_REGISTRY   → registrar id/kind/sizeVariants/defaultVisible (sem span)
+2. messages/pt-BR.ts → label + description + labels de sizeVariants
+3. widget-icons.ts   → ícone MUI para o card da paleta
+4. Query             → função em src/lib/queries/ ou service
+5. Componente        → src/components/dashboards/; receber prop renderMode
+6. nodeMap           → integrar no Client Component por widgetId (mapeado para instanceId)
+```
+
+---
+
+## Passo 1 — Registro em `widget-registry.ts`
+
+Arquivo: [src/components/dashboards/_core/widget-registry.ts](src/components/dashboards/_core/widget-registry.ts)
+
+```typescript
+// ✅ Novo padrão — sizeVariants obrigatório, sem span
+{
+  id: "meu-widget",
+  labelKey: "meuWidget",
+  kind: "panel",
+  defaultVisible: false,
+  sizeVariants: [
+    { id: "default", labelKey: "default", w: 3, h: 2, renderMode: "default" },
+    { id: "large",   labelKey: "large",   w: 6, h: 3, renderMode: "expanded" },
+  ],
+}
+
+// ❌ Padrão antigo (spec 33) — NÃO USAR
+{ id: "meu-widget", kind: "panel", span: "half", defaultVisible: false }
+```
+
+**Regras:**
+- `kind: "kpi"` — card pequeno (w:1 ou w:2), agrupado na grade.
+- `kind: "panel"` — widget de painel com gráfico, tabela ou lista.
+- `sizeVariants[0]` = variante default, usada no auto-posicionamento inicial.
+- Cada variante maior DEVE adicionar conteúdo real, não apenas ampliar espaçamentos.
+- `defaultVisible: false` para widgets novos adicionados após o lançamento. O usuário os adiciona manualmente pela paleta.
+- `instantiable: true` apenas para os 3 tipos parametrizáveis: `analysis`, `kpi-custom`, `filtered-transactions`.
+
+**Contextos disponíveis:**
+
+| Contexto | Rota |
+|---|---|
+| `monthly` | `/[accountId]/dashboards/monthly/[monthId]` |
+| `yearly` | `/[accountId]/dashboards/yearly/[year]` |
+| `month_summary` | `/[accountId]/months/[monthId]` (aba Resumo) |
+
+---
+
+## Passo 2 — Labels e descrições em `pt-BR.ts`
+
+Arquivo: [src/lib/messages/pt-BR.ts](src/lib/messages/pt-BR.ts)
+
+```typescript
+// 1. Label exibido como título no widget e no editor
+dashboards.widgets.monthly: {
+  "meu-widget": "Nome do Widget",
+},
+
+// 2. Descrição curta no card da paleta
+dashboards.widgets.descriptions.monthly: {
+  "meu-widget": "Uma linha descrevendo o que este widget exibe.",
+},
+```
+
+Para labels de `sizeVariants`, usar as chaves existentes em `settings.dashboards.variants`:
+```
+default, compact, large, wide, small, expanded, medium, giant
+```
+
+---
+
+## Passo 3 — Ícone em `widget-icons.ts`
+
+Arquivo: [src/components/dashboards/_core/widget-icons.ts](src/components/dashboards/_core/widget-icons.ts)
+
+```typescript
+import MeuIconeIcon from "@mui/icons-material/MeuIcone";
+
+export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
+  // ...
+  "meu-widget": MeuIconeIcon,
+};
+```
+
+---
+
+## Passo 4 — Query de dados
+
+Arquivo: [src/lib/queries/dashboards.ts](src/lib/queries/dashboards.ts) (ou service correspondente)
+
+```typescript
+export async function getMeuWidgetData(accountId: string, monthId: string) {
+  // SEMPRE filtrar por accountId
+  const rows = await prisma.transaction.findMany({
+    where: { accountId, monthId },
+    select: { amountCents: true },
+  });
+  // BigInt no domínio, serializado como string para a boundary RSC→Client
+  const total = rows.reduce((acc, r) => acc + r.amountCents, 0n);
+  return { totalCents: total.toString() };
+}
+```
+
+---
+
+## Passo 5 — Componente do widget
+
+O componente recebe `renderMode` como prop e adapta a apresentação:
+
+```tsx
+// src/components/dashboards/panels/MeuWidget.tsx
+"use client";  // apenas se usar hooks ou bibliotecas de gráfico
+
+type Props = {
+  data: { totalCents: string };
+  renderMode?: "compact" | "default" | "expanded";
+};
+
+export function MeuWidget({ data, renderMode = "default" }: Props) {
+  // ✅ Correto — adapta pelo renderMode, não por w/h
+  if (renderMode === "compact") return <MeuWidgetCompact data={data} />;
+  if (renderMode === "expanded") return <MeuWidgetExpanded data={data} />;
+  return <MeuWidgetDefault data={data} />;
+
+  // ❌ Anti-padrão — nunca ler w/h diretamente no componente
+}
+```
+
+**Para KPIs**, usar `KpiSparklineCard`:
+
+```tsx
+<KpiSparklineCard
+  title={m.dashboards.kpi.meuKpi}
+  value={formatCentsToBrl(BigInt(data.totalCents))}
+  color="success"
+  renderMode={getRenderMode(widgets, "monthly", "meu-widget")}
+/>
+```
+
+---
+
+## Passo 6 — nodeMap por instanceId
+
+O `nodeMap` usa `instanceId` (não `widgetId`) como chave. Para singletons, construir um `nodeByWidgetId` intermediário e depois resolver:
+
+```tsx
+// ✅ Padrão correto (Spec 36) — nodeMap por instanceId
+const nodeByWidgetId: Record<string, ReactNode> = {
+  "meu-widget": <MeuWidget data={data} renderMode={getRenderMode(widgets, "monthly", "meu-widget")} />,
+};
+const nodeMap: Record<string, ReactNode> = {};
+for (const w of widgets) {
+  nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+}
+
+// ❌ Padrão antigo (Spec 33) — nodeMap por widgetId direto — NÃO USAR
+const nodeMap: Record<string, ReactNode> = { "meu-widget": <MeuWidget /> };
+```
+
+**Para widgets instanciáveis** (cada instância tem config própria):
+
+```tsx
+for (const w of widgets) {
+  if (w.widgetId === "meu-widget-instantiavel") {
+    const config = myConfigSchema.safeParse(w.config);
+    nodeMap[w.instanceId] = config.success ? <MeuWidget config={config.data} /> : null;
+  }
+}
+```
+
+---
+
+## Configuração interna (configSchema)
+
+Widgets que aceitam configuração interna declaram `configSchema` (Zod) e `defaultConfig` no registry:
+
+```typescript
+import { z } from "zod";
+
+const meuConfigSchema = z.object({
+  limit: z.union([z.literal(5), z.literal(10), z.literal(20)]).default(10),
+});
+
+{
+  id: "meu-widget",
+  ...,
+  configSchema: meuConfigSchema,
+  defaultConfig: { limit: 10 },
+}
+```
+
+O form de configuração fica em `WidgetConfigForm.tsx` — adicionar um caso no dispatcher:
+
+```typescript
+case "meu-widget":
+  return <MeuWidgetForm widget={widget} onSave={onSave} />;
+```
+
+No `nodeByWidgetId`, buscar a config da instância:
+
+```tsx
+const inst = widgets.find(w => w.widgetId === "meu-widget");
+const config = meuConfigSchema.safeParse(inst?.config);
+nodeByWidgetId["meu-widget"] = (
+  <MeuWidget limit={config.success ? config.data.limit : 10} />
+);
+```
+
+---
+
+## Adicionando ao editor de settings
+
+A paleta (`WidgetPalette.tsx`) lê automaticamente o `WIDGET_REGISTRY` do contexto.
+- Singletons: aparecerão na paleta quando não estiverem no layout ativo.
+- Instanciáveis: aparecem sempre na paleta (podem ter N instâncias).
+
+Nenhuma alteração manual na paleta é necessária — basta registrar o widget no `WIDGET_REGISTRY`.
+
+---
+
+## Arquivos-chave do sistema
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `src/components/dashboards/_core/widget-registry.ts` | Definição de todos os widgets (registry + tipos + `resolveLayout`) |
+| `src/components/dashboards/_core/DashboardGrid.tsx` | Renderer CSS Grid (dashboard ao vivo) |
+| `src/components/dashboards/_core/grid-layout.ts` | Algoritmos de posicionamento (push, resize, bin-pack) |
+| `src/components/settings/DashboardGridEditor.tsx` | Editor interativo (settings/dashboards) |
+| `src/components/settings/DashboardGridCanvas.tsx` | Canvas drag-and-drop do editor |
+| `src/components/settings/WidgetPalette.tsx` | Paleta lateral de widgets disponíveis |
+| `src/components/settings/WidgetSettingsPanel.tsx` | Painel de config da instância selecionada |
+| `src/components/settings/WidgetConfigForm.tsx` | Forms de configuração interna por widget |
+| `src/server/services/dashboard-layout-service.ts` | Leitura e gravação do layout no banco |
+| `src/lib/schemas/dashboard-layout.ts` | Schema Zod de `StoredWidget` |
+
 
 ---
 
@@ -35,20 +283,8 @@ WIDGET_REGISTRY (widget-registry.ts)
 2. messages/pt-BR.ts → label + description para o editor de configurações
 3. widget-icons.tsx  → ícone MUI para o card do editor
 4. Query             → função em src/lib/queries/ ou service
-5. Componente        → src/components/dashboards/
-6. nodeMap           → integrar no Client Component da página
-```
-
----
-
-## Passo 1 — Registro em `widget-registry.ts`
-
-Arquivo: [src/components/dashboards/widget-registry.ts](src/components/dashboards/widget-registry.ts)
-
-```typescript
-// Adicionar no array do context correto (monthly | yearly | month_summary)
-{ id: "meu-widget", labelKey: "meuWidget", kind: "kpi",   defaultVisible: false },
-{ id: "meu-painel", labelKey: "meuPainel", kind: "panel", span: "half", defaultVisible: false },
+5. Componente        → src/components/dashboards/; receber prop renderMode
+6. nodeMap           → integrar no Client Component por widgetId (mapeado para instanceId)
 ```
 
 **Regras:**
@@ -143,11 +379,6 @@ export async function getMeuWidgetData(accountId: string, monthId: string) {
 - Evitar N+1: usar `include` ou batch queries quando há listas.
 - Queries pesadas → colocar em funções separadas em `src/lib/queries/` para reusar entre contextos.
 
----
-
-## Passo 5 — Componente do widget
-
-### 5a. Widget KPI
 
 KPI widgets podem ser RSC (sem interatividade) ou Client Components (com gráficos).
 
@@ -264,49 +495,6 @@ export function MeuPainel({ data }: Props) {
 
 ---
 
-## Passo 6 — Integrar no nodeMap
-
-### Dashboard mensal (Client Component)
-
-O nodeMap fica em [src/components/dashboards/MonthlyDashboardClient.tsx](src/components/dashboards/MonthlyDashboardClient.tsx).
-
-O componente recebe os dados como props serializados (strings para BigInt), monta o `nodeMap`, e passa para `DashboardWidgetRenderer`:
-
-```typescript
-// Dentro de MonthlyDashboardClient, na seção do nodeMap:
-"meu-widget": data.meuWidget ? (
-  <KpiSparklineCard
-    title={m.dashboards.kpi.meuWidget}
-    value={formatCentsToBrl(BigInt(data.meuWidget.totalCents))}
-    color="info"
-  />
-) : null,
-
-"meu-painel": (
-  <MeuPainel data={data.meuPainel} />
-),
-```
-
-**Regra:** se o widget pode não ter dados (ex: top category quando não há transações), retorne `null` no nodeMap — o renderer ignora entradas `null`.
-
-### Dashboard anual / resumo de mês (RSC)
-
-Para contextos que ainda não têm Client Component próprio, o nodeMap pode ser construído diretamente na RSC page e passado como prop:
-
-```typescript
-// src/app/(app)/[accountId]/yearly/page.tsx (RSC)
-const data = await getYearOverview(accountId, year);  // query serializada
-
-const nodeMap: Record<string, ReactNode> = {
-  "meu-kpi": <MeuKpiCard totalCents={data.totalCents} />,
-  "meu-painel": <MeuPainel data={data.meuPainel} />,
-};
-
-return <DashboardWidgetRenderer active={resolved.active} nodeMap={nodeMap} />;
-```
-
----
-
 ## Padrões obrigatórios
 
 ### BigInt — 3 formas de uso
@@ -401,22 +589,19 @@ const tooltipStyle = {
 
 | Arquivo | Papel |
 |---|---|
-| [src/components/dashboards/widget-registry.ts](src/components/dashboards/widget-registry.ts) | Registry central, `buildSegments`, `resolveLayout` |
-| [src/components/dashboards/DashboardWidgetRenderer.tsx](src/components/dashboards/DashboardWidgetRenderer.tsx) | Renderer que recebe `active` + `nodeMap` e monta grids |
-| [src/components/dashboards/MonthlyDashboardClient.tsx](src/components/dashboards/MonthlyDashboardClient.tsx) | nodeMap do dashboard mensal |
-| [src/components/dashboards/KpiSparklineCard.tsx](src/components/dashboards/KpiSparklineCard.tsx) | Componente base para KPIs com sparkline e delta |
-| [src/components/settings/widget-icons.tsx](src/components/settings/widget-icons.tsx) | Mapa id → ícone MUI para o editor de configurações |
-| [src/components/settings/WidgetCard.tsx](src/components/settings/WidgetCard.tsx) | Card do widget no editor (active + available) |
-| [src/components/settings/DashboardLayoutEditor.tsx](src/components/settings/DashboardLayoutEditor.tsx) | Editor DnD de layout (settings) |
+| [src/components/dashboards/_core/widget-registry.ts](src/components/dashboards/_core/widget-registry.ts) | Registry central, `resolveLayout`, `binPack`, `GRID_CONFIG` |
+| [src/components/dashboards/monthly/MonthlyDashboardClient.tsx](src/components/dashboards/monthly/MonthlyDashboardClient.tsx) | nodeMap do dashboard mensal |
+| [src/components/dashboards/kpi/KpiSparklineCard.tsx](src/components/dashboards/kpi/KpiSparklineCard.tsx) | Componente base para KPIs com sparkline e delta |
+| [src/components/dashboards/_core/widget-icons.ts](src/components/dashboards/_core/widget-icons.ts) | Mapa id → ícone MUI para a paleta e canvas do editor |
 | [src/lib/queries/dashboards.ts](src/lib/queries/dashboards.ts) | Queries de dados dos dashboards |
 | [src/lib/messages/pt-BR.ts](src/lib/messages/pt-BR.ts) | Labels + descrições de todos os widgets |
 | [src/lib/design-tokens.ts](src/lib/design-tokens.ts) | `getChartColors`, tokens de layout |
 | [src/lib/money.ts](src/lib/money.ts) | `formatCentsToBrl` |
 | [src/components/ui/EmptyState.tsx](src/components/ui/EmptyState.tsx) | Estado vazio padrão |
+| [src/components/ui/WidgetContainer.tsx](src/components/ui/WidgetContainer.tsx) | Wrapper visual padrão de panel widgets (borda, título, ícone) |
 
 ---
 
 ## Spec de referência
 
-- [specs/33-dashboard-widgets.md](specs/33-dashboard-widgets.md) — spec completa dos widgets existentes e da arquitetura de layout configurável.
-- [specs/38-novos-widgets-dashboard.md](specs/38-novos-widgets-dashboard.md) — spec de novos widgets planejados (draft, ainda não implementados).
+- [specs/36-widgets-configuraveis-instanciaveis.md](specs/36-widgets-configuraveis-instanciaveis.md) — spec completa da arquitetura de grade 2D, instâncias configuráveis e editor de settings.

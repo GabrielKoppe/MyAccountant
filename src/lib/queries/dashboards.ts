@@ -42,6 +42,7 @@ export type TopTransaction = {
   description: string | null;
   occurredOn: string;
   amountCents: string;
+  sectionId: string;
   sectionName: string;
   sectionCountType: string;
 };
@@ -170,13 +171,13 @@ export async function getMonthDeepDive(accountId: string, monthId: string) {
     prisma.transaction.findMany({
       where: { accountId, monthId, table: { countInMonth: true } },
       orderBy: { amountCents: "desc" },
-      take: 10,
+      take: 50,
       select: {
         id: true,
         description: true,
         occurredOn: true,
         amountCents: true,
-        section: { select: { name: true, countType: true } },
+        section: { select: { id: true, name: true, countType: true } },
       },
     }),
     prisma.transaction.findMany({
@@ -188,7 +189,7 @@ export async function getMonthDeepDive(accountId: string, monthId: string) {
         description: true,
         occurredOn: true,
         amountCents: true,
-        section: { select: { name: true, countType: true } },
+        section: { select: { id: true, name: true, countType: true } },
       },
     }),
     prisma.transaction.groupBy({
@@ -233,6 +234,7 @@ export async function getMonthDeepDive(accountId: string, monthId: string) {
     description: t.description,
     occurredOn: t.occurredOn.toISOString().slice(0, 10),
     amountCents: t.amountCents.toString(),
+    sectionId: t.section.id,
     sectionName: t.section.name,
     sectionCountType: t.section.countType,
   }));
@@ -242,6 +244,7 @@ export async function getMonthDeepDive(accountId: string, monthId: string) {
     description: t.description,
     occurredOn: t.occurredOn.toISOString().slice(0, 10),
     amountCents: t.amountCents.toString(),
+    sectionId: t.section.id,
     sectionName: t.section.name,
     sectionCountType: t.section.countType,
   }));
@@ -459,15 +462,21 @@ export type DayTotal = {
 export async function getDailyTotals(
   accountId: string,
   monthId: string,
-  subtractSectionIds: string[],
+  // null = toda atividade financeira (countInMonth); string[] = apenas as seções informadas
+  subtractSectionIds: string[] | null,
 ): Promise<DayTotal[]> {
-  if (subtractSectionIds.length === 0) return [];
+  if (Array.isArray(subtractSectionIds) && subtractSectionIds.length === 0) return [];
+
+  const whereSection: object =
+    subtractSectionIds === null
+      ? {} // sem filtro de seção → todas as transações countInMonth
+      : { sectionId: { in: subtractSectionIds } };
 
   const txs = await prisma.transaction.findMany({
     where: {
       accountId,
       monthId,
-      sectionId: { in: subtractSectionIds },
+      ...whereSection,
       table: { countInMonth: true },
     },
     select: { id: true, occurredOn: true, amountCents: true },
@@ -600,98 +609,127 @@ export type SankeyNode = { id: string; label: string };
 export type SankeyLink = { source: string; target: string; value: number };
 export type SankeyData = { nodes: SankeyNode[]; links: SankeyLink[] };
 
+// groupBy controla o nível de gastos do Sankey (Total → categorias OU Total → seções).
+// 'category' é o padrão (comportamento original).
 export async function getSankeyData(
   accountId: string,
   monthId: string,
   sections: SectionMeta[],
   sectionTotals: Record<string, string>,
+  groupBy: "section" | "category" = "category",
 ): Promise<SankeyData> {
+  const abs = (v: bigint) => (v < 0n ? -v : v);
+
   const addSections = sections.filter((s) => s.countType === "add");
   const subtractSections = sections.filter(
     (s) => s.countType === "subtract" || s.countType === "neutral",
   );
 
-  const incomeTotal = addSections.reduce((sum, s) => {
-    const v = BigInt(sectionTotals[s.id] ?? "0");
-    return sum + (v < 0n ? -v : v);
-  }, 0n);
+  const incomeTotal = addSections.reduce(
+    (sum, s) => sum + abs(BigInt(sectionTotals[s.id] ?? "0")),
+    0n,
+  );
   if (incomeTotal === 0n) return { nodes: [], links: [] };
 
-  const subtractIds = subtractSections.map((s) => s.id);
-  const categoryRows =
-    subtractIds.length > 0
-      ? await prisma.transaction.groupBy({
-          by: ["categoryId"],
-          where: {
-            accountId,
-            monthId,
-            sectionId: { in: subtractIds },
-            table: { countInMonth: true },
-          },
-          _sum: { amountCents: true },
-          orderBy: { _sum: { amountCents: "desc" } },
-          take: 8,
-        })
-      : [];
-
-  const categoryIds = categoryRows.map((r) => r.categoryId).filter(Boolean) as string[];
-  const cats =
-    categoryIds.length > 0
-      ? await prisma.category.findMany({
-          where: { id: { in: categoryIds } },
-          select: { id: true, name: true },
-        })
-      : [];
-  const catNameMap = new Map(cats.map((c) => [c.id, c.name]));
-
-  const categorizedExpense = categoryRows.reduce((sum, r) => {
-    const v = r._sum.amountCents ?? 0n;
-    return sum + (v < 0n ? -v : v);
-  }, 0n);
-  const totalExpense = subtractSections.reduce((sum, s) => {
-    const v = BigInt(sectionTotals[s.id] ?? "0");
-    return sum + (v < 0n ? -v : v);
-  }, 0n);
-  const uncategorized = totalExpense > categorizedExpense ? totalExpense - categorizedExpense : 0n;
+  const totalExpense = subtractSections.reduce(
+    (sum, s) => sum + abs(BigInt(sectionTotals[s.id] ?? "0")),
+    0n,
+  );
   const savings = incomeTotal > totalExpense ? incomeTotal - totalExpense : 0n;
 
   const TOTAL = "__total__";
   const SAVINGS = "__savings__";
   const UNCAT = "__uncat__";
 
-  const activeSources = addSections.filter((s) => {
-    const v = BigInt(sectionTotals[s.id] ?? "0");
-    return (v < 0n ? -v : v) > 0n;
-  });
+  const activeSources = addSections.filter((s) => abs(BigInt(sectionTotals[s.id] ?? "0")) > 0n);
 
-  const nodes: SankeyNode[] = [
+  const baseNodes: SankeyNode[] = [
     ...activeSources.map((s) => ({ id: s.id, label: s.name })),
     { id: TOTAL, label: "Total Disponível" },
-    ...categoryRows
-      .filter((r) => r.categoryId && (r._sum.amountCents ?? 0n) !== 0n)
-      .map((r) => ({ id: `cat_${r.categoryId}`, label: catNameMap.get(r.categoryId!) ?? "—" })),
-    ...(uncategorized > 0n ? [{ id: UNCAT, label: "Outros gastos" }] : []),
+  ];
+  const baseLinks: SankeyLink[] = activeSources.map((s) => ({
+    source: s.id,
+    target: TOTAL,
+    value: Number(abs(BigInt(sectionTotals[s.id] ?? "0"))) / 100,
+  }));
+
+  // Nível intermediário: gastos por seção ou por categoria.
+  let midNodes: SankeyNode[] = [];
+  let midLinks: SankeyLink[] = [];
+
+  if (groupBy === "section") {
+    const expenseSections = subtractSections.filter(
+      (s) => abs(BigInt(sectionTotals[s.id] ?? "0")) > 0n,
+    );
+    midNodes = expenseSections.map((s) => ({ id: `sec_${s.id}`, label: s.name }));
+    midLinks = expenseSections.map((s) => ({
+      source: TOTAL,
+      target: `sec_${s.id}`,
+      value: Number(abs(BigInt(sectionTotals[s.id] ?? "0"))) / 100,
+    }));
+  } else {
+    const subtractIds = subtractSections.map((s) => s.id);
+    const categoryRows =
+      subtractIds.length > 0
+        ? await prisma.transaction.groupBy({
+            by: ["categoryId"],
+            where: {
+              accountId,
+              monthId,
+              sectionId: { in: subtractIds },
+              table: { countInMonth: true },
+            },
+            _sum: { amountCents: true },
+            orderBy: { _sum: { amountCents: "desc" } },
+            take: 8,
+          })
+        : [];
+
+    const categoryIds = categoryRows.map((r) => r.categoryId).filter(Boolean) as string[];
+    const cats =
+      categoryIds.length > 0
+        ? await prisma.category.findMany({
+            where: { id: { in: categoryIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const catNameMap = new Map(cats.map((c) => [c.id, c.name]));
+
+    const categorizedExpense = categoryRows.reduce(
+      (sum, r) => sum + abs(r._sum.amountCents ?? 0n),
+      0n,
+    );
+    const uncategorized =
+      totalExpense > categorizedExpense ? totalExpense - categorizedExpense : 0n;
+
+    const named = categoryRows.filter((r) => r.categoryId && (r._sum.amountCents ?? 0n) !== 0n);
+    midNodes = [
+      ...named.map((r) => ({
+        id: `cat_${r.categoryId}`,
+        label: catNameMap.get(r.categoryId!) ?? "—",
+      })),
+      ...(uncategorized > 0n ? [{ id: UNCAT, label: "Outros gastos" }] : []),
+    ];
+    midLinks = [
+      ...named.map((r) => ({
+        source: TOTAL,
+        target: `cat_${r.categoryId}`,
+        value: Number(abs(r._sum.amountCents ?? 0n)) / 100,
+      })),
+      ...(uncategorized > 0n
+        ? [{ source: TOTAL, target: UNCAT, value: Number(uncategorized) / 100 }]
+        : []),
+    ];
+  }
+
+  const nodes: SankeyNode[] = [
+    ...baseNodes,
+    ...midNodes,
     ...(savings > 0n ? [{ id: SAVINGS, label: "Sobra / Poupança" }] : []),
   ];
-
   const links: SankeyLink[] = [
-    ...activeSources.map((s) => {
-      const v = BigInt(sectionTotals[s.id] ?? "0");
-      return { source: s.id, target: TOTAL, value: Number(v < 0n ? -v : v) / 100 };
-    }),
-    ...categoryRows
-      .filter((r) => r.categoryId && (r._sum.amountCents ?? 0n) !== 0n)
-      .map((r) => {
-        const v = r._sum.amountCents ?? 0n;
-        return {
-          source: TOTAL,
-          target: `cat_${r.categoryId}`,
-          value: Number(v < 0n ? -v : v) / 100,
-        };
-      }),
-    ...(uncategorized > 0n
-      ? [{ source: TOTAL, target: UNCAT, value: Number(uncategorized) / 100 }]
-      : []),
+    ...baseLinks,
+    ...midLinks,
     ...(savings > 0n ? [{ source: TOTAL, target: SAVINGS, value: Number(savings) / 100 }] : []),
   ];
 
@@ -773,7 +811,7 @@ export async function getYearDeepDive(accountId: string, year: number) {
       },
       _sum: { amountCents: true },
       orderBy: { _sum: { amountCents: "desc" } },
-      take: 10,
+      take: 20, // fetch 20 para permitir slicing pelo config top-categories
     }),
     prisma.transaction.groupBy({
       by: ["institutionId"],

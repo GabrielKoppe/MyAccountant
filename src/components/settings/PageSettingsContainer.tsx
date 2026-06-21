@@ -6,20 +6,24 @@ import { containers, layout } from "@/lib/design-tokens";
 interface PageSettingsContainerProps {
   title?: string;
   secondary?: React.ReactNode;
+  /** Largura máxima do conteúdo. Padrão `md`; o editor de visualização usa `lg`. */
+  maxWidth?: number | string;
   children?: React.ReactNode;
 }
 
 const PageSettingsContainer: React.FC<PageSettingsContainerProps> = ({
   title,
   secondary,
+  maxWidth = containers.md,
   children,
 }) => {
   return (
     <Box
       sx={{
         p: layout.page,
-        maxWidth: containers.md,
+        maxWidth,
         display: "flex",
+        justifyContent: "flex-start",
         flexDirection: "column",
         gap: 4,
       }}

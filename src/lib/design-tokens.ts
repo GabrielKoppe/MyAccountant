@@ -248,7 +248,13 @@ export const motion = {
 // TIPOS E HELPERS
 // ============================================================================
 
-export type ColorTokens = typeof lightColors;
+// Widen as-const hex literais (ex: "#FAFAF7") para `string`, de modo que tanto
+// lightColors quanto darkColors (literais distintos) sejam atribuíveis a ColorTokens.
+type WidenColorTokens<T> = {
+  [K in keyof T]: T[K] extends string ? string : WidenColorTokens<T[K]>;
+};
+
+export type ColorTokens = WidenColorTokens<typeof lightColors>;
 export type ThemeMode = "light" | "dark";
 
 export function getColors(mode: ThemeMode): ColorTokens {

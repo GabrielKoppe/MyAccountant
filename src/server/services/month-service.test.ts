@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { TEST_CTX } from "@/../tests/fixtures/account";
@@ -88,7 +88,7 @@ describe("getSectionTotals", () => {
 
     // Assert
     expect(result).toEqual({});
-    expect(prismaMock.transaction.groupBy).not.toHaveBeenCalled();
+    expect((prismaMock.transaction.groupBy as unknown as Mock)).not.toHaveBeenCalled();
   });
 
   it("deve usar uma única query groupBy para múltiplas seções", async () => {
@@ -97,25 +97,25 @@ describe("getSectionTotals", () => {
       { sectionId: "s1", _sum: { amountCents: 100000n } },
       { sectionId: "s2", _sum: { amountCents: 50000n } },
     ];
-    prismaMock.transaction.groupBy.mockResolvedValue(rows as never);
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue(rows as never);
 
     // Act
     const result = await getSectionTotals("acc-test-1", "month-1", ["s1", "s2", "s3"]);
 
     // Assert
-    expect(prismaMock.transaction.groupBy).toHaveBeenCalledOnce();
+    expect((prismaMock.transaction.groupBy as unknown as Mock)).toHaveBeenCalledOnce();
     expect(result).toEqual({ s1: 100000n, s2: 50000n });
   });
 
   it("deve passar accountId, monthId e sectionIds corretos para o groupBy", async () => {
     // Arrange
-    prismaMock.transaction.groupBy.mockResolvedValue([] as never);
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue([] as never);
 
     // Act
     await getSectionTotals("acc-test-1", "month-1", ["s1", "s2"]);
 
     // Assert
-    expect(prismaMock.transaction.groupBy).toHaveBeenCalledWith(
+    expect((prismaMock.transaction.groupBy as unknown as Mock)).toHaveBeenCalledWith(
       expect.objectContaining({
         by: ["sectionId"],
         where: expect.objectContaining({
@@ -131,7 +131,7 @@ describe("getSectionTotals", () => {
   it("deve retornar 0n para seção cujo _sum.amountCents é null", async () => {
     // Arrange
     const rows: GroupByRow[] = [{ sectionId: "s1", _sum: { amountCents: null } }];
-    prismaMock.transaction.groupBy.mockResolvedValue(rows as never);
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue(rows as never);
 
     // Act
     const result = await getSectionTotals("acc-test-1", "month-1", ["s1"]);
@@ -143,7 +143,7 @@ describe("getSectionTotals", () => {
   it("seções sem transações não aparecem no resultado (caller usa ?? 0n)", async () => {
     // Arrange
     const rows: GroupByRow[] = [{ sectionId: "s1", _sum: { amountCents: 200000n } }];
-    prismaMock.transaction.groupBy.mockResolvedValue(rows as never);
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue(rows as never);
 
     // Act
     const result = await getSectionTotals("acc-test-1", "month-1", ["s1", "s2"]);

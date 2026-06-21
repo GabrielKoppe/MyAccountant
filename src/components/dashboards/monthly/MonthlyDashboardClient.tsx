@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import React, { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 import { formatCentsToBrl } from "@/lib/money";
@@ -21,40 +20,38 @@ import type {
 import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
 import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
-import {
-  MemberBreakdownChart,
-  MemberBreakdownChartSecondary,
-  MemberBreakdownView,
-} from "@/components/dashboards/panels/MemberBreakdownChart";
 import { DailyHeatmap } from "@/components/dashboards/charts/DailyHeatmap";
 import { CategoryTreemap } from "@/components/dashboards/charts/CategoryTreemap";
-import { CategoryPieChart } from "@/components/dashboards/charts/CategoryPieChart";
 import { DrillDownDrawer } from "@/components/dashboards/panels/DrillDownDrawer";
 import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
-import { SectionPieChart } from "@/components/dashboards/charts/SectionPieChart";
-import {
-  PinnedAnalysesSection,
-  PinnedAnalysesSectionSecondary,
-} from "@/components/dashboards/panels/PinnedAnalysesSection";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
-import { DashboardWidgetRenderer } from "@/components/dashboards/_core/DashboardWidgetRenderer";
+import { SectionBreakdownWidget } from "@/components/dashboards/panels/SectionBreakdownWidget";
+import { CategoryBreakdownWidget } from "@/components/dashboards/panels/CategoryBreakdownWidget";
+import { MemberBreakdownWidget } from "@/components/dashboards/panels/MemberBreakdownWidget";
+import { MemberListWidget } from "@/components/dashboards/panels/MemberListWidget";
+import { MemberRadarWidget } from "@/components/dashboards/panels/MemberRadarWidget";
+import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
+import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 import { TopTransactionTable } from "../panels/TopTransactionTable";
-import { BudgetWidgetContent } from "@/components/budgets/BudgetWidgetContent";
+import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
 import type { Insight } from "@/server/services/insights-service";
-import type { PinnedAnalysisData } from "@/lib/queries/sandbox";
-import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
 import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
-import type { WidgetDef } from "@/components/dashboards/_core/widget-registry";
+import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import {
+  kpiCustomConfigSchema,
+  type PieChartConfig,
+  type TopTransactionsConfig,
+  type TreemapConfig,
+} from "@/lib/schemas/widget-config";
+import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
+import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
+import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
+import type { SerializedSandboxResult } from "@/lib/queries/sandbox";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CategoryIcon from "@mui/icons-material/Category";
-import AddIcon from "@mui/icons-material/Add";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import { WidgetContainer } from "@/components/ui/WidgetContainer";
-import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 
 // @nivo/sankey loaded client-only (no SSR — uses D3 hooks)
 const SankeyChart = dynamic(
@@ -93,12 +90,13 @@ type Props = {
   dailyTotals: DayTotal[];
   treemapData: TreemapCategory[];
   sankeyData: SankeyData;
-  pinnedAnalyses: PinnedAnalysisData[];
   budgets: BudgetProgress[];
   budgetFormOptions: BudgetFormOptions;
   insights: Insight[];
   memberBreakdown: MemberBreakdownRow[];
-  activeWidgets: WidgetDef[];
+  widgets: StoredWidget[];
+  kpiCustomData: Record<string, KpiCustomResult>;
+  analysisData: Record<string, SerializedSandboxResult>;
 };
 
 function pickComparisonValues(
@@ -149,20 +147,19 @@ export function MonthlyDashboardClient({
   dailyTotals,
   treemapData,
   sankeyData,
-  pinnedAnalyses,
   budgets,
   budgetFormOptions,
   insights,
   memberBreakdown,
-  activeWidgets,
+  widgets,
+  kpiCustomData,
+  analysisData,
 }: Props) {
   const [compareMode, setCompareMode] = useState<CompareMode>("prevMonth");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTitle, setDrawerTitle] = useState("");
   const [drawerTxs, setDrawerTxs] = useState<DrillDownTransaction[]>([]);
   const [drawerLoading, startDrawerTransition] = useTransition();
-  const [budgetFormOpen, setBudgetFormOpen] = useState(false);
-  const [view, setView] = useState<MemberBreakdownView>("donut");
 
   const compValues = pickComparisonValues(compareMode, sparklineData, comparisonData);
   const hasPrevYear = !!comparisonData.prevYearSameMonth;
@@ -176,9 +173,19 @@ export function MonthlyDashboardClient({
       ? Math.round(((Number(incomeBigInt) - Number(expenseBigInt)) / Number(incomeBigInt)) * 100)
       : 0;
 
-  const subtractSections = sections.filter(
-    (s) => s.countType === "subtract" || s.countType === "neutral",
-  );
+  // Config interna por widget (singletons) — aplicada à apresentação.
+  const configOf = (widgetId: string): unknown =>
+    widgets.find((w) => w.widgetId === widgetId)?.config;
+
+  // Comparação global → também a taxa de poupança (variação em pontos percentuais).
+  const prevSavingsRate =
+    compValues.income != null && compValues.expense != null && BigInt(compValues.income) > 0n
+      ? Math.round(
+          ((Number(BigInt(compValues.income)) - Number(BigInt(compValues.expense))) /
+            Number(BigInt(compValues.income))) *
+            100,
+        )
+      : null;
 
   function openDrawer(ids: string[], title: string) {
     setDrawerTitle(title);
@@ -189,12 +196,15 @@ export function MonthlyDashboardClient({
     });
   }
 
-  const nodeMap: Record<string, React.ReactNode> = {
+  const kpiRm = (id: string) => getRenderMode(widgets, "monthly", id);
+
+  const nodeByWidgetId: Record<string, React.ReactNode> = {
     "kpi-month-total": (
       <KpiSparklineCard
         title={m.dashboards.kpi.monthTotal}
         value={formatCentsToBrl(totalBigInt)}
         color={totalBigInt >= 0n ? "success" : "error"}
+        renderMode={kpiRm("kpi-month-total")}
         sparkline={sparklineData.totalSparkline}
         currentCents={monthTotal}
         prevCents={compValues.total}
@@ -211,6 +221,7 @@ export function MonthlyDashboardClient({
         currentCents={incomeTotal}
         prevCents={compValues.income}
         deltaMode={compareMode}
+        renderMode={kpiRm("kpi-income")}
       />
     ),
     "kpi-expenses": (
@@ -223,6 +234,7 @@ export function MonthlyDashboardClient({
         currentCents={expenseTotal}
         prevCents={compValues.expense}
         deltaMode={compareMode}
+        renderMode={kpiRm("kpi-expenses")}
       />
     ),
     "kpi-savings-rate": (
@@ -232,128 +244,143 @@ export function MonthlyDashboardClient({
         subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
         color={savingsRate >= 20 ? "success" : savingsRate >= 0 ? "warning" : "error"}
         icon={SavingsIcon}
+        deltaPp={{ current: savingsRate, prev: prevSavingsRate }}
+        deltaMode={compareMode}
+        renderMode={kpiRm("kpi-savings-rate")}
       />
     ),
-    "kpi-top-category": topCategory ? (
+    "kpi-top-category": (
       <KpiSparklineCard
         title={m.dashboards.kpi.topCategory}
-        value={formatCentsToBrl(BigInt(topCategory.totalCents))}
-        subtitle={topCategory.name}
+        value={topCategory ? formatCentsToBrl(BigInt(topCategory.totalCents)) : "—"}
+        subtitle={topCategory?.name}
         color="info"
         icon={CategoryIcon}
+        renderMode={kpiRm("kpi-top-category")}
       />
-    ) : null,
-    "kpi-pending":
-      pendingCount > 0 ? (
-        <KpiSparklineCard
-          title={m.dashboards.kpi.pendingCount}
-          value={String(pendingCount)}
-          color="warning"
-          icon={AccessTimeIcon}
-        />
-      ) : null,
+    ),
+    "kpi-pending": (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.pendingCount}
+        value={String(pendingCount)}
+        color={pendingCount > 0 ? "warning" : "default"}
+        icon={AccessTimeIcon}
+        renderMode={kpiRm("kpi-pending")}
+      />
+    ),
     budgets: (
-      <WidgetContainer
-        title={m.budgets.title}
-        subtitle={`${budgets.length} ${budgets.length === 1 ? "meta" : "metas"}`}
-        icon={WIDGET_ICONS["budgets"]}
-        collapsible
-        secondary={
-          <Tooltip title={m.budgets.createButton}>
-            <IconButton size="small" onClick={() => setBudgetFormOpen(true)}>
-              <AddIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
+      <BudgetsWidget
+        budgets={budgets}
+        accountId={accountId}
+        monthId={monthId}
+        formOptions={budgetFormOptions}
+        config={
+          configOf("budgets") as import("@/lib/schemas/widget-config").BudgetsConfig | undefined
         }
-      >
-        <BudgetWidgetContent budgets={budgets} onAddClick={() => setBudgetFormOpen(true)} />
-      </WidgetContainer>
+        renderMode={getRenderMode(widgets, "monthly", "budgets") as "compact" | "default" | "full"}
+      />
     ),
-    "daily-heatmap":
-      subtractSections.length > 0 ? (
-        <WidgetContainer
-          title={m.dashboards.sections.calendarHeatmap}
-          subtitle="Intensidade = total gasto naquele dia (seções de saída)"
-          icon={WIDGET_ICONS["daily-heatmap"]}
-        >
-          <DailyHeatmap
-            year={year}
-            month={month}
-            dailyTotals={dailyTotals}
-            onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
-          />
-        </WidgetContainer>
-      ) : null,
+    "daily-heatmap": (
+      <DailyHeatmap
+        year={year}
+        month={month}
+        dailyTotals={dailyTotals}
+        onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
+        monthSummaryHref={`/${accountId}/months/${monthId}`}
+      />
+    ),
     "category-treemap": (
-      <WidgetContainer
-        title={m.dashboards.sections.categoryTreemap}
-        icon={WIDGET_ICONS["category-treemap"]}
-      >
-        <CategoryTreemap
-          categories={treemapData}
-          onDrillDown={(ids, label) => openDrawer(ids, label)}
-        />
-      </WidgetContainer>
+      <CategoryTreemap
+        categories={treemapData}
+        config={configOf("category-treemap") as TreemapConfig | undefined}
+        onDrillDown={(ids, label) => openDrawer(ids, label)}
+      />
     ),
-    "money-flow":
-      sankeyData.nodes.length > 0 ? (
-        <WidgetContainer
-          title={m.dashboards.sections.moneyFlow}
-          subtitle="Fluxo: entradas → total disponível → categorias de gastos"
-          icon={WIDGET_ICONS["money-flow"]}
-        >
-          <SankeyChart data={sankeyData} />
-        </WidgetContainer>
-      ) : null,
+    "money-flow": (
+      <SankeyChart
+        data={sankeyData}
+        monthSummaryHref={`/${accountId}/months/${monthId}`}
+        renderMode={getRenderMode(widgets, "monthly", "money-flow")}
+      />
+    ),
     "section-breakdown": (
-      <WidgetContainer
-        title={m.dashboards.sections.sectionBreakdown}
-        icon={WIDGET_ICONS["section-breakdown"]}
-      >
-        <SectionPieChart sections={sections} sectionTotals={sectionTotals} />
-      </WidgetContainer>
+      <SectionBreakdownWidget
+        sections={sections}
+        sectionTotals={sectionTotals}
+        config={configOf("section-breakdown") as PieChartConfig | undefined}
+        renderMode={
+          getRenderMode(widgets, "monthly", "section-breakdown") as "compact" | "default" | "full"
+        }
+      />
     ),
     "category-breakdown": (
-      <WidgetContainer
-        title={m.dashboards.sections.categoryBreakdown}
-        icon={WIDGET_ICONS["category-breakdown"]}
-      >
-        <CategoryPieChart categories={topCategories} />
-      </WidgetContainer>
-    ),
-    "pinned-analyses": (
-      <WidgetContainer
-        title={m.dashboards.sandbox.pinnedTitle}
-        icon={WIDGET_ICONS["pinned-analyses"]}
-        secondary={<PinnedAnalysesSectionSecondary accountId={accountId} />}
-        collapsible
-      >
-        <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
-      </WidgetContainer>
+      <CategoryBreakdownWidget
+        categories={topCategories}
+        config={configOf("category-breakdown") as PieChartConfig | undefined}
+        renderMode={
+          getRenderMode(widgets, "monthly", "category-breakdown") as "compact" | "default" | "full"
+        }
+      />
     ),
     insights: (
-      <WidgetContainer title={m.dashboards.insights.cardTitle} icon={WIDGET_ICONS["insights"]}>
-        <InsightsCard insights={insights} />
-      </WidgetContainer>
+      <InsightsCard
+        insights={insights}
+        renderMode={getRenderMode(widgets, "monthly", "insights") as "compact" | "default" | "full"}
+      />
     ),
-    "member-breakdown": memberBreakdown.some((r) => BigInt(r.totalCents) > 0n) ? (
-      <WidgetContainer
-        title={m.dashboards.sections.memberBreakdown}
-        icon={WIDGET_ICONS["member-breakdown"]}
-        secondary={<MemberBreakdownChartSecondary view={view} onChange={setView} />}
-      >
-        <MemberBreakdownChart rows={memberBreakdown} view={{ type: view, onChange: setView }} />
-      </WidgetContainer>
-    ) : null,
+    "member-breakdown": (
+      <MemberBreakdownWidget
+        rows={memberBreakdown}
+        config={configOf("member-breakdown") as PieChartConfig | undefined}
+        renderMode={
+          getRenderMode(widgets, "monthly", "member-breakdown") as "compact" | "default" | "full"
+        }
+      />
+    ),
+    "member-list": (
+      <MemberListWidget
+        rows={memberBreakdown}
+        renderMode={
+          getRenderMode(widgets, "monthly", "member-list") as "compact" | "default" | "full"
+        }
+      />
+    ),
+    "member-radar": (
+      <MemberRadarWidget
+        rows={memberBreakdown}
+        renderMode={getRenderMode(widgets, "monthly", "member-radar") as "compact" | "default"}
+      />
+    ),
     "top-transactions": (
-      <WidgetContainer
-        title={m.dashboards.sections.biggestTransactions}
-        icon={WIDGET_ICONS["top-transactions"]}
-      >
-        <TopTransactionTable transactions={topTransactions} />
-      </WidgetContainer>
+      <TopTransactionTable
+        transactions={topTransactions}
+        config={configOf("top-transactions") as TopTransactionsConfig | undefined}
+      />
     ),
   };
+
+  // nodeMap por instanceId: singletons resolvem pelo widgetId; instâncias
+  // kpi-custom têm config + dados próprios por instância; analysis têm dados por instância.
+  const nodeMap: Record<string, React.ReactNode> = {};
+  for (const w of widgets) {
+    if (w.widgetId === "kpi-custom") {
+      const parsed = kpiCustomConfigSchema.safeParse(w.config);
+      const config = parsed.success ? parsed.data : kpiCustomConfigSchema.parse({});
+      nodeMap[w.instanceId] = (
+        <KpiCustomWidget config={config} data={kpiCustomData[w.instanceId] ?? null} />
+      );
+    } else if (w.widgetId === "analysis") {
+      nodeMap[w.instanceId] = (
+        <AnalysisWidget
+          rawConfig={w.config}
+          data={analysisData[w.instanceId] ?? null}
+          sizeVariantId={w.sizeVariantId}
+        />
+      );
+    } else {
+      nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+    }
+  }
 
   return (
     <Box>
@@ -366,7 +393,7 @@ export function MonthlyDashboardClient({
         />
       </Box>
 
-      <DashboardWidgetRenderer active={activeWidgets} nodeMap={nodeMap} />
+      <DashboardGrid widgets={widgets} nodeMap={nodeMap} cols={6} />
 
       <DrillDownDrawer
         open={drawerOpen}
@@ -374,14 +401,6 @@ export function MonthlyDashboardClient({
         title={drawerTitle}
         transactions={drawerTxs}
         loading={drawerLoading}
-      />
-
-      <BudgetFormDialog
-        open={budgetFormOpen}
-        onClose={() => setBudgetFormOpen(false)}
-        accountId={accountId}
-        formOptions={budgetFormOptions}
-        onSuccess={() => setBudgetFormOpen(false)}
       />
     </Box>
   );

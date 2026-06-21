@@ -2,35 +2,35 @@
 
 import React from "react";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SavingsIcon from "@mui/icons-material/Savings";
-import ScienceIcon from "@mui/icons-material/Science";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { SectionMeta, CategorySum, MonthSummary } from "@/lib/queries/dashboards";
-import type { PinnedAnalysisData } from "@/lib/queries/sandbox";
 import type { MemberTrendSeries } from "@/lib/queries/member-analytics";
 
 import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
 import { MonthlyBarChart } from "@/components/dashboards/charts/MonthlyBarChart";
-import { CategoryBarList } from "@/components/dashboards/charts/CategoryBarList";
+import { TopCategoriesWidget } from "@/components/dashboards/panels/TopCategoriesWidget";
 import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { MemberTrendChart } from "@/components/dashboards/charts/MemberTrendChart";
-import { PinnedAnalysesSection } from "@/components/dashboards/panels/PinnedAnalysesSection";
-import { DashboardWidgetRenderer } from "@/components/dashboards/_core/DashboardWidgetRenderer";
-import { WidgetContainer } from "@/components/ui/WidgetContainer";
+import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { AppLink } from "@/components/ui/AppLink";
-import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { YearSelector } from "@/components/dashboards/_shared/YearSelector";
 import { YearlyDashboardMenu } from "./YearlyDashboardMenu";
-import type { WidgetDef } from "@/components/dashboards/_core/widget-registry";
+import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
+import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import { kpiCustomConfigSchema, type TopCategoriesConfig } from "@/lib/schemas/widget-config";
+import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
+import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
+import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
+import type { SerializedSandboxResult } from "@/lib/queries/sandbox";
 
 type Props = {
   accountId: string;
@@ -51,9 +51,10 @@ type Props = {
   monthSummaries: MonthSummary[];
   sections: SectionMeta[];
   topCategories: CategorySum[];
-  pinnedAnalyses: PinnedAnalysisData[];
   memberTrend: MemberTrendSeries[];
-  activeWidgets: WidgetDef[];
+  widgets: StoredWidget[];
+  kpiCustomData: Record<string, KpiCustomResult>;
+  analysisData: Record<string, SerializedSandboxResult>;
 };
 
 export function YearlyDashboardClient({
@@ -73,21 +74,29 @@ export function YearlyDashboardClient({
   monthSummaries,
   sections,
   topCategories,
-  pinnedAnalyses,
   memberTrend,
-  activeWidgets,
+  widgets,
+  kpiCustomData,
+  analysisData,
 }: Props) {
   const yearTotalBigInt = BigInt(yearTotal);
   const yearlyIncomeBigInt = BigInt(yearlyIncome);
   const yearlyExpenseBigInt = BigInt(yearlyExpense);
 
-  const nodeMap: Record<string, React.ReactNode> = {
+  // Config interna por widget (singletons)
+  const configOf = (widgetId: string): unknown =>
+    widgets.find((w) => w.widgetId === widgetId)?.config;
+
+  const kpiRm = (id: string) => getRenderMode(widgets, "yearly", id);
+
+  const nodeByWidgetId: Record<string, React.ReactNode> = {
     "kpi-year-total": (
       <KpiSparklineCard
         title={m.dashboards.kpi.yearTotal}
         value={formatCentsToBrl(yearTotalBigInt)}
         subtitle={`${monthCount} ${monthCount === 1 ? "mês" : "meses"}`}
         color={yearTotalBigInt >= 0n ? "success" : "error"}
+        renderMode={kpiRm("kpi-year-total")}
       />
     ),
     "kpi-income": (
@@ -96,6 +105,7 @@ export function YearlyDashboardClient({
         value={formatCentsToBrl(yearlyIncomeBigInt)}
         color="success"
         icon={TrendingUpIcon}
+        renderMode={kpiRm("kpi-income")}
       />
     ),
     "kpi-expenses": (
@@ -104,6 +114,7 @@ export function YearlyDashboardClient({
         value={formatCentsToBrl(yearlyExpenseBigInt)}
         color="error"
         icon={TrendingDownIcon}
+        renderMode={kpiRm("kpi-expenses")}
       />
     ),
     "kpi-savings-rate": (
@@ -113,6 +124,7 @@ export function YearlyDashboardClient({
         subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
         color={savingsRate >= 20 ? "success" : savingsRate >= 0 ? "warning" : "error"}
         icon={SavingsIcon}
+        renderMode={kpiRm("kpi-savings-rate")}
       />
     ),
     "kpi-monthly-avg": (
@@ -120,6 +132,7 @@ export function YearlyDashboardClient({
         title={m.dashboards.kpi.monthlyAvg}
         value={formatCentsToBrl(BigInt(monthAvg))}
         icon={CalendarMonthIcon}
+        renderMode={kpiRm("kpi-monthly-avg")}
       />
     ),
     "kpi-best-month": (
@@ -129,6 +142,7 @@ export function YearlyDashboardClient({
         subtitle={bestMonth.label}
         icon={TrendingUpIcon}
         color="success"
+        renderMode={kpiRm("kpi-best-month")}
       />
     ),
     "kpi-worst-month": (
@@ -138,81 +152,69 @@ export function YearlyDashboardClient({
         subtitle={worstMonth.label}
         icon={TrendingDownIcon}
         color={BigInt(worstMonth.total) < 0n ? "error" : "default"}
+        renderMode={kpiRm("kpi-worst-month")}
       />
     ),
-    "kpi-pending":
-      pendingCount > 0 ? (
-        <KpiSparklineCard
-          title={m.dashboards.kpi.pendingCount}
-          value={String(pendingCount)}
-          color="warning"
-          icon={AccessTimeIcon}
-        />
-      ) : null,
+    "kpi-pending": (
+      <KpiSparklineCard
+        title={m.dashboards.kpi.pendingCount}
+        value={String(pendingCount)}
+        color={pendingCount > 0 ? "warning" : "default"}
+        icon={AccessTimeIcon}
+        renderMode={kpiRm("kpi-pending")}
+      />
+    ),
     "month-card-grid": (
-      <WidgetContainer
-        title={m.dashboards.widgets.yearly["month-card-grid"]}
-        icon={WIDGET_ICONS["month-card-grid"]}
-      >
-        <MonthCardGrid accountId={accountId} months={monthSummaries} />
-      </WidgetContainer>
+      <MonthCardGrid
+        accountId={accountId}
+        months={monthSummaries}
+        renderMode={getRenderMode(widgets, "yearly", "month-card-grid")}
+      />
     ),
     "monthly-bar-chart": (
-      <WidgetContainer
-        title={m.dashboards.sections.monthlyChart}
-        icon={WIDGET_ICONS["monthly-bar-chart"]}
-        secondary={
-          <Typography variant="caption" color="text.secondary">
-            Clique em uma barra para abrir o mês
-          </Typography>
-        }
-      >
-        <MonthlyBarChart
-          months={monthSummaries}
-          sections={sections}
-          monthPagePrefix={`/${accountId}/dashboards/monthly/`}
-        />
-      </WidgetContainer>
-    ),
-    "pinned-analyses": (
-      <WidgetContainer
-        title={m.dashboards.sandbox.pinnedTitle}
-        icon={WIDGET_ICONS["pinned-analyses"]}
-        secondary={
-          <Button
-            component={AppLink}
-            href={`/${accountId}/dashboards/sandbox`}
-            variant="outlined"
-            size="small"
-            startIcon={<ScienceIcon />}
-            sx={{ fontSize: "0.75rem" }}
-          >
-            {m.dashboards.sandbox.openSandbox}
-          </Button>
-        }
-        collapsible
-      >
-        <PinnedAnalysesSection accountId={accountId} pinnedAnalyses={pinnedAnalyses} />
-      </WidgetContainer>
+      <MonthlyBarChart
+        months={monthSummaries}
+        sections={sections}
+        monthDashboardPrefix={`/${accountId}/dashboards/monthly/`}
+        renderMode={getRenderMode(widgets, "yearly", "monthly-bar-chart")}
+      />
     ),
     "top-categories": (
-      <WidgetContainer
-        title={m.dashboards.sections.topCategories}
-        icon={WIDGET_ICONS["top-categories"]}
-      >
-        <CategoryBarList categories={topCategories} />
-      </WidgetContainer>
+      <TopCategoriesWidget
+        categories={topCategories}
+        config={configOf("top-categories") as TopCategoriesConfig | undefined}
+        renderMode={getRenderMode(widgets, "yearly", "top-categories")}
+      />
     ),
-    "member-trend":
-      memberTrend.length > 0 ? (
-        <WidgetContainer
-          title={m.dashboards.sections.memberTrend}
-          icon={WIDGET_ICONS["member-trend"]}
-        >
-          <MemberTrendChart series={memberTrend} />
-        </WidgetContainer>
-      ) : null,
+    "member-trend": (
+      <MemberTrendChart
+        series={memberTrend}
+        renderMode={getRenderMode(widgets, "yearly", "member-trend")}
+      />
+    ),
   };
+
+  // nodeMap por instanceId: singletons pelo widgetId; kpi-custom por instância; analysis por instância.
+  const nodeMap: Record<string, React.ReactNode> = {};
+  for (const w of widgets) {
+    if (w.widgetId === "kpi-custom") {
+      const parsed = kpiCustomConfigSchema.safeParse(w.config);
+      const config = parsed.success ? parsed.data : kpiCustomConfigSchema.parse({});
+      nodeMap[w.instanceId] = (
+        <KpiCustomWidget config={config} data={kpiCustomData[w.instanceId] ?? null} />
+      );
+    } else if (w.widgetId === "analysis") {
+      nodeMap[w.instanceId] = (
+        <AnalysisWidget
+          rawConfig={w.config}
+          data={analysisData[w.instanceId] ?? null}
+          sizeVariantId={w.sizeVariantId}
+        />
+      );
+    } else {
+      nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;
+    }
+  }
 
   return (
     <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
@@ -252,7 +254,7 @@ export function YearlyDashboardClient({
         </Box>
       </Box>
 
-      <DashboardWidgetRenderer active={activeWidgets} nodeMap={nodeMap} />
+      <DashboardGrid widgets={widgets} nodeMap={nodeMap} cols={6} />
     </Box>
   );
 }

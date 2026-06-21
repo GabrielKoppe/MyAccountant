@@ -5,7 +5,6 @@ import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import UndoIcon from "@mui/icons-material/Undo";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
@@ -17,12 +16,13 @@ import {
   getCategoryTreemapData,
   getSankeyData,
 } from "@/lib/queries/dashboards";
-import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { getMemberMonthlyBreakdown } from "@/lib/queries/member-analytics";
 import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
+import { getKpiCustomDataMap } from "@/lib/queries/kpi-custom";
 import { generateInsights } from "@/server/services/insights-service";
 import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
+import { getSandboxDataMap } from "@/lib/queries/sandbox";
 import { AppLink } from "@/components/ui/AppLink";
 import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
 import { MonthlyDashboardMenu } from "@/components/dashboards/monthly/MonthlyDashboardMenu";
@@ -79,10 +79,9 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     sparklineData,
     comparisonData,
     treemapData,
-    pinnedAnalyses,
     budgets,
     budgetFormOptions,
-    layout,
+    widgets,
     insights,
     memberBreakdown,
   ] = await Promise.all([
@@ -90,7 +89,6 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     getMonthSparklineData(accountId, monthId),
     getComparisonData(accountId, monthId),
     getCategoryTreemapData(accountId, monthId),
-    getPinnedAnalyses(accountId, "monthly", monthId),
     getBudgetsWithProgress(accountId, year, month),
     getBudgetFormOptions(accountId),
     getLayout(accountId, "monthly"),
@@ -120,8 +118,26 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     .filter((s) => s.countType === "subtract" || s.countType === "neutral")
     .map((s) => s.id);
 
-  const dailyTotals = await getDailyTotals(accountId, monthId, subtractSectionIds);
-  const sankeyData = await getSankeyData(accountId, monthId, sections, sectionTotals);
+  // daily-heatmap: modo "all_activity" mostra toda a atividade financeira (countInMonth);
+  // modo "expense" (padrão) mostra apenas seções de saída.
+  const heatmapConfig = widgets.find((w) => w.widgetId === "daily-heatmap")?.config as
+    | { metric?: string }
+    | undefined;
+  const heatmapSectionIds = heatmapConfig?.metric === "all_activity" ? null : subtractSectionIds;
+  const dailyTotals = await getDailyTotals(accountId, monthId, heatmapSectionIds);
+  // money-flow: agrupa por seção ou categoria conforme a config da instância (spec 36 §2.2).
+  const moneyFlowConfig = widgets.find((w) => w.widgetId === "money-flow")?.config as
+    | { groupBy?: "section" | "category" }
+    | undefined;
+  const sankeyData = await getSankeyData(
+    accountId,
+    monthId,
+    sections,
+    sectionTotals,
+    moneyFlowConfig?.groupBy ?? "category",
+  );
+  const kpiCustomData = await getKpiCustomDataMap(accountId, widgets, [monthId]);
+  const analysisData = await getSandboxDataMap(accountId, widgets, { currentMonthId: monthId });
 
   return (
     <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
@@ -183,12 +199,13 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         dailyTotals={dailyTotals}
         treemapData={treemapData}
         sankeyData={sankeyData}
-        pinnedAnalyses={pinnedAnalyses}
         budgets={budgets}
         budgetFormOptions={budgetFormOptions}
         insights={insights}
         memberBreakdown={memberBreakdown}
-        activeWidgets={layout.active}
+        widgets={widgets}
+        kpiCustomData={kpiCustomData}
+        analysisData={analysisData}
       />
     </Box>
   );

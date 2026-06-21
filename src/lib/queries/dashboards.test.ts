@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, type Mock } from "vitest";
 
 import { prismaMock } from "@/../tests/mocks/prisma";
 
@@ -12,7 +12,7 @@ const SECTIONS_STUB = [
 function setupEmptyMonth() {
   prismaMock.section.findMany.mockResolvedValue(SECTIONS_STUB as any);
   prismaMock.transaction.findMany.mockResolvedValue([]);
-  prismaMock.transaction.groupBy.mockResolvedValue([]);
+  (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue([]);
   prismaMock.category.findMany.mockResolvedValue([]);
 }
 
@@ -56,7 +56,7 @@ describe("getMonthDeepDive", () => {
         section: { name: "Saídas", countType: "subtract" },
       },
     ] as any);
-    prismaMock.transaction.groupBy.mockResolvedValue([]);
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue([]);
     prismaMock.category.findMany.mockResolvedValue([]);
 
     const result = await _getMonthDeepDive("acc-test-1", "month-1");
@@ -68,7 +68,7 @@ describe("getMonthDeepDive", () => {
   it("serializa totalCents de categorias como string", async () => {
     prismaMock.section.findMany.mockResolvedValue(SECTIONS_STUB as any);
     prismaMock.transaction.findMany.mockResolvedValue([]);
-    prismaMock.transaction.groupBy.mockResolvedValue([
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue([
       { categoryId: "cat-1", _sum: { amountCents: 30000n } },
     ] as any);
     prismaMock.category.findMany.mockResolvedValue([
@@ -92,7 +92,7 @@ describe("getMonthDeepDive", () => {
         section: { name: "Saídas", countType: "subtract" },
       },
     ] as any);
-    prismaMock.transaction.groupBy.mockResolvedValue([]);
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue([]);
     prismaMock.category.findMany.mockResolvedValue([]);
 
     const result = await _getMonthDeepDive("acc-test-1", "month-1");

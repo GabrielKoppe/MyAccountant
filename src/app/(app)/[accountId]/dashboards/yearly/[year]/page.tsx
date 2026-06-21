@@ -7,8 +7,9 @@ import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { getYearOverview } from "@/lib/queries/dashboards";
 import { getMemberYearlyTrend } from "@/lib/queries/member-analytics";
-import { getPinnedAnalyses } from "@/lib/queries/sandbox";
 import { getLayout } from "@/server/services/dashboard-layout-service";
+import { getKpiCustomDataMap } from "@/lib/queries/kpi-custom";
+import { getSandboxDataMap } from "@/lib/queries/sandbox";
 import { m } from "@/lib/messages";
 import { YearlyDashboardClient } from "@/components/dashboards/yearly/YearlyDashboardClient";
 
@@ -33,12 +34,10 @@ export default async function YearlyDashboardPage({ params }: Props) {
 
   const [
     { sections, monthSummaries, topCategories, pendingCount, allYears },
-    pinnedAnalyses,
-    layout,
+    widgets,
     memberTrend,
   ] = await Promise.all([
     getYearOverview(accountId, year),
-    getPinnedAnalyses(accountId, "yearly"),
     getLayout(accountId, "yearly"),
     getMemberYearlyTrend(accountId, year),
   ]);
@@ -83,6 +82,11 @@ export default async function YearlyDashboardPage({ params }: Props) {
       ? Math.round((Number(yearlyIncome - yearlyExpense) / Number(yearlyIncome)) * 100)
       : 0;
 
+  // kpi-custom: período = todos os meses do ano.
+  const yearMonthIds = monthSummaries.map((ms) => ms.id);
+  const kpiCustomData = await getKpiCustomDataMap(accountId, widgets, yearMonthIds);
+  const analysisData = await getSandboxDataMap(accountId, widgets, { currentYear: year });
+
   return (
     <YearlyDashboardClient
       accountId={accountId}
@@ -101,9 +105,10 @@ export default async function YearlyDashboardPage({ params }: Props) {
       monthSummaries={monthSummaries}
       sections={sections}
       topCategories={topCategories}
-      pinnedAnalyses={pinnedAnalyses}
       memberTrend={memberTrend}
-      activeWidgets={layout.active}
+      widgets={widgets}
+      kpiCustomData={kpiCustomData}
+      analysisData={analysisData}
     />
   );
 }

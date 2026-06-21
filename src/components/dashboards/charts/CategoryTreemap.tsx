@@ -10,10 +10,15 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Treemap, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCentsToBrl } from "@/lib/money";
 import { getChartColors } from "@/lib/design-tokens";
+import { m } from "@/lib/messages";
+import { WidgetContainer } from "@/components/ui/WidgetContainer";
+import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import type { TreemapCategory } from "@/lib/queries/dashboards";
+import type { TreemapConfig } from "@/lib/schemas/widget-config";
 
 type Props = {
   categories: TreemapCategory[];
+  config?: TreemapConfig;
   onDrillDown?: (transactionIds: string[], label: string) => void;
 };
 
@@ -97,30 +102,35 @@ function CustomCell(props: {
   );
 }
 
-export function CategoryTreemap({ categories, onDrillDown }: Props) {
+export function CategoryTreemap({ categories, config, onDrillDown }: Props) {
   const [drillCategoryId, setDrillCategoryId] = useState<string | null>(null);
   const theme = useTheme();
   const chartPalette = getChartColors(theme.palette.mode as "light" | "dark");
 
+  const topN = config?.topN ?? "all";
+  const shown = topN === "all" ? categories : categories.slice(0, topN);
+
+  const subtitle = topN === "all" ? undefined : `Top ${topN}`;
+
   const colorMap = useMemo(() => {
-    const m = new Map<string, string>();
-    categories.forEach((c, i) => m.set(c.categoryId, chartPalette[i % chartPalette.length]));
-    return m;
-  }, [categories, chartPalette]);
+    const map = new Map<string, string>();
+    shown.forEach((c, i) => map.set(c.categoryId, chartPalette[i % chartPalette.length]));
+    return map;
+  }, [shown, chartPalette]);
 
   const rootData: TreemapNode[] = useMemo(
     () =>
-      categories.map((c) => ({
+      shown.map((c) => ({
         name: c.name,
         value: Number(BigInt(c.totalCents)) / 100,
         categoryId: c.categoryId,
         totalCents: c.totalCents,
         fill: colorMap.get(c.categoryId),
       })),
-    [categories, colorMap],
+    [shown, colorMap],
   );
 
-  const drilledCategory = categories.find((c) => c.categoryId === drillCategoryId);
+  const drilledCategory = shown.find((c) => c.categoryId === drillCategoryId);
   const drillData: TreemapNode[] = useMemo(() => {
     if (!drilledCategory) return [];
     return drilledCategory.children.map((child, i) => ({
@@ -135,17 +145,9 @@ export function CategoryTreemap({ categories, onDrillDown }: Props) {
 
   const data = drillCategoryId ? drillData : rootData;
 
-  if (categories.length === 0) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        Sem categorias registradas neste mês.
-      </Typography>
-    );
-  }
-
   function handleCellClick(node: TreemapNode) {
     if (!drillCategoryId && node.categoryId) {
-      const cat = categories.find((c) => c.categoryId === node.categoryId);
+      const cat = shown.find((c) => c.categoryId === node.categoryId);
       if (cat && cat.children.length > 0) {
         setDrillCategoryId(node.categoryId);
       }
@@ -154,92 +156,123 @@ export function CategoryTreemap({ categories, onDrillDown }: Props) {
     }
   }
 
+  // Controles de drill-down no slot secondary do header
+  const drillControls = drillCategoryId ? (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+      <Button
+        size="small"
+        startIcon={<ArrowBackIcon sx={{ fontSize: 14, mr: -1.5 }} />}
+        onClick={() => setDrillCategoryId(null)}
+        variant="text"
+        sx={{ fontSize: "0.7rem", color: "text.secondary", minWidth: 0, px: 1, py: 0.25 }}
+      >
+        Todas
+      </Button>
+      <Chip
+        label={drilledCategory?.name}
+        size="small"
+        sx={{
+          bgcolor: colorMap.get(drillCategoryId),
+          color: "rgba(255,255,255,0.92)",
+          fontSize: 11,
+          fontWeight: 500,
+          height: 20,
+        }}
+      />
+    </Box>
+  ) : undefined;
+
   return (
-    <Box>
-      {drillCategoryId && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-          <Button
-            size="small"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => setDrillCategoryId(null)}
-            variant="text"
-            sx={{ fontSize: 12, color: "text.secondary" }}
-          >
-            Todas as categorias
-          </Button>
-          <Chip
-            label={drilledCategory?.name}
-            size="small"
-            sx={{
-              bgcolor: colorMap.get(drillCategoryId),
-              color: "rgba(255,255,255,0.92)",
-              fontSize: 11,
-              fontWeight: 500,
-            }}
-          />
+    <WidgetContainer
+      title={m.dashboards.sections.categoryTreemap}
+      icon={WIDGET_ICONS["category-treemap"]}
+      subtitle={subtitle}
+      secondary={drillControls}
+      contentSx={{ display: "flex", flexDirection: "column", overflow: "hidden" }}
+    >
+      {categories.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">
+          Sem categorias registradas neste mês.
+        </Typography>
+      ) : (
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <ResponsiveContainer width="100%" height="100%" minHeight={140}>
+            <Treemap
+              data={data}
+              dataKey="value"
+              aspectRatio={4 / 3}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              onClick={(nodeData: any) => handleCellClick(nodeData as TreemapNode)}
+              content={<CustomCell />}
+            >
+              <Tooltip
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                content={({ active, payload }: any) => {
+                  if (!active || !payload?.length) return null;
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const node = (payload[0] as any)?.payload as TreemapNode | undefined;
+                  if (!node) return null;
+                  return (
+                    <Box
+                      sx={{
+                        bgcolor: "background.paper",
+                        border: 1,
+                        borderColor: "border.subtle",
+                        borderRadius: "8px",
+                        px: 3,
+                        py: 2,
+                        boxShadow: 3,
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        fontWeight={600}
+                        display="block"
+                        color="text.primary"
+                      >
+                        {node.name}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{
+                          fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
+                          fontWeight: 500,
+                          color: "text.primary",
+                          mt: 0.25,
+                        }}
+                      >
+                        {formatCentsToBrl(BigInt(node.totalCents))}
+                      </Typography>
+                      {!drillCategoryId && node.categoryId && (
+                        <Typography
+                          variant="caption"
+                          color="text.disabled"
+                          display="block"
+                          sx={{ mt: 0.5 }}
+                        >
+                          Clique para ver subcategorias
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                }}
+              />
+            </Treemap>
+          </ResponsiveContainer>
+
+          {!drillCategoryId && (
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{ fontSize: "0.65rem", mt: 0.5 }}
+            >
+              Clique em uma categoria para ver subcategorias
+            </Typography>
+          )}
         </Box>
       )}
-
-      <ResponsiveContainer width="100%" height={280}>
-        <Treemap
-          data={data}
-          dataKey="value"
-          aspectRatio={4 / 3}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onClick={(nodeData: any) => handleCellClick(nodeData as TreemapNode)}
-          content={<CustomCell />}
-        >
-          <Tooltip
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) return null;
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const node = (payload[0] as any)?.payload as TreemapNode | undefined;
-              if (!node) return null;
-              return (
-                <Box
-                  sx={{
-                    bgcolor: "background.paper",
-                    border: 1,
-                    borderColor: "border.subtle",
-                    borderRadius: "8px",
-                    px: 3,
-                    py: 2,
-                    boxShadow: 3,
-                    pointerEvents: "none",
-                  }}
-                >
-                  <Typography variant="caption" fontWeight={600} display="block" color="text.primary">
-                    {node.name}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    display="block"
-                    sx={{
-                      fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
-                      fontWeight: 500,
-                      color: "text.primary",
-                      mt: 0.25,
-                    }}
-                  >
-                    {formatCentsToBrl(BigInt(node.totalCents))}
-                  </Typography>
-                  {!drillCategoryId && node.categoryId && (
-                    <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 0.5 }}>
-                      Clique para ver subcategorias
-                    </Typography>
-                  )}
-                </Box>
-              );
-            }}
-          />
-        </Treemap>
-      </ResponsiveContainer>
-
-      {!drillCategoryId && (
-        <Typography variant="caption" color="text.disabled" sx={{ fontSize: "0.65rem" }}>
-          Clique em uma categoria para ver subcategorias
-        </Typography>
-      )}
-    </Box>
+    </WidgetContainer>
   );
 }

@@ -83,4 +83,4 @@ Analises:
 Gastos por Membro:
 - w:3-6
 - h:2-3
-- default: 6w / 1h
+- default: 6w / 2h

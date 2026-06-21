@@ -13,7 +13,6 @@ import GridViewIcon from "@mui/icons-material/GridView";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import DonutLargeIcon from "@mui/icons-material/DonutLarge";
 import BarChartIcon from "@mui/icons-material/BarChart";
-import PushPinIcon from "@mui/icons-material/PushPin";
 import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
@@ -27,11 +26,19 @@ import DynamicFeedIcon from "@mui/icons-material/DynamicFeed";
 import TipsAndUpdatesIcon from "@mui/icons-material/TipsAndUpdates";
 import Diversity3Icon from "@mui/icons-material/Diversity3";
 import MultilineChartIcon from "@mui/icons-material/MultilineChart";
+import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import TuneIcon from "@mui/icons-material/Tune";
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import RadarIcon from "@mui/icons-material/Radar";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import PendingActionsIcon from "@mui/icons-material/PendingActions";
+import { default as StarOutlinedIcon } from "@mui/icons-material/Star";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 
 /**
  * Mapa centralizado: widget ID → componente de ícone MUI.
  * Fonte única para todos os contextos de dashboard (monthly, yearly, month_summary).
- * Usado tanto na UI de settings (DashboardLayoutEditor) quanto nos próprios widgets
+ * Usado tanto no editor de grade (DashboardGridCanvas) quanto nos próprios widgets
  * via WidgetContainer.
  */
 export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
@@ -41,7 +48,6 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "kpi-savings-rate": SavingsIcon,
   "kpi-pending": AccessTimeIcon,
   budgets: FlagIcon,
-  "pinned-analyses": PushPinIcon,
   insights: TipsAndUpdatesIcon,
 
   // monthly
@@ -54,6 +60,8 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "category-breakdown": BarChartIcon,
   "top-transactions": FormatListNumberedIcon,
   "member-breakdown": Diversity3Icon,
+  "member-list": PeopleAltIcon,
+  "member-radar": RadarIcon,
 
   // yearly
   "kpi-year-total": CalendarTodayIcon,
@@ -69,4 +77,12 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "kpi-balance": AccountBalanceIcon,
   "section-cards": ViewModuleIcon,
   "activity-lists": DynamicFeedIcon,
+  "pending-transactions": PendingActionsIcon,
+  "favorite-transactions": StarOutlinedIcon,
+  "recent-transactions": ScheduleIcon,
+
+  // instanciáveis (spec 36 §2.3)
+  analysis: AutoGraphIcon,
+  "kpi-custom": TuneIcon,
+  "filtered-transactions": FilterAltIcon,
 };
