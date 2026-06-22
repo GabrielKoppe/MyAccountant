@@ -19,9 +19,13 @@ import type {
 } from "@/lib/queries/dashboards";
 import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
-import { KpiCard } from "@/components/dashboards/kpi/KpiCard";
+import {
+  KpiCard,
+  CategoryTreemap,
+  MemberRadarWidget,
+  WeeklySpendingWidget,
+} from "@/components/dashboards/charts/lazy";
 import { DailyHeatmap } from "@/components/dashboards/charts/DailyHeatmap";
-import { CategoryTreemap } from "@/components/dashboards/charts/CategoryTreemap";
 import { DrillDownDrawer } from "@/components/dashboards/panels/DrillDownDrawer";
 import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
@@ -29,14 +33,13 @@ import { SectionBreakdownWidget } from "@/components/dashboards/panels/SectionBr
 import { CategoryBreakdownWidget } from "@/components/dashboards/panels/CategoryBreakdownWidget";
 import { MemberBreakdownWidget } from "@/components/dashboards/panels/MemberBreakdownWidget";
 import { MemberListWidget } from "@/components/dashboards/panels/MemberListWidget";
-import { MemberRadarWidget } from "@/components/dashboards/panels/MemberRadarWidget";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 import { TopTransactionTable } from "../panels/TopTransactionTable";
 import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
 import { BudgetHealthKpi } from "@/components/dashboards/kpi/BudgetHealthKpi";
 import { InstitutionBreakdownWidget } from "@/components/dashboards/panels/InstitutionBreakdownWidget";
-import { WeeklySpendingWidget } from "@/components/dashboards/panels/WeeklySpendingWidget";
+
 import type { Insight } from "@/server/services/insights-service";
 import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";

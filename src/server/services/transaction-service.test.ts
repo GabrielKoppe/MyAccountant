@@ -229,7 +229,11 @@ describe("bulkUpdate", () => {
     prismaMock.transaction.updateMany.mockResolvedValue({ count: 3 });
 
     await bulkUpdate(
-      { ids: ["tx-1", "tx-2", "tx-3"], patch: { isPending: true, isFavorite: false } },
+      {
+        ids: ["tx-1", "tx-2", "tx-3"],
+        monthId: "month-1",
+        patch: { isPending: true, isFavorite: false },
+      },
       TEST_CTX,
     );
 
@@ -246,7 +250,10 @@ describe("bulkUpdate", () => {
   it("deve incluir accountId no filtro para evitar IDOR (segurança multi-tenancy)", async () => {
     prismaMock.transaction.updateMany.mockResolvedValue({ count: 0 });
 
-    await bulkUpdate({ ids: ["tx-qualquer"], patch: { isPending: true } }, TEST_CTX);
+    await bulkUpdate(
+      { ids: ["tx-qualquer"], monthId: "month-1", patch: { isPending: true } },
+      TEST_CTX,
+    );
 
     expect(prismaMock.transaction.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({

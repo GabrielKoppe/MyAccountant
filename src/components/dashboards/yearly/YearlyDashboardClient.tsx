@@ -16,11 +16,9 @@ import { m } from "@/lib/messages";
 import type { SectionMeta, CategorySum, MonthSummary } from "@/lib/queries/dashboards";
 import type { MemberTrendSeries, MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
-import { KpiCard } from "@/components/dashboards/kpi/KpiCard";
-import { MonthlyBarChart } from "@/components/dashboards/charts/MonthlyBarChart";
+import { KpiCard, MonthlyBarChart, MemberTrendChart } from "@/components/dashboards/charts/lazy";
 import { TopCategoriesWidget } from "@/components/dashboards/panels/TopCategoriesWidget";
 import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
-import { MemberTrendChart } from "@/components/dashboards/charts/MemberTrendChart";
 import { MemberYearlyWidget } from "@/components/dashboards/panels/MemberYearlyWidget";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { AppLink } from "@/components/ui/AppLink";

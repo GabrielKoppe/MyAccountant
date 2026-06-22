@@ -69,11 +69,14 @@ export async function createTransaction(input: CreateTransactionInput, ctx: Acti
   });
 
   log.info({ transactionId: transaction.id, tableId: input.tableId }, "Transaction created");
-  return { transactionId: transaction.id };
+  return { transactionId: transaction.id, monthId: table.monthId };
 }
 
-export async function updateTransaction(input: UpdateTransactionInput, ctx: ActionContext) {
-  await getTransactionOrThrow(input.transactionId, ctx.accountId);
+export async function updateTransaction(
+  input: UpdateTransactionInput,
+  ctx: ActionContext,
+): Promise<{ monthId: string }> {
+  const tx = await getTransactionOrThrow(input.transactionId, ctx.accountId);
 
   const data: Record<string, unknown> = { updatedById: ctx.userId };
 
@@ -87,16 +90,21 @@ export async function updateTransaction(input: UpdateTransactionInput, ctx: Acti
   if (input.subcategoryId !== undefined) data.subcategoryId = input.subcategoryId ?? null;
   if (input.institutionId !== undefined) data.institutionId = input.institutionId ?? null;
   if (input.institutionText !== undefined) data.institutionText = input.institutionText ?? null;
-  if (input.responsibleUserId !== undefined) data.responsibleUserId = input.responsibleUserId ?? null;
+  if (input.responsibleUserId !== undefined)
+    data.responsibleUserId = input.responsibleUserId ?? null;
   if (input.cardInstallment !== undefined) data.cardInstallment = input.cardInstallment ?? null;
   if (input.investmentType !== undefined) data.investmentType = input.investmentType ?? null;
 
   await prisma.transaction.update({ where: { id: input.transactionId }, data });
 
   log.info({ transactionId: input.transactionId }, "Transaction updated");
+  return { monthId: tx.monthId };
 }
 
-export async function deleteTransaction(input: DeleteTransactionInput, ctx: ActionContext) {
+export async function deleteTransaction(
+  input: DeleteTransactionInput,
+  ctx: ActionContext,
+): Promise<{ monthId: string }> {
   const tx = await getTransactionOrThrow(input.transactionId, ctx.accountId);
   await prisma.transaction.delete({ where: { id: input.transactionId } });
 
@@ -108,6 +116,7 @@ export async function deleteTransaction(input: DeleteTransactionInput, ctx: Acti
   });
 
   log.info({ transactionId: input.transactionId }, "Transaction deleted");
+  return { monthId: tx.monthId };
 }
 
 export async function duplicateTransaction(input: DuplicateTransactionInput, ctx: ActionContext) {
@@ -149,10 +158,13 @@ export async function duplicateTransaction(input: DuplicateTransactionInput, ctx
   });
 
   log.info({ sourceId: input.transactionId, newId: newTx.id }, "Transaction duplicated");
-  return { transactionId: newTx.id };
+  return { transactionId: newTx.id, monthId: source.monthId };
 }
 
-export async function bulkDelete(input: BulkDeleteInput, ctx: ActionContext) {
+export async function bulkDelete(
+  input: BulkDeleteInput,
+  ctx: ActionContext,
+): Promise<{ uniqueMonthIds: string[] }> {
   const txs = await prisma.transaction.findMany({
     where: { id: { in: input.ids }, accountId: ctx.accountId },
     select: { monthId: true },
@@ -173,6 +185,7 @@ export async function bulkDelete(input: BulkDeleteInput, ctx: ActionContext) {
   }
 
   log.info({ count: input.ids.length, accountId: ctx.accountId }, "Bulk transactions deleted");
+  return { uniqueMonthIds };
 }
 
 export async function bulkUpdate(input: BulkUpdateInput, ctx: ActionContext) {
@@ -180,7 +193,8 @@ export async function bulkUpdate(input: BulkUpdateInput, ctx: ActionContext) {
   if (input.patch.isPending !== undefined) data.isPending = input.patch.isPending;
   if (input.patch.isFavorite !== undefined) data.isFavorite = input.patch.isFavorite;
   if (input.patch.categoryId !== undefined) data.categoryId = input.patch.categoryId ?? null;
-  if (input.patch.institutionId !== undefined) data.institutionId = input.patch.institutionId ?? null;
+  if (input.patch.institutionId !== undefined)
+    data.institutionId = input.patch.institutionId ?? null;
 
   await prisma.transaction.updateMany({
     where: { id: { in: input.ids }, accountId: ctx.accountId },
@@ -210,15 +224,26 @@ export async function moveTransactions(
       where: { id: destination.tableId },
       select: { name: true },
     });
-    log.info({ count: input.ids.length, targetTableId: destination.tableId }, "Transactions moved to existing table");
-    return { targetTableId: destination.tableId, targetTableName: full?.name ?? "", targetMonthId: targetTable.monthId };
+    log.info(
+      { count: input.ids.length, targetTableId: destination.tableId },
+      "Transactions moved to existing table",
+    );
+    return {
+      targetTableId: destination.tableId,
+      targetTableName: full?.name ?? "",
+      targetMonthId: targetTable.monthId,
+    };
   }
 
   // type === "new" — verify month, section, tableType belong to this account
   const [month, section, tableType] = await Promise.all([
     prisma.month.findFirst({ where: { id: destination.monthId, accountId: ctx.accountId } }),
-    prisma.section.findFirst({ where: { id: destination.sectionId, accountId: ctx.accountId, isActive: true } }),
-    prisma.tableType.findFirst({ where: { id: destination.tableTypeId, accountId: ctx.accountId } }),
+    prisma.section.findFirst({
+      where: { id: destination.sectionId, accountId: ctx.accountId, isActive: true },
+    }),
+    prisma.tableType.findFirst({
+      where: { id: destination.tableTypeId, accountId: ctx.accountId },
+    }),
   ]);
   if (!month) throw new NotFoundError("Mês");
   if (!section) throw new NotFoundError("Seção");
@@ -254,7 +279,11 @@ export async function moveTransactions(
   });
 
   log.info({ count: input.ids.length, newTableId: result.id }, "Transactions moved to new table");
-  return { targetTableId: result.id, targetTableName: result.name, targetMonthId: destination.monthId };
+  return {
+    targetTableId: result.id,
+    targetTableName: result.name,
+    targetMonthId: destination.monthId,
+  };
 }
 
 export async function listTablesForMove(accountId: string) {

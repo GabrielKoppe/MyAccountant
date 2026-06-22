@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { prisma } from "@/server/prisma";
 import { formatCentsToBrl } from "@/lib/money";
 
@@ -91,16 +93,20 @@ function serializeBudget(b: {
 
 // ─── Queries ──────────────────────────────────────────────────────
 
-export async function getBudgetsForSettings(accountId: string): Promise<BudgetWithDetails[]> {
+export const getBudgetsForSettings = cache(async function getBudgetsForSettings(
+  accountId: string,
+): Promise<BudgetWithDetails[]> {
   const budgets = await prisma.budget.findMany({
     where: { accountId },
     include: BUDGET_INCLUDE,
     orderBy: { createdAt: "asc" },
   });
   return budgets.map(serializeBudget);
-}
+});
 
-export async function getBudgetFormOptions(accountId: string): Promise<BudgetFormOptions> {
+export const getBudgetFormOptions = cache(async function getBudgetFormOptions(
+  accountId: string,
+): Promise<BudgetFormOptions> {
   const [sections, categories, members, institutions, tableTypes] = await Promise.all([
     prisma.section.findMany({
       where: { accountId, isActive: true },
@@ -135,9 +141,9 @@ export async function getBudgetFormOptions(accountId: string): Promise<BudgetFor
     institutions,
     tableTypes,
   };
-}
+});
 
-export async function getBudgetsWithProgress(
+export const getBudgetsWithProgress = cache(async function getBudgetsWithProgress(
   accountId: string,
   year: number,
   month: number,
@@ -152,10 +158,7 @@ export async function getBudgetsWithProgress(
   const budgets = await prisma.budget.findMany({
     where: {
       accountId,
-      OR: [
-        { isRecurring: true },
-        { isRecurring: false, year, month },
-      ],
+      OR: [{ isRecurring: true }, { isRecurring: false, year, month }],
       ...(onlyShowInSummary ? { showInSummary: true } : {}),
     },
     include: BUDGET_INCLUDE,
@@ -179,7 +182,7 @@ export async function getBudgetsWithProgress(
   );
 
   return results;
-}
+});
 
 async function calcSpent(
   budget: {

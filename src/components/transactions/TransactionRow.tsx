@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import type { SectionCountType } from "@prisma/client";
 import { NumericFormat } from "react-number-format";
 import Avatar from "@mui/material/Avatar";
@@ -34,10 +34,7 @@ import { useSnackbar } from "notistack";
 
 import { m } from "@/lib/messages";
 
-import {
-  duplicateTransactionAction,
-  updateTransactionAction,
-} from "@/actions/transactions";
+import { duplicateTransactionAction, updateTransactionAction } from "@/actions/transactions";
 import { formatCentsToBrl, reaisToCents, centsToReais } from "@/lib/money";
 import { formatDateShort } from "@/lib/dates";
 import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
@@ -70,7 +67,7 @@ type Props = {
   onAutoEditConsumed: () => void;
 };
 
-export function TransactionRow({
+export function TransactionRowBase({
   tx,
   accountId,
   currentUserId,
@@ -497,11 +494,7 @@ export function TransactionRow({
 
   // View mode
   return (
-    <TableRow
-      hover
-      selected={isSelected}
-      sx={{ opacity: tx.isPending ? 0.65 : 1 }}
-    >
+    <TableRow hover selected={isSelected} sx={{ opacity: tx.isPending ? 0.65 : 1 }}>
       <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
         <Checkbox
           checked={isSelected}
@@ -704,3 +697,5 @@ export function TransactionRow({
     </TableRow>
   );
 }
+
+export const TransactionRow = memo(TransactionRowBase);

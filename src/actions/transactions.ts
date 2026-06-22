@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath, updateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 
 import { defineAction } from "@/server/api/define-action";
 import { z } from "zod";
@@ -18,14 +18,18 @@ import * as txService from "@/server/services/transaction-service";
 
 const EDITOR_ROLES = ["owner", "editor"] as const;
 
+function revalidateMonth(accountId: string, monthId: string) {
+  revalidatePath(`/${accountId}/months/${monthId}`);
+  revalidatePath(`/${accountId}/dashboards/monthly/${monthId}`);
+}
+
 export const createTransactionAction = defineAction({
   schema: createTransactionSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     const result = await txService.createTransaction(input, ctx);
-    revalidatePath(`/${ctx.accountId}`, "layout");
-    updateTag(`account:${ctx.accountId}`);
-    return result;
+    revalidateMonth(ctx.accountId, result.monthId);
+    return { transactionId: result.transactionId };
   },
 });
 
@@ -33,9 +37,8 @@ export const updateTransactionAction = defineAction({
   schema: updateTransactionSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await txService.updateTransaction(input, ctx);
-    revalidatePath(`/${ctx.accountId}`, "layout");
-    updateTag(`account:${ctx.accountId}`);
+    const { monthId } = await txService.updateTransaction(input, ctx);
+    revalidateMonth(ctx.accountId, monthId);
   },
 });
 
@@ -43,9 +46,8 @@ export const deleteTransactionAction = defineAction({
   schema: deleteTransactionSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await txService.deleteTransaction(input, ctx);
-    revalidatePath(`/${ctx.accountId}`, "layout");
-    updateTag(`account:${ctx.accountId}`);
+    const { monthId } = await txService.deleteTransaction(input, ctx);
+    revalidateMonth(ctx.accountId, monthId);
   },
 });
 
@@ -54,9 +56,8 @@ export const duplicateTransactionAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     const result = await txService.duplicateTransaction(input, ctx);
-    revalidatePath(`/${ctx.accountId}`, "layout");
-    updateTag(`account:${ctx.accountId}`);
-    return result;
+    revalidateMonth(ctx.accountId, result.monthId);
+    return { transactionId: result.transactionId };
   },
 });
 
@@ -64,9 +65,10 @@ export const bulkDeleteAction = defineAction({
   schema: bulkDeleteSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await txService.bulkDelete(input, ctx);
-    revalidatePath(`/${ctx.accountId}`, "layout");
-    updateTag(`account:${ctx.accountId}`);
+    const { uniqueMonthIds } = await txService.bulkDelete(input, ctx);
+    for (const monthId of uniqueMonthIds) {
+      revalidateMonth(ctx.accountId, monthId);
+    }
   },
 });
 
@@ -75,8 +77,7 @@ export const bulkUpdateAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     await txService.bulkUpdate(input, ctx);
-    revalidatePath(`/${ctx.accountId}`, "layout");
-    updateTag(`account:${ctx.accountId}`);
+    revalidateMonth(ctx.accountId, input.monthId);
   },
 });
 
@@ -85,9 +86,8 @@ export const moveTransactionsAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     const result = await txService.moveTransactions(input, ctx);
-    // Revalida o layout inteiro para cobrir mês de origem e destino
-    revalidatePath(`/${ctx.accountId}`, "layout");
-    updateTag(`account:${ctx.accountId}`);
+    revalidateMonth(ctx.accountId, input.sourceMonthId);
+    revalidateMonth(ctx.accountId, result.targetMonthId);
     return result;
   },
 });

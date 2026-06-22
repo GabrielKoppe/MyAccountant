@@ -85,7 +85,8 @@ export const applyTemplateAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     const result = await svc.applyTemplate(input, ctx);
-    revalidatePath(`/${ctx.accountId}`, "layout");
+    revalidatePath(`/${ctx.accountId}/months/${input.monthId}`);
+    revalidatePath(`/${ctx.accountId}/dashboards/monthly/${input.monthId}`);
     return result;
   },
 });

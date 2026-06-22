@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SectionCountType } from "@prisma/client";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -32,7 +32,13 @@ import { BulkActionBar } from "./BulkActionBar";
 import { NewTransactionRow } from "./NewTransactionRow";
 import { TransactionRow } from "./TransactionRow";
 import { TransactionDetailDialog } from "./TransactionDetailDialog";
-import type { CategoryOption, HiddenColumns, InstitutionOption, MemberOption, TransactionRow as TxRow } from "./types";
+import type {
+  CategoryOption,
+  HiddenColumns,
+  InstitutionOption,
+  MemberOption,
+  TransactionRow as TxRow,
+} from "./types";
 
 type SortField = "occurredOn" | "amountCents" | "description" | "categoryId" | "institutionId";
 type SortDir = "asc" | "desc";
@@ -47,7 +53,12 @@ function nextSortState(current: SortState, field: SortField): SortState {
   return null; // reset to default
 }
 
-function sortRows(rows: TxRow[], sort: SortState, categories: CategoryOption[], institutions: InstitutionOption[]): TxRow[] {
+function sortRows(
+  rows: TxRow[],
+  sort: SortState,
+  categoryById: Map<string, string>,
+  institutionById: Map<string, string>,
+): TxRow[] {
   const field = sort?.field ?? DEFAULT_SORT_FIELD;
   const dir = sort?.dir ?? DEFAULT_SORT_DIR;
 
@@ -64,14 +75,14 @@ function sortRows(rows: TxRow[], sort: SortState, categories: CategoryOption[], 
         cmp = (a.description ?? "").localeCompare(b.description ?? "");
         break;
       case "categoryId": {
-        const aName = categories.find((c) => c.id === a.categoryId)?.name ?? "";
-        const bName = categories.find((c) => c.id === b.categoryId)?.name ?? "";
+        const aName = categoryById.get(a.categoryId ?? "") ?? "";
+        const bName = categoryById.get(b.categoryId ?? "") ?? "";
         cmp = aName.localeCompare(bName);
         break;
       }
       case "institutionId": {
-        const aName = institutions.find((i) => i.id === a.institutionId)?.name ?? "";
-        const bName = institutions.find((i) => i.id === b.institutionId)?.name ?? "";
+        const aName = institutionById.get(a.institutionId ?? "") ?? "";
+        const bName = institutionById.get(b.institutionId ?? "") ?? "";
         cmp = aName.localeCompare(bName);
         break;
       }
@@ -135,7 +146,21 @@ export function TransactionTable({
 
   const isReadOnly = !sectionIsActive || !canEdit;
   const selectedIds = Array.from(selected);
-  const detailTx = detailTxId ? rows.find((r) => r.id === detailTxId) ?? null : null;
+  const detailTx = detailTxId ? (rows.find((r) => r.id === detailTxId) ?? null) : null;
+
+  // Map-based lookups para sortRows — O(1) em vez de O(n) por transação
+  const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+  const institutionById = useMemo(
+    () => new Map(institutions.map((i) => [i.id, i.name])),
+    [institutions],
+  );
+
+  // Debounce do searchText para evitar re-runs pesados a cada keystroke
+  const [debouncedSearch, setDebouncedSearch] = useState(searchText);
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(searchText), 250);
+    return () => clearTimeout(id);
+  }, [searchText]);
 
   function handleEditFromDetail() {
     if (!detailTx) return;
@@ -144,15 +169,15 @@ export function TransactionTable({
   }
   const show = (key: string) => !hiddenColumns[key];
 
-  // Apply global filters → then local search → then sort
+  // Apply global filters → then local search (debounced) → then sort
   const visibleRows = useMemo(() => {
     let result = applyGlobalFilters(rows, filters);
-    if (searchText.trim()) {
-      const q = searchText.trim().toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.trim().toLowerCase();
       result = result.filter((r) => (r.description ?? "").toLowerCase().includes(q));
     }
-    return sortRows(result, sort, categories, institutions);
-  }, [rows, filters, searchText, sort, categories, institutions]);
+    return sortRows(result, sort, categoryById, institutionById);
+  }, [rows, filters, debouncedSearch, sort, categoryById, institutionById]);
 
   const allSelected = visibleRows.length > 0 && visibleRows.every((r) => selected.has(r.id));
   const someSelected = visibleRows.some((r) => selected.has(r.id)) && !allSelected;
@@ -161,36 +186,40 @@ export function TransactionTable({
     selectedIds.length > 0 &&
     selectedIds.every((id) => rows.find((r) => r.id === id)?.isPending ?? false);
 
-  function handleSelect(id: string, checked: boolean) {
+  const handleSelect = useCallback((id: string, checked: boolean) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (checked) next.add(id);
       else next.delete(id);
       return next;
     });
-  }
+  }, []);
 
   function handleSelectAll(checked: boolean) {
     setSelected(checked ? new Set(visibleRows.map((r) => r.id)) : new Set());
   }
 
-  function optimisticUpdate(id: string, patch: Partial<TxRow>) {
+  const optimisticUpdate = useCallback((id: string, patch: Partial<TxRow>) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  }
+  }, []);
 
   function optimisticDelete(id: string) {
     setRows((prev) => prev.filter((r) => r.id !== id));
-    setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   }
 
-  function onDuplicated(newTx: TxRow, sourceId: string) {
+  const onDuplicated = useCallback((newTx: TxRow, sourceId: string) => {
     setRows((prev) => {
       const idx = prev.findIndex((r) => r.id === sourceId);
       const copy = [...prev];
       copy.splice(idx + 1, 0, newTx);
       return copy;
     });
-  }
+  }, []);
 
   function onNewCreated(newTx: TxRow) {
     setRows((prev) => [newTx, ...prev]);
@@ -238,39 +267,41 @@ export function TransactionTable({
     }
   }
 
-  function onDeleteRequested(id: string) {
-    const row = rows.find((r) => r.id === id);
-    if (!row) return;
+  const onDeleteRequested = useCallback(
+    (id: string) => {
+      const row = rows.find((r) => r.id === id);
+      if (!row) return;
 
-    optimisticDelete(id);
-    pendingBatchRef.current = [...pendingBatchRef.current, { id, row }];
+      optimisticDelete(id);
+      pendingBatchRef.current = [...pendingBatchRef.current, { id, row }];
 
-    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
-    if (snackbarKeyRef.current !== null) closeSnackbar(snackbarKeyRef.current);
-
-    const count = pendingBatchRef.current.length;
-    const message =
-      count === 1
-        ? `${m.transactions.deleted}.`
-        : `${count} ${m.transactions.deletedMultiple}.`;
-
-    const key = enqueueSnackbar(message, {
-      variant: "info",
-      persist: true,
-      action: (snackKey) => (
-        <Button size="small" color="inherit" onClick={() => handleUndoDelete(snackKey)}>
-          {m.transactions.undoDelete}
-        </Button>
-      ),
-    });
-    snackbarKeyRef.current = key;
-
-    deleteTimerRef.current = setTimeout(() => {
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
       if (snackbarKeyRef.current !== null) closeSnackbar(snackbarKeyRef.current);
-      snackbarKeyRef.current = null;
-      void executePendingDeletes();
-    }, 5000);
-  }
+
+      const count = pendingBatchRef.current.length;
+      const message =
+        count === 1 ? `${m.transactions.deleted}.` : `${count} ${m.transactions.deletedMultiple}.`;
+
+      const key = enqueueSnackbar(message, {
+        variant: "info",
+        persist: true,
+        action: (snackKey) => (
+          <Button size="small" color="inherit" onClick={() => handleUndoDelete(snackKey)}>
+            {m.transactions.undoDelete}
+          </Button>
+        ),
+      });
+      snackbarKeyRef.current = key;
+
+      deleteTimerRef.current = setTimeout(() => {
+        if (snackbarKeyRef.current !== null) closeSnackbar(snackbarKeyRef.current);
+        snackbarKeyRef.current = null;
+        void executePendingDeletes();
+      }, 5000);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [rows, enqueueSnackbar, closeSnackbar],
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -301,13 +332,31 @@ export function TransactionTable({
     setSort((prev) => nextSortState(prev, field));
   }
 
-  function SortableHeaderCell({ field, label, align }: { field: SortField; label: string; align?: "right" }) {
+  const handleAutoEditConsumed = useCallback(() => setEditRequestId(null), []);
+
+  function SortableHeaderCell({
+    field,
+    label,
+    align,
+  }: {
+    field: SortField;
+    label: string;
+    align?: "right";
+  }) {
     const isActive = sort?.field === field;
     const Icon = sort?.dir === "asc" ? ArrowUpwardIcon : ArrowDownwardIcon;
     return (
       <TableCell
         align={align}
-        sx={{ fontSize: 12, fontWeight: "bold", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none", "&:hover": { color: "accent.primary" }, color: isActive ? "accent.primary" : "inherit" }}
+        sx={{
+          fontSize: 12,
+          fontWeight: "bold",
+          whiteSpace: "nowrap",
+          cursor: "pointer",
+          userSelect: "none",
+          "&:hover": { color: "accent.primary" },
+          color: isActive ? "accent.primary" : "inherit",
+        }}
         onClick={() => handleSortClick(field)}
       >
         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}>
@@ -318,14 +367,23 @@ export function TransactionTable({
     );
   }
 
-  const isFiltered = hasGlobalFilters || (searchText.trim().length > 0);
+  const isFiltered = hasGlobalFilters || searchText.trim().length > 0;
   const noRowsAtAll = rows.length === 0 && !showNewRow;
   const noRowsAfterFilter = !noRowsAtAll && visibleRows.length === 0;
 
   // Empty table (no data at all, no active filter)
   if (noRowsAtAll && !isFiltered) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, gap: 1, color: "text.disabled" }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          py: 4,
+          gap: 1,
+          color: "text.disabled",
+        }}
+      >
         <TableChartOutlinedIcon sx={{ fontSize: 36, opacity: 0.4 }} />
         <Typography variant="body2">Nenhuma transação</Typography>
         {!isReadOnly && (
@@ -356,7 +414,15 @@ export function TransactionTable({
 
       {/* Search bar (expandable) */}
       <Collapse in={searchOpen}>
-        <Box sx={{ px: 2, py: 1, borderBottom: 1, borderColor: "divider", bgcolor: "background.subtle" }}>
+        <Box
+          sx={{
+            px: 2,
+            py: 1,
+            borderBottom: 1,
+            borderColor: "divider",
+            bgcolor: "background.subtle",
+          }}
+        >
           <TextField
             inputRef={searchInputRef}
             size="small"
@@ -379,7 +445,9 @@ export function TransactionTable({
               ) : null,
             }}
             sx={{ "& .MuiOutlinedInput-root": { fontSize: 13 } }}
-            onKeyDown={(e) => { if (e.key === "Escape") handleCloseSearch(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") handleCloseSearch();
+            }}
           />
         </Box>
       </Collapse>
@@ -402,13 +470,24 @@ export function TransactionTable({
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   <Box
                     component="span"
-                    sx={{ cursor: "pointer", userSelect: "none", "&:hover": { color: "accent.primary" }, color: sort?.field === "description" ? "accent.primary" : "inherit", display: "inline-flex", alignItems: "center", gap: 0.25 }}
+                    sx={{
+                      cursor: "pointer",
+                      userSelect: "none",
+                      "&:hover": { color: "accent.primary" },
+                      color: sort?.field === "description" ? "accent.primary" : "inherit",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.25,
+                    }}
                     onClick={() => handleSortClick("description")}
                   >
                     Descrição
-                    {sort?.field === "description" && (
-                      sort.dir === "asc" ? <ArrowUpwardIcon sx={{ fontSize: 12 }} /> : <ArrowDownwardIcon sx={{ fontSize: 12 }} />
-                    )}
+                    {sort?.field === "description" &&
+                      (sort.dir === "asc" ? (
+                        <ArrowUpwardIcon sx={{ fontSize: 12 }} />
+                      ) : (
+                        <ArrowDownwardIcon sx={{ fontSize: 12 }} />
+                      ))}
                   </Box>
                   <Box sx={{ flex: 1 }} />
                   {!searchOpen && (
@@ -428,12 +507,20 @@ export function TransactionTable({
                 </Box>
               </TableCell>
               {show("category") && <SortableHeaderCell field="categoryId" label="Categoria" />}
-              {show("subcategory") && <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Subcategoria</TableCell>}
-              {show("institution") && <SortableHeaderCell field="institutionId" label="Instituição" />}
+              {show("subcategory") && (
+                <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Subcategoria</TableCell>
+              )}
+              {show("institution") && (
+                <SortableHeaderCell field="institutionId" label="Instituição" />
+              )}
               <SortableHeaderCell field="amountCents" label="Valor" align="right" />
-              {show("responsibleUser") && <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Resp.</TableCell>}
+              {show("responsibleUser") && (
+                <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Resp.</TableCell>
+              )}
 
-              {show("investmentType") && <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tipo inv.</TableCell>}
+              {show("investmentType") && (
+                <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tipo inv.</TableCell>
+              )}
               <TableCell />
             </TableRow>
           </TableHead>
@@ -457,7 +544,15 @@ export function TransactionTable({
             {noRowsAfterFilter ? (
               <TableRow>
                 <TableCell colSpan={99} sx={{ border: 0, py: 5 }}>
-                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, color: "text.disabled" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 1.5,
+                      color: "text.disabled",
+                    }}
+                  >
                     <FilterListOffIcon sx={{ fontSize: 40, opacity: 0.4 }} />
                     <Typography variant="body2" fontWeight="medium" color="text.secondary">
                       {m.transactions.filters.noResults}
@@ -469,8 +564,10 @@ export function TransactionTable({
                       size="small"
                       variant="outlined"
                       onClick={() => {
-                        if (searchText) { setSearchText(""); setSearchOpen(false); }
-                        else clearFilters();
+                        if (searchText) {
+                          setSearchText("");
+                          setSearchOpen(false);
+                        } else clearFilters();
                       }}
                       sx={{ mt: 0.5 }}
                     >
@@ -499,7 +596,7 @@ export function TransactionTable({
                   onDeleteRequested={onDeleteRequested}
                   onDuplicated={onDuplicated}
                   onViewDetails={setDetailTxId}
-                  onAutoEditConsumed={() => setEditRequestId(null)}
+                  onAutoEditConsumed={handleAutoEditConsumed}
                 />
               ))
             )}

@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 
 import { AppLink } from "@/components/ui/AppLink";
-import { KpiCard } from "@/components/dashboards/kpi/KpiCard";
+import { KpiCard } from "@/components/dashboards/charts/lazy";
 import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
 import { SectionCards } from "../panels/SectionCards";
 import {

@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { prisma } from "@/server/prisma";
 import { getMonthRange } from "@/lib/dates";
 import { getBudgetsWithProgress } from "@/lib/queries/budgets";
@@ -50,14 +52,18 @@ const SPIKE_HISTORY_SIZE = 3;
 
 const MS_PER_DAY = 86_400_000;
 
-function shiftYearMonth(year: number, month: number, delta: number): { year: number; month: number } {
+function shiftYearMonth(
+  year: number,
+  month: number,
+  delta: number,
+): { year: number; month: number } {
   const idx = year * 12 + (month - 1) + delta;
   return { year: Math.floor(idx / 12), month: (idx % 12) + 1 };
 }
 
 // ─── Query principal ──────────────────────────────────────────────
 
-export async function getInsightsData(
+export const getInsightsData = cache(async function getInsightsData(
   accountId: string,
   monthId: string,
   options: { isCurrentMonth: boolean },
@@ -166,7 +172,7 @@ export async function getInsightsData(
     adherenceHistory,
     daysRemaining,
   };
-}
+});
 
 // ─── Despesa por categoria (mês atual + janela anterior) ──────────
 

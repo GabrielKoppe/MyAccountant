@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { SectionCountType } from "@prisma/client";
 
 import { prisma } from "@/server/prisma";
@@ -78,7 +79,10 @@ async function batchSectionTotals(
 
 // ─── Year Overview ─────────────────────────────────────────────────
 
-export async function getYearOverview(accountId: string, year: number) {
+export const getYearOverview = cache(async function getYearOverview(
+  accountId: string,
+  year: number,
+) {
   const [sections, months, allYearsRaw] = await Promise.all([
     prisma.section.findMany({
       where: { accountId },
@@ -157,11 +161,14 @@ export async function getYearOverview(accountId: string, year: number) {
   });
 
   return { sections, monthSummaries, topCategories, pendingCount, allYears };
-}
+});
 
 // ─── Monthly Deep Dive ─────────────────────────────────────────────
 
-export async function getMonthDeepDive(accountId: string, monthId: string) {
+export const getMonthDeepDive = cache(async function getMonthDeepDive(
+  accountId: string,
+  monthId: string,
+) {
   const [sections, topTransactionsRaw, favorites, categoryTotalsRaw] = await Promise.all([
     prisma.section.findMany({
       where: { accountId },
@@ -257,7 +264,7 @@ export async function getMonthDeepDive(accountId: string, monthId: string) {
     topTransactions,
     favoriteTransactions,
   };
-}
+});
 
 // ─── Month Sparkline (last 6 months for KPI trend lines) ──────────
 
@@ -275,7 +282,7 @@ export type MonthSparklineResult = {
   prevMonthExpense: string | null;
 };
 
-export async function getMonthSparklineData(
+export const getMonthSparklineData = cache(async function getMonthSparklineData(
   accountId: string,
   currentMonthId: string,
 ): Promise<MonthSparklineResult> {
@@ -349,7 +356,7 @@ export async function getMonthSparklineData(
     prevMonthIncome: prev ? prev.income.toString() : null,
     prevMonthExpense: prev ? prev.expense.toString() : null,
   };
-}
+});
 
 // ─── Comparison Data (prev year same month + avg 3m) ──────────────
 
@@ -358,7 +365,7 @@ export type ComparisonResult = {
   avg3months: { total: string; income: string; expense: string } | null;
 };
 
-export async function getComparisonData(
+export const getComparisonData = cache(async function getComparisonData(
   accountId: string,
   currentMonthId: string,
 ): Promise<ComparisonResult> {
@@ -448,7 +455,7 @@ export async function getComparisonData(
       : null,
     avg3months: avg3monthsResult,
   };
-}
+});
 
 // ─── Daily Totals for Calendar Heatmap ────────────────────────────
 
@@ -459,7 +466,7 @@ export type DayTotal = {
   transactionIds: string[];
 };
 
-export async function getDailyTotals(
+export const getDailyTotals = cache(async function getDailyTotals(
   accountId: string,
   monthId: string,
   // null = toda atividade financeira (countInMonth); string[] = apenas as seções informadas
@@ -501,7 +508,7 @@ export async function getDailyTotals(
       transactionIds: ids,
     }))
     .sort((a, b) => a.day - b.day);
-}
+});
 
 // ─── Category Treemap ──────────────────────────────────────────────
 
@@ -520,7 +527,7 @@ export type TreemapCategory = {
   children: TreemapLeaf[];
 };
 
-export async function getCategoryTreemapData(
+export const getCategoryTreemapData = cache(async function getCategoryTreemapData(
   accountId: string,
   monthId: string,
 ): Promise<TreemapCategory[]> {
@@ -601,7 +608,7 @@ export async function getCategoryTreemapData(
         .sort((a, b) => Number(BigInt(b.totalCents)) - Number(BigInt(a.totalCents))),
     }))
     .sort((a, b) => Number(BigInt(b.totalCents)) - Number(BigInt(a.totalCents)));
-}
+});
 
 // ─── Sankey Data ───────────────────────────────────────────────────
 
@@ -611,7 +618,7 @@ export type SankeyData = { nodes: SankeyNode[]; links: SankeyLink[] };
 
 // groupBy controla o nível de gastos do Sankey (Total → categorias OU Total → seções).
 // 'category' é o padrão (comportamento original).
-export async function getSankeyData(
+export const getSankeyData = cache(async function getSankeyData(
   accountId: string,
   monthId: string,
   sections: SectionMeta[],
@@ -734,7 +741,7 @@ export async function getSankeyData(
   ];
 
   return { nodes, links };
-}
+});
 
 // ─── DrillDown Transactions ────────────────────────────────────────
 
@@ -749,7 +756,7 @@ export type DrillDownTransaction = {
   categoryName: string | null;
 };
 
-export async function getTransactionsByIds(
+export const getTransactionsByIds = cache(async function getTransactionsByIds(
   accountId: string,
   ids: string[],
 ): Promise<DrillDownTransaction[]> {
@@ -778,11 +785,14 @@ export async function getTransactionsByIds(
     sectionName: t.section.name,
     categoryName: t.category?.name ?? null,
   }));
-}
+});
 
 // ─── Yearly Deep Dive ──────────────────────────────────────────────
 
-export async function getYearDeepDive(accountId: string, year: number) {
+export const getYearDeepDive = cache(async function getYearDeepDive(
+  accountId: string,
+  year: number,
+) {
   const [sections, months] = await Promise.all([
     prisma.section.findMany({
       where: { accountId },
@@ -885,7 +895,7 @@ export async function getYearDeepDive(accountId: string, year: number) {
   const allYears = [...new Set(allYearsRaw.map((m) => m.year))].sort((a, b) => b - a);
 
   return { sections, monthSummaries, topCategories, topInstitutions, allYears };
-}
+});
 
 // ─── Spec 38 — Institution Breakdown (monthly) ────────────────────
 // Agrupa saídas por institutionId (FK cadastrada). Transações sem institutionId
@@ -897,7 +907,7 @@ export type InstitutionBreakdownItem = {
   totalCents: string; // BigInt serializado como string
 };
 
-export async function getInstitutionBreakdown(
+export const getInstitutionBreakdown = cache(async function getInstitutionBreakdown(
   accountId: string,
   monthId: string,
 ): Promise<InstitutionBreakdownItem[]> {
@@ -931,7 +941,7 @@ export async function getInstitutionBreakdown(
     name: r.institutionId ? (instNameMap.get(r.institutionId) ?? "—") : "Sem instituição",
     totalCents: (r._sum.amountCents ?? 0n).toString(),
   }));
-}
+});
 
 // ─── Spec 38 — Weekly Spending Chart (monthly) ────────────────────
 // Agrega gastos por semana do período do mês, calculando semanas a partir de
@@ -945,7 +955,7 @@ export type WeeklySpendingItem = {
   incomeCents: string; // BigInt string (0 se metric !== "income"/"both")
 };
 
-export async function getWeeklySpending(
+export const getWeeklySpending = cache(async function getWeeklySpending(
   accountId: string,
   monthId: string,
   monthStartDay: number,
@@ -1023,12 +1033,12 @@ export async function getWeeklySpending(
       incomeCents: data.income.toString(),
     };
   });
-}
+});
 
 // ─── Spec 38 — Transaction Count (all contexts) ───────────────────
 // Conta transações do período com filtros opcionais.
 
-export async function getTransactionCount(
+export const getTransactionCount = cache(async function getTransactionCount(
   accountId: string,
   periodFilter: { monthId: string } | { monthIds: string[] },
   options: {
@@ -1053,4 +1063,4 @@ export async function getTransactionCount(
       ...(includePending === false ? { isPending: false } : {}),
     },
   });
-}
+});

@@ -7,8 +7,9 @@
 import Box from "@mui/material/Box";
 
 import { BarList, type BarItem } from "@/components/dashboards/charts/BarList";
-import { PieBreakdown, type PieRenderMode } from "@/components/dashboards/charts/PieBreakdown";
-import { BreakdownBarChart } from "@/components/dashboards/charts/BreakdownBarChart";
+import { PieBreakdown } from "@/components/dashboards/charts/lazy";
+import type { PieRenderMode } from "@/components/dashboards/charts/PieBreakdown";
+import { BreakdownBarChart } from "@/components/dashboards/charts/lazy";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { m } from "@/lib/messages";

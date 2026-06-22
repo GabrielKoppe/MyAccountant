@@ -31,10 +31,7 @@ async function getNextDisplayOrder(
   return (agg._max.displayOrder ?? -1) + 1;
 }
 
-export async function createFinanceTable(
-  input: CreateFinanceTableInput,
-  ctx: ActionContext,
-) {
+export async function createFinanceTable(input: CreateFinanceTableInput, ctx: ActionContext) {
   // Validar que monthId pertence à account
   const month = await prisma.month.findUnique({
     where: { id: input.monthId },
@@ -168,10 +165,10 @@ export async function createFinanceTable(
 export async function updateFinanceTable(
   input: UpdateFinanceTableInput,
   ctx: ActionContext,
-) {
+): Promise<{ monthId: string }> {
   const table = await prisma.financeTable.findUnique({
     where: { id: input.tableId },
-    select: { accountId: true },
+    select: { accountId: true, monthId: true },
   });
   if (!table || table.accountId !== ctx.accountId) throw new NotFoundError("Tabela");
 
@@ -186,27 +183,26 @@ export async function updateFinanceTable(
   });
 
   log.info({ tableId: input.tableId, accountId: ctx.accountId }, "Finance table updated");
+  return { monthId: table.monthId };
 }
 
 export async function deleteFinanceTable(
   input: DeleteFinanceTableInput,
   ctx: ActionContext,
-) {
+): Promise<{ monthId: string }> {
   const table = await prisma.financeTable.findUnique({
     where: { id: input.tableId },
-    select: { accountId: true, sectionId: true },
+    select: { accountId: true, sectionId: true, monthId: true },
   });
   if (!table || table.accountId !== ctx.accountId) throw new NotFoundError("Tabela");
 
   await prisma.financeTable.delete({ where: { id: input.tableId } });
 
   log.info({ tableId: input.tableId, accountId: ctx.accountId }, "Finance table deleted");
+  return { monthId: table.monthId };
 }
 
-export async function reorderFinanceTables(
-  input: ReorderFinanceTablesInput,
-  ctx: ActionContext,
-) {
+export async function reorderFinanceTables(input: ReorderFinanceTablesInput, ctx: ActionContext) {
   await prisma.$transaction(
     input.orderedIds.map((id, index) =>
       prisma.financeTable.updateMany({

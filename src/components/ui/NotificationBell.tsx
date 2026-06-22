@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
@@ -26,7 +26,8 @@ import { listAndMarkAllReadAction } from "@/actions/notifications";
 import { m } from "@/lib/messages";
 import type { NotificationItem } from "@/server/services/notification-service";
 
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 5 * 60_000; // 5 minutos
+const FOCUS_DEBOUNCE_MS = 30_000; // 30 segundos
 
 type Props = {
   accountId: string;
@@ -52,13 +53,17 @@ export function NotificationBell({ accountId, initialUnreadCount }: Props) {
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const lastFetchRef = useRef<number>(0);
 
   const refreshCount = useCallback(async () => {
+    // Não faz fetch se a aba está oculta
+    if (document.visibilityState === "hidden") return;
     try {
       const res = await fetch(`/api/v1/accounts/${accountId}/notifications`);
       if (res.ok) {
         const data = (await res.json()) as { unreadCount: number };
         setUnreadCount(data.unreadCount);
+        lastFetchRef.current = Date.now();
       }
     } catch {
       // polling — falha silenciosa
@@ -71,7 +76,12 @@ export function NotificationBell({ accountId, initialUnreadCount }: Props) {
   }, [refreshCount]);
 
   useEffect(() => {
-    const onFocus = () => void refreshCount();
+    const onFocus = () => {
+      // Só refetch se último fetch tem mais de 30 segundos
+      if (Date.now() - lastFetchRef.current > FOCUS_DEBOUNCE_MS) {
+        void refreshCount();
+      }
+    };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [refreshCount]);

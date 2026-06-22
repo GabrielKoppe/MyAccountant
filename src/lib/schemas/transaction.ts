@@ -59,6 +59,7 @@ export const bulkDeleteSchema = z.object({
 
 export const bulkUpdateSchema = z.object({
   ids: z.array(z.string().cuid("ID inválido")).min(1),
+  monthId: z.string().cuid("ID inválido"),
   patch: z.object({
     isPending: z.boolean().optional(),
     isFavorite: z.boolean().optional(),
