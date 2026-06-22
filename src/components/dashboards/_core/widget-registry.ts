@@ -11,7 +11,9 @@ import {
   pieChartConfigSchema,
   topCategoriesConfigSchema,
   topTransactionsConfigSchema,
+  transactionCountConfigSchema,
   treemapConfigSchema,
+  weekChartConfigSchema,
 } from "@/lib/schemas/widget-config";
 
 export type WidgetKind = "kpi" | "panel";
@@ -164,6 +166,25 @@ const ANALYSIS_VARIANTS: WidgetSizeVariant[] = [
   { id: "medium", labelKey: "medium", w: 4, h: 3, renderMode: "default" },
   { id: "large", labelKey: "large", w: 4, h: 4, renderMode: "expanded" },
   { id: "giant", labelKey: "giant", w: 6, h: 4, renderMode: "expanded" },
+];
+
+// ─── Spec 38 — novos widgets ──────────────────────────────────────────────────
+
+// institution-breakdown: mesmo padrão de section-breakdown / category-breakdown (PIE_VARIANTS)
+const INSTITUTION_BREAKDOWN_VARIANTS: WidgetSizeVariant[] = PIE_VARIANTS;
+
+// week-chart: compact 2×1 (mini-barras), default 3×2 (barras+rótulos), large 4×3 (barras+valores+média)
+const WEEK_CHART_VARIANTS: WidgetSizeVariant[] = [
+  { id: "default", labelKey: "default", w: 3, h: 2, renderMode: "default" },
+  { id: "compact", labelKey: "compact", w: 2, h: 1, renderMode: "compact" },
+  { id: "large", labelKey: "large", w: 4, h: 3, renderMode: "expanded" },
+];
+
+// member-yearly: compact 2×1 (carrossel de cards), default 3×3 (gráfico+top-5), large 4×3 (gráfico+ranking detalhado)
+const MEMBER_YEARLY_VARIANTS: WidgetSizeVariant[] = [
+  { id: "default", labelKey: "default", w: 3, h: 3, renderMode: "default" },
+  { id: "compact", labelKey: "compact", w: 2, h: 1, renderMode: "compact" },
+  { id: "large", labelKey: "large", w: 4, h: 3, renderMode: "expanded" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -333,6 +354,41 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       configSchema: kpiCustomConfigSchema,
       defaultConfig: { metric: "total" },
     },
+    // ─── Spec 38 ───────────────────────────────────────────────────────────
+    {
+      id: "kpi-budget-health",
+      labelKey: "budgetHealth",
+      kind: "kpi",
+      sizeVariants: KPI_VARIANTS,
+      defaultVisible: false,
+    },
+    {
+      id: "kpi-transaction-count",
+      labelKey: "transactionCount",
+      kind: "kpi",
+      sizeVariants: KPI_VARIANTS,
+      defaultVisible: false,
+      configSchema: transactionCountConfigSchema,
+      defaultConfig: { countInMonth: "all", sectionType: "all", includePending: true },
+    },
+    {
+      id: "institution-breakdown",
+      labelKey: "institutionBreakdown",
+      kind: "panel",
+      sizeVariants: INSTITUTION_BREAKDOWN_VARIANTS,
+      defaultVisible: false,
+      configSchema: pieChartConfigSchema,
+      defaultConfig: { chartType: "pie" },
+    },
+    {
+      id: "week-chart",
+      labelKey: "weekChart",
+      kind: "panel",
+      sizeVariants: WEEK_CHART_VARIANTS,
+      defaultVisible: false,
+      configSchema: weekChartConfigSchema,
+      defaultConfig: { metric: "expense" },
+    },
   ],
   yearly: [
     {
@@ -458,6 +514,23 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       configSchema: kpiCustomConfigSchema,
       defaultConfig: { metric: "total" },
     },
+    // ─── Spec 38 ───────────────────────────────────────────────────────────
+    {
+      id: "kpi-transaction-count",
+      labelKey: "transactionCount",
+      kind: "kpi",
+      sizeVariants: KPI_VARIANTS,
+      defaultVisible: false,
+      configSchema: transactionCountConfigSchema,
+      defaultConfig: { countInMonth: "all", sectionType: "all", includePending: true },
+    },
+    {
+      id: "member-yearly",
+      labelKey: "memberYearly",
+      kind: "panel",
+      sizeVariants: MEMBER_YEARLY_VARIANTS,
+      defaultVisible: false,
+    },
   ],
   month_summary: [
     {
@@ -493,13 +566,6 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       labelKey: "sectionCards",
       kind: "panel",
       sizeVariants: SECTION_CARDS_VARIANTS,
-      defaultVisible: true,
-    },
-    {
-      id: "activity-lists",
-      labelKey: "activityLists",
-      kind: "panel",
-      sizeVariants: ACTIVITY_LISTS_VARIANTS,
       defaultVisible: true,
     },
     {
@@ -556,6 +622,23 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
         favorite: false,
         limit: 10,
       },
+    },
+    // ─── Spec 38 ───────────────────────────────────────────────────────────
+    {
+      id: "kpi-pending",
+      labelKey: "pending",
+      kind: "kpi",
+      sizeVariants: KPI_VARIANTS,
+      defaultVisible: false,
+    },
+    {
+      id: "kpi-transaction-count",
+      labelKey: "transactionCount",
+      kind: "kpi",
+      sizeVariants: KPI_VARIANTS,
+      defaultVisible: false,
+      configSchema: transactionCountConfigSchema,
+      defaultConfig: { countInMonth: "all", sectionType: "all", includePending: true },
     },
   ],
 };

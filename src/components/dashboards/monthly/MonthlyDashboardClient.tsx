@@ -19,7 +19,7 @@ import type {
 } from "@/lib/queries/dashboards";
 import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
-import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
+import { KpiCard } from "@/components/dashboards/kpi/KpiCard";
 import { DailyHeatmap } from "@/components/dashboards/charts/DailyHeatmap";
 import { CategoryTreemap } from "@/components/dashboards/charts/CategoryTreemap";
 import { DrillDownDrawer } from "@/components/dashboards/panels/DrillDownDrawer";
@@ -34,24 +34,32 @@ import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 import { TopTransactionTable } from "../panels/TopTransactionTable";
 import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
+import { BudgetHealthKpi } from "@/components/dashboards/kpi/BudgetHealthKpi";
+import { InstitutionBreakdownWidget } from "@/components/dashboards/panels/InstitutionBreakdownWidget";
+import { WeeklySpendingWidget } from "@/components/dashboards/panels/WeeklySpendingWidget";
 import type { Insight } from "@/server/services/insights-service";
 import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   kpiCustomConfigSchema,
+  weekChartConfigSchema,
+  transactionCountConfigSchema,
   type PieChartConfig,
   type TopTransactionsConfig,
   type TreemapConfig,
+  type WeekChartConfig,
 } from "@/lib/schemas/widget-config";
 import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
 import type { SerializedSandboxResult } from "@/lib/queries/sandbox";
+import type { InstitutionBreakdownItem, WeeklySpendingItem } from "@/lib/queries/dashboards";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CategoryIcon from "@mui/icons-material/Category";
+import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 
 // @nivo/sankey loaded client-only (no SSR — uses D3 hooks)
 const SankeyChart = dynamic(
@@ -97,6 +105,12 @@ type Props = {
   widgets: StoredWidget[];
   kpiCustomData: Record<string, KpiCustomResult>;
   analysisData: Record<string, SerializedSandboxResult>;
+  // Spec 38
+  institutionBreakdown: InstitutionBreakdownItem[];
+  weeklySpending: WeeklySpendingItem[];
+  transactionCount: number;
+  expenseCount?: number;
+  incomeCount?: number;
 };
 
 function pickComparisonValues(
@@ -154,6 +168,12 @@ export function MonthlyDashboardClient({
   widgets,
   kpiCustomData,
   analysisData,
+  // Spec 38
+  institutionBreakdown,
+  weeklySpending,
+  transactionCount,
+  expenseCount,
+  incomeCount,
 }: Props) {
   const [compareMode, setCompareMode] = useState<CompareMode>("prevMonth");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -200,7 +220,7 @@ export function MonthlyDashboardClient({
 
   const nodeByWidgetId: Record<string, React.ReactNode> = {
     "kpi-month-total": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.monthTotal}
         value={formatCentsToBrl(totalBigInt)}
         color={totalBigInt >= 0n ? "success" : "error"}
@@ -212,7 +232,7 @@ export function MonthlyDashboardClient({
       />
     ),
     "kpi-income": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.income}
         value={formatCentsToBrl(incomeBigInt)}
         color="success"
@@ -225,7 +245,7 @@ export function MonthlyDashboardClient({
       />
     ),
     "kpi-expenses": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.expenses}
         value={formatCentsToBrl(expenseBigInt)}
         color="error"
@@ -238,7 +258,7 @@ export function MonthlyDashboardClient({
       />
     ),
     "kpi-savings-rate": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.savingsRate}
         value={`${savingsRate}%`}
         subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
@@ -250,7 +270,7 @@ export function MonthlyDashboardClient({
       />
     ),
     "kpi-top-category": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.topCategory}
         value={topCategory ? formatCentsToBrl(BigInt(topCategory.totalCents)) : "—"}
         subtitle={topCategory?.name}
@@ -260,7 +280,7 @@ export function MonthlyDashboardClient({
       />
     ),
     "kpi-pending": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.pendingCount}
         value={String(pendingCount)}
         color={pendingCount > 0 ? "warning" : "default"}
@@ -355,6 +375,58 @@ export function MonthlyDashboardClient({
       <TopTransactionTable
         transactions={topTransactions}
         config={configOf("top-transactions") as TopTransactionsConfig | undefined}
+      />
+    ),
+    // ─── Spec 38 ────────────────────────────────────────────────────────────
+    "kpi-budget-health": (
+      <BudgetHealthKpi budgets={budgets} renderMode={kpiRm("kpi-budget-health")} />
+    ),
+    "kpi-transaction-count": (
+      <KpiCard
+        title={m.dashboards.kpi.transactionCount}
+        value={String(transactionCount)}
+        color="info"
+        icon={FormatListNumberedIcon}
+        breakdown={
+          expenseCount != null && incomeCount != null
+            ? [
+                { label: "Saídas", value: String(expenseCount), dotColor: "error.main" },
+                { label: "Entradas", value: String(incomeCount), dotColor: "success.main" },
+              ]
+            : undefined
+        }
+        renderMode={kpiRm("kpi-transaction-count")}
+      />
+    ),
+    "institution-breakdown": (
+      <InstitutionBreakdownWidget
+        data={institutionBreakdown}
+        config={
+          configOf("institution-breakdown") as
+            | import("@/lib/schemas/widget-config").PieChartConfig
+            | undefined
+        }
+        renderMode={
+          getRenderMode(widgets, "monthly", "institution-breakdown") as
+            | "compact"
+            | "default"
+            | "full"
+        }
+      />
+    ),
+    "week-chart": (
+      <WeeklySpendingWidget
+        data={weeklySpending}
+        metric={
+          (
+            configOf("week-chart") as
+              | import("@/lib/schemas/widget-config").WeekChartConfig
+              | undefined
+          )?.metric ?? "expense"
+        }
+        renderMode={
+          getRenderMode(widgets, "monthly", "week-chart") as "compact" | "default" | "expanded"
+        }
       />
     ),
   };

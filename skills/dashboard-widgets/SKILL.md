@@ -47,6 +47,75 @@ WIDGET_REGISTRY (_core/widget-registry.ts)
 
 ---
 
+## Filosofia de Variantes de Tamanho
+
+Todo widget de painel (`kind: "panel"`) deve declarar, pelo menos, **3 variantes de tamanho** no registry. KPIs usam `KPI_VARIANTS` (1×1 e 2×1) — 2 variantes são suficientes para cards compactos.
+
+### Variante compacta ou pequena — `compact`/`small`
+
+Versão **minimalista**: transmite a informação essencial no menor espaço possível.
+
+- Informações secundárias são omitidas ou ocultadas.
+- O layout **pode ser reorganizado** em relação ao padrão — mini-barras sem rótulos, donut sem legenda, lista de 3 itens no lugar de gráfico completo, estrutura de carrossel.
+- Indicada quando o usuário quer o widget presente sem sacrificar área significativa da grade.
+
+### Variante padrão — `default`
+
+Versão com **melhor custo-benefício** entre espaço e informação. É obrigatoriamente `sizeVariants[0]` — usada no auto-posicionamento inicial.
+
+- Entrega a informação central que o widget se propõe a exibir.
+- Layout equilibrado entre leiturabilidade e compacidade.
+- Referência: o que as outras variantes adicionam ou removem em relação a esta.
+
+### Variante expandida ou grande — `large`
+
+Versão com **máximo de informação contextual** em torno do conteúdo central.
+
+- O espaço adicional é ocupado com dados complementares: ranking, breakdown por sub-dimensão, série histórica, legenda detalhada com valores absolutos e percentuais, comparações, linha de referência.
+- **Princípio inegociável**: cada variante maior deve **adicionar conteúdo real**. Ampliar padding ou tipografia sem adicionar dado é anti-padrão.
+
+### Referência rápida
+
+| Variante | Objetivo | Conteúdo típico |
+|---|---|---|
+| `compact`/`small` | Sinal mínimo | Forma visual essencial; rótulos e legendas omitidos |
+| `default` | Análise padrão | Gráfico principal + legenda essencial |
+| `large` | Contexto completo | Gráfico + dados auxiliares (ranking, breakdown, histórico, valores explícitos) |
+
+### Regras no registry
+
+```typescript
+// ✅ Padrão: sizeVariants[0] = default (usado no auto-posicionamento)
+sizeVariants: [
+  { id: "default", labelKey: "default", w: 3, h: 2, renderMode: "default"  },
+  { id: "compact", labelKey: "compact", w: 2, h: 1, renderMode: "compact"  },
+  { id: "large",   labelKey: "large",   w: 4, h: 3, renderMode: "expanded" },
+],
+
+// ✅ KPIs: usar KPI_VARIANTS (1×1 default, 2×1 wide)
+// ❌ Variante maior com só espaçamento extra — deve adicionar dado real
+// ❌ sizeVariants[0] não sendo a variante default
+```
+
+### Como o componente usa `renderMode`
+
+```tsx
+// ✅ Correto — adapta pelo renderMode, nunca lê w/h diretamente
+export function MeuWidget({ data, renderMode = "default" }: Props) {
+  if (renderMode === "compact")  return <MeuWidgetCompact data={data} />;
+  if (renderMode === "expanded") return <MeuWidgetExpanded data={data} />;
+  return <MeuWidgetDefault data={data} />;
+}
+```
+
+| `renderMode` | Comportamento esperado |
+|---|---|
+| `"compact"` | Conteúdo mínimo: valor ou forma visual sem legendas. Layout pode diferir do padrão. |
+| `"default"` | Conteúdo padrão: gráfico principal + legenda essencial. |
+| `"expanded"` | Conteúdo rico: gráfico + dados contextuais (ranking, breakdown, histórico, valores explícitos). |
+
+---
+
 ## Passo 1 — Registro em `widget-registry.ts`
 
 Arquivo: [src/components/dashboards/_core/widget-registry.ts](src/components/dashboards/_core/widget-registry.ts)

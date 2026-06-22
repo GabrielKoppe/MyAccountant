@@ -30,8 +30,9 @@ export const getFilteredTransactions = cache(
 
     const txs = await prisma.transaction.findMany({
       where,
-      orderBy: { occurredOn: "desc" },
-      take: config.limit,
+      orderBy: { amountCents: "desc" },
+      // limit 0 = sem limite (busca todas)
+      ...(config.limit > 0 ? { take: config.limit } : {}),
       select: {
         id: true,
         description: true,

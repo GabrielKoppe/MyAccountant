@@ -51,7 +51,8 @@ export const filteredTransactionsConfigSchema = z.object({
   responsible: z.array(z.string()).default([]),
   pending: z.boolean().default(false),
   favorite: z.boolean().default(false),
-  limit: z.union([z.literal(5), z.literal(10), z.literal(20)]).default(10),
+  // 0 = sem limite (busca todas)
+  limit: z.union([z.literal(0), z.literal(5), z.literal(10), z.literal(20)]).default(10),
 });
 export type FilteredTransactionsConfig = z.infer<typeof filteredTransactionsConfigSchema>;
 
@@ -78,6 +79,26 @@ export const dailyHeatmapConfigSchema = z.object({
   metric: z.enum(["expense", "all_activity"]).default("expense"),
 });
 export type DailyHeatmapConfig = z.infer<typeof dailyHeatmapConfigSchema>;
+
+// institution-breakdown: usa pieChartConfigSchema (tipo de gráfico) como base.
+// Alias semântico — nenhuma lógica extra necessária.
+
+// week-chart: métrica exibida nas barras semanais.
+export const weekChartConfigSchema = z.object({
+  metric: z.enum(["expense", "income", "both"]).default("expense"),
+});
+export type WeekChartConfig = z.infer<typeof weekChartConfigSchema>;
+
+// kpi-transaction-count: filtros opcionais para o contador de transações.
+export const transactionCountConfigSchema = z.object({
+  countInMonth: z.enum(["all", "only"]).default("all"),
+  // "all" = sem filtro; "only" = apenas tabelas com countInMonth = true
+  sectionType: z.enum(["all", "subtract", "add"]).default("all"),
+  // "all" = sem filtro; "subtract" = só despesas; "add" = só receitas
+  includePending: z.boolean().default(true),
+  // false = excluir transações com isPending = true
+});
+export type TransactionCountConfig = z.infer<typeof transactionCountConfigSchema>;
 
 // analysis (instanciável): re-exporta sandboxConfigSchema como configSchema do widget.
 // Mantém schema único — UI filtra opções por contexto no formulário de config.

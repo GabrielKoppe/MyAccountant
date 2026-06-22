@@ -222,6 +222,12 @@ export default async function MonthPage({ params, searchParams }: Props) {
     transactionCount: t._count.transactions,
   }));
 
+  // Contagem total de transações do mês — derivada dos counts por tabela (sem nova query).
+  const totalTransactionCount = (tablesRaw as any[]).reduce(
+    (sum: number, t: any) => sum + (t._count?.transactions ?? 0),
+    0,
+  );
+
   // Totais por seção e mês
   const sectionTotalsRaw = await getSectionTotals(
     accountId,
@@ -382,6 +388,8 @@ export default async function MonthPage({ params, searchParams }: Props) {
               widgets={summaryWidgets}
               kpiCustomData={summaryKpiCustomData}
               filteredTransactionsData={summaryFilteredTransactions}
+              filterOptions={{ categories, institutions, members }}
+              transactionCount={totalTransactionCount}
             />
           ) : (
             <SectionView

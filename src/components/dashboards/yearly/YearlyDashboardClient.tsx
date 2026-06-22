@@ -6,6 +6,7 @@ import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 import SavingsIcon from "@mui/icons-material/Savings";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -13,13 +14,14 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { SectionMeta, CategorySum, MonthSummary } from "@/lib/queries/dashboards";
-import type { MemberTrendSeries } from "@/lib/queries/member-analytics";
+import type { MemberTrendSeries, MemberBreakdownRow } from "@/lib/queries/member-analytics";
 
-import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
+import { KpiCard } from "@/components/dashboards/kpi/KpiCard";
 import { MonthlyBarChart } from "@/components/dashboards/charts/MonthlyBarChart";
 import { TopCategoriesWidget } from "@/components/dashboards/panels/TopCategoriesWidget";
 import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { MemberTrendChart } from "@/components/dashboards/charts/MemberTrendChart";
+import { MemberYearlyWidget } from "@/components/dashboards/panels/MemberYearlyWidget";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { AppLink } from "@/components/ui/AppLink";
 import { YearSelector } from "@/components/dashboards/_shared/YearSelector";
@@ -55,6 +57,11 @@ type Props = {
   widgets: StoredWidget[];
   kpiCustomData: Record<string, KpiCustomResult>;
   analysisData: Record<string, SerializedSandboxResult>;
+  // Spec 38
+  memberYearly: MemberBreakdownRow[];
+  transactionCount: number;
+  expenseCount?: number;
+  incomeCount?: number;
 };
 
 export function YearlyDashboardClient({
@@ -78,6 +85,11 @@ export function YearlyDashboardClient({
   widgets,
   kpiCustomData,
   analysisData,
+  // Spec 38
+  memberYearly,
+  transactionCount,
+  expenseCount,
+  incomeCount,
 }: Props) {
   const yearTotalBigInt = BigInt(yearTotal);
   const yearlyIncomeBigInt = BigInt(yearlyIncome);
@@ -91,7 +103,7 @@ export function YearlyDashboardClient({
 
   const nodeByWidgetId: Record<string, React.ReactNode> = {
     "kpi-year-total": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.yearTotal}
         value={formatCentsToBrl(yearTotalBigInt)}
         subtitle={`${monthCount} ${monthCount === 1 ? "mês" : "meses"}`}
@@ -100,7 +112,7 @@ export function YearlyDashboardClient({
       />
     ),
     "kpi-income": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.income}
         value={formatCentsToBrl(yearlyIncomeBigInt)}
         color="success"
@@ -109,7 +121,7 @@ export function YearlyDashboardClient({
       />
     ),
     "kpi-expenses": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.expenses}
         value={formatCentsToBrl(yearlyExpenseBigInt)}
         color="error"
@@ -118,7 +130,7 @@ export function YearlyDashboardClient({
       />
     ),
     "kpi-savings-rate": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.savingsRate}
         value={`${savingsRate}%`}
         subtitle={savingsRate < 0 ? "Deficit" : savingsRate < 10 ? "Atenção" : "Bom"}
@@ -128,7 +140,7 @@ export function YearlyDashboardClient({
       />
     ),
     "kpi-monthly-avg": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.monthlyAvg}
         value={formatCentsToBrl(BigInt(monthAvg))}
         icon={CalendarMonthIcon}
@@ -136,7 +148,7 @@ export function YearlyDashboardClient({
       />
     ),
     "kpi-best-month": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.bestMonth}
         value={formatCentsToBrl(BigInt(bestMonth.total))}
         subtitle={bestMonth.label}
@@ -146,7 +158,7 @@ export function YearlyDashboardClient({
       />
     ),
     "kpi-worst-month": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.worstMonth}
         value={formatCentsToBrl(BigInt(worstMonth.total))}
         subtitle={worstMonth.label}
@@ -156,7 +168,7 @@ export function YearlyDashboardClient({
       />
     ),
     "kpi-pending": (
-      <KpiSparklineCard
+      <KpiCard
         title={m.dashboards.kpi.pendingCount}
         value={String(pendingCount)}
         color={pendingCount > 0 ? "warning" : "default"}
@@ -190,6 +202,37 @@ export function YearlyDashboardClient({
       <MemberTrendChart
         series={memberTrend}
         renderMode={getRenderMode(widgets, "yearly", "member-trend")}
+      />
+    ),
+    // ─── Spec 38 ───────────────────────────────────────────────────────────
+    "kpi-transaction-count": (
+      <KpiCard
+        title={m.dashboards.kpi.transactionCount}
+        value={String(transactionCount)}
+        color="info"
+        icon={FormatListNumberedIcon}
+        breakdown={
+          expenseCount != null && incomeCount != null
+            ? [
+                { label: "Saídas", value: String(expenseCount), dotColor: "error.main" },
+                { label: "Entradas", value: String(incomeCount), dotColor: "success.main" },
+              ]
+            : undefined
+        }
+        renderMode={kpiRm("kpi-transaction-count")}
+      />
+    ),
+    "member-yearly": (
+      <MemberYearlyWidget
+        rows={memberYearly}
+        config={
+          configOf("member-yearly") as
+            | import("@/lib/schemas/widget-config").PieChartConfig
+            | undefined
+        }
+        renderMode={
+          getRenderMode(widgets, "yearly", "member-yearly") as "compact" | "default" | "expanded"
+        }
       />
     ),
   };

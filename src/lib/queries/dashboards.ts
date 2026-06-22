@@ -886,3 +886,171 @@ export async function getYearDeepDive(accountId: string, year: number) {
 
   return { sections, monthSummaries, topCategories, topInstitutions, allYears };
 }
+
+// ─── Spec 38 — Institution Breakdown (monthly) ────────────────────
+// Agrupa saídas por institutionId (FK cadastrada). Transações sem institutionId
+// aparecem como "Sem instituição". institutionText ignorado (spec 38 §6).
+
+export type InstitutionBreakdownItem = {
+  institutionId: string | null; // null = "Sem instituição"
+  name: string;
+  totalCents: string; // BigInt serializado como string
+};
+
+export async function getInstitutionBreakdown(
+  accountId: string,
+  monthId: string,
+): Promise<InstitutionBreakdownItem[]> {
+  const rows = await prisma.transaction.groupBy({
+    by: ["institutionId"],
+    where: {
+      accountId, // ✅ multi-tenancy
+      monthId,
+      amountCents: { gt: 0n },
+      section: { countType: "subtract" },
+      table: { countInMonth: true },
+    },
+    _sum: { amountCents: true },
+    orderBy: { _sum: { amountCents: "desc" } },
+  });
+
+  if (rows.length === 0) return [];
+
+  const instIds = rows.map((r) => r.institutionId).filter(Boolean) as string[];
+  const institutions =
+    instIds.length > 0
+      ? await prisma.institution.findMany({
+          where: { id: { in: instIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const instNameMap = new Map(institutions.map((i) => [i.id, i.name]));
+
+  return rows.map((r) => ({
+    institutionId: r.institutionId,
+    name: r.institutionId ? (instNameMap.get(r.institutionId) ?? "—") : "Sem instituição",
+    totalCents: (r._sum.amountCents ?? 0n).toString(),
+  }));
+}
+
+// ─── Spec 38 — Weekly Spending Chart (monthly) ────────────────────
+// Agrega gastos por semana do período do mês, calculando semanas a partir de
+// monthStartDay (account_settings). Semanas parciais são incluídas.
+// metric: "expense" (saídas subtract) | "income" (entradas add) | "both" (ambos)
+
+export type WeeklySpendingItem = {
+  weekLabel: string; // "Sem 1", "Sem 2", ...
+  weekIndex: number; // 1-based
+  expenseCents: string; // BigInt string (0 se metric !== "expense"/"both")
+  incomeCents: string; // BigInt string (0 se metric !== "income"/"both")
+};
+
+export async function getWeeklySpending(
+  accountId: string,
+  monthId: string,
+  monthStartDay: number,
+  metric: "expense" | "income" | "both" = "expense",
+): Promise<WeeklySpendingItem[]> {
+  // Buscar todas as transações relevantes do mês
+  const sectionFilter =
+    metric === "expense"
+      ? { countType: "subtract" as const }
+      : metric === "income"
+        ? { countType: "add" as const }
+        : undefined; // both = todas as seções countInMonth
+
+  const txs = await prisma.transaction.findMany({
+    where: {
+      accountId, // ✅ multi-tenancy
+      monthId,
+      amountCents: { gt: 0n },
+      table: { countInMonth: true },
+      ...(sectionFilter ? { section: sectionFilter } : {}),
+    },
+    select: {
+      occurredOn: true,
+      amountCents: true,
+      section: { select: { countType: true } },
+    },
+  });
+
+  if (txs.length === 0) return [];
+
+  // Calcular a qual semana cada transação pertence
+  // Semana 1 começa no monthStartDay. Ex: monthStartDay=5 → semana 1 = dias 5-11
+  // Para dias < monthStartDay no mês calendário, eles pertencem ao mês anterior
+  // (já filtrado pelo monthId), mas pode haver dias no início do mês calendário
+  // que são a semana final do período anterior → tratamos como semana normal.
+
+  const weekMap = new Map<number, { expense: bigint; income: bigint }>();
+
+  for (const tx of txs) {
+    const day = tx.occurredOn.getUTCDate();
+    const month = tx.occurredOn.getUTCMonth() + 1;
+    const year = tx.occurredOn.getUTCFullYear();
+
+    // Calcular o offset em dias desde o início do período do mês
+    // Dias >= monthStartDay do mês: offset = day - monthStartDay
+    // Dias < monthStartDay do mês (segundo mês calendário): offset = (dias no mês anterior) - monthStartDay + day
+    let offset: number;
+    if (day >= monthStartDay) {
+      offset = day - monthStartDay;
+    } else {
+      // Último dia do mês anterior
+      const prevDate = new Date(Date.UTC(year, month - 1, 0));
+      const daysInPrevMonth = prevDate.getUTCDate();
+      offset = daysInPrevMonth - monthStartDay + day;
+    }
+
+    const weekIndex = Math.floor(offset / 7) + 1; // 1-based
+    const current = weekMap.get(weekIndex) ?? { expense: 0n, income: 0n };
+
+    if (tx.section.countType === "subtract") {
+      weekMap.set(weekIndex, { ...current, expense: current.expense + tx.amountCents });
+    } else if (tx.section.countType === "add") {
+      weekMap.set(weekIndex, { ...current, income: current.income + tx.amountCents });
+    }
+  }
+
+  // Ordenar semanas e montar resultado
+  const weeks = Array.from(weekMap.keys()).sort((a, b) => a - b);
+  return weeks.map((weekIndex) => {
+    const data = weekMap.get(weekIndex)!;
+    return {
+      weekLabel: `Sem ${weekIndex}`,
+      weekIndex,
+      expenseCents: data.expense.toString(),
+      incomeCents: data.income.toString(),
+    };
+  });
+}
+
+// ─── Spec 38 — Transaction Count (all contexts) ───────────────────
+// Conta transações do período com filtros opcionais.
+
+export async function getTransactionCount(
+  accountId: string,
+  periodFilter: { monthId: string } | { monthIds: string[] },
+  options: {
+    countInMonth?: "all" | "only";
+    sectionType?: "all" | "subtract" | "add";
+    includePending?: boolean;
+  } = {},
+): Promise<number> {
+  const { countInMonth = "all", sectionType = "all", includePending = true } = options;
+
+  const monthWhere =
+    "monthId" in periodFilter
+      ? { monthId: periodFilter.monthId }
+      : { monthId: { in: periodFilter.monthIds } };
+
+  return prisma.transaction.count({
+    where: {
+      accountId, // ✅ multi-tenancy
+      ...monthWhere,
+      ...(countInMonth === "only" ? { table: { countInMonth: true } } : {}),
+      ...(sectionType !== "all" ? { section: { countType: sectionType } } : {}),
+      ...(includePending === false ? { isPending: false } : {}),
+    },
+  });
+}

@@ -16,12 +16,10 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import { getChartColors } from "@/lib/design-tokens";
 import type { SparklinePoint } from "@/lib/queries/dashboards";
+import { Divider } from "@mui/material";
 
 type DeltaMode = "prevMonth" | "prevYear" | "avg3m" | "none";
 
@@ -234,110 +232,148 @@ export function KpiCard({
         </Tooltip>
       )}
 
-      {/* ── Breakdown: lista compacta de sub-itens (ex: saídas · entradas) ── */}
-      {breakdown && breakdown.length > 0 && (
-        <Box sx={{ mt: 0.5, display: "flex", flexDirection: "column", gap: 0.3 }}>
+      {/* ── Breakdown: lista compacta de sub-itens (ex: saídas · entradas) ──
+           Só exibido em modo `wide` para manter o card compacto em default.
+      */}
+      {isWide && breakdown && breakdown.length > 0 && (
+        <Box
+          sx={{
+            mt: 0.5,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.25,
+            maxHeight: 48,
+            overflow: "hidden",
+          }}
+        >
           {breakdown.map((item, i) => (
-            <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-              {item.dotColor && (
-                <Box
+            <>
+              <Divider sx={{ borderColor: "divider.subtle" }} />
+              <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
+                {item.dotColor && (
+                  <Box
+                    sx={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      bgcolor: item.dotColor,
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <Typography
+                  variant="caption"
+                  noWrap
                   sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    bgcolor: item.dotColor,
-                    flexShrink: 0,
+                    fontSize: "0.63rem",
+                    color: "text.secondary",
+                    flex: 1,
+                    minWidth: 0,
+                    lineHeight: 1.3,
                   }}
-                />
-              )}
-              <Typography
-                variant="caption"
-                noWrap
-                sx={{ fontSize: "0.67rem", color: "text.secondary", flex: 1, minWidth: 0 }}
-              >
-                {item.label}
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontFamily: "var(--font-jetbrains-mono), monospace",
-                  fontSize: "0.68rem",
-                  fontWeight: 600,
-                  flexShrink: 0,
-                }}
-              >
-                {item.value}
-              </Typography>
-            </Box>
+                >
+                  {item.label}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontFamily: "var(--font-jetbrains-mono), monospace",
+                    fontSize: "0.64rem",
+                    fontWeight: 600,
+                    flexShrink: 0,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {item.value}
+                </Typography>
+              </Box>
+            </>
           ))}
+          <Divider sx={{ my: 0.25, borderColor: "divider.subtle" }} />
         </Box>
       )}
 
-      {/* ── Gauge semicircular ──
-           Ocupa o espa\u00e7o inferior do card, no lugar da sparkline.
-           Prop `gauge.percent` define o preenchimento (0\u2013100).
-           Cor derivada de `textToken` (success/warning/error/info/default).
-           Em modo `wide` o arco \u00e9 maior e mais vis\u00edvel.
+      {/* ── Gauge: arco SVG com gradiente contínuo verde→amarelo→vermelho e agulha ──
+           Preenche todo o espaço flex disponível abaixo do valor.
+           O viewBox 200×110 escala com a largura do card mantendo proporções.
+           linearGradient local ao SVG — sem conflito entre instâncias.
       */}
       {hasGauge &&
         (() => {
           const pct = Math.min(Math.max(gauge!.percent, 0), 100);
-          const empty = 100 - pct;
-          const colorMap: Record<CardColor, string> = {
-            default: theme.palette.primary.main,
-            success: theme.palette.success.main,
-            warning: theme.palette.warning.main,
-            error: theme.palette.error.main,
-            info: theme.palette.info.main,
-          };
-          const fillColor = colorMap[color];
-          const trackColor = theme.palette.action.selected;
-          const gaugeH = isWide ? 72 : 44;
+          // Ângulo: 0% → 180° (esquerda), 100% → 0° (direita)
+          const needleAngleDeg = 180 - (pct / 100) * 180;
+          const needleRad = (needleAngleDeg * Math.PI) / 180;
+          const svgCx = 100,
+            svgCy = 105; // pivot no centro inferior do viewBox
+          const needleLen = 51;
+          const nx = svgCx + needleLen * Math.cos(needleRad);
+          const ny = svgCy - needleLen * Math.sin(needleRad);
+
           return (
-            <Box sx={{ flex: 1, mt: 0.5, minHeight: gaugeH, position: "relative" }}>
-              <ResponsiveContainer width="100%" height={gaugeH}>
-                <PieChart>
-                  <Pie
-                    data={[{ value: pct }, { value: empty }]}
-                    cx="50%"
-                    cy="100%"
-                    startAngle={180}
-                    endAngle={0}
-                    innerRadius={isWide ? "55%" : "52%"}
-                    outerRadius={isWide ? "85%" : "82%"}
-                    dataKey="value"
-                    stroke="none"
-                    isAnimationActive={false}
-                    paddingAngle={0}
-                  >
-                    <Cell fill={fillColor} />
-                    <Cell fill={trackColor} />
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Percentual centralizado no fundo do arco */}
-              <Box
-                sx={{
-                  position: "absolute",
-                  bottom: isWide ? 6 : 2,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  textAlign: "center",
-                  pointerEvents: "none",
-                }}
+            <Box
+              sx={{
+                flex: 1,
+                mt: 0.5,
+                minHeight: 0,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "flex-end",
+                mb: 1.5,
+              }}
+            >
+              <svg
+                height={isWide ? 140 : 110}
+                viewBox="0 0 200 110"
+                style={{ display: "block", overflow: "visible" }}
               >
-                <Typography
-                  sx={{
-                    fontFamily: "var(--font-jetbrains-mono), monospace",
-                    fontSize: isWide ? "0.85rem" : "0.65rem",
-                    fontWeight: 600,
-                    color: textToken,
-                    lineHeight: 1,
-                  }}
-                >
-                  {Math.round(pct)}%
-                </Typography>
-              </Box>
+                <defs>
+                  {/* Gradiente linear da esquerda (verde/saudável) para direita (vermelho/crítico) */}
+                  <linearGradient id="kpi-gauge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor={theme.palette.success.main} />
+                    <stop offset="42%" stopColor={theme.palette.warning.main} />
+                    <stop offset="100%" stopColor={theme.palette.error.main} />
+                  </linearGradient>
+                </defs>
+
+                {/* Trilho de fundo */}
+                <path
+                  d="M 49 105 A 51 51 0 0 1 151 105"
+                  stroke={theme.palette.action.selected}
+                  strokeWidth="13"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+                {/* Arco com gradiente */}
+                <path
+                  d="M 49 105 A 51 51 0 0 1 151 105"
+                  stroke="url(#kpi-gauge-grad)"
+                  strokeWidth="13"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+
+                {/* Sombra do pivot */}
+                <circle
+                  cx={svgCx}
+                  cy={svgCy}
+                  r={10}
+                  fill={theme.palette.background.paper}
+                  opacity={0.5}
+                />
+                {/* Agulha */}
+                <line
+                  x1={svgCx}
+                  y1={svgCy}
+                  x2={nx}
+                  y2={ny}
+                  stroke={theme.palette.text.primary}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+                {/* Pivot */}
+                <circle cx={svgCx} cy={svgCy} r={5} fill={theme.palette.text.primary} />
+              </svg>
             </Box>
           );
         })()}

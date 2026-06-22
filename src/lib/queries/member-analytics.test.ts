@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, type Mock } from "vitest";
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { m } from "@/lib/messages";
 
-import { getMemberMonthlyBreakdown, getMemberYearlyTrend } from "./member-analytics";
+import {
+  getMemberMonthlyBreakdown,
+  getMemberYearlyBreakdown,
+  getMemberYearlyTrend,
+} from "./member-analytics";
 
 const ACCOUNT_ID = "acc-test-1";
 
@@ -85,7 +89,7 @@ describe("getMemberMonthlyBreakdown", () => {
   it("filtra por accountId e base de despesa (multi-tenancy)", async () => {
     await getMemberMonthlyBreakdown(ACCOUNT_ID, "month-1");
 
-    expect((prismaMock.transaction.groupBy as unknown as Mock)).toHaveBeenCalledWith(
+    expect(prismaMock.transaction.groupBy as unknown as Mock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           accountId: ACCOUNT_ID,
@@ -174,5 +178,67 @@ describe("getMemberYearlyTrend", () => {
     const others = series.at(-1)!;
     expect(others.points[0].totalCents).toBe("0");
     expect(others.points[1].totalCents).toBe("10000");
+  });
+});
+
+// ─── Spec 38 — getMemberYearlyBreakdown ─────────────────────────────────────
+
+describe("getMemberYearlyBreakdown", () => {
+  beforeEach(() => {
+    prismaMock.month.findMany.mockResolvedValue([]);
+  });
+
+  it("retorna array vazio quando não há meses no ano", async () => {
+    prismaMock.month.findMany.mockResolvedValue([]);
+    const result = await getMemberYearlyBreakdown("acc-1", 2026);
+    expect(result).toHaveLength(0);
+  });
+
+  it("filtra por accountId — multi-tenancy", async () => {
+    prismaMock.month.findMany.mockResolvedValue([{ id: "m-1" }] as any);
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue([]);
+    prismaMock.accountMember.findMany.mockResolvedValue([]);
+    await getMemberYearlyBreakdown("acc-1", 2026);
+    expect(prismaMock.month.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ accountId: "acc-1" }),
+      }),
+    );
+  });
+
+  it("serializa totalCents como string (BigInt seguro)", async () => {
+    prismaMock.month.findMany.mockResolvedValue([{ id: "m-1" }] as any);
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue([
+      { responsibleUserId: "u-1", _sum: { amountCents: 20000n } },
+      { responsibleUserId: "u-1", categoryId: "cat-1", _sum: { amountCents: 20000n } },
+    ]);
+    prismaMock.accountMember.findMany.mockResolvedValue([
+      { userId: "u-1", user: { name: "Alice", email: "alice@test.com" } },
+    ] as any);
+    prismaMock.category.findMany.mockResolvedValue([{ id: "cat-1", name: "Alimentação" }] as any);
+    prismaMock.user.findMany.mockResolvedValue([]);
+    const result = await getMemberYearlyBreakdown("acc-1", 2026);
+    expect(result.length).toBeGreaterThan(0);
+    expect(typeof result[0].totalCents).toBe("string");
+  });
+
+  it("trunca ao top-5 membros", async () => {
+    prismaMock.month.findMany.mockResolvedValue([{ id: "m-1" }] as any);
+    // 7 membros com gastos
+    const byMember = Array.from({ length: 7 }, (_, i) => ({
+      responsibleUserId: `u-${i}`,
+      _sum: { amountCents: BigInt((7 - i) * 1000) },
+    }));
+    (prismaMock.transaction.groupBy as unknown as Mock).mockResolvedValue(byMember);
+    prismaMock.accountMember.findMany.mockResolvedValue(
+      byMember.map((r) => ({
+        userId: r.responsibleUserId,
+        user: { name: `User ${r.responsibleUserId}`, email: `${r.responsibleUserId}@test.com` },
+      })) as any,
+    );
+    prismaMock.category.findMany.mockResolvedValue([]);
+    prismaMock.user.findMany.mockResolvedValue([]);
+    const result = await getMemberYearlyBreakdown("acc-1", 2026);
+    expect(result.length).toBeLessThanOrEqual(5);
   });
 });

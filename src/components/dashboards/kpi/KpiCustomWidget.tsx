@@ -6,7 +6,7 @@ import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { KpiCustomConfig } from "@/lib/schemas/widget-config";
 import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
-import { KpiSparklineCard } from "./KpiSparklineCard";
+import { KpiCard } from "./KpiCard";
 
 const METRIC_LABELS: Record<KpiCustomConfig["metric"], string> = {
   total: m.dashboards.sandbox.controls.metricTotal,
@@ -25,7 +25,7 @@ export function KpiCustomWidget({ config, data }: Props) {
   const title = config.label?.trim() || METRIC_LABELS[config.metric];
 
   if (!data) {
-    return <KpiSparklineCard title={title} value="—" icon={TuneIcon} />;
+    return <KpiCard title={title} value="—" icon={TuneIcon} />;
   }
 
   const value =
@@ -38,5 +38,5 @@ export function KpiCustomWidget({ config, data }: Props) {
     color = BigInt(data.valueCents) >= 0n ? "success" : "error";
   }
 
-  return <KpiSparklineCard title={title} value={value} color={color} icon={TuneIcon} />;
+  return <KpiCard title={title} value={value} color={color} icon={TuneIcon} />;
 }

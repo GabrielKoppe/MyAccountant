@@ -222,6 +222,20 @@ export const messages = {
         // top-categories (reusa topNLabel/topNValue/topNAll)
         // analysis (widget instanciável)
         analysisYearNote: "Período: ano atual do dashboard (automático)",
+        // week-chart (Spec 38)
+        weekMetricLabel: "Exibir",
+        weekMetricExpense: "Despesas",
+        weekMetricIncome: "Entradas",
+        weekMetricBoth: "Despesas e entradas",
+        // kpi-transaction-count (Spec 38)
+        countInMonthLabel: "Escopo",
+        countInMonthAll: "Todas as tabelas",
+        countInMonthOnly: "Somente tabelas que contam no mês",
+        sectionTypeLabel: "Tipo de transação",
+        sectionTypeAll: "Todas",
+        sectionTypeExpense: "Somente despesas",
+        sectionTypeIncome: "Somente entradas",
+        includePendingLabel: "Incluir pendentes",
       },
       addWidget: "Adicionar widget",
       addAll: "Adicionar todos",
@@ -589,6 +603,9 @@ export const messages = {
       expenses: "Saídas",
       savingsRate: "Taxa de Poupança",
       topCategory: "Maior Categoria",
+      // Spec 38
+      budgetHealth: "Saúde do Orçamento",
+      transactionCount: "Transações",
     },
     sections: {
       monthlyChart: "Totais por Mês",
@@ -605,6 +622,10 @@ export const messages = {
       memberBreakdown: "Gastos por Membro",
       memberRadar: "Comparação por Categoria",
       memberTrend: "Tendência por Membro",
+      // Spec 38
+      institutionBreakdown: "Gastos por Instituição",
+      weekChart: "Gastos por Semana",
+      memberYearly: "Gastos por Membro no Ano",
     },
     members: {
       unassigned: "Sem responsável",
@@ -691,6 +712,11 @@ export const messages = {
         "member-radar": "Comparação por Categoria",
         analysis: "Análise",
         "kpi-custom": "Indicador Personalizado",
+        // Spec 38
+        "kpi-budget-health": "Saúde do Orçamento",
+        "kpi-transaction-count": "Volume de Transações",
+        "institution-breakdown": "Gastos por Instituição",
+        "week-chart": "Gastos por Semana",
       },
       yearly: {
         "kpi-year-total": "Total do Ano",
@@ -707,6 +733,9 @@ export const messages = {
         "member-trend": "Tendência por Membro",
         analysis: "Análise",
         "kpi-custom": "Indicador Personalizado",
+        // Spec 38
+        "kpi-transaction-count": "Volume de Transações",
+        "member-yearly": "Gastos por Membro no Ano",
       },
       month_summary: {
         "kpi-income": "Entradas",
@@ -721,6 +750,9 @@ export const messages = {
         insights: "Insights",
         "kpi-custom": "Indicador Personalizado",
         "filtered-transactions": "Transações Filtradas",
+        // Spec 38
+        "kpi-pending": "Transações Pendentes",
+        "kpi-transaction-count": "Volume de Transações",
       },
       descriptions: {
         monthly: {
@@ -743,6 +775,11 @@ export const messages = {
           "member-radar": "Gráfico de radar comparando gastos por categoria entre membros",
           analysis: "Gráfico configurável a partir de uma análise",
           "kpi-custom": "Indicador de uma métrica à sua escolha",
+          // Spec 38
+          "kpi-budget-health": "Percentual médio de utilização das metas de orçamento",
+          "kpi-transaction-count": "Quantidade de transações no período",
+          "institution-breakdown": "Distribuição de saídas por instituição financeira",
+          "week-chart": "Gastos agregados por semana do período do mês",
         },
         yearly: {
           "kpi-year-total": "Saldo acumulado no ano",
@@ -759,6 +796,9 @@ export const messages = {
           "member-trend": "Evolução da despesa de cada pessoa ao longo do ano",
           analysis: "Gráfico configurável a partir de uma análise",
           "kpi-custom": "Indicador de uma métrica à sua escolha",
+          // Spec 38
+          "kpi-transaction-count": "Quantidade de transações no ano",
+          "member-yearly": "Ranking consolidado de gastos por pessoa no ano inteiro",
         },
         month_summary: {
           "kpi-income": "Total de entradas no período",
@@ -773,6 +813,9 @@ export const messages = {
           insights: "Destaques automáticos: picos, metas em risco e categorias novas",
           "kpi-custom": "Indicador de uma métrica à sua escolha",
           "filtered-transactions": "Lista de transações de um recorte filtrado",
+          // Spec 38
+          "kpi-pending": "Transações aguardando confirmação no mês",
+          "kpi-transaction-count": "Quantidade de transações no período",
         },
       },
     },

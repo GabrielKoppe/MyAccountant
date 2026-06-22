@@ -5,8 +5,8 @@ import Typography from "@mui/material/Typography";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
-import { getYearOverview } from "@/lib/queries/dashboards";
-import { getMemberYearlyTrend } from "@/lib/queries/member-analytics";
+import { getYearOverview, getTransactionCount } from "@/lib/queries/dashboards";
+import { getMemberYearlyTrend, getMemberYearlyBreakdown } from "@/lib/queries/member-analytics";
 import { getLayout } from "@/server/services/dashboard-layout-service";
 import { getKpiCustomDataMap } from "@/lib/queries/kpi-custom";
 import { getSandboxDataMap } from "@/lib/queries/sandbox";
@@ -87,6 +87,27 @@ export default async function YearlyDashboardPage({ params }: Props) {
   const kpiCustomData = await getKpiCustomDataMap(accountId, widgets, yearMonthIds);
   const analysisData = await getSandboxDataMap(accountId, widgets, { currentYear: year });
 
+  // Spec 38
+  const transactionCountConfig = widgets.find((w) => w.widgetId === "kpi-transaction-count")
+    ?.config as
+    | { countInMonth?: string; sectionType?: string; includePending?: boolean }
+    | undefined;
+  const [memberYearly, transactionCount, expenseCount, incomeCount] = await Promise.all([
+    getMemberYearlyBreakdown(accountId, year),
+    getTransactionCount(
+      accountId,
+      { monthIds: yearMonthIds },
+      {
+        countInMonth: (transactionCountConfig?.countInMonth ?? "all") as "all" | "only",
+        sectionType: (transactionCountConfig?.sectionType ?? "all") as "all" | "subtract" | "add",
+        includePending: transactionCountConfig?.includePending ?? true,
+      },
+    ),
+    // breakdown para o wide variant
+    getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "subtract" }),
+    getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "add" }),
+  ]);
+
   return (
     <YearlyDashboardClient
       accountId={accountId}
@@ -109,6 +130,10 @@ export default async function YearlyDashboardPage({ params }: Props) {
       widgets={widgets}
       kpiCustomData={kpiCustomData}
       analysisData={analysisData}
+      memberYearly={memberYearly}
+      transactionCount={transactionCount}
+      expenseCount={expenseCount}
+      incomeCount={incomeCount}
     />
   );
 }

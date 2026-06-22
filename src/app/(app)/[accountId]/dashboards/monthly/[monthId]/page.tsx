@@ -15,6 +15,9 @@ import {
   getDailyTotals,
   getCategoryTreemapData,
   getSankeyData,
+  getInstitutionBreakdown,
+  getWeeklySpending,
+  getTransactionCount,
 } from "@/lib/queries/dashboards";
 import { getMemberMonthlyBreakdown } from "@/lib/queries/member-analytics";
 import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
@@ -139,6 +142,38 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   const kpiCustomData = await getKpiCustomDataMap(accountId, widgets, [monthId]);
   const analysisData = await getSandboxDataMap(accountId, widgets, { currentMonthId: monthId });
 
+  // Spec 38 — novos dados
+  const weekChartConfig = widgets.find((w) => w.widgetId === "week-chart")?.config as
+    | { metric?: "expense" | "income" | "both" }
+    | undefined;
+  const transactionCountConfig = widgets.find((w) => w.widgetId === "kpi-transaction-count")
+    ?.config as
+    | { countInMonth?: string; sectionType?: string; includePending?: boolean }
+    | undefined;
+
+  const [institutionBreakdown, weeklySpending, transactionCount, expenseCount, incomeCount] =
+    await Promise.all([
+      getInstitutionBreakdown(accountId, monthId),
+      getWeeklySpending(
+        accountId,
+        monthId,
+        accountSettings?.monthStartDay ?? 1,
+        weekChartConfig?.metric ?? "expense",
+      ),
+      getTransactionCount(
+        accountId,
+        { monthId },
+        {
+          countInMonth: (transactionCountConfig?.countInMonth ?? "all") as "all" | "only",
+          sectionType: (transactionCountConfig?.sectionType ?? "all") as "all" | "subtract" | "add",
+          includePending: transactionCountConfig?.includePending ?? true,
+        },
+      ),
+      // breakdown para o wide variant (sempre sem filtro de sectionType)
+      getTransactionCount(accountId, { monthId }, { sectionType: "subtract" }),
+      getTransactionCount(accountId, { monthId }, { sectionType: "add" }),
+    ]);
+
   return (
     <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
       {/* Navigation header */}
@@ -206,6 +241,11 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         widgets={widgets}
         kpiCustomData={kpiCustomData}
         analysisData={analysisData}
+        institutionBreakdown={institutionBreakdown}
+        weeklySpending={weeklySpending}
+        transactionCount={transactionCount}
+        expenseCount={expenseCount}
+        incomeCount={incomeCount}
       />
     </Box>
   );

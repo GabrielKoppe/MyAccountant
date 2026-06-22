@@ -85,4 +85,11 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   analysis: AutoGraphIcon,
   "kpi-custom": TuneIcon,
   "filtered-transactions": FilterAltIcon,
+
+  // Spec 38 — novos widgets
+  "kpi-budget-health": FlagIcon, // saúde das metas → mesmo ícone de budgets
+  "kpi-transaction-count": FormatListNumberedIcon,
+  "institution-breakdown": AccountBalanceIcon,
+  "week-chart": CalendarTodayIcon,
+  "member-yearly": Diversity3Icon, // reusa ícone de member-breakdown
 };

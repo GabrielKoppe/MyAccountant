@@ -31,7 +31,7 @@ function getAmountColor(amountCents: bigint, countType: string): string {
   return "text.tertiary";
 }
 
-function TxTable({ transactions }: { transactions: TxRow[] }) {
+export function TxTable({ transactions }: { transactions: TxRow[] }) {
   if (transactions.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">

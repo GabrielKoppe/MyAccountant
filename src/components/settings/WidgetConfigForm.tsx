@@ -44,7 +44,9 @@ import {
   pieChartConfigSchema,
   topCategoriesConfigSchema,
   topTransactionsConfigSchema,
+  transactionCountConfigSchema,
   treemapConfigSchema,
+  weekChartConfigSchema,
 } from "@/lib/schemas/widget-config";
 import type { DashboardContext, WidgetDef } from "@/components/dashboards/_core/widget-registry";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
@@ -719,6 +721,9 @@ function FilteredTransactionsForm({
                 value={String(field.value)}
                 onChange={(e) => field.onChange(Number(e.target.value))}
               >
+                <MenuItem value="0" sx={menuItemSx}>
+                  Todas
+                </MenuItem>
                 {[5, 10, 20].map((n) => (
                   <MenuItem key={n} value={String(n)} sx={menuItemSx}>
                     {n}
@@ -1219,7 +1224,148 @@ export function WidgetConfigForm({ context, def, widget, options, onSave }: Prop
       return <FilteredTransactionsForm widget={widget} options={options} onSave={onSave} />;
     case "analysis":
       return <AnalysisForm widget={widget} options={options} context={context} onSave={onSave} />;
+    // ─── Spec 38 ─────────────────────────────────────────────────────────────
+    case "institution-breakdown":
+      return <PieChartForm widget={widget} onSave={onSave} />;
+    case "week-chart":
+      return <WeekChartForm widget={widget} onSave={onSave} />;
+    case "kpi-transaction-count":
+      return <TransactionCountForm widget={widget} onSave={onSave} />;
     default:
       return null;
   }
+}
+
+// ─── Spec 38 — week-chart ─────────────────────────────────────────────────────
+
+function WeekChartForm({ widget, onSave }: { widget: StoredWidget; onSave: (c: unknown) => void }) {
+  const { control, handleSubmit } = useForm<z.infer<typeof weekChartConfigSchema>>({
+    resolver: zodResolver(weekChartConfigSchema),
+    defaultValues: resolveDefaults(weekChartConfigSchema, widget.config) as DefaultValues<
+      z.infer<typeof weekChartConfigSchema>
+    >,
+  });
+  return (
+    <form onSubmit={handleSubmit(onSave)}>
+      <Stack spacing={1}>
+        <Box>
+          <FieldLabel>{m.settings.dashboards.config.weekMetricLabel}</FieldLabel>
+          <Controller
+            control={control}
+            name="metric"
+            render={({ field }) => (
+              <RadioGroup {...field}>
+                <FormControlLabel
+                  value="expense"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.weekMetricExpense}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="income"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.weekMetricIncome}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="both"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.weekMetricBoth}
+                  sx={radioLabelSx}
+                />
+              </RadioGroup>
+            )}
+          />
+        </Box>
+        <SaveButton />
+      </Stack>
+    </form>
+  );
+}
+
+// ─── Spec 38 — kpi-transaction-count ─────────────────────────────────────────
+
+function TransactionCountForm({
+  widget,
+  onSave,
+}: {
+  widget: StoredWidget;
+  onSave: (c: unknown) => void;
+}) {
+  const { control, handleSubmit } = useForm<z.infer<typeof transactionCountConfigSchema>>({
+    resolver: zodResolver(transactionCountConfigSchema),
+    defaultValues: resolveDefaults(transactionCountConfigSchema, widget.config) as DefaultValues<
+      z.infer<typeof transactionCountConfigSchema>
+    >,
+  });
+  return (
+    <form onSubmit={handleSubmit(onSave)}>
+      <Stack spacing={1}>
+        <Box>
+          <FieldLabel>{m.settings.dashboards.config.countInMonthLabel}</FieldLabel>
+          <Controller
+            control={control}
+            name="countInMonth"
+            render={({ field }) => (
+              <RadioGroup {...field}>
+                <FormControlLabel
+                  value="all"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.countInMonthAll}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="only"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.countInMonthOnly}
+                  sx={radioLabelSx}
+                />
+              </RadioGroup>
+            )}
+          />
+        </Box>
+        <Box>
+          <FieldLabel>{m.settings.dashboards.config.sectionTypeLabel}</FieldLabel>
+          <Controller
+            control={control}
+            name="sectionType"
+            render={({ field }) => (
+              <RadioGroup {...field}>
+                <FormControlLabel
+                  value="all"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.sectionTypeAll}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="subtract"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.sectionTypeExpense}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="add"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.sectionTypeIncome}
+                  sx={radioLabelSx}
+                />
+              </RadioGroup>
+            )}
+          />
+        </Box>
+        <Controller
+          control={control}
+          name="includePending"
+          render={({ field }) => (
+            <FormControlLabel
+              control={<Switch size="small" checked={field.value} onChange={field.onChange} />}
+              label={m.settings.dashboards.config.includePendingLabel}
+              sx={switchLabelSx}
+            />
+          )}
+        />
+        <SaveButton />
+      </Stack>
+    </form>
+  );
 }

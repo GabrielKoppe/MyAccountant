@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 
 import { AppLink } from "@/components/ui/AppLink";
-import { KpiSparklineCard } from "@/components/dashboards/kpi/KpiSparklineCard";
+import { KpiCard } from "@/components/dashboards/kpi/KpiCard";
 import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
 import { SectionCards } from "../panels/SectionCards";
 import {
@@ -16,17 +16,21 @@ import {
 } from "../panels/ActivityWidget";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
-import { WidgetContainer } from "@/components/ui/WidgetContainer";
-import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { BudgetProgress } from "@/lib/queries/budgets";
 import type { Insight } from "@/server/services/insights-service";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
-import { kpiCustomConfigSchema } from "@/lib/schemas/widget-config";
+import {
+  kpiCustomConfigSchema,
+  filteredTransactionsConfigSchema,
+} from "@/lib/schemas/widget-config";
 import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
-import { FilteredTransactionsWidget } from "@/components/dashboards/panels/FilteredTransactionsWidget";
+import {
+  FilteredTransactionsWidget,
+  type FilterOption,
+} from "@/components/dashboards/panels/FilteredTransactionsWidget";
 import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
 import type { ReactNode } from "react";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
@@ -63,6 +67,14 @@ type Props = {
   widgets: StoredWidget[];
   kpiCustomData: Record<string, KpiCustomResult>;
   filteredTransactionsData: Record<string, TxRow[]>;
+  // Opções para resolver IDs de filtros em nomes legíveis no subtitle do filtered-transactions
+  filterOptions?: {
+    categories?: FilterOption[];
+    institutions?: FilterOption[];
+    members?: FilterOption[];
+  };
+  // Spec 38
+  transactionCount?: number;
 };
 
 export function MonthSummary({
@@ -81,6 +93,9 @@ export function MonthSummary({
   widgets,
   kpiCustomData,
   filteredTransactionsData,
+  filterOptions,
+  // Spec 38
+  transactionCount,
 }: Props) {
   const totalBigInt = BigInt(monthTotal);
 
@@ -118,7 +133,7 @@ export function MonthSummary({
 
   const nodeByWidgetId: Record<string, ReactNode> = {
     "kpi-income": (
-      <KpiSparklineCard
+      <KpiCard
         title="Receitas"
         value={formatCentsToBrl(incomeTotal)}
         color="success"
@@ -129,7 +144,7 @@ export function MonthSummary({
       />
     ),
     "kpi-expenses": (
-      <KpiSparklineCard
+      <KpiCard
         title="Despesas"
         value={formatCentsToBrl(expenseTotal)}
         color="error"
@@ -138,7 +153,7 @@ export function MonthSummary({
       />
     ),
     "kpi-balance": (
-      <KpiSparklineCard
+      <KpiCard
         title="Saldo"
         value={formatCentsToBrl(totalBigInt)}
         color={totalBigInt >= 0n ? "success" : "error"}
@@ -169,7 +184,6 @@ export function MonthSummary({
         renderMode={sectionCardsRenderMode}
       />
     ),
-    "activity-lists": null,
     "pending-transactions": (
       <PendingTransactionsWidget
         transactions={pendingTransactions}
@@ -217,6 +231,37 @@ export function MonthSummary({
         }
       />
     ),
+    // ─── Spec 38 ────────────────────────────────────────────────────────────
+    "kpi-pending": (
+      <KpiCard
+        title={m.dashboards.kpi.pendingCount}
+        value={String(pendingTransactions.length)}
+        color={pendingTransactions.length > 0 ? "warning" : "default"}
+        renderMode={kpiRm("kpi-pending")}
+      />
+    ),
+    "kpi-transaction-count": (() => {
+      const expCount = tables.reduce((s, t) => {
+        const sec = sections.find((sec) => sec.id === t.sectionId);
+        return sec?.countType === "subtract" ? s + t.transactionCount : s;
+      }, 0);
+      const incCount = tables.reduce((s, t) => {
+        const sec = sections.find((sec) => sec.id === t.sectionId);
+        return sec?.countType === "add" ? s + t.transactionCount : s;
+      }, 0);
+      return (
+        <KpiCard
+          title={m.dashboards.kpi.transactionCount}
+          value={String(transactionCount ?? 0)}
+          color="info"
+          breakdown={[
+            { label: "Saídas", value: String(expCount), dotColor: "error.main" },
+            { label: "Entradas", value: String(incCount), dotColor: "success.main" },
+          ]}
+          renderMode={kpiRm("kpi-transaction-count")}
+        />
+      );
+    })(),
   };
 
   // nodeMap por instanceId: singletons pelo widgetId; instâncias kpi-custom e
@@ -230,13 +275,13 @@ export function MonthSummary({
       nodeMap[w.instanceId] = data ? <KpiCustomWidget config={config} data={data} /> : null;
     } else if (w.widgetId === "filtered-transactions") {
       const rows = filteredTransactionsData[w.instanceId] ?? [];
+      const ftConfig = filteredTransactionsConfigSchema.safeParse(w.config);
       nodeMap[w.instanceId] = (
-        <WidgetContainer
-          title={m.dashboards.widgets.month_summary["filtered-transactions"]}
-          icon={WIDGET_ICONS["filtered-transactions"]}
-        >
-          <FilteredTransactionsWidget transactions={rows} />
-        </WidgetContainer>
+        <FilteredTransactionsWidget
+          transactions={rows}
+          config={ftConfig.success ? ftConfig.data : undefined}
+          options={filterOptions}
+        />
       );
     } else {
       nodeMap[w.instanceId] = nodeByWidgetId[w.widgetId] ?? null;

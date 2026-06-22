@@ -339,3 +339,146 @@ export const getMemberYearlyTrend = cache(
     return series;
   },
 );
+
+// ─── Breakdown anual (Spec 38 FEAT-02) ────────────────────────────
+// Agrega todas as despesas de saída do ano por responsável.
+// Retorna MemberBreakdownRow[] — compatível com MemberBreakdownWidget e MemberListWidget.
+// Truncado ao top-5 por totalCents DESC, sem-responsável incluído.
+
+export const getMemberYearlyBreakdown = cache(
+  async (accountId: string, year: number): Promise<MemberBreakdownRow[]> => {
+    // Buscar os IDs de todos os meses do ano
+    const months = await prisma.month.findMany({
+      where: { accountId, year },
+      select: { id: true },
+    });
+    if (months.length === 0) return [];
+    const monthIds = months.map((month) => month.id);
+
+    const where = expenseWhere(accountId, { monthId: { in: monthIds } });
+
+    const [byMember, byMemberCategory, allMembers] = await Promise.all([
+      prisma.transaction.groupBy({
+        by: ["responsibleUserId"],
+        where,
+        _sum: { amountCents: true },
+      }),
+      prisma.transaction.groupBy({
+        by: ["responsibleUserId", "categoryId"],
+        where,
+        _sum: { amountCents: true },
+      }),
+      prisma.accountMember.findMany({
+        where: { accountId },
+        select: { userId: true, user: { select: { name: true, email: true } } },
+      }),
+    ]);
+
+    // Categoria-top por responsável
+    const topCatByResp = new Map<string, { categoryId: string | null; sum: bigint }>();
+    for (const row of byMemberCategory) {
+      const key = row.responsibleUserId ?? UNASSIGNED_KEY;
+      const sum = row._sum.amountCents ?? 0n;
+      const current = topCatByResp.get(key);
+      if (!current || sum > current.sum) {
+        topCatByResp.set(key, { categoryId: row.categoryId, sum });
+      }
+    }
+
+    // Resolver nomes de categorias
+    const allCatIds = [
+      ...new Set(
+        byMemberCategory.map((r) => r.categoryId).filter((id): id is string => id !== null),
+      ),
+    ];
+    const catNames =
+      allCatIds.length > 0
+        ? await prisma.category.findMany({
+            where: { id: { in: allCatIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const catNameMap = new Map(catNames.map((c) => [c.id, c.name]));
+
+    // Resolver identidades
+    const spenderIds = byMember
+      .map((g) => g.responsibleUserId)
+      .filter((id): id is string => id !== null);
+    const memberNameMap = new Map(
+      allMembers.map((mem) => [mem.userId, mem.user.name ?? mem.user.email]),
+    );
+    const formerIds = spenderIds.filter((id) => !memberNameMap.has(id));
+    const formerUsers =
+      formerIds.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: formerIds } },
+            select: { id: true, name: true, email: true },
+          })
+        : [];
+    const formerNameMap = new Map(formerUsers.map((u) => [u.id, u.name ?? u.email]));
+
+    function identityFor(userId: string): Identity {
+      const memberName = memberNameMap.get(userId);
+      if (memberName !== undefined) return { name: memberName, isFormerMember: false };
+      const formerName = formerNameMap.get(userId);
+      if (formerName !== undefined) return { name: formerName, isFormerMember: true };
+      return { name: m.dashboards.members.unassigned, isFormerMember: false };
+    }
+
+    const grandTotal = byMember.reduce((sum, g) => sum + (g._sum.amountCents ?? 0n), 0n);
+
+    function topCategoryName(key: string): string | null {
+      const top = topCatByResp.get(key);
+      if (!top) return null;
+      if (top.categoryId === null) return m.dashboards.members.uncategorized;
+      return catNameMap.get(top.categoryId) ?? m.dashboards.members.uncategorized;
+    }
+
+    function categoriesFor(key: string, memberTotal: bigint): MemberCategoryBreakdown[] {
+      return byMemberCategory
+        .filter((r) => (r.responsibleUserId ?? UNASSIGNED_KEY) === key)
+        .map((r) => {
+          const cents = r._sum.amountCents ?? 0n;
+          const name = r.categoryId
+            ? (catNameMap.get(r.categoryId) ?? m.dashboards.members.uncategorized)
+            : m.dashboards.members.uncategorized;
+          return {
+            name,
+            cents: cents.toString(),
+            sharePercent: sharePercent(cents, memberTotal),
+          };
+        })
+        .filter((c) => BigInt(c.cents) > 0n)
+        .sort((a, b) => Number(BigInt(b.cents) - BigInt(a.cents)));
+    }
+
+    const spendRows: MemberBreakdownRow[] = byMember.map((g) => {
+      const total = g._sum.amountCents ?? 0n;
+      if (g.responsibleUserId === null) {
+        return {
+          userId: null,
+          name: m.dashboards.members.unassigned,
+          isFormerMember: false,
+          totalCents: total.toString(),
+          sharePercent: sharePercent(total, grandTotal),
+          topCategoryName: topCategoryName(UNASSIGNED_KEY),
+          categories: categoriesFor(UNASSIGNED_KEY, total),
+        };
+      }
+      const identity = identityFor(g.responsibleUserId);
+      return {
+        userId: g.responsibleUserId,
+        name: identity.name,
+        isFormerMember: identity.isFormerMember,
+        totalCents: total.toString(),
+        sharePercent: sharePercent(total, grandTotal),
+        topCategoryName: topCategoryName(g.responsibleUserId),
+        categories: categoriesFor(g.responsibleUserId, total),
+      };
+    });
+
+    // Ordenar por total DESC e truncar ao top-5
+    spendRows.sort((a, b) => Number(BigInt(b.totalCents) - BigInt(a.totalCents)));
+    return spendRows.slice(0, 5);
+  },
+);
