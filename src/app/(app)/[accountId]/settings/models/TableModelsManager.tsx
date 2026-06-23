@@ -465,7 +465,12 @@ function AutoApplySection({
         variant="caption"
         color="text.secondary"
         fontWeight="medium"
-        sx={{ display: "block", mb: layout.inline, textTransform: "uppercase", letterSpacing: "0.05em" }}
+        sx={{
+          display: "block",
+          mb: layout.inline,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+        }}
       >
         {m.tableModels.autoApplySectionTitle}
       </Typography>
@@ -487,7 +492,11 @@ function AutoApplySection({
 
       {autoApply && (
         <Tooltip title={m.tableModels.autoApplyHint} placement="bottom-start">
-          <Typography variant="caption" color="text.tertiary" sx={{ display: "block", mt: 0.5, mb: layout.inline }}>
+          <Typography
+            variant="caption"
+            color="text.tertiary"
+            sx={{ display: "block", mt: 0.5, mb: layout.inline }}
+          >
             {m.tableModels.autoApplyHint}
           </Typography>
         </Tooltip>
@@ -545,7 +554,9 @@ function AutoApplySection({
             variant="contained"
             onClick={handleSave}
             disabled={!canSave || isPendingAutoApply}
-            endIcon={isPendingAutoApply ? <CircularProgress size={12} color="inherit" /> : undefined}
+            endIcon={
+              isPendingAutoApply ? <CircularProgress size={12} color="inherit" /> : undefined
+            }
           >
             {m.common.save}
           </Button>

@@ -27,7 +27,6 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import { useSnackbar } from "notistack";
 
-
 import { deleteFinanceTableAction, updateFinanceTableAction } from "@/actions/finance-tables";
 import { createFromTableAction } from "@/actions/table-templates";
 import { formatCentsToBrl } from "@/lib/money";

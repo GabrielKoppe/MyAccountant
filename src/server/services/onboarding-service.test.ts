@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { TEST_CTX } from "@/../tests/fixtures/account";
 
-
 import { completeOnboarding, resetOnboarding } from "./onboarding-service";
 
 describe("completeOnboarding", () => {

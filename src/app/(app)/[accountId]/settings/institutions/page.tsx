@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
 
-
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";

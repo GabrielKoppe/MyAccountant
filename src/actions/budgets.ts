@@ -55,5 +55,6 @@ export type { BudgetTxRow, BudgetTxDetail } from "@/server/services/budget-servi
 
 export const getBudgetTransactionsAction = defineAction({
   schema: z.object({ budgetId: z.string().cuid(), monthId: z.string().cuid() }),
-  handler: async ({ budgetId, monthId }, ctx) => budgetService.getBudgetTransactions({ budgetId, monthId }, ctx),
+  handler: async ({ budgetId, monthId }, ctx) =>
+    budgetService.getBudgetTransactions({ budgetId, monthId }, ctx),
 });

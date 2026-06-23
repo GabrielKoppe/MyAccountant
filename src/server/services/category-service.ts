@@ -111,10 +111,7 @@ export async function updateSubcategory(input: UpdateSubcategoryInput, ctx: Acti
     data: { name: input.name },
   });
 
-  log.info(
-    { subcategoryId: input.subcategoryId, accountId: ctx.accountId },
-    "Subcategory updated",
-  );
+  log.info({ subcategoryId: input.subcategoryId, accountId: ctx.accountId }, "Subcategory updated");
 }
 
 export async function deleteSubcategory(input: DeleteSubcategoryInput, ctx: ActionContext) {
@@ -126,8 +123,5 @@ export async function deleteSubcategory(input: DeleteSubcategoryInput, ctx: Acti
 
   await prisma.subcategory.delete({ where: { id: input.subcategoryId } });
 
-  log.info(
-    { subcategoryId: input.subcategoryId, accountId: ctx.accountId },
-    "Subcategory deleted",
-  );
+  log.info({ subcategoryId: input.subcategoryId, accountId: ctx.accountId }, "Subcategory deleted");
 }

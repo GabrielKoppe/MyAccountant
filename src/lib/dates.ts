@@ -58,10 +58,10 @@ export function parseLocalDate(dateString: string): Date {
   return new Date(year, month - 1, day);
 }
 
-export function getNextMonthSuggestion(lastMonth: {
+export function getNextMonthSuggestion(lastMonth: { year: number; month: number }): {
   year: number;
   month: number;
-}): { year: number; month: number } {
+} {
   if (lastMonth.month === 12) return { year: lastMonth.year + 1, month: 1 };
   return { year: lastMonth.year, month: lastMonth.month + 1 };
 }
@@ -104,6 +104,16 @@ export function getCurrentFiscalMonth(
 }
 
 export const MONTH_NAMES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];

@@ -28,7 +28,13 @@ type Props = {
   allMonths: MonthOption[];
 };
 
-export function MonthNav({ accountId, currentMonthId, currentLabel: _currentLabel, currentYear, allMonths }: Props) {
+export function MonthNav({
+  accountId,
+  currentMonthId,
+  currentLabel: _currentLabel,
+  currentYear,
+  allMonths,
+}: Props) {
   const router = useRouter();
 
   const idx = allMonths.findIndex((m) => m.id === currentMonthId);
@@ -48,7 +54,9 @@ export function MonthNav({ accountId, currentMonthId, currentLabel: _currentLabe
         Dashboards · {currentYear}
       </Button>
 
-      <Typography variant="body2" color="text.disabled">/</Typography>
+      <Typography variant="body2" color="text.disabled">
+        /
+      </Typography>
 
       {/* Prev month */}
       <Tooltip title={prev ? prev.label : "Primeiro mês"}>
@@ -74,14 +82,21 @@ export function MonthNav({ accountId, currentMonthId, currentLabel: _currentLabe
               router.push(`/${accountId}/dashboards/monthly/${e.target.value}`);
             }
           }}
-          startAdornment={<CalendarTodayIcon sx={{ fontSize: 14, mr: 0.5, color: "text.secondary" }} />}
+          startAdornment={
+            <CalendarTodayIcon sx={{ fontSize: 14, mr: 0.5, color: "text.secondary" }} />
+          }
           sx={{ fontWeight: "bold", fontSize: 14 }}
         >
           {allMonths.map((m) => (
             <MenuItem key={m.id} value={m.id} sx={{ fontSize: 13 }}>
               {m.label}
               {m.id === currentMonthId && (
-                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                <Typography
+                  component="span"
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ ml: 1 }}
+                >
                   (atual)
                 </Typography>
               )}

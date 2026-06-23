@@ -118,16 +118,28 @@ export function TransactionRowBase({
 
     const result = await updateTransactionAction(accountId, {
       transactionId: tx.id,
-      ...(editValues.occurredOn !== tx.occurredOn && { occurredOn: new Date(editValues.occurredOn) }),
-      ...(editValues.amountCents !== tx.amountCents && { amountCents: BigInt(editValues.amountCents) }),
+      ...(editValues.occurredOn !== tx.occurredOn && {
+        occurredOn: new Date(editValues.occurredOn),
+      }),
+      ...(editValues.amountCents !== tx.amountCents && {
+        amountCents: BigInt(editValues.amountCents),
+      }),
       ...(editValues.description !== tx.description && { description: editValues.description }),
       ...(editValues.categoryId !== tx.categoryId && { categoryId: editValues.categoryId }),
-      ...(editValues.subcategoryId !== tx.subcategoryId && { subcategoryId: editValues.subcategoryId }),
-      ...(editValues.institutionId !== tx.institutionId && { institutionId: editValues.institutionId }),
-      ...(editValues.responsibleUserId !== tx.responsibleUserId && { responsibleUserId: editValues.responsibleUserId }),
+      ...(editValues.subcategoryId !== tx.subcategoryId && {
+        subcategoryId: editValues.subcategoryId,
+      }),
+      ...(editValues.institutionId !== tx.institutionId && {
+        institutionId: editValues.institutionId,
+      }),
+      ...(editValues.responsibleUserId !== tx.responsibleUserId && {
+        responsibleUserId: editValues.responsibleUserId,
+      }),
       ...(editValues.isPending !== tx.isPending && { isPending: editValues.isPending }),
       ...(editValues.isFavorite !== tx.isFavorite && { isFavorite: editValues.isFavorite }),
-      ...(editValues.investmentType !== tx.investmentType && { investmentType: editValues.investmentType }),
+      ...(editValues.investmentType !== tx.investmentType && {
+        investmentType: editValues.investmentType,
+      }),
       ...(editValues.notes !== tx.notes && { notes: editValues.notes }),
     });
 
@@ -147,7 +159,10 @@ export function TransactionRowBase({
     e.stopPropagation();
     const newVal = !tx.isFavorite;
     onOptimisticUpdate(tx.id, { isFavorite: newVal });
-    const result = await updateTransactionAction(accountId, { transactionId: tx.id, isFavorite: newVal });
+    const result = await updateTransactionAction(accountId, {
+      transactionId: tx.id,
+      isFavorite: newVal,
+    });
     if (!result.ok) {
       onOptimisticUpdate(tx.id, { isFavorite: tx.isFavorite });
       enqueueSnackbar(result.error.message, { variant: "error" });
@@ -158,7 +173,10 @@ export function TransactionRowBase({
     e.stopPropagation();
     const newVal = !tx.isPending;
     onOptimisticUpdate(tx.id, { isPending: newVal });
-    const result = await updateTransactionAction(accountId, { transactionId: tx.id, isPending: newVal });
+    const result = await updateTransactionAction(accountId, {
+      transactionId: tx.id,
+      isPending: newVal,
+    });
     if (!result.ok) {
       onOptimisticUpdate(tx.id, { isPending: tx.isPending });
       enqueueSnackbar(result.error.message, { variant: "error" });
@@ -184,7 +202,14 @@ export function TransactionRowBase({
     }
     const now = new Date().toISOString();
     onDuplicated(
-      { ...tx, id: result.data.transactionId, createdById: currentUserId, createdAt: now, updatedById: null, updatedAt: now },
+      {
+        ...tx,
+        id: result.data.transactionId,
+        createdById: currentUserId,
+        createdAt: now,
+        updatedById: null,
+        updatedAt: now,
+      },
       tx.id,
     );
     enqueueSnackbar("Transação duplicada.", { variant: "success" });
@@ -218,56 +243,124 @@ export function TransactionRowBase({
   return (
     <TableRow hover selected={isSelected} sx={{ opacity: tx.isPending ? 0.65 : 1 }}>
       <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-        <Checkbox checked={isSelected} onChange={(e) => onSelect(tx.id, e.target.checked)} size="small" disabled={isReadOnly} />
+        <Checkbox
+          checked={isSelected}
+          onChange={(e) => onSelect(tx.id, e.target.checked)}
+          size="small"
+          disabled={isReadOnly}
+        />
       </TableCell>
 
-      <TableCell sx={{ fontSize: 13, whiteSpace: "nowrap", cursor: isReadOnly ? "default" : "pointer" }} onClick={() => !isReadOnly && startEdit("occurredOn")}>
+      <TableCell
+        sx={{ fontSize: 13, whiteSpace: "nowrap", cursor: isReadOnly ? "default" : "pointer" }}
+        onClick={() => !isReadOnly && startEdit("occurredOn")}
+      >
         {formatDateShort(tx.occurredOn)}
       </TableCell>
 
-      <TableCell sx={{ fontSize: 13, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: isReadOnly ? "default" : "pointer" }} onClick={() => !isReadOnly && startEdit("description")}>
-        {tx.description || <Typography variant="caption" color="text.disabled">—</Typography>}
+      <TableCell
+        sx={{
+          fontSize: 13,
+          maxWidth: 200,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          cursor: isReadOnly ? "default" : "pointer",
+        }}
+        onClick={() => !isReadOnly && startEdit("description")}
+      >
+        {tx.description || (
+          <Typography variant="caption" color="text.disabled">
+            —
+          </Typography>
+        )}
       </TableCell>
 
       {!hiddenColumns.category && (
-        <TableCell sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }} onClick={() => !isReadOnly && startEdit("categoryId")}>
-          {categories.find((c) => c.id === tx.categoryId)?.name ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+        <TableCell
+          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("categoryId")}
+        >
+          {categories.find((c) => c.id === tx.categoryId)?.name ?? (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
         </TableCell>
       )}
 
       {!hiddenColumns.subcategory && (
-        <TableCell sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }} onClick={() => !isReadOnly && startEdit("subcategoryId")}>
-          {subcatsForCategory.find((s) => s.id === tx.subcategoryId)?.name ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+        <TableCell
+          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("subcategoryId")}
+        >
+          {subcatsForCategory.find((s) => s.id === tx.subcategoryId)?.name ?? (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
         </TableCell>
       )}
 
       {!hiddenColumns.institution && (
-        <TableCell sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }} onClick={() => !isReadOnly && startEdit("institutionId")}>
-          {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+        <TableCell
+          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("institutionId")}
+        >
+          {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
         </TableCell>
       )}
 
-      <TableCell align="right" sx={{ fontWeight: "medium", fontSize: 13, whiteSpace: "nowrap", color: isPositive ? "success.main" : "error.main", cursor: isReadOnly ? "default" : "pointer" }} onClick={() => !isReadOnly && startEdit("amountCents")}>
+      <TableCell
+        align="right"
+        sx={{
+          fontWeight: "medium",
+          fontSize: 13,
+          whiteSpace: "nowrap",
+          color: isPositive ? "success.main" : "error.main",
+          cursor: isReadOnly ? "default" : "pointer",
+        }}
+        onClick={() => !isReadOnly && startEdit("amountCents")}
+      >
         {formatCentsToBrl(amount)}
       </TableCell>
 
       {!hiddenColumns.responsibleUser && (
-        <TableCell sx={{ cursor: isReadOnly ? "default" : "pointer" }} onClick={() => !isReadOnly && startEdit("responsibleUserId")}>
+        <TableCell
+          sx={{ cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("responsibleUserId")}
+        >
           {tx.responsibleUserId ? (
             <Tooltip title={members.find((mem) => mem.id === tx.responsibleUserId)?.name ?? ""}>
-              <Avatar src={members.find((mem) => mem.id === tx.responsibleUserId)?.image ?? undefined} sx={{ width: 24, height: 24, fontSize: 11 }}>
+              <Avatar
+                src={members.find((mem) => mem.id === tx.responsibleUserId)?.image ?? undefined}
+                sx={{ width: 24, height: 24, fontSize: 11 }}
+              >
                 {members.find((mem) => mem.id === tx.responsibleUserId)?.name?.charAt(0)}
               </Avatar>
             </Tooltip>
           ) : (
-            <Typography variant="caption" color="text.disabled">—</Typography>
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
           )}
         </TableCell>
       )}
 
       {!hiddenColumns.investmentType && (
-        <TableCell sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }} onClick={() => !isReadOnly && startEdit("investmentType")}>
-          {tx.investmentType ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+        <TableCell
+          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("investmentType")}
+        >
+          {tx.investmentType ?? (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
         </TableCell>
       )}
 

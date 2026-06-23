@@ -74,9 +74,7 @@ export function defineAction<TInput, TOutput>(config: DefineActionConfig<TInput,
  * Exceção documentada: src/actions/auth.ts (ações pré-autenticação como signIn/signUp)
  * não usa este wrapper pois opera antes de existir sessão.
  */
-export function defineUserAction<TInput, TOutput>(
-  config: DefineUserActionConfig<TInput, TOutput>,
-) {
+export function defineUserAction<TInput, TOutput>(config: DefineUserActionConfig<TInput, TOutput>) {
   return async (rawInput: unknown): Promise<ActionResult<TOutput>> => {
     try {
       const user = await requireUser();

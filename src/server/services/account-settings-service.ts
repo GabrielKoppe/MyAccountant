@@ -5,10 +5,7 @@ import type { UpdateAccountSettingsInput } from "@/lib/schemas/settings";
 
 const log = logger.child({ module: "account-settings-service" });
 
-export async function updateAccountSettings(
-  input: UpdateAccountSettingsInput,
-  ctx: ActionContext,
-) {
+export async function updateAccountSettings(input: UpdateAccountSettingsInput, ctx: ActionContext) {
   const { accountName, currency, monthStartDay, defaultResponsibleUserId } = input;
 
   await prisma.$transaction([

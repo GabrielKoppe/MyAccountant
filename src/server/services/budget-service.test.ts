@@ -80,9 +80,9 @@ describe("updateBudget", () => {
   it("não deve atualizar meta de outra account (segurança multi-tenancy)", async () => {
     prismaMock.budget.findUnique.mockResolvedValue({ accountId: "acc-OUTRA" } as any);
 
-    await expect(
-      updateBudget({ ...BASE_INPUT, budgetId: "budget-1" }, TEST_CTX),
-    ).rejects.toThrow(NotFoundError);
+    await expect(updateBudget({ ...BASE_INPUT, budgetId: "budget-1" }, TEST_CTX)).rejects.toThrow(
+      NotFoundError,
+    );
 
     expect(prismaMock.budget.update).not.toHaveBeenCalled();
   });
@@ -113,9 +113,7 @@ describe("deleteBudget", () => {
   it("não deve deletar meta de outra account (segurança multi-tenancy)", async () => {
     prismaMock.budget.findUnique.mockResolvedValue({ accountId: "acc-OUTRA" } as any);
 
-    await expect(
-      deleteBudget({ budgetId: "budget-1" }, TEST_CTX),
-    ).rejects.toThrow(NotFoundError);
+    await expect(deleteBudget({ budgetId: "budget-1" }, TEST_CTX)).rejects.toThrow(NotFoundError);
 
     expect(prismaMock.budget.delete).not.toHaveBeenCalled();
   });
@@ -123,9 +121,9 @@ describe("deleteBudget", () => {
   it("deve lançar NotFoundError quando meta não existe", async () => {
     prismaMock.budget.findUnique.mockResolvedValue(null);
 
-    await expect(
-      deleteBudget({ budgetId: "budget-inexistente" }, TEST_CTX),
-    ).rejects.toThrow(NotFoundError);
+    await expect(deleteBudget({ budgetId: "budget-inexistente" }, TEST_CTX)).rejects.toThrow(
+      NotFoundError,
+    );
   });
 });
 

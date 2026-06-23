@@ -65,7 +65,11 @@ export function TransactionRowActions({
             {tx.notes ? <NoteIcon fontSize="small" /> : <NoteOutlinedIcon fontSize="small" />}
           </IconButton>
         </Tooltip>
-        <Tooltip title={tx.isPending ? m.transactions.actions.markAsDone : m.transactions.actions.markAsPending}>
+        <Tooltip
+          title={
+            tx.isPending ? m.transactions.actions.markAsDone : m.transactions.actions.markAsPending
+          }
+        >
           <IconButton size="small" onClick={onTogglePending}>
             {tx.isPending ? (
               <HourglassBottomIcon fontSize="small" />
@@ -74,7 +78,13 @@ export function TransactionRowActions({
             )}
           </IconButton>
         </Tooltip>
-        <Tooltip title={tx.isFavorite ? m.transactions.actions.removeFromFavorites : m.transactions.actions.addToFavorites}>
+        <Tooltip
+          title={
+            tx.isFavorite
+              ? m.transactions.actions.removeFromFavorites
+              : m.transactions.actions.addToFavorites
+          }
+        >
           <IconButton size="small" onClick={onToggleFavorite}>
             {tx.isFavorite ? (
               <StarIcon fontSize="small" color="warning" />

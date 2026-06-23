@@ -78,7 +78,14 @@ function initForm(budget?: BudgetWithDetails): FormState {
   };
 }
 
-export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget, onSuccess }: Props) {
+export function BudgetFormDialog({
+  open,
+  onClose,
+  accountId,
+  formOptions,
+  budget,
+  onSuccess,
+}: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState<FormState>(() => initForm(budget));
@@ -95,7 +102,11 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
     const next: Record<string, string> = {};
 
     const hasDimension =
-      form.sectionId || form.categoryId || form.memberUserId || form.institutionId || form.tableTypeId;
+      form.sectionId ||
+      form.categoryId ||
+      form.memberUserId ||
+      form.institutionId ||
+      form.tableTypeId;
     if (!hasDimension) {
       next.sectionId = "Selecione pelo menos uma dimensão";
     }
@@ -177,7 +188,9 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
       loading={isPending}
       actions={
         <>
-          <Button size="small" onClick={handleClose}>{m.common.cancel}</Button>
+          <Button size="small" onClick={handleClose}>
+            {m.common.cancel}
+          </Button>
           <Button
             size="small"
             variant="contained"
@@ -192,7 +205,17 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
       <Stack spacing={2.5}>
         {/* ── Dimensões ── */}
         <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block", textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.65rem" }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              mb: 1,
+              display: "block",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              fontSize: "0.65rem",
+            }}
+          >
             Dimensões
           </Typography>
           {errors.sectionId && (
@@ -211,7 +234,9 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
             >
               <MenuItem value="">{m.budgets.fields.noDimension}</MenuItem>
               {formOptions.sections.map((s) => (
-                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                <MenuItem key={s.id} value={s.id}>
+                  {s.name}
+                </MenuItem>
               ))}
             </TextField>
 
@@ -226,7 +251,9 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
             >
               <MenuItem value="">{m.budgets.fields.noDimension}</MenuItem>
               {formOptions.categories.map((c) => (
-                <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}
+                </MenuItem>
               ))}
             </TextField>
 
@@ -239,7 +266,9 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
             >
               <MenuItem value="">{m.budgets.fields.noDimension}</MenuItem>
               {formOptions.members.map((mb) => (
-                <MenuItem key={mb.id} value={mb.id}>{mb.name ?? mb.email}</MenuItem>
+                <MenuItem key={mb.id} value={mb.id}>
+                  {mb.name ?? mb.email}
+                </MenuItem>
               ))}
             </TextField>
 
@@ -252,7 +281,9 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
             >
               <MenuItem value="">{m.budgets.fields.noDimension}</MenuItem>
               {formOptions.institutions.map((i) => (
-                <MenuItem key={i.id} value={i.id}>{i.name}</MenuItem>
+                <MenuItem key={i.id} value={i.id}>
+                  {i.name}
+                </MenuItem>
               ))}
             </TextField>
 
@@ -268,7 +299,9 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
             >
               <MenuItem value="">{m.budgets.fields.noDimension}</MenuItem>
               {formOptions.tableTypes.map((t) => (
-                <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+                <MenuItem key={t.id} value={t.id}>
+                  {t.name}
+                </MenuItem>
               ))}
             </TextField>
           </Box>
@@ -278,7 +311,17 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
 
         {/* ── Meta ── */}
         <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: "block", textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.65rem" }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              mb: 1.5,
+              display: "block",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              fontSize: "0.65rem",
+            }}
+          >
             Meta
           </Typography>
           <Stack spacing={1.5}>
@@ -321,7 +364,17 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
 
         {/* ── Quando ── */}
         <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: "block", textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.65rem" }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              mb: 0.5,
+              display: "block",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              fontSize: "0.65rem",
+            }}
+          >
             Período
           </Typography>
           <FormControlLabel
@@ -332,9 +385,7 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
                 size="small"
               />
             }
-            label={
-              <Typography variant="body2">{m.budgets.fields.isRecurring}</Typography>
-            }
+            label={<Typography variant="body2">{m.budgets.fields.isRecurring}</Typography>}
           />
 
           {!form.isRecurring && (
@@ -359,7 +410,9 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
               >
                 <MenuItem value="">{m.budgets.fields.noDimension}</MenuItem>
                 {MONTH_NAMES.map((name, i) => (
-                  <MenuItem key={i + 1} value={String(i + 1)}>{name}</MenuItem>
+                  <MenuItem key={i + 1} value={String(i + 1)}>
+                    {name}
+                  </MenuItem>
                 ))}
               </TextField>
             </Box>
@@ -373,9 +426,7 @@ export function BudgetFormDialog({ open, onClose, accountId, formOptions, budget
                 size="small"
               />
             }
-            label={
-              <Typography variant="body2">{m.budgets.fields.showInSummary}</Typography>
-            }
+            label={<Typography variant="body2">{m.budgets.fields.showInSummary}</Typography>}
             sx={{ mt: 0.5 }}
           />
         </Box>

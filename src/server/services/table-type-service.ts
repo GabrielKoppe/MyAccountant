@@ -78,9 +78,7 @@ export async function deleteTableType(input: DeleteTableTypeInput, ctx: ActionCo
     where: { tableTypeId: input.tableTypeId, accountId: ctx.accountId },
   });
   if (tableCount > 0) {
-    throw new ConflictError(
-      `Não é possível deletar: há ${tableCount} tabela(s) usando este tipo.`,
-    );
+    throw new ConflictError(`Não é possível deletar: há ${tableCount} tabela(s) usando este tipo.`);
   }
 
   await prisma.tableType.delete({ where: { id: input.tableTypeId } });

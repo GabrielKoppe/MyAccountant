@@ -20,7 +20,13 @@ import { m } from "@/lib/messages";
 import { centsToReais, reaisToCents } from "@/lib/money";
 import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
 import type { InvestmentType } from "@/lib/schemas/transaction";
-import type { CategoryOption, HiddenColumns, InstitutionOption, MemberOption, TransactionRow as TxRow } from "./types";
+import type {
+  CategoryOption,
+  HiddenColumns,
+  InstitutionOption,
+  MemberOption,
+  TransactionRow as TxRow,
+} from "./types";
 
 type Props = {
   tx: TxRow;
@@ -118,9 +124,13 @@ export function TransactionRowEditor({
               sx={{ minWidth: 110, fontSize: 13 }}
               autoFocus={focusField === "categoryId"}
             >
-              <MenuItem value=""><em>Nenhuma</em></MenuItem>
+              <MenuItem value="">
+                <em>Nenhuma</em>
+              </MenuItem>
               {categories.map((c) => (
-                <MenuItem key={c.id} value={c.id} sx={{ fontSize: 13 }}>{c.name}</MenuItem>
+                <MenuItem key={c.id} value={c.id} sx={{ fontSize: 13 }}>
+                  {c.name}
+                </MenuItem>
               ))}
             </Select>
           </TableCell>
@@ -139,9 +149,13 @@ export function TransactionRowEditor({
               disabled={!editValues.categoryId}
               autoFocus={focusField === "subcategoryId"}
             >
-              <MenuItem value=""><em>Nenhuma</em></MenuItem>
+              <MenuItem value="">
+                <em>Nenhuma</em>
+              </MenuItem>
               {subcatsForCategory.map((s) => (
-                <MenuItem key={s.id} value={s.id} sx={{ fontSize: 13 }}>{s.name}</MenuItem>
+                <MenuItem key={s.id} value={s.id} sx={{ fontSize: 13 }}>
+                  {s.name}
+                </MenuItem>
               ))}
             </Select>
           </TableCell>
@@ -159,9 +173,13 @@ export function TransactionRowEditor({
               sx={{ minWidth: 110, fontSize: 13 }}
               autoFocus={focusField === "institutionId"}
             >
-              <MenuItem value=""><em>Nenhuma</em></MenuItem>
+              <MenuItem value="">
+                <em>Nenhuma</em>
+              </MenuItem>
               {institutions.map((i) => (
-                <MenuItem key={i.id} value={i.id} sx={{ fontSize: 13 }}>{i.name}</MenuItem>
+                <MenuItem key={i.id} value={i.id} sx={{ fontSize: 13 }}>
+                  {i.name}
+                </MenuItem>
               ))}
             </Select>
           </TableCell>
@@ -199,7 +217,9 @@ export function TransactionRowEditor({
               sx={{ minWidth: 90, fontSize: 13 }}
               autoFocus={focusField === "responsibleUserId"}
             >
-              <MenuItem value=""><em>Nenhum</em></MenuItem>
+              <MenuItem value="">
+                <em>Nenhum</em>
+              </MenuItem>
               {members.map((mem) => (
                 <MenuItem key={mem.id} value={mem.id} sx={{ fontSize: 13 }}>
                   {mem.name ?? mem.email}
@@ -224,9 +244,13 @@ export function TransactionRowEditor({
               sx={{ minWidth: 120, fontSize: 13 }}
               autoFocus={focusField === "investmentType"}
             >
-              <MenuItem value=""><em>Nenhum</em></MenuItem>
+              <MenuItem value="">
+                <em>Nenhum</em>
+              </MenuItem>
               {INVESTMENT_TYPES.map((t) => (
-                <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>{t}</MenuItem>
+                <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>
+                  {t}
+                </MenuItem>
               ))}
             </Select>
           </TableCell>
@@ -234,7 +258,9 @@ export function TransactionRowEditor({
 
         {/* Ações */}
         <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
-          <Tooltip title={notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote}>
+          <Tooltip
+            title={notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote}
+          >
             <IconButton size="small" onClick={() => setNotesOpen((o) => !o)}>
               {notesOpen || (editValues.notes && editValues.notes.length > 0) ? (
                 <NoteIcon fontSize="small" />

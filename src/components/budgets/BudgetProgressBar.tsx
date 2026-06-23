@@ -61,11 +61,24 @@ export function BudgetProgressBar({
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.25 }}>
           <Stack direction="row" alignItems="center" gap={0.5}>
             <Icon sx={{ fontSize: 12, color: `${color}.main` }} />
-            <Typography variant="caption" sx={{ fontSize: "0.7rem", color: "text.secondary" }} noWrap>
+            <Typography
+              variant="caption"
+              sx={{ fontSize: "0.7rem", color: "text.secondary" }}
+              noWrap
+            >
               {label}
             </Typography>
           </Stack>
-          <Typography variant="caption" sx={{ fontSize: "0.7rem", fontFamily: "var(--font-jetbrains-mono), monospace", color: `${color}.main`, whiteSpace: "nowrap", ml: 1 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: "0.7rem",
+              fontFamily: "var(--font-jetbrains-mono), monospace",
+              color: `${color}.main`,
+              whiteSpace: "nowrap",
+              ml: 1,
+            }}
+          >
             {percent}%
           </Typography>
         </Stack>
@@ -113,10 +126,12 @@ export function BudgetProgressBar({
 
       <Stack direction="row" justifyContent="space-between">
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
-          {m.budgets.progress.spent}: <span style={{ fontFamily: "var(--font-jetbrains-mono), monospace" }}>{spent}</span>
+          {m.budgets.progress.spent}:{" "}
+          <span style={{ fontFamily: "var(--font-jetbrains-mono), monospace" }}>{spent}</span>
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
-          {m.budgets.progress.goal}: <span style={{ fontFamily: "var(--font-jetbrains-mono), monospace" }}>{goal}</span>
+          {m.budgets.progress.goal}:{" "}
+          <span style={{ fontFamily: "var(--font-jetbrains-mono), monospace" }}>{goal}</span>
         </Typography>
       </Stack>
     </Box>

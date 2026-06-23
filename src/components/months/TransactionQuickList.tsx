@@ -76,7 +76,9 @@ export function TransactionQuickList({ accountId, monthId, transactions, mode }:
           >
             {/* Unmark button — não exibido no modo "recent" */}
             {mode !== "recent" && (
-              <Tooltip title={mode === "pending" ? "Marcar como realizada" : "Remover dos favoritos"}>
+              <Tooltip
+                title={mode === "pending" ? "Marcar como realizada" : "Remover dos favoritos"}
+              >
                 <IconButton
                   size="small"
                   disabled={isPending}
@@ -99,7 +101,11 @@ export function TransactionQuickList({ accountId, monthId, transactions, mode }:
               sx={{ flex: 1, fontSize: 13 }}
               title={tx.description ?? "Sem descrição"}
             >
-              {tx.description ?? <em style={{ color: "var(--mui-palette-text-disabled, #B8B1A0)" }}>Sem descrição</em>}
+              {tx.description ?? (
+                <em style={{ color: "var(--mui-palette-text-disabled, #B8B1A0)" }}>
+                  Sem descrição
+                </em>
+              )}
             </Typography>
 
             {/* Amount */}
