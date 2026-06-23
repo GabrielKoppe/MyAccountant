@@ -1,4 +1,4 @@
-import { addMonths, getDaysInMonth, setDate } from "date-fns";
+import { addMonths, getDaysInMonth } from "date-fns";
 
 /**
  * Ajusta um dia (1–31) para um mês específico, respeitando o último dia válido.

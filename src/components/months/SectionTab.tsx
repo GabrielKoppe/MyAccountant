@@ -10,7 +10,7 @@ import {
   getMonthAccountSettings,
   getMonthTableTypes,
   getSourceTables,
-} from "@/lib/queries/month-page";
+} from "@/server/queries/month-page";
 import { getSectionTotals } from "@/server/services/month-service";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";

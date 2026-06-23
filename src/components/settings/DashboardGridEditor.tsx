@@ -15,7 +15,7 @@ import {
   type DashboardContext,
 } from "@/components/dashboards/_core/widget-registry";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
-import type { WidgetConfigOptions } from "@/lib/queries/widget-config-options";
+import type { WidgetConfigOptions } from "@/server/queries/widget-config-options";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { DashboardGridCanvas } from "./DashboardGridCanvas";
 

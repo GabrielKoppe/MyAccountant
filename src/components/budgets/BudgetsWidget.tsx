@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
@@ -28,7 +28,7 @@ import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
 import { PieBreakdown } from "@/components/dashboards/charts/PieBreakdown";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
-import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
+import type { BudgetProgress, BudgetFormOptions } from "@/server/queries/budgets";
 import type { BudgetTxDetail } from "@/actions/budgets";
 import type { BudgetsConfig } from "@/lib/schemas/widget-config";
 

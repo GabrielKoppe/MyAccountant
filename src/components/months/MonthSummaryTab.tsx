@@ -8,7 +8,7 @@ import {
   getMonthCategories,
   getMonthInstitutions,
   getMonthMembers,
-} from "@/lib/queries/month-page";
+} from "@/server/queries/month-page";
 import { requireAccountAccess } from "@/server/auth/session";
 
 type Props = {
@@ -28,7 +28,7 @@ export async function MonthSummaryTab({
   monthMonth,
   prevMonthId,
   allMonthIds,
-  canEdit,
+  canEdit: _canEdit,
 }: Props) {
   const { user } = await requireAccountAccess(accountId);
 

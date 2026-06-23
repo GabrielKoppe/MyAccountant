@@ -15,7 +15,7 @@
 - **PERF-05**: `src/components/transactions/TransactionRow.tsx` (706 linhas, client) não usa `React.memo`; em `src/components/transactions/TransactionTable.tsx:148-155`, o `useMemo` de `visibleRows` roda `sortRows()` que faz `.find()` em `categories`/`institutions` por transação (O(n×m)). A cada keystroke do campo de busca, centenas de linhas re-renderizam e o sort re-executa lookups lineares.
 - **PERF-06**: Os gráficos de dashboard (`src/components/dashboards/YearlyLineChart.tsx` e demais componentes que importam `recharts`) fazem import eager — `recharts` entra no bundle inicial da rota mesmo quando o widget não está visível. Apenas o SankeyChart usa `dynamic()` (via `MonthlyDashboardClient.tsx:3`).
 - **PERF-07**: Em `src/components/ui/NotificationBell.tsx:29,69`, o sino de notificações faz polling via `fetch` a cada 60 segundos **e** refetch em todo evento `focus`, sem debounce nem condicional. Uma aba aberta o dia inteiro gera centenas de requisições para um dado que raramente muda.
-- **PERF-08**: Não existe nenhum padrão de performance documentado no projeto — não há skill em `skills/` cobrindo loading/streaming, revalidação granular, dedupe de queries ou code-splitting. Sintoma concreto: nenhuma função de `src/lib/queries/*.ts` usa `React.cache()`, então qualquer helper chamado duas vezes na mesma renderização executa a query duas vezes. Cada feature nova decide esses pontos ad-hoc.
+- **PERF-08**: Não existe nenhum padrão de performance documentado no projeto — não há skill em `skills/` cobrindo loading/streaming, revalidação granular, dedupe de queries ou code-splitting. Sintoma concreto: nenhuma função de `src/server/queries/*.ts` usa `React.cache()`, então qualquer helper chamado duas vezes na mesma renderização executa a query duas vezes. Cada feature nova decide esses pontos ad-hoc.
 
 ---
 
@@ -51,10 +51,10 @@ Resolver `prevMonthItem` antes do bloco de totais e buscar `getSectionTotals` do
 
 - Calcular totais por tabela com `prisma.transaction.groupBy({ by: ["tableId"], _sum: { amountCents: true } })`, eliminando o `reduce` em JS.
 - Extrair a serialização de transações para um helper único `serializeTransaction()` em `src/lib/serializers/transaction.ts`, reutilizável por qualquer RSC.
-- Substituir a função monolítica `getMonthPageData()` por duas funções separadas em `src/lib/queries/month-page.ts`, alinhadas com a arquitetura de Suspense por aba (PERF-01):
+- Substituir a função monolítica `getMonthPageData()` por duas funções separadas em `src/server/queries/month-page.ts`, alinhadas com a arquitetura de Suspense por aba (PERF-01):
   - **`getMonthSummaryData(accountId, monthId, monthYear, monthMonth, userId)`**: dados da aba summary (sections, totais de seção via `Promise.all` com mês anterior, insights, budgets, KPIs, widgets). A paralelização de `getSectionTotals` (PERF-03) ocorre **dentro desta função**.
   - **`getSectionTabData(accountId, monthId, sectionId)`**: dados de uma aba de seção (tabelas, transações via `groupBy` + serialização com `serializeTransaction()`).
-  - Queries compartilhadas entre abas (`getCategories`, `getInstitutions`, `getMembers`, `getAccountSettings`) ficam em funções nomeadas com `React.cache()` no mesmo arquivo ou em `src/lib/queries/shared.ts`.
+  - Queries compartilhadas entre abas (`getCategories`, `getInstitutions`, `getMembers`, `getAccountSettings`) ficam em funções nomeadas com `React.cache()` no mesmo arquivo ou em `src/server/queries/shared.ts`.
 - O `page.tsx` reduz a composição pura: auth + mês + lista de meses + render do shell com `<Suspense>` por aba.
 
 ### 2.5 Memoização da tabela de transações (PERF-05)
@@ -76,7 +76,7 @@ Carregar todos os componentes de gráfico (recharts e nivo) via `dynamic(() => i
 
 ### 2.8 Skill de performance (PERF-08)
 
-Criar `skills/performance/SKILL.md` documentando os padrões consolidados por esta spec, no mínimo: (a) quando criar `loading.tsx` vs `<Suspense>` inline; (b) regra de revalidação granular (nunca `"layout"` para mutações de dados de página; remover `updateTag` sem `next.tags` correspondente); (c) `React.cache()` obrigatório em helpers de query chamados em RSC compartilhados entre componentes; (d) `dynamic()` para libs de visualização; (e) agregação no Postgres antes de agregação em JS; (f) checklist de performance para review de feature. Como parte da spec, envolver em `React.cache()` as funções de `src/lib/queries/*.ts` que são efetivamente chamadas em RSC — funções usadas exclusivamente em Server Actions ou Route Handlers não precisam de `cache()` (sem efeito fora do contexto RSC).
+Criar `skills/performance/SKILL.md` documentando os padrões consolidados por esta spec, no mínimo: (a) quando criar `loading.tsx` vs `<Suspense>` inline; (b) regra de revalidação granular (nunca `"layout"` para mutações de dados de página; remover `updateTag` sem `next.tags` correspondente); (c) `React.cache()` obrigatório em helpers de query chamados em RSC compartilhados entre componentes; (d) `dynamic()` para libs de visualização; (e) agregação no Postgres antes de agregação em JS; (f) checklist de performance para review de feature. Como parte da spec, envolver em `React.cache()` as funções de `src/server/queries/*.ts` que são efetivamente chamadas em RSC — funções usadas exclusivamente em Server Actions ou Route Handlers não precisam de `cache()` (sem efeito fora do contexto RSC).
 
 ---
 
@@ -112,7 +112,7 @@ Criar `skills/performance/SKILL.md` documentando os padrões consolidados por es
 - QUANDO a página do mês renderiza, os totais por tabela DEVEM vir de uma query agregada (`groupBy` + `_sum`), e NÃO de `reduce` em JS sobre as transações.
 - A serialização de transações DEVE ocorrer exclusivamente via `serializeTransaction()` — nenhum RSC DEVE converter BigInt/Date de transação inline.
 - O arquivo `months/[monthId]/page.tsx` DEVE ficar com menos de 150 linhas após a extração das funções de query.
-- As funções `getMonthSummaryData()` e `getSectionTabData()` DEVEM existir em `src/lib/queries/month-page.ts`.
+- As funções `getMonthSummaryData()` e `getSectionTabData()` DEVEM existir em `src/server/queries/month-page.ts`.
 
 **PERF-05:**
 - ENQUANTO o usuário digita no campo de busca, linhas cuja transação não mudou NÃO DEVEM re-renderizar (verificável com React DevTools Profiler).
@@ -128,7 +128,7 @@ Criar `skills/performance/SKILL.md` documentando os padrões consolidados por es
 
 **PERF-08:**
 - O arquivo `skills/performance/SKILL.md` DEVE existir cobrindo os itens (a)–(f) da §2.8.
-- Funções de `src/lib/queries/*.ts` efetivamente chamadas em RSC DEVEM estar envolvidas em `React.cache()`. Funções usadas exclusivamente em Server Actions ou Route Handlers NÃO precisam de `cache()`.
+- Funções de `src/server/queries/*.ts` efetivamente chamadas em RSC DEVEM estar envolvidas em `React.cache()`. Funções usadas exclusivamente em Server Actions ou Route Handlers NÃO precisam de `cache()`.
 - SE a mesma função de query (com `React.cache()`) for chamada duas vezes na mesma renderização RSC, o Prisma DEVE executar apenas uma query (verificável com log de queries em dev).
 
 ---
@@ -174,7 +174,7 @@ O spec define **padrões**, não listas de arquivos. O implementador DEVE aplica
 | Qualquer `revalidatePath(…, "layout")` em `src/actions/` | Substituir por revalidação granular das rotas afetadas pela mutação | 02 |
 | Qualquer `updateTag(…)` em `src/actions/` sem `next.tags` correspondente em queries | Remover | 02 |
 | Qualquer `import … from "recharts"` ou `import … from "@nivo/…"` em `src/components/` | Mover para `lazy.tsx` com `dynamic()` | 06 |
-| Qualquer função exportada de `src/lib/queries/` chamada diretamente em RSC (page.tsx, layout.tsx, async Server Components) | Envolver em `React.cache()` | 08 |
+| Qualquer função exportada de `src/server/queries/` chamada diretamente em RSC (page.tsx, layout.tsx, async Server Components) | Envolver em `React.cache()` | 08 |
 | Qualquer serialização inline de `BigInt→string` ou `Date→ISO` referente a transações em RSC | Substituir por `serializeTransaction()` | 04 |
 | Qualquer `prisma.transaction.findMany` seguido de `reduce` para somar `amountCents` | Substituir por `groupBy` + `_sum` | 04 |
 
@@ -189,11 +189,11 @@ Inventário dos anti-padrões identificados na auditoria de 2026-06-11 que serve
 | PERF-01 | `src/app/(app)/[accountId]/months/[monthId]/loading.tsx` (novo), `src/app/(app)/[accountId]/dashboards/yearly/[year]/loading.tsx` (novo), `src/app/(app)/[accountId]/dashboards/monthly/[monthId]/loading.tsx` (novo), `src/app/(app)/[accountId]/settings/loading.tsx` (novo), `months/[monthId]/page.tsx` (shell + `<Suspense>` por aba), componentes de aba extraídos como async Server Components |
 | PERF-02 | `src/actions/transactions.ts`, `src/actions/finance-tables.ts`, `src/actions/table-templates.ts`, `src/actions/dashboard-layout.ts`, `src/server/services/transaction-service.ts` (retorno de `monthId`/`uniqueMonthIds`), `src/lib/schemas/transaction.ts` (adicionar `monthId` ao `bulkUpdateSchema`) |
 | PERF-03 | absorvido por `getMonthSummaryData()` — `Promise.all` com `getSectionTotals` ocorre dentro da função |
-| PERF-04 | `src/app/(app)/[accountId]/months/[monthId]/page.tsx`, `src/lib/serializers/transaction.ts` (novo, `serializeTransaction`), `src/lib/queries/month-page.ts` (novo, `getMonthSummaryData` + `getSectionTabData` + queries compartilhadas com `React.cache()`) |
+| PERF-04 | `src/app/(app)/[accountId]/months/[monthId]/page.tsx`, `src/lib/serializers/transaction.ts` (novo, `serializeTransaction`), `src/server/queries/month-page.ts` (novo, `getMonthSummaryData` + `getSectionTabData` + queries compartilhadas com `React.cache()`) |
 | PERF-05 | `src/components/transactions/TransactionRow.tsx`, `src/components/transactions/TransactionTable.tsx` |
 | PERF-06 | `src/components/dashboards/charts/lazy.tsx` (novo), `src/components/dashboards/charts/ChartSkeleton.tsx` (novo), todos os componentes com `import … from "recharts"` em `src/components/dashboards/` (confirmados na auditoria: `YearlyLineChart`, `SectionPieChart`, `PieBreakdown`, `CategoryTreemap`, `MonthSectionBarChart`, `MemberTrendChart`, `BreakdownBarChart`, `MonthlyBarChart`, `KpiCard`, `KpiSparklineCard`, `MemberBreakdownChart`, `WeeklySpendingWidget`, `MemberRadarWidget`) |
 | PERF-07 | `src/components/ui/NotificationBell.tsx` |
-| PERF-08 | `skills/performance/SKILL.md` (novo), funções RSC em `src/lib/queries/*.ts` |
+| PERF-08 | `skills/performance/SKILL.md` (novo), funções RSC em `src/server/queries/*.ts` |
 
 ### Revalidação granular (PERF-02)
 
@@ -248,7 +248,7 @@ updateTag(`account:${ctx.accountId}`);
 ### Paralelização + agregação (PERF-03, PERF-04)
 
 ```ts
-// ✅ Correto — dentro de getMonthSummaryData() em src/lib/queries/month-page.ts
+// ✅ Correto — dentro de getMonthSummaryData() em src/server/queries/month-page.ts
 // Promise.all com getSectionTotals do mês atual e anterior + groupBy no Postgres
 const [sectionTotalsRaw, prevTotalsRaw, tableTotalsRaw] = await Promise.all([
   getSectionTotals(accountId, monthId, sectionIds),
@@ -270,7 +270,7 @@ const total = txList.reduce((sum, tx) => sum + BigInt(tx.amountCents), 0n);
 
 ```ts
 // ✅ Correto — funções chamadas em RSC, com React.cache()
-// src/lib/queries/month-page.ts
+// src/server/queries/month-page.ts
 import { cache } from "react";
 
 export const getCategories = cache(async (accountId: string) => {
@@ -324,7 +324,7 @@ grep -rn 'amountCents.*reduce\|reduce.*amountCents' src/app/ src/components/
 grep -rn 'from "recharts"' src/components/
 
 # PERF-08 — funções de query RSC sem React.cache
-grep -rn 'export async function\|export function' src/lib/queries/
+grep -rn 'export async function\|export function' src/server/queries/
 # (verificar manualmente se as que são chamadas em RSC estão com cache())
 ```
 

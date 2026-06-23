@@ -21,7 +21,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 import { m } from "@/lib/messages";
 import type { SandboxConfig } from "@/lib/schemas/sandbox";
-import type { SectionMeta } from "@/lib/queries/dashboards";
+import type { SectionMeta } from "@/server/queries/dashboards";
 import {
   getValidSeriesBy,
   getValidChartTypes,

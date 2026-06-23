@@ -21,7 +21,7 @@ import {
   Cell,
 } from "recharts";
 import { getChartColors } from "@/lib/design-tokens";
-import type { SparklinePoint } from "@/lib/queries/dashboards";
+import type { SparklinePoint } from "@/server/queries/dashboards";
 
 type DeltaMode = "prevMonth" | "prevYear" | "avg3m" | "none";
 

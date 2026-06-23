@@ -7,7 +7,7 @@ import AddIcon from "@mui/icons-material/Add";
 
 import { m } from "@/lib/messages";
 import { BudgetProgressBar } from "@/components/budgets/BudgetProgressBar";
-import type { BudgetProgress } from "@/lib/queries/budgets";
+import type { BudgetProgress } from "@/server/queries/budgets";
 
 type Props = {
   budgets: BudgetProgress[];

@@ -14,8 +14,8 @@ import { useSnackbar } from "notistack";
 
 import { m } from "@/lib/messages";
 import type { SandboxConfig } from "@/lib/schemas/sandbox";
-import type { SandboxResult } from "@/lib/queries/sandbox";
-import type { SectionMeta } from "@/lib/queries/dashboards";
+import type { SandboxResult } from "@/server/queries/sandbox";
+import type { SectionMeta } from "@/server/queries/dashboards";
 import { getSandboxDataClientAction } from "@/actions/sandbox";
 import { addAnalysisToDashboardAction } from "@/actions/dashboard-layout";
 import { DialogShell } from "@/components/ui/DialogShell";

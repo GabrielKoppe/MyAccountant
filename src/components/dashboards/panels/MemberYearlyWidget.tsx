@@ -8,7 +8,7 @@
 
 import { MemberBreakdownWidget } from "@/components/dashboards/panels/MemberBreakdownWidget";
 import { MemberListWidget } from "@/components/dashboards/panels/MemberListWidget";
-import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
+import type { MemberBreakdownRow } from "@/server/queries/member-analytics";
 import type { PieChartConfig } from "@/lib/schemas/widget-config";
 
 type Props = {

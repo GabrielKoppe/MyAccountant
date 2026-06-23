@@ -5,8 +5,8 @@ import Typography from "@mui/material/Typography";
 
 import type { SandboxConfig } from "@/lib/schemas/sandbox";
 import { sandboxConfigSchema } from "@/lib/schemas/sandbox";
-import type { SerializedSandboxResult } from "@/lib/queries/sandbox";
-import { deserializeSandboxResult } from "@/lib/queries/sandbox";
+import type { SerializedSandboxResult } from "@/server/queries/sandbox";
+import { deserializeSandboxResult } from "@/server/queries/sandbox";
 import { WIDGET_REGISTRY } from "@/components/dashboards/_core/widget-registry";
 import { SandboxChart } from "@/components/dashboards/sandbox/SandboxChart";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";

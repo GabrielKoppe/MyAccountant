@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
+
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
@@ -22,7 +22,7 @@ import {
 import { formatCentsToBrl } from "@/lib/money";
 import { getChartColors } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
-import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
+import type { MemberBreakdownRow } from "@/server/queries/member-analytics";
 
 import { ChartTooltip, PieLegend } from "@/components/dashboards/_shared/ChartTooltip";
 import { buildMemberColorMap, memberDisplayName } from "@/components/dashboards/_shared/member-display";

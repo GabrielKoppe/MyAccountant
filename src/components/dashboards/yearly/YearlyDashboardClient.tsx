@@ -13,8 +13,8 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
-import type { SectionMeta, CategorySum, MonthSummary } from "@/lib/queries/dashboards";
-import type { MemberTrendSeries, MemberBreakdownRow } from "@/lib/queries/member-analytics";
+import type { SectionMeta, CategorySum, MonthSummary } from "@/server/queries/dashboards";
+import type { MemberTrendSeries, MemberBreakdownRow } from "@/server/queries/member-analytics";
 
 import { KpiCard, MonthlyBarChart, MemberTrendChart } from "@/components/dashboards/charts/lazy";
 import { TopCategoriesWidget } from "@/components/dashboards/panels/TopCategoriesWidget";
@@ -27,10 +27,10 @@ import { YearlyDashboardMenu } from "./YearlyDashboardMenu";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import { kpiCustomConfigSchema, type TopCategoriesConfig } from "@/lib/schemas/widget-config";
-import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
+import type { KpiCustomResult } from "@/server/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
-import type { SerializedSandboxResult } from "@/lib/queries/sandbox";
+import type { SerializedSandboxResult } from "@/server/queries/sandbox";
 
 type Props = {
   accountId: string;

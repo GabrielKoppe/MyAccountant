@@ -17,7 +17,7 @@ import { getChartColors } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
-import type { MemberTrendSeries } from "@/lib/queries/member-analytics";
+import type { MemberTrendSeries } from "@/server/queries/member-analytics";
 
 import { ChartTooltip } from "@/components/dashboards/_shared/ChartTooltip";
 import {

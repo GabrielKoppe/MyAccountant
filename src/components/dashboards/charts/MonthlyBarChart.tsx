@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -30,7 +30,7 @@ import { ChartTooltip } from "@/components/dashboards/_shared/ChartTooltip";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { m } from "@/lib/messages";
-import type { MonthSummary, SectionMeta } from "@/lib/queries/dashboards";
+import type { MonthSummary, SectionMeta } from "@/server/queries/dashboards";
 
 type Props = {
   months: MonthSummary[];

@@ -18,7 +18,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 import { formatCentsToBrl } from "@/lib/money";
 import { formatDateShort } from "@/lib/dates";
-import type { DrillDownTransaction } from "@/lib/queries/dashboards";
+import type { DrillDownTransaction } from "@/server/queries/dashboards";
 
 type Props = {
   open: boolean;
@@ -103,7 +103,7 @@ export function DrillDownDrawer({ open, onClose, title, transactions, loading }:
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {tx.description ?? <em style={{ color: "#9e9e9e" }}>Sem descrição</em>}
+                      {tx.description ?? <em style={{ color: "var(--mui-palette-text-disabled, #B8B1A0)" }}>Sem descrição</em>}
                     </TableCell>
                     <TableCell sx={{ fontSize: 11 }}>
                       <Chip label={tx.sectionName} size="small" variant="outlined" />

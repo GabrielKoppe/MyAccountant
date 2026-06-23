@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recha
 import { formatCentsToBrl } from "@/lib/money";
 import { getChartColors } from "@/lib/design-tokens";
 import { ChartTooltip, PieLegend } from "@/components/dashboards/_shared/ChartTooltip";
-import type { SectionMeta } from "@/lib/queries/dashboards";
+import type { SectionMeta } from "@/server/queries/dashboards";
 
 type Props = {
   sections: SectionMeta[];

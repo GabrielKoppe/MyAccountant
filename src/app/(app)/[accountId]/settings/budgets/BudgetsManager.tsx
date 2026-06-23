@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import Divider from "@mui/material/Divider";
+
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -24,8 +24,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
-import type { BudgetWithDetails, BudgetFormOptions } from "@/lib/queries/budgets";
-import { getBudgetLabel } from "@/lib/queries/budgets";
+import type { BudgetWithDetails, BudgetFormOptions } from "@/server/queries/budgets";
+import { getBudgetLabel } from "@/server/queries/budgets";
 import { MONTH_NAMES } from "@/lib/dates";
 
 type Props = {

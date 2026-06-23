@@ -13,7 +13,7 @@ import { getChartColors } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
-import type { TreemapCategory } from "@/lib/queries/dashboards";
+import type { TreemapCategory } from "@/server/queries/dashboards";
 import type { TreemapConfig } from "@/lib/schemas/widget-config";
 
 type Props = {

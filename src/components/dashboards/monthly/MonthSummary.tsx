@@ -18,14 +18,14 @@ import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
-import type { BudgetProgress } from "@/lib/queries/budgets";
+import type { BudgetProgress } from "@/server/queries/budgets";
 import type { Insight } from "@/server/services/insights-service";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   kpiCustomConfigSchema,
   filteredTransactionsConfigSchema,
 } from "@/lib/schemas/widget-config";
-import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
+import type { KpiCustomResult } from "@/server/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 import {
   FilteredTransactionsWidget,

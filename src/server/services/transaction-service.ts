@@ -1,4 +1,4 @@
-import { ForbiddenError, NotFoundError } from "@/server/api/errors";
+import { NotFoundError } from "@/server/api/errors";
 import type { ActionContext } from "@/server/api/define-action";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";

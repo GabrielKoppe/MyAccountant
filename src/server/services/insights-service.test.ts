@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { prismaMock } from "@/../tests/mocks/prisma";
-import { getInsightsData } from "@/lib/queries/insights";
+import { getInsightsData } from "@/server/queries/insights";
 import {
   detectCategorySpikes,
   detectNewCategories,

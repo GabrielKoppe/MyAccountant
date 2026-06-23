@@ -12,7 +12,7 @@ import { AppLink } from "@/components/ui/AppLink";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { m } from "@/lib/messages";
-import type { DayTotal } from "@/lib/queries/dashboards";
+import type { DayTotal } from "@/server/queries/dashboards";
 
 type Props = {
   year: number;

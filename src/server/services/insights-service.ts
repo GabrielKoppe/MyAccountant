@@ -6,7 +6,7 @@ import {
   getInsightsData,
   type AdherenceHistory,
   type BudgetRisk,
-} from "@/lib/queries/insights";
+} from "@/server/queries/insights";
 
 // ─── Tipos ────────────────────────────────────────────────────────
 

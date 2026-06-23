@@ -28,7 +28,7 @@ type Props = {
   allMonths: MonthOption[];
 };
 
-export function MonthNav({ accountId, currentMonthId, currentLabel, currentYear, allMonths }: Props) {
+export function MonthNav({ accountId, currentMonthId, currentLabel: _currentLabel, currentYear, allMonths }: Props) {
   const router = useRouter();
 
   const idx = allMonths.findIndex((m) => m.id === currentMonthId);

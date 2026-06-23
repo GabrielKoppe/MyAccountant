@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
-import Box from "@mui/material/Box";
+
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
 
@@ -11,8 +11,6 @@ import { InviteForm } from "@/components/members/InviteForm";
 import { InvitesList } from "@/components/members/InvitesList";
 import { MembersTable } from "@/components/members/MembersTable";
 import { m } from "@/lib/messages";
-import { layout, containers } from "@/lib/design-tokens";
-import { PageHeader } from "@/components/ui/PageHeader";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type Props = { params: Promise<{ accountId: string }> };

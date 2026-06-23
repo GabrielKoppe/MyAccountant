@@ -3,12 +3,10 @@
 import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
-import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import StarIcon from "@mui/icons-material/Star";
-import StarBorderIcon from "@mui/icons-material/StarBorder";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
 import { updateTransactionAction } from "@/actions/transactions";
@@ -101,7 +99,7 @@ export function TransactionQuickList({ accountId, monthId, transactions, mode }:
               sx={{ flex: 1, fontSize: 13 }}
               title={tx.description ?? "Sem descrição"}
             >
-              {tx.description ?? <em style={{ color: "#9e9e9e" }}>Sem descrição</em>}
+              {tx.description ?? <em style={{ color: "var(--mui-palette-text-disabled, #B8B1A0)" }}>Sem descrição</em>}
             </Typography>
 
             {/* Amount */}

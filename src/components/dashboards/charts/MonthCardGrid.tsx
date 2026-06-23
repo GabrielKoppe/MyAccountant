@@ -13,7 +13,7 @@ import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { formatCentsToBrl } from "@/lib/money";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { m } from "@/lib/messages";
-import type { MonthSummary } from "@/lib/queries/dashboards";
+import type { MonthSummary } from "@/server/queries/dashboards";
 
 type Props = {
   accountId: string;
@@ -32,7 +32,7 @@ const CARDS_VISIBLE: Record<string, number> = {
 export function MonthCardGrid({
   accountId,
   months,
-  currentMonthId,
+  currentMonthId: _currentMonthId,
   renderMode = "default",
 }: Props) {
   const [startIdx, setStartIdx] = useState(0);

@@ -6,17 +6,20 @@ import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/error
 
 import {
   createCategory,
-  createInstitution,
-  createSection,
   deleteCategory,
-  deleteInstitution,
-  deleteSection,
-  deleteTableType,
   updateCategory,
+} from "./category-service";
+import {
+  createInstitution,
+  deleteInstitution,
   updateInstitution,
+} from "./institution-service";
+import {
+  createSection,
+  deleteSection,
   updateSection,
-  updateTableType,
-} from "./settings-service";
+} from "./section-service";
+import { deleteTableType, updateTableType } from "./table-type-service";
 
 // ─── Sections ────────────────────────────────────────────────────
 

@@ -5,7 +5,7 @@ import TuneIcon from "@mui/icons-material/Tune";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { KpiCustomConfig } from "@/lib/schemas/widget-config";
-import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
+import type { KpiCustomResult } from "@/server/queries/kpi-custom";
 import { KpiCard } from "./KpiCard";
 
 const METRIC_LABELS: Record<KpiCustomConfig["metric"], string> = {

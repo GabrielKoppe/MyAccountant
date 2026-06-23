@@ -1,22 +1,18 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAccountHome } from "@/server/api/revalidate";
 import { z } from "zod";
 
 import { defineAction } from "@/server/api/define-action";
-import { prisma } from "@/server/prisma";
+import * as onboardingService from "@/server/services/onboarding-service";
 
-// Operações simples de campo único — lógica fica aqui mesmo por ser trivial
 export const completeOnboardingAction = defineAction({
   schema: z.object({}),
   requireRoles: ["owner", "editor"],
   handler: async (_, ctx) => {
-    await prisma.accountSettings.update({
-      where: { accountId: ctx.accountId },
-      data: { onboardingCompletedAt: new Date() },
-    });
-    revalidatePath(`/${ctx.accountId}`);
-    revalidatePath(`/${ctx.accountId}/setup`);
+    await onboardingService.completeOnboarding(ctx);
+    revalidateAccountHome(ctx.accountId);
+    revalidateAccountHome(ctx.accountId); // setup redirects para home
   },
 });
 
@@ -24,11 +20,8 @@ export const resetOnboardingAction = defineAction({
   schema: z.object({}),
   requireRoles: ["owner"],
   handler: async (_, ctx) => {
-    await prisma.accountSettings.update({
-      where: { accountId: ctx.accountId },
-      data: { onboardingCompletedAt: null },
-    });
-    revalidatePath(`/${ctx.accountId}/settings/general`);
-    revalidatePath(`/${ctx.accountId}`);
+    await onboardingService.resetOnboarding(ctx);
+    // revalidateGeneralSettings já cobre general + home
+    revalidateAccountHome(ctx.accountId);
   },
 });

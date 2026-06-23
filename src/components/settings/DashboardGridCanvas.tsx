@@ -31,7 +31,7 @@ import {
   snapToNearestVariant,
 } from "@/components/dashboards/_core/grid-layout";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
-import type { WidgetConfigOptions } from "@/lib/queries/widget-config-options";
+import type { WidgetConfigOptions } from "@/server/queries/widget-config-options";
 import { WidgetCardBody } from "./WidgetCardBody";
 import { PALETTE_DRAG_PREFIX, WidgetPalette } from "./WidgetPalette";
 import { WidgetSettingsPanel } from "./WidgetSettingsPanel";

@@ -10,7 +10,7 @@ import Typography from "@mui/material/Typography";
 
 import { formatCentsToBrl } from "@/lib/money";
 import type { SandboxConfig, SandboxMetric } from "@/lib/schemas/sandbox";
-import type { SandboxResult } from "@/lib/queries/sandbox";
+import type { SandboxResult } from "@/server/queries/sandbox";
 
 const GROUPBY_LABEL: Record<SandboxConfig["groupBy"], string> = {
   month: "Mês",

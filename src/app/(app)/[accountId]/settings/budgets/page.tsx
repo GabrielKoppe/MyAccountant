@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { requireAccountAccess } from "@/server/auth/session";
-import { getBudgetsForSettings, getBudgetFormOptions } from "@/lib/queries/budgets";
+import { getBudgetsForSettings, getBudgetFormOptions } from "@/server/queries/budgets";
 import { BudgetsManager } from "./BudgetsManager";
 
 type Props = { params: Promise<{ accountId: string }> };

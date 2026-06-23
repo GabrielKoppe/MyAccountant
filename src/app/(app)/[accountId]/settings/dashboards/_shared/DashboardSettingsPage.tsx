@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { getLayout } from "@/server/services/dashboard-layout-service";
-import { getWidgetConfigOptions } from "@/lib/queries/widget-config-options";
+import { getWidgetConfigOptions } from "@/server/queries/widget-config-options";
 import { m } from "@/lib/messages";
 import { containers } from "@/lib/design-tokens";
 import { DashboardGridEditor } from "@/components/settings/DashboardGridEditor";

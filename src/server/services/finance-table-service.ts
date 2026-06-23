@@ -1,6 +1,6 @@
 import { getDaysInMonth } from "date-fns";
 
-import { AppError, ForbiddenError, NotFoundError } from "@/server/api/errors";
+import { AppError, NotFoundError } from "@/server/api/errors";
 import type { ActionContext } from "@/server/api/define-action";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";

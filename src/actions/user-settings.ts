@@ -1,8 +1,9 @@
 "use server";
 
 import { cookies } from "next/headers";
+
 import { auth } from "@/server/auth";
-import { prisma } from "@/server/prisma";
+import * as userSettingsService from "@/server/services/user-settings-service";
 import type { ThemeMode } from "@/components/providers/ThemeContext";
 import { type AccentColorKey, ACCENT_COLOR_KEYS } from "@/lib/accent-colors";
 
@@ -17,11 +18,7 @@ export async function saveThemeAction(theme: ThemeMode): Promise<void> {
 
   const session = await auth();
   if (session?.user?.id) {
-    await prisma.userSettings.upsert({
-      where: { userId: session.user.id },
-      update: { theme },
-      create: { userId: session.user.id, theme },
-    });
+    await userSettingsService.saveTheme(session.user.id, theme);
   }
 }
 
@@ -38,10 +35,6 @@ export async function saveAccentColorAction(accentColor: AccentColorKey): Promis
 
   const session = await auth();
   if (session?.user?.id) {
-    await prisma.userSettings.upsert({
-      where: { userId: session.user.id },
-      update: { accentColor },
-      create: { userId: session.user.id, accentColor },
-    });
+    await userSettingsService.saveAccentColor(session.user.id, accentColor);
   }
 }

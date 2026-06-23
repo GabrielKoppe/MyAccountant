@@ -1,7 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { z } from "zod";
+
 
 import { defineAction } from "@/server/api/define-action";
 import {
@@ -23,7 +22,18 @@ import {
   updateSubcategorySchema,
   updateTableTypeSchema,
 } from "@/lib/schemas/settings";
-import * as settingsService from "@/server/services/settings-service";
+import * as accountSettingsService from "@/server/services/account-settings-service";
+import * as categoryService from "@/server/services/category-service";
+import * as institutionService from "@/server/services/institution-service";
+import * as sectionService from "@/server/services/section-service";
+import * as tableTypeService from "@/server/services/table-type-service";
+import {
+  revalidateGeneralSettings,
+  revalidateSections,
+  revalidateCategories,
+  revalidateInstitutions,
+  revalidateTableTypes,
+} from "@/server/api/revalidate";
 
 const EDITOR_ROLES = ["owner", "editor"] as const;
 
@@ -33,9 +43,8 @@ export const updateAccountSettingsAction = defineAction({
   schema: updateAccountSettingsSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.updateAccountSettings(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/general`);
-    revalidatePath(`/${ctx.accountId}`);
+    await accountSettingsService.updateAccountSettings(input, ctx);
+    revalidateGeneralSettings(ctx.accountId);
   },
 });
 
@@ -45,8 +54,8 @@ export const createSectionAction = defineAction({
   schema: createSectionSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    const result = await settingsService.createSection(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/sections`);
+    const result = await sectionService.createSection(input, ctx);
+    revalidateSections(ctx.accountId);
     return result;
   },
 });
@@ -55,8 +64,8 @@ export const updateSectionAction = defineAction({
   schema: updateSectionSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.updateSection(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/sections`);
+    await sectionService.updateSection(input, ctx);
+    revalidateSections(ctx.accountId);
   },
 });
 
@@ -64,8 +73,8 @@ export const reorderSectionsAction = defineAction({
   schema: reorderSectionsSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.reorderSections(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/sections`);
+    await sectionService.reorderSections(input, ctx);
+    revalidateSections(ctx.accountId);
   },
 });
 
@@ -73,8 +82,8 @@ export const deleteSectionAction = defineAction({
   schema: deleteSectionSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.deleteSection(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/sections`);
+    await sectionService.deleteSection(input, ctx);
+    revalidateSections(ctx.accountId);
   },
 });
 
@@ -84,8 +93,8 @@ export const createCategoryAction = defineAction({
   schema: createCategorySchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    const result = await settingsService.createCategory(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/categories`);
+    const result = await categoryService.createCategory(input, ctx);
+    revalidateCategories(ctx.accountId);
     return result;
   },
 });
@@ -94,8 +103,8 @@ export const updateCategoryAction = defineAction({
   schema: updateCategorySchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.updateCategory(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/categories`);
+    await categoryService.updateCategory(input, ctx);
+    revalidateCategories(ctx.accountId);
   },
 });
 
@@ -103,8 +112,8 @@ export const deleteCategoryAction = defineAction({
   schema: deleteCategorySchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.deleteCategory(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/categories`);
+    await categoryService.deleteCategory(input, ctx);
+    revalidateCategories(ctx.accountId);
   },
 });
 
@@ -112,8 +121,8 @@ export const createSubcategoryAction = defineAction({
   schema: createSubcategorySchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    const result = await settingsService.createSubcategory(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/categories`);
+    const result = await categoryService.createSubcategory(input, ctx);
+    revalidateCategories(ctx.accountId);
     return result;
   },
 });
@@ -122,8 +131,8 @@ export const updateSubcategoryAction = defineAction({
   schema: updateSubcategorySchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.updateSubcategory(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/categories`);
+    await categoryService.updateSubcategory(input, ctx);
+    revalidateCategories(ctx.accountId);
   },
 });
 
@@ -131,8 +140,8 @@ export const deleteSubcategoryAction = defineAction({
   schema: deleteSubcategorySchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.deleteSubcategory(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/categories`);
+    await categoryService.deleteSubcategory(input, ctx);
+    revalidateCategories(ctx.accountId);
   },
 });
 
@@ -142,8 +151,8 @@ export const createInstitutionAction = defineAction({
   schema: createInstitutionSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    const result = await settingsService.createInstitution(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/institutions`);
+    const result = await institutionService.createInstitution(input, ctx);
+    revalidateInstitutions(ctx.accountId);
     return result;
   },
 });
@@ -152,8 +161,8 @@ export const updateInstitutionAction = defineAction({
   schema: updateInstitutionSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.updateInstitution(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/institutions`);
+    await institutionService.updateInstitution(input, ctx);
+    revalidateInstitutions(ctx.accountId);
   },
 });
 
@@ -161,8 +170,8 @@ export const deleteInstitutionAction = defineAction({
   schema: deleteInstitutionSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.deleteInstitution(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/institutions`);
+    await institutionService.deleteInstitution(input, ctx);
+    revalidateInstitutions(ctx.accountId);
   },
 });
 
@@ -172,8 +181,8 @@ export const createTableTypeAction = defineAction({
   schema: createTableTypeSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    const result = await settingsService.createTableType(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/table-types`);
+    const result = await tableTypeService.createTableType(input, ctx);
+    revalidateTableTypes(ctx.accountId);
     return result;
   },
 });
@@ -182,8 +191,8 @@ export const updateTableTypeAction = defineAction({
   schema: updateTableTypeSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.updateTableType(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/table-types`);
+    await tableTypeService.updateTableType(input, ctx);
+    revalidateTableTypes(ctx.accountId);
   },
 });
 
@@ -191,7 +200,7 @@ export const deleteTableTypeAction = defineAction({
   schema: deleteTableTypeSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    await settingsService.deleteTableType(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/table-types`);
+    await tableTypeService.deleteTableType(input, ctx);
+    revalidateTableTypes(ctx.accountId);
   },
 });

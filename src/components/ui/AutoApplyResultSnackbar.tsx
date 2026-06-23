@@ -2,7 +2,7 @@
 
 import { forwardRef, useState } from "react";
 import { useSnackbar } from "notistack";
-import Box from "@mui/material/Box";
+
 import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";

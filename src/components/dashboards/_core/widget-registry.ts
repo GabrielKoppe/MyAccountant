@@ -124,10 +124,6 @@ const SECTION_CARDS_VARIANTS: WidgetSizeVariant[] = [
   { id: "compact", labelKey: "compact", w: 1, h: 2, renderMode: "compact" },
 ];
 
-const ACTIVITY_LISTS_VARIANTS: WidgetSizeVariant[] = [
-  { id: "default", labelKey: "default", w: 6, h: 3, renderMode: "default" },
-  { id: "compact", labelKey: "compact", w: 6, h: 2, renderMode: "compact" },
-];
 // pending/favorite/recent: compact 1×2, default 2×3, large 3×3
 const ACTIVITY_ITEM_VARIANTS: WidgetSizeVariant[] = [
   { id: "default", labelKey: "default", w: 2, h: 3, renderMode: "default" },

@@ -7,7 +7,7 @@ import {
   type UpdateTemplateInput,
   type ExecuteImportInput,
 } from "@/lib/schemas/csv-import";
-import type { ImportMapping } from "@/lib/schemas/csv-import";
+
 
 export type ImportResult = {
   tableId: string;

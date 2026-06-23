@@ -18,14 +18,14 @@ import {
   getInstitutionBreakdown,
   getWeeklySpending,
   getTransactionCount,
-} from "@/lib/queries/dashboards";
-import { getMemberMonthlyBreakdown } from "@/lib/queries/member-analytics";
-import { getBudgetsWithProgress, getBudgetFormOptions } from "@/lib/queries/budgets";
+} from "@/server/queries/dashboards";
+import { getMemberMonthlyBreakdown } from "@/server/queries/member-analytics";
+import { getBudgetsWithProgress, getBudgetFormOptions } from "@/server/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
-import { getKpiCustomDataMap } from "@/lib/queries/kpi-custom";
+import { getKpiCustomDataMap } from "@/server/queries/kpi-custom";
 import { generateInsights } from "@/server/services/insights-service";
 import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
-import { getSandboxDataMap } from "@/lib/queries/sandbox";
+import { getSandboxDataMap } from "@/server/queries/sandbox";
 import { AppLink } from "@/components/ui/AppLink";
 import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
 import { MonthlyDashboardMenu } from "@/components/dashboards/monthly/MonthlyDashboardMenu";

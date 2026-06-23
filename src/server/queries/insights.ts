@@ -2,7 +2,7 @@ import { cache } from "react";
 
 import { prisma } from "@/server/prisma";
 import { getMonthRange } from "@/lib/dates";
-import { getBudgetsWithProgress } from "@/lib/queries/budgets";
+import { getBudgetsWithProgress } from "@/server/queries/budgets";
 
 // ─── Tipos ────────────────────────────────────────────────────────
 //

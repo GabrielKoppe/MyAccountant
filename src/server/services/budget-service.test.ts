@@ -4,7 +4,7 @@ import { prismaMock } from "@/../tests/mocks/prisma";
 import { TEST_CTX } from "@/../tests/fixtures/account";
 import { NotFoundError } from "@/server/api/errors";
 
-import { createBudget, updateBudget, deleteBudget } from "./budget-service";
+import { createBudget, updateBudget, deleteBudget, getBudgetTransactions } from "./budget-service";
 
 const BASE_INPUT = {
   name: null,
@@ -126,5 +126,76 @@ describe("deleteBudget", () => {
     await expect(
       deleteBudget({ budgetId: "budget-inexistente" }, TEST_CTX),
     ).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe("getBudgetTransactions", () => {
+  it("deve retornar transações e breakdown por categoria", async () => {
+    prismaMock.budget.findUnique.mockResolvedValue({
+      sectionId: null,
+      categoryId: null,
+      memberUserId: null,
+      institutionId: null,
+      tableTypeId: null,
+    } as any);
+
+    prismaMock.transaction.findMany.mockResolvedValue([
+      {
+        id: "tx-1",
+        description: "Mercado",
+        amountCents: 5000n,
+        occurredOn: new Date("2026-01-15"),
+        category: { name: "Alimentação" },
+        institution: null,
+      },
+      {
+        id: "tx-2",
+        description: "Padaria",
+        amountCents: 1500n,
+        occurredOn: new Date("2026-01-14"),
+        category: { name: "Alimentação" },
+        institution: null,
+      },
+    ] as any);
+
+    const result = await getBudgetTransactions(
+      { budgetId: "budget-1", monthId: "month-1" },
+      TEST_CTX,
+    );
+
+    expect(result.transactions).toHaveLength(2);
+    expect(result.transactions[0].amountCents).toBe("5000");
+    expect(result.categoryBreakdown).toHaveLength(1);
+    expect(result.categoryBreakdown[0]).toMatchObject({ name: "Alimentação", valueCents: "6500" });
+  });
+
+  it("deve lançar NotFoundError quando budget não pertence à account (multi-tenancy)", async () => {
+    prismaMock.budget.findUnique.mockResolvedValue(null);
+
+    await expect(
+      getBudgetTransactions({ budgetId: "budget-OUTRA", monthId: "month-1" }, TEST_CTX),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it("deve aplicar filtro de sectionId quando budget tem seção específica", async () => {
+    prismaMock.budget.findUnique.mockResolvedValue({
+      sectionId: "sec-123",
+      categoryId: null,
+      memberUserId: null,
+      institutionId: null,
+      tableTypeId: null,
+    } as any);
+    prismaMock.transaction.findMany.mockResolvedValue([]);
+
+    await getBudgetTransactions({ budgetId: "budget-1", monthId: "month-1" }, TEST_CTX);
+
+    expect(prismaMock.transaction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: "acc-test-1",
+          sectionId: "sec-123",
+        }),
+      }),
+    );
   });
 });

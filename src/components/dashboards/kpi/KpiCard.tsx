@@ -18,7 +18,7 @@ import {
   Tooltip as RechartsTooltip,
 } from "recharts";
 import { getChartColors } from "@/lib/design-tokens";
-import type { SparklinePoint } from "@/lib/queries/dashboards";
+import type { SparklinePoint } from "@/server/queries/dashboards";
 import { Divider } from "@mui/material";
 
 type DeltaMode = "prevMonth" | "prevYear" | "avg3m" | "none";

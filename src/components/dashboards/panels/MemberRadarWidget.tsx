@@ -32,7 +32,7 @@ import {
   buildMemberColorMap,
   memberDisplayName,
 } from "@/components/dashboards/_shared/member-display";
-import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
+import type { MemberBreakdownRow } from "@/server/queries/member-analytics";
 
 type RenderMode = "compact" | "default";
 
@@ -239,7 +239,6 @@ export function MemberRadarWidget({ rows, renderMode = "default" }: Props) {
               dataKey="category"
               tick={({ payload, x, y, cx, cy, ...rest }: any) => {
                 const label = truncateCat(String(payload.value), catLabelLen);
-                const angle = Math.atan2(y - cy, x - cx) * (180 / Math.PI);
                 const anchor = x > cx + 1 ? "start" : x < cx - 1 ? "end" : "middle";
                 return (
                   <text

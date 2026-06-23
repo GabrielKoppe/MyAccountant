@@ -13,7 +13,7 @@ import { BreakdownBarChart } from "@/components/dashboards/charts/lazy";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { m } from "@/lib/messages";
-import type { InstitutionBreakdownItem } from "@/lib/queries/dashboards";
+import type { InstitutionBreakdownItem } from "@/server/queries/dashboards";
 import type { PieChartConfig } from "@/lib/schemas/widget-config";
 
 type Props = {

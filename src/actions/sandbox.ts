@@ -1,7 +1,7 @@
 "use server";
 
 import { defineAction } from "@/server/api/define-action";
-import { getSandboxData } from "@/lib/queries/sandbox";
+import { getSandboxData } from "@/server/queries/sandbox";
 import { getSandboxDataSchema } from "@/lib/schemas/sandbox";
 import type { SandboxConfig } from "@/lib/schemas/sandbox";
 

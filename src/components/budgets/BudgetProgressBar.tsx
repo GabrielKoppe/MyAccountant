@@ -39,12 +39,6 @@ const STATUS_ICONS: Record<Status, typeof CheckCircleOutlineIcon> = {
   exceeded: ErrorOutlineIcon,
 };
 
-const STATUS_LABELS: Record<Status, string> = {
-  ok: m.budgets.progress.onTrack,
-  alert: m.budgets.progress.attention,
-  exceeded: m.budgets.progress.exceeded,
-};
-
 export function BudgetProgressBar({
   label,
   amountCents,

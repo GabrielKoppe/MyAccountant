@@ -11,7 +11,7 @@ import { AppLink } from "@/components/ui/AppLink";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { m } from "@/lib/messages";
-import type { SankeyData } from "@/lib/queries/dashboards";
+import type { SankeyData } from "@/server/queries/dashboards";
 
 type Props = {
   data: SankeyData;
@@ -20,12 +20,13 @@ type Props = {
 };
 
 // Tooltip inline para não depender do ThemeProvider dentro do @nivo portal
+// EXCEÇÃO: style inline necessário pois @nivo renderiza fora do contexto MUI
 function TooltipBox({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
         background: "rgba(20,20,20,0.88)",
-        color: "#fff",
+        color: "#fff", // texto sobre fundo escuro — token text.inverse
         borderRadius: 6,
         padding: "8px 12px",
         fontSize: 12,
@@ -119,6 +120,8 @@ export function SankeyChart({ data, monthSummaryHref, renderMode = "default" }: 
             labelPosition="outside"
             labelOrientation="horizontal"
             labelPadding={8}
+            // EXCEÇÃO: labelTextColor é prop do @nivo — não aceita tokens MUI
+            // Equivalentes: text.secondary light (#4A453C) / dark (#C4BDB0)
             labelTextColor={isDark ? "#e0e0e0" : "#333333"}
             label={(node: any) => node.label ?? node.id}
             nodeTooltip={({ node }: { node: any }) => (

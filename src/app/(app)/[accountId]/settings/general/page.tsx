@@ -7,7 +7,7 @@ import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
 import { GeneralSettingsForm } from "./GeneralSettingsForm";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
-import { Divider, Paper, Typography } from "@mui/material";
+import { Divider } from "@mui/material";
 import { AccountDangerZone } from "./AccountDangerZone";
 import { TourResetSection } from "./TourResetSection";
 

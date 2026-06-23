@@ -6,7 +6,7 @@
 // - expanded (4×3): barras com valores explícitos acima + linha de média.
 
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
+
 import { useTheme } from "@mui/material/styles";
 import {
   BarChart,
@@ -26,7 +26,7 @@ import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
 import { getChartColors } from "@/lib/design-tokens";
-import type { WeeklySpendingItem } from "@/lib/queries/dashboards";
+import type { WeeklySpendingItem } from "@/server/queries/dashboards";
 
 type Props = {
   data: WeeklySpendingItem[];
@@ -43,7 +43,6 @@ const compactPtBR = new Intl.NumberFormat("pt-BR", {
 export function WeeklySpendingWidget({ data, metric = "expense", renderMode = "default" }: Props) {
   const theme = useTheme();
   const chartColors = getChartColors(theme.palette.mode as "light" | "dark");
-  const gridColor = theme.palette.divider;
   const tickColor = theme.palette.text.secondary;
 
   const tooltipStyle = {

@@ -1,9 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
+import { revalidateMonth } from "@/server/api/revalidate";
 import { defineAction } from "@/server/api/define-action";
-import { z } from "zod";
+
 import {
   bulkDeleteSchema,
   bulkUpdateSchema,
@@ -17,11 +16,6 @@ import {
 import * as txService from "@/server/services/transaction-service";
 
 const EDITOR_ROLES = ["owner", "editor"] as const;
-
-function revalidateMonth(accountId: string, monthId: string) {
-  revalidatePath(`/${accountId}/months/${monthId}`);
-  revalidatePath(`/${accountId}/dashboards/monthly/${monthId}`);
-}
 
 export const createTransactionAction = defineAction({
   schema: createTransactionSchema,

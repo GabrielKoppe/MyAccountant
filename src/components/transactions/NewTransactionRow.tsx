@@ -55,7 +55,7 @@ export function NewTransactionRow({
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
   const [institutionId, setInstitutionId] = useState<string | null>(null);
   const [responsibleUserId, setResponsibleUserId] = useState<string | null>(defaultResponsibleUserId);
-  const [isPending, setIsPending] = useState(false);
+  const [isPending, _setIsPending] = useState(false);
   const [investmentType, setInvestmentType] = useState<InvestmentType | null>(null);
 
   const subcatsForCategory = categories.find((c) => c.id === categoryId)?.subcategories ?? [];

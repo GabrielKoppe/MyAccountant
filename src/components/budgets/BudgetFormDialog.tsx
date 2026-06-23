@@ -18,12 +18,8 @@ import { createBudgetAction, updateBudgetAction } from "@/actions/budgets";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { m } from "@/lib/messages";
 import { parseBrlMaskToCents, formatCentsToBrl } from "@/lib/money";
-import type { BudgetWithDetails, BudgetFormOptions } from "@/lib/queries/budgets";
-
-const MONTH_NAMES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
+import { MONTH_NAMES } from "@/lib/dates";
+import type { BudgetWithDetails, BudgetFormOptions } from "@/server/queries/budgets";
 
 type Props = {
   open: boolean;

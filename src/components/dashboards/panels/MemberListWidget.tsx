@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
@@ -14,7 +14,7 @@ import { m } from "@/lib/messages";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { memberDisplayName } from "@/components/dashboards/_shared/member-display";
-import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
+import type { MemberBreakdownRow } from "@/server/queries/member-analytics";
 
 type RenderMode = "compact" | "default" | "full";
 

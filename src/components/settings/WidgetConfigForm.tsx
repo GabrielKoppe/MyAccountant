@@ -50,7 +50,7 @@ import {
 } from "@/lib/schemas/widget-config";
 import type { DashboardContext, WidgetDef } from "@/components/dashboards/_core/widget-registry";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
-import type { ConfigFormOption, WidgetConfigOptions } from "@/lib/queries/widget-config-options";
+import type { ConfigFormOption, WidgetConfigOptions } from "@/server/queries/widget-config-options";
 
 type Props = {
   context: DashboardContext;

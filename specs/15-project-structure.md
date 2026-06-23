@@ -50,8 +50,10 @@ MyAccountant/
 │   │   │   ├── transaction-service.ts
 │   │   │   ├── month-service.ts
 │   │   │   ├── account-service.ts
-│   │   │   └── ...
-│   │   ├── api/                     # helpers de Route Handlers + OpenAPI
+│   │   │   └── ...   │   ├── queries/                 # queries de leitura para RSCs
+   │   │   ├── dashboards.ts
+   │   │   ├── month-page.ts
+   │   │   └── ...│   │   ├── api/                     # helpers de Route Handlers + OpenAPI
 │   │   │   ├── openapi-registry.ts
 │   │   │   ├── route-helpers.ts
 │   │   │   └── errors.ts
@@ -130,9 +132,15 @@ MyAccountant/
 ```
 
 ### 4.1 UI (`src/app/`, `src/components/`)
-- Server Components fazem queries diretas via Prisma (read-only, sem mutações).
+- Server Components (RSC) fazem queries de leitura via `src/server/queries/` (nunca Prisma direto em components).
 - Client Components chamam Server Actions, **nunca Prisma diretamente**.
 - Sem regras de negócio nos componentes (formatação de display é ok).
+
+### 4.1.1 Queries (`src/server/queries/`)
+- Código **server-only** de leitura para RSCs. Importa Prisma diretamente.
+- **Sem regra de negócio de mutação** — apenas queries `SELECT`.
+- Funções chamadas em RSC devem usar `React.cache()` (ver `skills/performance/SKILL.md`).
+- **Não** importar de `src/lib/queries/` — esse diretório não existe mais.
 
 ### 4.2 Actions (`src/actions/`)
 - "Use server" no topo.

@@ -16,8 +16,8 @@ import type {
   TreemapCategory,
   SankeyData,
   DrillDownTransaction,
-} from "@/lib/queries/dashboards";
-import type { MemberBreakdownRow } from "@/lib/queries/member-analytics";
+} from "@/server/queries/dashboards";
+import type { MemberBreakdownRow } from "@/server/queries/member-analytics";
 
 import {
   KpiCard,
@@ -41,22 +41,19 @@ import { BudgetHealthKpi } from "@/components/dashboards/kpi/BudgetHealthKpi";
 import { InstitutionBreakdownWidget } from "@/components/dashboards/panels/InstitutionBreakdownWidget";
 
 import type { Insight } from "@/server/services/insights-service";
-import type { BudgetProgress, BudgetFormOptions } from "@/lib/queries/budgets";
+import type { BudgetProgress, BudgetFormOptions } from "@/server/queries/budgets";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   kpiCustomConfigSchema,
-  weekChartConfigSchema,
-  transactionCountConfigSchema,
   type PieChartConfig,
   type TopTransactionsConfig,
   type TreemapConfig,
-  type WeekChartConfig,
 } from "@/lib/schemas/widget-config";
-import type { KpiCustomResult } from "@/lib/queries/kpi-custom";
+import type { KpiCustomResult } from "@/server/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
-import type { SerializedSandboxResult } from "@/lib/queries/sandbox";
-import type { InstitutionBreakdownItem, WeeklySpendingItem } from "@/lib/queries/dashboards";
+import type { SerializedSandboxResult } from "@/server/queries/sandbox";
+import type { InstitutionBreakdownItem, WeeklySpendingItem } from "@/server/queries/dashboards";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SavingsIcon from "@mui/icons-material/Savings";

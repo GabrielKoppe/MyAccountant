@@ -18,7 +18,7 @@ import {
   getMonthCategories,
   getMonthInstitutions,
   getMonthMembers,
-} from "@/lib/queries/month-page";
+} from "@/server/queries/month-page";
 
 type Props = {
   params: Promise<{ accountId: string; monthId: string }>;

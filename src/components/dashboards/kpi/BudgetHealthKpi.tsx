@@ -8,7 +8,7 @@ import FlagIcon from "@mui/icons-material/Flag";
 
 import { KpiCard } from "@/components/dashboards/charts/lazy";
 import { m } from "@/lib/messages";
-import type { BudgetProgress } from "@/lib/queries/budgets";
+import type { BudgetProgress } from "@/server/queries/budgets";
 
 type Props = {
   budgets: BudgetProgress[];

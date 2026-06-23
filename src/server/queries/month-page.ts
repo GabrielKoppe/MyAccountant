@@ -14,10 +14,10 @@ import {
   getSectionTotals,
   calculateMonthTotal,
 } from "@/server/services/month-service";
-import { getBudgetsWithProgress } from "@/lib/queries/budgets";
+import { getBudgetsWithProgress } from "@/server/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
-import { getKpiCustomDataMap } from "@/lib/queries/kpi-custom";
-import { getFilteredTransactionsMap } from "@/lib/queries/filtered-transactions";
+import { getKpiCustomDataMap } from "@/server/queries/kpi-custom";
+import { getFilteredTransactionsMap } from "@/server/queries/filtered-transactions";
 import { generateInsights } from "@/server/services/insights-service";
 import { serializeTransaction } from "@/lib/serializers/transaction";
 import type { TransactionRow } from "@/components/transactions/types";
@@ -126,8 +126,8 @@ export const getMonthSummaryData = cache(
     monthId: string,
     monthYear: number,
     monthMonth: number,
-    userId: string,
-    allMonthIds: string[],
+    _userId: string,
+    _allMonthIds: string[],
     prevMonthId: string | null,
   ): Promise<MonthSummaryTabData> => {
     const [sections, accountSettings] = await Promise.all([
@@ -141,7 +141,7 @@ export const getMonthSummaryData = cache(
     const [
       sectionTotalsRaw,
       prevTotalsRaw,
-      tableTotalsAgg,
+      _tableTotalsAgg,
       summaryBudgets,
       summaryWidgets,
       tablesRaw,

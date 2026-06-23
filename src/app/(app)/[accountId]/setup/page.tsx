@@ -7,7 +7,7 @@ import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 
 type Props = { params: Promise<{ accountId: string }> };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params: _params }: Props): Promise<Metadata> {
   return { title: "Configurar conta — MyAccountant" };
 }
 

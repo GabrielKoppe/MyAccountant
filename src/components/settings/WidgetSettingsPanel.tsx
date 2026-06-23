@@ -17,7 +17,7 @@ import type {
   WidgetSizeVariant,
 } from "@/components/dashboards/_core/widget-registry";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
-import type { WidgetConfigOptions } from "@/lib/queries/widget-config-options";
+import type { WidgetConfigOptions } from "@/server/queries/widget-config-options";
 import { widgetLabel } from "./widget-display";
 import { WidgetConfigForm } from "./WidgetConfigForm";
 

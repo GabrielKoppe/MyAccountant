@@ -6,13 +6,13 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
-import Divider from "@mui/material/Divider";
+
 import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import TextField from "@mui/material/TextField";
+
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
@@ -27,15 +27,20 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import { useSnackbar } from "notistack";
 
-import CircularProgress from "@mui/material/CircularProgress";
+
 import { deleteFinanceTableAction, updateFinanceTableAction } from "@/actions/finance-tables";
 import { createFromTableAction } from "@/actions/table-templates";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
-import { layout } from "@/lib/design-tokens";
+
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
-import { DialogShell } from "@/components/ui/DialogShell";
+
+import {
+  FinanceTableDeleteDialog,
+  FinanceTableRenameDialog,
+  FinanceTableSaveModelDialog,
+} from "./FinanceTableCardDialogs";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -351,94 +356,31 @@ export function FinanceTableCard({
       </Collapse>
 
       {/* Rename dialog */}
-      <DialogShell
+      <FinanceTableRenameDialog
         open={renameOpen}
-        onClose={() => setRenameOpen(false)}
-        maxWidth="xs"
-        title={m.financeTables.editTitle}
         loading={renaming}
-        actions={
-          <>
-            <Button onClick={() => setRenameOpen(false)}>{m.common.cancel}</Button>
-            <Button
-              variant="contained"
-              onClick={handleRename}
-              endIcon={renaming ? <CircularProgress size={16} color="inherit" /> : undefined}
-            >
-              {m.common.save}
-            </Button>
-          </>
-        }
-      >
-        <TextField
-          label={m.financeTables.nameLabel}
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          fullWidth
-          autoFocus
-          sx={{ mt: 2 }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleRename();
-            }
-          }}
-        />
-      </DialogShell>
+        name={newName}
+        onChangeName={setNewName}
+        onClose={() => setRenameOpen(false)}
+        onConfirm={handleRename}
+      />
 
       {/* Delete dialog */}
-      <DialogShell
+      <FinanceTableDeleteDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        maxWidth="xs"
-        title={m.financeTables.menuDelete}
-        description={m.financeTables.deleteConfirm}
-        actions={
-          <>
-            <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
-            <Button color="error" variant="contained" onClick={confirmDelete}>
-              {m.common.delete}
-            </Button>
-          </>
-        }
+        onConfirm={confirmDelete}
       />
 
       {/* Save as model dialog */}
-      <DialogShell
+      <FinanceTableSaveModelDialog
         open={saveModelOpen}
-        onClose={() => setSaveModelOpen(false)}
-        maxWidth="xs"
-        title={m.tableModels.saveAsModelTitle}
         loading={isPending}
-        actions={
-          <>
-            <Button onClick={() => setSaveModelOpen(false)}>{m.common.cancel}</Button>
-            <Button
-              variant="contained"
-              onClick={handleSaveAsModel}
-              disabled={!modelName.trim()}
-              endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
-            >
-              {m.tableModels.saveModelButton}
-            </Button>
-          </>
-        }
-      >
-        <TextField
-          label={m.tableModels.nameLabel}
-          value={modelName}
-          onChange={(e) => setModelName(e.target.value)}
-          fullWidth
-          autoFocus
-          helperText={m.tableModels.saveModelHelperText}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSaveAsModel();
-            }
-          }}
-        />
-      </DialogShell>
+        modelName={modelName}
+        onChangeModelName={setModelName}
+        onClose={() => setSaveModelOpen(false)}
+        onConfirm={handleSaveAsModel}
+      />
     </Paper>
   );
 }

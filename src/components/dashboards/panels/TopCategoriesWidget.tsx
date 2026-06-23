@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
@@ -23,7 +23,7 @@ import { getChartColors } from "@/lib/design-tokens";
 import { BarList } from "@/components/dashboards/charts/BarList";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
-import type { CategorySum } from "@/lib/queries/dashboards";
+import type { CategorySum } from "@/server/queries/dashboards";
 import type { TopCategoriesConfig } from "@/lib/schemas/widget-config";
 
 type Props = {

@@ -188,7 +188,7 @@ export function TableModelsManager({
   if (templates.length === 0 && !createOpen) {
     return (
       <Box>
-        <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
+        <Box sx={{ textAlign: "center", py: layout.page, color: "text.secondary" }}>
           <TableChartIcon sx={{ fontSize: 64, opacity: 0.3 }} />
           <Typography variant="h6" mt={1}>
             {m.tableModels.noModels}

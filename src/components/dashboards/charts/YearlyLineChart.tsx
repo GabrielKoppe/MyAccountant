@@ -15,7 +15,7 @@ import {
 import { formatCentsToBrl } from "@/lib/money";
 import { getChartColors } from "@/lib/design-tokens";
 import { ChartTooltip } from "@/components/dashboards/_shared/ChartTooltip";
-import type { MonthSummary, SectionMeta } from "@/lib/queries/dashboards";
+import type { MonthSummary, SectionMeta } from "@/server/queries/dashboards";
 
 type Props = {
   months: MonthSummary[];

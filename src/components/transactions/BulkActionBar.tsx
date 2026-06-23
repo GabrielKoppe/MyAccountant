@@ -41,7 +41,7 @@ export function BulkActionBar({
   selectedIds,
   allSelectedPending,
   categories,
-  institutions,
+  institutions: _institutions,
   onClear,
   onMoved,
   onBulkUpdated,

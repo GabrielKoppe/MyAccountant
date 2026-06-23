@@ -39,3 +39,13 @@ export function parseBrlMaskToCents(value: string): bigint {
   const cents = BigInt(Math.round(reais * 100));
   return isNegative ? -cents : cents;
 }
+
+/**
+ * Converte BigInt centavos para string formatada para uso em inputs numéricos
+ * (sem símbolo de moeda, usando vírgula como separador decimal).
+ * Ex: 1234n → "12,34"
+ */
+export function centsToBrlInput(cents: bigint): string {
+  const reais = Number(cents) / 100;
+  return reais.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
