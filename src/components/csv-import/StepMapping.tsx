@@ -527,6 +527,68 @@ export function StepMapping({ headers, sampleRows, mapping, templates, members, 
             onChange={(v) => patchColumns({ investmentType: v || undefined })}
           />
 
+          {/* Moeda estrangeira */}
+          <Box sx={{ gridColumn: "1 / -1" }}>
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{
+                display: "block",
+                mb: 1,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                fontSize: 10,
+              }}
+            >
+              {m.csvImport.mapping.fxSection}
+            </Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: layout.stack,
+              }}
+            >
+              <ColumnSelect
+                label={m.csvImport.mapping.fxAmountColumn}
+                value={mapping.columns.fxAmount ?? ""}
+                headers={headers}
+                optional
+                onChange={(v) => patchColumns({ fxAmount: v || undefined })}
+              />
+              <ColumnSelect
+                label={m.csvImport.mapping.fxRateColumn}
+                value={mapping.columns.fxRate ?? ""}
+                headers={headers}
+                optional
+                onChange={(v) => patchColumns({ fxRate: v || undefined })}
+              />
+              {mapping.columns.fxAmount && (
+                <>
+                  <ColumnSelect
+                    label={m.csvImport.mapping.fxCurrencyColumn}
+                    value={mapping.columns.fxCurrency ?? ""}
+                    headers={headers}
+                    optional
+                    onChange={(v) => patchColumns({ fxCurrency: v || undefined })}
+                  />
+                  {!mapping.columns.fxCurrency && (
+                    <TextField
+                      size="small"
+                      label={m.csvImport.mapping.fxCurrencyDefault}
+                      helperText={m.csvImport.mapping.fxCurrencyDefaultHint}
+                      value={mapping.fxCurrencyDefault ?? ""}
+                      inputProps={{ maxLength: 3, style: { textTransform: "uppercase" } }}
+                      onChange={(e) =>
+                        patch({ fxCurrencyDefault: e.target.value.toUpperCase().slice(0, 3) })
+                      }
+                    />
+                  )}
+                </>
+              )}
+            </Box>
+          </Box>
+
           {members.length > 0 && (
             <Box>
               <ColumnSelect

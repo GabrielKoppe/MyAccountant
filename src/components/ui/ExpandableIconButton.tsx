@@ -59,7 +59,7 @@ export function ExpandableIconButton({
           transition: `max-width 0.2s ease, ${isLeft ? "margin-right" : "margin-left"} 0.2s ease`,
         },
         "&:hover .eib-label": {
-          maxWidth: 120,
+          maxWidth: 240,
           ...(isLeft ? { marginRight: "4px" } : { marginLeft: "4px" }),
         },
         ...sx,

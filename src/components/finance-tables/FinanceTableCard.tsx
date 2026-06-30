@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import type { SectionCountType } from "@prisma/client";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import ButtonGroup from "@mui/material/ButtonGroup";
 import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
 
@@ -16,7 +17,9 @@ import Paper from "@mui/material/Paper";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import CallSplitIcon from "@mui/icons-material/CallSplit";
 import AddIcon from "@mui/icons-material/Add";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -25,15 +28,20 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+import RestoreIcon from "@mui/icons-material/Restore";
 import { useSnackbar } from "notistack";
 
 import { deleteFinanceTableAction, updateFinanceTableAction } from "@/actions/finance-tables";
 import { createFromTableAction } from "@/actions/table-templates";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
+import { useRouter } from "next/navigation";
+import { CreateInstallmentDialog } from "@/components/installments/CreateInstallmentDialog";
 
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
+import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
 
 import {
   FinanceTableDeleteDialog,
@@ -53,6 +61,7 @@ type TableData = {
   name: string;
   tableTypeName: string | null;
   countInMonth: boolean;
+  groupByDate: boolean;
   total: string;
   transactionCount: number;
   hiddenColumns: HiddenColumns;
@@ -102,6 +111,12 @@ export function FinanceTableCard({
   const [modelName, setModelName] = useState(table.name);
   const [isPending, startTransition] = useTransition();
   const [renaming, setRenaming] = useState(false);
+  const [installmentDialogOpen, setInstallmentDialogOpen] = useState(false);
+  const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
+  const router = useRouter();
+  // Estado para o botão "Voltar à visualização padrão"
+  const [hasCustomSort, setHasCustomSort] = useState(false);
+  const [resetSortSignal, setResetSortSignal] = useState(0);
 
   const { filters, isActive: hasGlobalFilters } = useMonthFilters();
 
@@ -122,6 +137,16 @@ export function FinanceTableCard({
       const result = await updateFinanceTableAction(accountId, {
         tableId: table.id,
         countInMonth: !table.countInMonth,
+      });
+      if (!result.ok) enqueueSnackbar(result.error.message, { variant: "error" });
+    });
+  }
+
+  function handleToggleGroupByDate() {
+    startTransition(async () => {
+      const result = await updateFinanceTableAction(accountId, {
+        tableId: table.id,
+        groupByDate: !table.groupByDate,
       });
       if (!result.ok) enqueueSnackbar(result.error.message, { variant: "error" });
     });
@@ -206,6 +231,15 @@ export function FinanceTableCard({
           {isReadOnly && (
             <Chip label="somente leitura" size="small" color="warning" variant="outlined" />
           )}
+          {/* Botão "Voltar à visualização padrão" — só aparece quando há ordenação personalizada */}
+          {hasCustomSort && (
+            <ExpandableIconButton
+              icon={<RestoreIcon sx={{ fontSize: 16 }} />}
+              label={m.financeTables.resetSort}
+              onClick={() => setResetSortSignal((n) => n + 1)}
+              sx={{ color: "text.secondary" }}
+            />
+          )}
         </Box>
 
         <Box sx={{ textAlign: "right", minWidth: 120 }}>
@@ -233,18 +267,47 @@ export function FinanceTableCard({
 
         {!isReadOnly && (
           <>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={() => {
-                setCollapsed(false);
-                setShowNewRow(true);
-              }}
-              disabled={isPending}
+            {/* ButtonGroup: botão principal + dropdown para ações adicionais */}
+            <ButtonGroup size="small" variant="outlined" disabled={isPending}>
+              <Button
+                startIcon={<AddIcon />}
+                onClick={() => {
+                  setCollapsed(false);
+                  setShowNewRow(true);
+                }}
+              >
+                {m.transactions.newTransaction}
+              </Button>
+              <Button
+                sx={{ px: 0.5, minWidth: 28 }}
+                onClick={(e) => setAddMenuAnchor(e.currentTarget)}
+                aria-label="Mais opções de criação"
+              >
+                <ArrowDropDownIcon fontSize="small" />
+              </Button>
+            </ButtonGroup>
+
+            {/* Menu do ButtonGroup dropdown */}
+            <Menu
+              anchorEl={addMenuAnchor}
+              open={Boolean(addMenuAnchor)}
+              onClose={() => setAddMenuAnchor(null)}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+              slotProps={{ paper: { sx: { minWidth: 210 } } }}
             >
-              {m.transactions.newTransaction}
-            </Button>
+              <MenuItem
+                onClick={() => {
+                  setAddMenuAnchor(null);
+                  setCollapsed(false);
+                  setInstallmentDialogOpen(true);
+                }}
+                sx={{ py: 0.75, fontSize: 14, gap: 2 }}
+              >
+                <CallSplitIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+                {m.transactions.installments.newInstallment}
+              </MenuItem>
+            </Menu>
 
             <IconButton
               size="small"
@@ -292,6 +355,18 @@ export function FinanceTableCard({
             )}
           </ListItemIcon>
           {table.countInMonth ? "Excluir do total do mês" : "Incluir no total do mês"}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMenuAnchor(null);
+            handleToggleGroupByDate();
+          }}
+          sx={{ py: 0.75, fontSize: 13 }}
+        >
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <CalendarTodayOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+          </ListItemIcon>
+          {table.groupByDate ? m.financeTables.groupByDateOff : m.financeTables.groupByDateOn}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -351,6 +426,9 @@ export function FinanceTableCard({
           defaultResponsibleUserId={defaultResponsibleUserId}
           showNewRow={showNewRow}
           onNewRowClose={() => setShowNewRow(false)}
+          groupByDate={table.groupByDate}
+          onSortActiveChange={setHasCustomSort}
+          resetSortSignal={resetSortSignal}
         />
       </Collapse>
 
@@ -379,6 +457,18 @@ export function FinanceTableCard({
         onChangeModelName={setModelName}
         onClose={() => setSaveModelOpen(false)}
         onConfirm={handleSaveAsModel}
+      />
+
+      {/* Installment dialog */}
+      <CreateInstallmentDialog
+        open={installmentDialogOpen}
+        onClose={() => setInstallmentDialogOpen(false)}
+        onCreated={() => {
+          setInstallmentDialogOpen(false);
+          router.refresh();
+        }}
+        accountId={accountId}
+        tableId={table.id}
       />
     </Paper>
   );

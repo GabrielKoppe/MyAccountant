@@ -2,7 +2,13 @@
 
 import { createContext, useCallback, useContext, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CategoryOption, InstitutionOption, MemberOption, TransactionRow } from "@/components/transactions/types";
+import type { TransactionExpenseType, TransactionSource } from "@prisma/client";
+import type {
+  CategoryOption,
+  InstitutionOption,
+  MemberOption,
+  TransactionRow,
+} from "@/components/transactions/types";
 
 export type MonthFilterState = {
   categories: string[];
@@ -10,6 +16,9 @@ export type MonthFilterState = {
   responsible: string[];
   pending: boolean;
   favorite: boolean;
+  expenseTypes: TransactionExpenseType[];
+  sources: TransactionSource[];
+  tagIds: string[];
 };
 
 export const EMPTY_FILTERS: MonthFilterState = {
@@ -18,6 +27,9 @@ export const EMPTY_FILTERS: MonthFilterState = {
   responsible: [],
   pending: false,
   favorite: false,
+  expenseTypes: [],
+  sources: [],
+  tagIds: [],
 };
 
 export function hasActiveFilters(filters: MonthFilterState): boolean {
@@ -26,7 +38,10 @@ export function hasActiveFilters(filters: MonthFilterState): boolean {
     filters.institutions.length > 0 ||
     filters.responsible.length > 0 ||
     filters.pending ||
-    filters.favorite
+    filters.favorite ||
+    filters.expenseTypes.length > 0 ||
+    filters.sources.length > 0 ||
+    filters.tagIds.length > 0
   );
 }
 
@@ -36,18 +51,39 @@ export function countActiveFilters(filters: MonthFilterState): number {
     filters.institutions.length +
     filters.responsible.length +
     (filters.pending ? 1 : 0) +
-    (filters.favorite ? 1 : 0)
+    (filters.favorite ? 1 : 0) +
+    (filters.expenseTypes.length > 0 ? 1 : 0) +
+    (filters.sources.length > 0 ? 1 : 0) +
+    (filters.tagIds.length > 0 ? 1 : 0)
   );
 }
 
-export function applyGlobalFilters(rows: TransactionRow[], filters: MonthFilterState): TransactionRow[] {
+export function applyGlobalFilters(
+  rows: TransactionRow[],
+  filters: MonthFilterState,
+): TransactionRow[] {
   if (!hasActiveFilters(filters)) return rows;
   return rows.filter((row) => {
-    if (filters.categories.length > 0 && !filters.categories.includes(row.categoryId ?? "")) return false;
-    if (filters.institutions.length > 0 && !filters.institutions.includes(row.institutionId ?? "")) return false;
-    if (filters.responsible.length > 0 && !filters.responsible.includes(row.responsibleUserId ?? "")) return false;
+    if (filters.categories.length > 0 && !filters.categories.includes(row.categoryId ?? ""))
+      return false;
+    if (filters.institutions.length > 0 && !filters.institutions.includes(row.institutionId ?? ""))
+      return false;
+    if (
+      filters.responsible.length > 0 &&
+      !filters.responsible.includes(row.responsibleUserId ?? "")
+    )
+      return false;
     if (filters.pending && !row.isPending) return false;
     if (filters.favorite && !row.isFavorite) return false;
+    if (
+      filters.expenseTypes.length > 0 &&
+      !filters.expenseTypes.includes(row.expenseType as TransactionExpenseType)
+    )
+      return false;
+    if (filters.sources.length > 0 && !filters.sources.includes(row.source as TransactionSource))
+      return false;
+    if (filters.tagIds.length > 0 && !row.tags.some((t) => filters.tagIds.includes(t.id)))
+      return false;
     return true;
   });
 }
@@ -56,6 +92,7 @@ type FilterOptions = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
+  tags: { id: string; name: string; color: string | null }[];
 };
 
 type MonthFilterContextValue = {
@@ -63,6 +100,7 @@ type MonthFilterContextValue = {
   setFilters: (filters: MonthFilterState) => void;
   clearFilters: () => void;
   options: FilterOptions;
+  updateTagInOptions: (tagId: string, name: string, color: string | null) => void;
   isActive: boolean;
   activeCount: number;
 };
@@ -75,50 +113,83 @@ type ProviderProps = {
   options: FilterOptions;
 };
 
-export function MonthFilterProvider({ children, initialFilters, options }: ProviderProps) {
+export function MonthFilterProvider({
+  children,
+  initialFilters,
+  options: initialOptions,
+}: ProviderProps) {
   const router = useRouter();
   const [filters, setFiltersState] = useState<MonthFilterState>(initialFilters);
+  const [options, setOptions] = useState<FilterOptions>(initialOptions);
 
-  const setFilters = useCallback((newFilters: MonthFilterState) => {
-    setFiltersState(newFilters);
+  const updateTagInOptions = useCallback((tagId: string, name: string, color: string | null) => {
+    setOptions((prev) => ({
+      ...prev,
+      tags: prev.tags.map((t) => (t.id === tagId ? { ...t, name, color } : t)),
+    }));
+  }, []);
 
-    const params = new URLSearchParams(
-      typeof window !== "undefined" ? window.location.search : "",
-    );
+  const setFilters = useCallback(
+    (newFilters: MonthFilterState) => {
+      setFiltersState(newFilters);
 
-    if (newFilters.categories.length > 0) {
-      params.set("categories", newFilters.categories.join(","));
-    } else {
-      params.delete("categories");
-    }
+      const params = new URLSearchParams(
+        typeof window !== "undefined" ? window.location.search : "",
+      );
 
-    if (newFilters.institutions.length > 0) {
-      params.set("institutions", newFilters.institutions.join(","));
-    } else {
-      params.delete("institutions");
-    }
+      if (newFilters.categories.length > 0) {
+        params.set("categories", newFilters.categories.join(","));
+      } else {
+        params.delete("categories");
+      }
 
-    if (newFilters.responsible.length > 0) {
-      params.set("responsible", newFilters.responsible.join(","));
-    } else {
-      params.delete("responsible");
-    }
+      if (newFilters.institutions.length > 0) {
+        params.set("institutions", newFilters.institutions.join(","));
+      } else {
+        params.delete("institutions");
+      }
 
-    if (newFilters.pending) {
-      params.set("pending", "1");
-    } else {
-      params.delete("pending");
-    }
+      if (newFilters.responsible.length > 0) {
+        params.set("responsible", newFilters.responsible.join(","));
+      } else {
+        params.delete("responsible");
+      }
 
-    if (newFilters.favorite) {
-      params.set("favorite", "1");
-    } else {
-      params.delete("favorite");
-    }
+      if (newFilters.pending) {
+        params.set("pending", "1");
+      } else {
+        params.delete("pending");
+      }
 
-    const qs = params.toString();
-    router.replace(qs ? `?${qs}` : "?", { scroll: false });
-  }, [router]);
+      if (newFilters.favorite) {
+        params.set("favorite", "1");
+      } else {
+        params.delete("favorite");
+      }
+
+      if (newFilters.expenseTypes.length > 0) {
+        params.set("expenseTypes", newFilters.expenseTypes.join(","));
+      } else {
+        params.delete("expenseTypes");
+      }
+
+      if (newFilters.sources.length > 0) {
+        params.set("sources", newFilters.sources.join(","));
+      } else {
+        params.delete("sources");
+      }
+
+      if (newFilters.tagIds.length > 0) {
+        params.set("tagIds", newFilters.tagIds.join(","));
+      } else {
+        params.delete("tagIds");
+      }
+
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : "?", { scroll: false });
+    },
+    [router],
+  );
 
   const clearFilters = useCallback(() => {
     setFilters(EMPTY_FILTERS);
@@ -131,6 +202,7 @@ export function MonthFilterProvider({ children, initialFilters, options }: Provi
         setFilters,
         clearFilters,
         options,
+        updateTagInOptions,
         isActive: hasActiveFilters(filters),
         activeCount: countActiveFilters(filters),
       }}

@@ -25,6 +25,7 @@ import { StepResult } from "./StepResult";
 import type { ParsedRow, PreviewRow } from "@/lib/csv-parser";
 import type { ImportMapping } from "@/lib/schemas/csv-import";
 import type { ImportResult } from "@/server/services/csv-import-service";
+import { detectInstallments, type InstallmentSuggestion } from "@/lib/installment-detector";
 
 type SectionOption = { id: string; name: string };
 type TableTypeOption = { id: string; name: string; isDefault: boolean };
@@ -71,6 +72,8 @@ export function ImportWizard({
 
   // Step 2
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
+  const [installmentSuggestions, setInstallmentSuggestions] = useState<InstallmentSuggestion[]>([]);
+  const [acceptedInstallmentIds, setAcceptedInstallmentIds] = useState<Set<string>>(new Set());
 
   // Step 3
   const defaultType = tableTypes.find((t) => t.isDefault) ?? tableTypes[0];
@@ -142,6 +145,13 @@ export function ImportWizard({
       }
       const preview = applyMappingToRows(rows, mapping);
       setPreviewRows(preview);
+      // Detectar sugestões de parcelamento
+      const suggestions = detectInstallments(preview);
+      setInstallmentSuggestions(suggestions);
+      // Pré-marcar sugestões de alta confiança
+      setAcceptedInstallmentIds(
+        new Set(suggestions.filter((s) => s.confidence === "high").map((s) => s.id)),
+      );
       setStep(2);
       return;
     }
@@ -184,6 +194,14 @@ export function ImportWizard({
         mapping,
         saveTemplateAs: config.saveTemplate ? config.templateName.trim() : undefined,
         rows,
+        acceptedInstallments: installmentSuggestions
+          .filter((s) => acceptedInstallmentIds.has(s.id))
+          .map((s) => ({
+            groupDescription: s.groupDescription,
+            installmentCount: s.installmentCount,
+            lines: s.lines,
+            totalAmountCents: s.totalAmountCents.toString(),
+          })),
       });
 
       if (!res.ok) {
@@ -272,7 +290,21 @@ export function ImportWizard({
                 onChange={setMapping}
               />
             )}
-            {step === 2 && <StepPreview previewRows={previewRows} />}
+            {step === 2 && (
+              <StepPreview
+                previewRows={previewRows}
+                installmentSuggestions={installmentSuggestions}
+                acceptedInstallmentIds={acceptedInstallmentIds}
+                onToggleInstallment={(id) =>
+                  setAcceptedInstallmentIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  })
+                }
+              />
+            )}
             {step === 3 && (
               <StepConfig
                 config={config}

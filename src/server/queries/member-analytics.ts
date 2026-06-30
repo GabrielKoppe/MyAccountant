@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+import type { TransactionExpenseType } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel } from "@/lib/dates";
 import { m } from "@/lib/messages";
@@ -37,13 +38,14 @@ const TOP_N = 5;
 
 // ─── Base de despesa (idêntica ao resto do app: spec 11 §7.2) ──────
 // Seções subtract, amountCents > 0, table.countInMonth = true.
-function expenseWhere(accountId: string, monthFilter: object) {
+function expenseWhere(accountId: string, monthFilter: object, expenseType?: TransactionExpenseType) {
   return {
     accountId, // ✅ multi-tenancy
     ...monthFilter,
     amountCents: { gt: 0n },
     section: { countType: "subtract" as const },
     table: { countInMonth: true },
+    ...(expenseType ? { expenseType } : {}),
   };
 }
 
@@ -91,10 +93,15 @@ async function resolveResponsibleIdentities(
 }
 
 // ─── Breakdown mensal (MBR-01, MBR-02, MBR-04, MBR-05) ─────────────
+// Spec 41 Fase 14: aceita filtro opcional por expenseType.
 
 export const getMemberMonthlyBreakdown = cache(
-  async (accountId: string, monthId: string): Promise<MemberBreakdownRow[]> => {
-    const where = expenseWhere(accountId, { monthId });
+  async (
+    accountId: string,
+    monthId: string,
+    filterExpenseType?: TransactionExpenseType,
+  ): Promise<MemberBreakdownRow[]> => {
+    const where = expenseWhere(accountId, { monthId }, filterExpenseType);
 
     // 1ª query: soma por responsável (inclui null como grupo).
     // 2ª query: soma por (responsável, categoria) → categoria-top por responsável.

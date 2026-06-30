@@ -177,6 +177,7 @@ export async function updateFinanceTable(
     data: {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.countInMonth !== undefined && { countInMonth: input.countInMonth }),
+      ...(input.groupByDate !== undefined && { groupByDate: input.groupByDate }),
       ...(input.tableTypeId !== undefined && { tableTypeId: input.tableTypeId }),
       updatedById: ctx.userId,
     },

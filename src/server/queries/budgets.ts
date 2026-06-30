@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+import type { TransactionExpenseType } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { formatCentsToBrl } from "@/lib/money";
 
@@ -143,11 +144,13 @@ export const getBudgetFormOptions = cache(async function getBudgetFormOptions(
   };
 });
 
+// Spec 41 Fase 14: filterExpenseType filtra as transações que contam para o spending.
 export const getBudgetsWithProgress = cache(async function getBudgetsWithProgress(
   accountId: string,
   year: number,
   month: number,
   onlyShowInSummary = false,
+  filterExpenseType?: TransactionExpenseType,
 ): Promise<BudgetProgress[]> {
   const monthRecord = await prisma.month.findUnique({
     where: { accountId_year_month: { accountId, year, month } },
@@ -167,7 +170,7 @@ export const getBudgetsWithProgress = cache(async function getBudgetsWithProgres
 
   const results = await Promise.all(
     budgets.map(async (budget) => {
-      const spentCents = await calcSpent(budget, accountId, monthRecord.id);
+      const spentCents = await calcSpent(budget, accountId, monthRecord.id, filterExpenseType);
       const targetCents = budget.amountCents > 0n ? budget.amountCents : 1n;
       const percent = Math.round(Number((spentCents * 100n) / targetCents));
       const serialized = serializeBudget(budget);
@@ -194,11 +197,13 @@ async function calcSpent(
   },
   accountId: string,
   monthId: string,
+  filterExpenseType?: TransactionExpenseType,
 ): Promise<bigint> {
   const where: Parameters<typeof prisma.transaction.aggregate>[0]["where"] = {
     accountId,
     monthId,
     amountCents: { gt: 0n },
+    ...(filterExpenseType ? { expenseType: filterExpenseType } : {}),
   };
 
   if (budget.sectionId) {

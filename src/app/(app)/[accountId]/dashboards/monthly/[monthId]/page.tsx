@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { TransactionExpenseType } from "@prisma/client";
 import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -14,6 +15,7 @@ import {
   getComparisonData,
   getDailyTotals,
   getCategoryTreemapData,
+  getCategoryBreakdownFiltered,
   getSankeyData,
   getInstitutionBreakdown,
   getWeeklySpending,
@@ -76,17 +78,17 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   const fiscalNow = getCurrentFiscalMonth(new Date(), accountSettings?.monthStartDay ?? 1);
   const isCurrentMonth = fiscalNow.year === year && fiscalNow.month === month;
 
-  // Fetch all data in parallel
+  // Fetch all data in parallel — budgets e memberBreakdown sem filtro (base)
   const [
     deepDive,
     sparklineData,
     comparisonData,
     treemapData,
-    budgets,
+    budgetsBase,
     budgetFormOptions,
     widgets,
     insights,
-    memberBreakdown,
+    memberBreakdownBase,
   ] = await Promise.all([
     getMonthDeepDive(accountId, monthId),
     getMonthSparklineData(accountId, monthId),
@@ -124,10 +126,11 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   // daily-heatmap: modo "all_activity" mostra toda a atividade financeira (countInMonth);
   // modo "expense" (padrão) mostra apenas seções de saída.
   const heatmapConfig = widgets.find((w) => w.widgetId === "daily-heatmap")?.config as
-    | { metric?: string }
+    | { metric?: string; colorBy?: string }
     | undefined;
   const heatmapSectionIds = heatmapConfig?.metric === "all_activity" ? null : subtractSectionIds;
   const dailyTotals = await getDailyTotals(accountId, monthId, heatmapSectionIds);
+
   // money-flow: agrupa por seção ou categoria conforme a config da instância (spec 36 §2.2).
   const moneyFlowConfig = widgets.find((w) => w.widgetId === "money-flow")?.config as
     | { groupBy?: "section" | "category" }
@@ -141,6 +144,49 @@ export default async function MonthlyDashboardPage({ params }: Props) {
   );
   const kpiCustomData = await getKpiCustomDataMap(accountId, widgets, [monthId]);
   const analysisData = await getSandboxDataMap(accountId, widgets, { currentMonthId: monthId });
+
+  // Spec 41 Fase 14 — category-breakdown: filtro por tag e/ou expenseType
+  const categoryBreakdownRawConfig = widgets.find((w) => w.widgetId === "category-breakdown")
+    ?.config as { filterTagIds?: string[]; filterExpenseType?: string } | undefined;
+  const catFilterTagIds = categoryBreakdownRawConfig?.filterTagIds ?? [];
+  const catFilterExpenseType = categoryBreakdownRawConfig?.filterExpenseType ?? "all";
+  const hasActiveCategoryFilter = catFilterTagIds.length > 0 || catFilterExpenseType !== "all";
+  const filteredCategories = hasActiveCategoryFilter
+    ? await getCategoryBreakdownFiltered(accountId, monthId, {
+        filterTagIds: catFilterTagIds,
+        filterExpenseType: catFilterExpenseType,
+      })
+    : null; // null = usar topCategories do deepDive (sem filtro)
+
+  // Spec 41 Fase 14 — member-breakdown: filtro por expenseType
+  const memberBreakdownRawConfig = widgets.find((w) => w.widgetId === "member-breakdown")?.config as
+    | { filterExpenseType?: string }
+    | undefined;
+  const memberExpenseTypeStr = memberBreakdownRawConfig?.filterExpenseType;
+  const memberBreakdown =
+    memberExpenseTypeStr && memberExpenseTypeStr !== "all"
+      ? await getMemberMonthlyBreakdown(
+          accountId,
+          monthId,
+          memberExpenseTypeStr as TransactionExpenseType,
+        )
+      : memberBreakdownBase;
+
+  // Spec 41 Fase 14 — budgets: filtro por expenseType no spending
+  const budgetRawConfig = widgets.find((w) => w.widgetId === "budgets")?.config as
+    | { filterExpenseType?: string }
+    | undefined;
+  const budgetExpenseTypeStr = budgetRawConfig?.filterExpenseType;
+  const budgets =
+    budgetExpenseTypeStr && budgetExpenseTypeStr !== "all"
+      ? await getBudgetsWithProgress(
+          accountId,
+          year,
+          month,
+          false,
+          budgetExpenseTypeStr as TransactionExpenseType,
+        )
+      : budgetsBase;
 
   // Spec 38 — novos dados
   const weekChartConfig = widgets.find((w) => w.widgetId === "week-chart")?.config as
@@ -227,11 +273,12 @@ export default async function MonthlyDashboardPage({ params }: Props) {
         expenseTotal={expenseTotal.toString()}
         pendingCount={pendingCount}
         topCategory={topCategory}
-        topCategories={topCategories}
+        topCategories={filteredCategories ?? topCategories}
         topTransactions={topTransactions}
         sparklineData={sparklineData}
         comparisonData={comparisonData}
         dailyTotals={dailyTotals}
+        heatmapColorBy={heatmapConfig?.colorBy === "expense_type" ? "expense_type" : "intensity"}
         treemapData={treemapData}
         sankeyData={sankeyData}
         budgets={budgets}

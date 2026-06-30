@@ -16,15 +16,14 @@ export function ActiveFilterChips() {
   function removeCategory(id: string) {
     setFilters({ ...filters, categories: filters.categories.filter((c) => c !== id) });
   }
-
   function removeInstitution(id: string) {
     setFilters({ ...filters, institutions: filters.institutions.filter((i) => i !== id) });
   }
-
   function removeResponsible(id: string) {
     setFilters({ ...filters, responsible: filters.responsible.filter((r) => r !== id) });
   }
 
+  // Estilo base — igual para todos os filtros não coloridos
   const chipSx = {
     height: 28,
     fontSize: "0.8125rem",
@@ -36,6 +35,16 @@ export function ActiveFilterChips() {
     "& .MuiChip-deleteIcon": { color: "accent.primary", fontSize: 15, mx: 0.25 },
     "& .MuiChip-label": { px: 1.25 },
   };
+
+  /** Prefixo em negrito antes do valor — ex: "Categoria: " */
+  function label(prefix: string, value: string) {
+    return (
+      <Box component="span" sx={{ fontSize: "inherit" }}>
+        <Box component="span" sx={{ fontWeight: 600, opacity: 0.7 }}>{prefix}: </Box>
+        {value}
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -55,7 +64,7 @@ export function ActiveFilterChips() {
         const cat = options.categories.find((c) => c.id === id);
         if (!cat) return null;
         return (
-          <Chip key={id} label={cat.name} size="small" onDelete={() => removeCategory(id)} sx={chipSx} />
+          <Chip key={id} label={label("Categoria", cat.name)} size="small" onDelete={() => removeCategory(id)} sx={chipSx} />
         );
       })}
 
@@ -63,21 +72,21 @@ export function ActiveFilterChips() {
         const inst = options.institutions.find((i) => i.id === id);
         if (!inst) return null;
         return (
-          <Chip key={id} label={inst.name} size="small" onDelete={() => removeInstitution(id)} sx={chipSx} />
+          <Chip key={id} label={label("Instituição", inst.name)} size="small" onDelete={() => removeInstitution(id)} sx={chipSx} />
         );
       })}
 
       {filters.responsible.map((id) => {
-        const member = options.members.find((m) => m.id === id);
+        const member = options.members.find((mem) => mem.id === id);
         if (!member) return null;
         return (
-          <Chip key={id} label={member.name ?? member.email} size="small" onDelete={() => removeResponsible(id)} sx={chipSx} />
+          <Chip key={id} label={label("Responsável", member.name ?? member.email)} size="small" onDelete={() => removeResponsible(id)} sx={chipSx} />
         );
       })}
 
       {filters.pending && (
         <Chip
-          label={m.transactions.filters.pending}
+          label={label("Filtro", m.transactions.filters.pending)}
           size="small"
           onDelete={() => setFilters({ ...filters, pending: false })}
           sx={chipSx}
@@ -86,12 +95,62 @@ export function ActiveFilterChips() {
 
       {filters.favorite && (
         <Chip
-          label={m.transactions.filters.favorite}
+          label={label("Filtro", m.transactions.filters.favorite)}
           size="small"
           onDelete={() => setFilters({ ...filters, favorite: false })}
           sx={chipSx}
         />
       )}
+
+      {filters.expenseTypes.map((type) => (
+        <Chip
+          key={type}
+          label={label("Tipo", m.transactions.expenseTypes[type])}
+          size="small"
+          onDelete={() =>
+            setFilters({ ...filters, expenseTypes: filters.expenseTypes.filter((t) => t !== type) })
+          }
+          sx={chipSx}
+        />
+      ))}
+
+      {filters.sources.map((src) => (
+        <Chip
+          key={src}
+          label={label("Origem", m.transactions.sources[src])}
+          size="small"
+          onDelete={() =>
+            setFilters({ ...filters, sources: filters.sources.filter((s) => s !== src) })
+          }
+          sx={chipSx}
+        />
+      ))}
+
+      {filters.tagIds.map((tagId) => {
+        const tag = options.tags.find((t) => t.id === tagId);
+        if (!tag) return null;
+        // Tags usam a cor da própria tag em vez do estilo accent
+        const tagChipSx = tag.color
+          ? {
+              ...chipSx,
+              bgcolor: `${tag.color}22`,
+              color: "text.primary",
+              borderColor: tag.color,
+              "& .MuiChip-deleteIcon": { color: tag.color, fontSize: 15, mx: 0.25 },
+            }
+          : chipSx;
+        return (
+          <Chip
+            key={tagId}
+            label={label("Tag", tag.name)}
+            size="small"
+            onDelete={() =>
+              setFilters({ ...filters, tagIds: filters.tagIds.filter((id) => id !== tagId) })
+            }
+            sx={tagChipSx}
+          />
+        );
+      })}
 
       <ExpandableIconButton
         icon={<ClearIcon sx={{ fontSize: 15 }} />}

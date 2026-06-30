@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, type Mock } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { TEST_CTX } from "@/../tests/fixtures/account";
@@ -60,10 +60,10 @@ describe("calculateMonthTotal (função pura)", () => {
       { id: "informativo", countType: "ignore" as const },
     ];
     const totals = {
-      renda: 500000n,    // R$ 5.000
-      gastos: 200000n,   // R$ 2.000
+      renda: 500000n, // R$ 5.000
+      gastos: 200000n, // R$ 2.000
       investimentos: 100000n, // R$ 1.000
-      informativo: 999999n,   // ignorado
+      informativo: 999999n, // ignorado
     };
     // 5.000 - 2.000 + 1.000 = 4.000
     expect(calculateMonthTotal(sections, totals)).toBe(400000n);
@@ -88,7 +88,7 @@ describe("getSectionTotals", () => {
 
     // Assert
     expect(result).toEqual({});
-    expect((prismaMock.transaction.groupBy as unknown as Mock)).not.toHaveBeenCalled();
+    expect(prismaMock.transaction.groupBy as unknown as Mock).not.toHaveBeenCalled();
   });
 
   it("deve usar uma única query groupBy para múltiplas seções", async () => {
@@ -103,7 +103,7 @@ describe("getSectionTotals", () => {
     const result = await getSectionTotals("acc-test-1", "month-1", ["s1", "s2", "s3"]);
 
     // Assert
-    expect((prismaMock.transaction.groupBy as unknown as Mock)).toHaveBeenCalledOnce();
+    expect(prismaMock.transaction.groupBy as unknown as Mock).toHaveBeenCalledOnce();
     expect(result).toEqual({ s1: 100000n, s2: 50000n });
   });
 
@@ -115,7 +115,7 @@ describe("getSectionTotals", () => {
     await getSectionTotals("acc-test-1", "month-1", ["s1", "s2"]);
 
     // Assert
-    expect((prismaMock.transaction.groupBy as unknown as Mock)).toHaveBeenCalledWith(
+    expect(prismaMock.transaction.groupBy as unknown as Mock).toHaveBeenCalledWith(
       expect.objectContaining({
         by: ["sectionId"],
         where: expect.objectContaining({
@@ -155,6 +155,11 @@ describe("getSectionTotals", () => {
 });
 
 describe("createMonth", () => {
+  beforeEach(() => {
+    // convertPendingInstallmentsForMonth sempre retorna vazio nos testes de mês
+    prismaMock.pendingInstallment.findMany.mockResolvedValue([]);
+  });
+
   it("deve criar mês com sucesso sem templates automáticos", async () => {
     // Arrange
     prismaMock.month.findUnique.mockResolvedValue(null);
@@ -208,7 +213,10 @@ describe("createMonth", () => {
       },
     ] as any);
     prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1", accountId: "acc-test-1" } as any);
-    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1", accountId: "acc-test-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({
+      id: "tt-1",
+      accountId: "acc-test-1",
+    } as any);
     prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
 
     // Act
@@ -253,7 +261,10 @@ describe("createMonth", () => {
       },
     ] as any);
     prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1", accountId: "acc-test-1" } as any);
-    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1", accountId: "acc-test-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({
+      id: "tt-1",
+      accountId: "acc-test-1",
+    } as any);
     prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
 
     // Act
@@ -289,7 +300,10 @@ describe("createMonth", () => {
     // Assert — mês criado com sucesso mesmo com template inválido
     expect(result.monthId).toBe("month-novo-1");
     expect(result.autoApplied).toHaveLength(1);
-    expect(result.autoApplied[0]).toMatchObject({ templateName: "Modelo Inválido", success: false });
+    expect(result.autoApplied[0]).toMatchObject({
+      templateName: "Modelo Inválido",
+      success: false,
+    });
     expect(result.autoApplied[0].error).toBeDefined();
     expect(typeof result.autoApplied[0].error).toBe("string");
   });

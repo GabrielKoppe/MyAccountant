@@ -12,6 +12,9 @@ export const importMappingSchema = z.object({
     cardInstallment: z.string().optional(),
     investmentType: z.string().optional(),
     responsibleUser: z.string().optional(),
+    fxAmount: z.string().optional(),
+    fxRate: z.string().optional(),
+    fxCurrency: z.string().optional(),
   }),
   // Mapeia texto da coluna → userId do membro (ex: "GABRIEL KOPPE" → "clxxx...")
   responsibleUserMappings: z
@@ -32,6 +35,8 @@ export const importMappingSchema = z.object({
   onCategoryNotFound: z.enum(["ignore", "create", "fail"]).default("create"),
   onSubcategoryNotFound: z.enum(["ignore", "create"]).default("create"),
   onInstitutionNotFound: z.enum(["ignore", "create", "fail"]).default("ignore"),
+  /** Moeda padrão para transações estrangeiras quando não há coluna de moeda (ex: "USD") */
+  fxCurrencyDefault: z.string().max(3).default(""),
 });
 
 export type ImportMapping = z.infer<typeof importMappingSchema>;
@@ -60,6 +65,24 @@ export const executeImportSchema = z.object({
   mapping: importMappingSchema,
   saveTemplateAs: z.string().min(1).max(80).optional(),
   rows: z.array(z.record(z.string(), z.string())).max(5000),
+  fileType: z.enum(["csv", "xlsx"]).default("csv"),
+  /** Sugestões de parcelamento confirmadas pelo usuário na tela de preview */
+  acceptedInstallments: z
+    .array(
+      z.object({
+        groupDescription: z.string().max(200),
+        installmentCount: z.number().int().min(2).max(360),
+        lines: z.array(
+          z.object({
+            rowIndex: z.number().int().min(0),
+            installmentNumber: z.number().int().min(1),
+          }),
+        ),
+        totalAmountCents: z.coerce.bigint().positive(),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 // z.input<> includes optional fields from .default() — matches what defineAction infers for TInput
@@ -83,6 +106,7 @@ export const DEFAULT_MAPPING: ImportMapping = {
   onCategoryNotFound: "create",
   onSubcategoryNotFound: "create",
   onInstitutionNotFound: "ignore",
+  fxCurrencyDefault: "",
   responsibleUserMappings: [],
 };
 

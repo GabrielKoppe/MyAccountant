@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { ThemeProviderClient } from "./ThemeProviderClient";
 import { ProgressBar } from "./ProgressBar";
+import { DeleteUndoProvider } from "./DeleteUndoProvider";
 import type { ThemeMode } from "./ThemeContext";
 import type { AccentColorKey } from "@/lib/accent-colors";
 
@@ -23,7 +24,7 @@ export function AppProviders({ initialTheme = "system", initialAccentColor, chil
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         autoHideDuration={4000}
       >
-        {children}
+        <DeleteUndoProvider>{children}</DeleteUndoProvider>
       </SnackbarProvider>
     </ThemeProviderClient>
   );

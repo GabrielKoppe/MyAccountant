@@ -1,6 +1,8 @@
+import { addMonths } from "date-fns";
 import { prisma } from "@/server/prisma";
 import { NotFoundError, ConflictError } from "@/server/api/errors";
 import { applyMappingToRows } from "@/lib/csv-parser";
+import { calcInstallmentAmounts } from "@/lib/installment-utils";
 import {
   importMappingSchema,
   type CreateTemplateInput,
@@ -8,12 +10,12 @@ import {
   type ExecuteImportInput,
 } from "@/lib/schemas/csv-import";
 
-
 export type ImportResult = {
   tableId: string;
   imported: number;
   skipped: number;
   errors: { rowIndex: number; message: string }[];
+  installmentGroupsCreated: number;
 };
 
 async function listTemplates(accountId: string) {
@@ -44,10 +46,7 @@ async function createTemplate(
   });
 }
 
-async function updateTemplate(
-  input: UpdateTemplateInput,
-  ctx: { accountId: string },
-) {
+async function updateTemplate(input: UpdateTemplateInput, ctx: { accountId: string }) {
   const tpl = await prisma.csvTemplate.findFirst({
     where: { id: input.templateId, accountId: ctx.accountId },
   });
@@ -134,6 +133,7 @@ async function executeImport(
   let skipped = 0;
 
   type TxData = {
+    rowIndex: number;
     occurredOn: Date;
     amountCents: bigint;
     description: string | null;
@@ -144,6 +144,11 @@ async function executeImport(
     cardInstallment: string | null;
     investmentType: string | null;
     responsibleUserId: string | null;
+    installmentGroupId?: string;
+    installmentNumber?: number;
+    originalAmountCents: bigint | null;
+    originalCurrency: string | null;
+    exchangeRate: number | null;
   };
   const transactionData: TxData[] = [];
 
@@ -237,6 +242,7 @@ async function executeImport(
     }
 
     transactionData.push({
+      rowIndex: row.rowIndex,
       occurredOn: new Date(row.parsed.occurredOn),
       amountCents: row.parsed.amountCents,
       description: row.parsed.description,
@@ -247,8 +253,15 @@ async function executeImport(
       cardInstallment: row.parsed.cardInstallment,
       investmentType: row.parsed.investmentType,
       responsibleUserId: row.parsed.responsibleUserId,
+      originalAmountCents: row.parsed.originalAmountCents ?? null,
+      originalCurrency: row.parsed.originalCurrency ?? null,
+      exchangeRate: row.parsed.exchangeRate ?? null,
     });
   }
+
+  // Build rowIndex → transactionData index map for installment linking
+  const rowIndexToTxIdx = new Map<number, number>();
+  transactionData.forEach((t, i) => rowIndexToTxIdx.set(t.rowIndex, i));
 
   // Create FinanceTable + Transactions atomically
   const result = await prisma.$transaction(async (tx) => {
@@ -270,7 +283,74 @@ async function executeImport(
       },
     });
 
+    // Create InstallmentGroups for accepted suggestions and link transactions
+    let installmentGroupsCreated = 0;
+    for (const suggestion of input.acceptedInstallments ?? []) {
+      // Estima o total real da compra: totalAmountCents representa apenas as parcelas
+      // presentes no CSV; escalamos pelo total de parcelas.
+      const estimatedTotalCents =
+        (suggestion.totalAmountCents * BigInt(suggestion.installmentCount)) /
+        BigInt(suggestion.lines.length);
+
+      const group = await tx.installmentGroup.create({
+        data: {
+          accountId: ctx.accountId,
+          description: suggestion.groupDescription,
+          totalCents: estimatedTotalCents,
+          installmentCount: suggestion.installmentCount,
+          startDate:
+            transactionData.find((t) => suggestion.lines.some((l) => l.rowIndex === t.rowIndex))
+              ?.occurredOn ?? new Date(),
+          sectionId: input.sectionId,
+          tableTypeId: input.tableTypeId,
+        },
+        select: { id: true },
+      });
+      installmentGroupsCreated++;
+
+      for (const line of suggestion.lines) {
+        const txIdx = rowIndexToTxIdx.get(line.rowIndex);
+        if (txIdx !== undefined) {
+          transactionData[txIdx].installmentGroupId = group.id;
+          transactionData[txIdx].installmentNumber = line.installmentNumber;
+        }
+      }
+
+      // Criar PendingInstallments para parcelas ausentes no CSV (instâncias suspensas)
+      const presentNumbers = new Set(suggestion.lines.map((l) => l.installmentNumber));
+      const missingNumbers = Array.from(
+        { length: suggestion.installmentCount },
+        (_, i) => i + 1,
+      ).filter((n) => !presentNumbers.has(n));
+
+      if (missingNumbers.length > 0) {
+        // Deriva a data da parcela 1 a partir da primeira parcela presente
+        const firstPresent = [...suggestion.lines].sort(
+          (a, b) => a.installmentNumber - b.installmentNumber,
+        )[0];
+        const firstPresentTx = transactionData.find((t) => t.rowIndex === firstPresent.rowIndex);
+        if (firstPresentTx) {
+          const startDate = addMonths(
+            firstPresentTx.occurredOn,
+            -(firstPresent.installmentNumber - 1),
+          );
+          const amounts = calcInstallmentAmounts(estimatedTotalCents, suggestion.installmentCount);
+          await tx.pendingInstallment.createMany({
+            data: missingNumbers.map((num) => ({
+              accountId: ctx.accountId,
+              installmentGroupId: group.id,
+              installmentNumber: num,
+              amountCents: amounts[num - 1],
+              expectedDate: addMonths(startDate, num - 1),
+              description: suggestion.groupDescription,
+            })),
+          });
+        }
+      }
+    }
+
     if (transactionData.length > 0) {
+      const txSource = input.fileType === "xlsx" ? "xlsx_import" : "csv_import";
       await tx.transaction.createMany({
         data: transactionData.map((t) => ({
           accountId: ctx.accountId,
@@ -287,20 +367,27 @@ async function executeImport(
           responsibleUserId: t.responsibleUserId,
           categoryId: t.categoryId,
           institutionId: t.institutionId,
+          source: txSource,
+          installmentGroupId: t.installmentGroupId ?? null,
+          installmentNumber: t.installmentNumber ?? null,
+          originalAmountCents: t.originalAmountCents ?? null,
+          originalCurrency: t.originalCurrency ?? null,
+          exchangeRate: t.exchangeRate ?? null,
           createdById: ctx.userId,
           metadata: {},
         })),
       });
     }
 
-    return table;
+    return { table, installmentGroupsCreated };
   });
 
   return {
-    tableId: result.id,
+    tableId: result.table.id,
     imported: transactionData.length,
     skipped,
     errors: importErrors,
+    installmentGroupsCreated: result.installmentGroupsCreated,
   };
 }
 

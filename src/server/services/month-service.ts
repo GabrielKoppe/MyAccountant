@@ -6,13 +6,21 @@ import { applyDayToMonth } from "@/lib/dates";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
 import type { AutoApplyResult, CreateMonthInput, DeleteMonthInput } from "@/lib/schemas/months";
+import {
+  convertPendingInstallmentsForMonth,
+  type InstallmentConvertResult,
+} from "./installment-service";
 
 const log = logger.child({ module: "month-service" });
 
 export async function createMonth(
   input: CreateMonthInput,
   ctx: ActionContext,
-): Promise<{ monthId: string; autoApplied: AutoApplyResult[] }> {
+): Promise<{
+  monthId: string;
+  autoApplied: AutoApplyResult[];
+  installmentsConverted: InstallmentConvertResult;
+}> {
   const existing = await prisma.month.findUnique({
     where: {
       accountId_year_month: {
@@ -38,7 +46,15 @@ export async function createMonth(
 
   const autoApplied = await applyAutoTemplates(newMonth.id, input, ctx);
 
-  return { monthId: newMonth.id, autoApplied };
+  const installmentsConverted = await convertPendingInstallmentsForMonth(
+    ctx.accountId,
+    newMonth.id,
+    input.year,
+    input.month,
+    ctx.userId,
+  );
+
+  return { monthId: newMonth.id, autoApplied, installmentsConverted };
 }
 
 async function applyAutoTemplates(
@@ -111,6 +127,8 @@ async function applyAutoTemplates(
               responsibleUserId: item.responsibleUserId,
               cardInstallment: item.cardInstallment,
               investmentType: item.investmentType,
+              expenseType: item.expenseType ?? null,
+              source: "auto_template",
               createdById: ctx.userId,
               metadata: {},
             })),
@@ -125,7 +143,10 @@ async function applyAutoTemplates(
       results.push({ templateName: template.name, success: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro desconhecido.";
-      log.warn({ templateId: template.id, monthId, error: message }, "Failed to auto-apply template");
+      log.warn(
+        { templateId: template.id, monthId, error: message },
+        "Failed to auto-apply template",
+      );
       results.push({ templateName: template.name, success: false, error: message });
     }
   }

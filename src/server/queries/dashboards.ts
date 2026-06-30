@@ -1,5 +1,5 @@
 import { cache } from "react";
-import type { SectionCountType } from "@prisma/client";
+import type { SectionCountType, TransactionExpenseType, TransactionSource } from "@prisma/client";
 
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel } from "@/lib/dates";
@@ -46,6 +46,10 @@ export type TopTransaction = {
   sectionId: string;
   sectionName: string;
   sectionCountType: string;
+  source: TransactionSource;
+  installmentGroupId: string | null;
+  installmentNumber: number | null;
+  installmentGroupCount: number | null;
 };
 
 // ─── Helper: batch section totals for many months ─────────────────
@@ -184,7 +188,11 @@ export const getMonthDeepDive = cache(async function getMonthDeepDive(
         description: true,
         occurredOn: true,
         amountCents: true,
+        source: true,
+        installmentGroupId: true,
+        installmentNumber: true,
         section: { select: { id: true, name: true, countType: true } },
+        installmentGroup: { select: { installmentCount: true } },
       },
     }),
     prisma.transaction.findMany({
@@ -196,7 +204,11 @@ export const getMonthDeepDive = cache(async function getMonthDeepDive(
         description: true,
         occurredOn: true,
         amountCents: true,
+        source: true,
+        installmentGroupId: true,
+        installmentNumber: true,
         section: { select: { id: true, name: true, countType: true } },
+        installmentGroup: { select: { installmentCount: true } },
       },
     }),
     prisma.transaction.groupBy({
@@ -241,6 +253,10 @@ export const getMonthDeepDive = cache(async function getMonthDeepDive(
     description: t.description,
     occurredOn: t.occurredOn.toISOString().slice(0, 10),
     amountCents: t.amountCents.toString(),
+    source: t.source,
+    installmentGroupId: t.installmentGroupId,
+    installmentNumber: t.installmentNumber,
+    installmentGroupCount: t.installmentGroup?.installmentCount ?? null,
     sectionId: t.section.id,
     sectionName: t.section.name,
     sectionCountType: t.section.countType,
@@ -251,6 +267,10 @@ export const getMonthDeepDive = cache(async function getMonthDeepDive(
     description: t.description,
     occurredOn: t.occurredOn.toISOString().slice(0, 10),
     amountCents: t.amountCents.toString(),
+    source: t.source,
+    installmentGroupId: t.installmentGroupId,
+    installmentNumber: t.installmentNumber,
+    installmentGroupCount: t.installmentGroup?.installmentCount ?? null,
     sectionId: t.section.id,
     sectionName: t.section.name,
     sectionCountType: t.section.countType,
@@ -464,6 +484,7 @@ export type DayTotal = {
   absoluteCents: string; // BigInt string
   transactionCount: number;
   transactionIds: string[];
+  dominantExpenseType: string | null; // "fixed"|"variable"|"one_time"|"none"; null = sem dados (Spec 41 Fase 14)
 };
 
 export const getDailyTotals = cache(async function getDailyTotals(
@@ -486,28 +507,114 @@ export const getDailyTotals = cache(async function getDailyTotals(
       ...whereSection,
       table: { countInMonth: true },
     },
-    select: { id: true, occurredOn: true, amountCents: true },
+    select: { id: true, occurredOn: true, amountCents: true, expenseType: true },
     orderBy: { occurredOn: "asc" },
   });
 
-  const dayMap = new Map<number, { total: bigint; ids: string[] }>();
+  const dayMap = new Map<
+    number,
+    { total: bigint; ids: string[]; typeTotals: Map<string, bigint> }
+  >();
   for (const tx of txs) {
     const day = tx.occurredOn.getUTCDate();
-    const existing = dayMap.get(day) ?? { total: 0n, ids: [] };
+    const existing = dayMap.get(day) ?? { total: 0n, ids: [], typeTotals: new Map() };
+    const abs = tx.amountCents < 0n ? -tx.amountCents : tx.amountCents;
+    // Inclui transações sem tipo num bucket "none". Assim um dia dominado por
+    // gasto não classificado não é pintado pelo tipo de uma transação pequena
+    // (ex.: R$1000 sem tipo + R$10 "única" → dominante = none, não one_time).
+    const typeKey = tx.expenseType ?? "none";
+    existing.typeTotals.set(typeKey, (existing.typeTotals.get(typeKey) ?? 0n) + abs);
     dayMap.set(day, {
       total: existing.total + tx.amountCents,
       ids: [...existing.ids, tx.id],
+      typeTotals: existing.typeTotals,
     });
   }
 
   return Array.from(dayMap.entries())
-    .map(([day, { total, ids }]) => ({
-      day,
-      absoluteCents: (total < 0n ? -total : total).toString(),
-      transactionCount: ids.length,
-      transactionIds: ids,
-    }))
+    .map(([day, { total, ids, typeTotals }]) => {
+      let dominantExpenseType: string | null = null;
+      let maxType = 0n;
+      for (const [type, sum] of typeTotals) {
+        if (sum > maxType) {
+          maxType = sum;
+          dominantExpenseType = type;
+        }
+      }
+      return {
+        day,
+        absoluteCents: (total < 0n ? -total : total).toString(),
+        transactionCount: ids.length,
+        transactionIds: ids,
+        dominantExpenseType,
+      };
+    })
     .sort((a, b) => a.day - b.day);
+});
+
+// ─── Category Breakdown Filtrado (Spec 41 Fase 14) ────────────────
+// Versão da query de category breakdown que aceita filtros por tag e expenseType.
+// Chamada da página do dashboard quando widget category-breakdown tem config ativa.
+
+export type CategoryBreakdownFilters = {
+  filterTagIds: string[];
+  filterExpenseType: string; // "all" | "fixed" | "variable" | "one_time"
+};
+
+export const getCategoryBreakdownFiltered = cache(async function getCategoryBreakdownFiltered(
+  accountId: string,
+  monthId: string,
+  filters: CategoryBreakdownFilters,
+): Promise<CategorySum[]> {
+  const { filterTagIds, filterExpenseType } = filters;
+
+  // Construir where base
+  const where: Parameters<typeof prisma.transaction.groupBy>[0]["where"] = {
+    accountId,
+    monthId,
+    categoryId: { not: null },
+    table: { countInMonth: true },
+  };
+
+  // Filtro por expenseType
+  if (filterExpenseType !== "all") {
+    where.expenseType = filterExpenseType as TransactionExpenseType;
+  }
+
+  // Filtro por tags: buscar IDs de transações que possuem TODAS as tags especificadas
+  if (filterTagIds.length > 0) {
+    const taggedTxs = await prisma.transactionTag.groupBy({
+      by: ["transactionId"],
+      where: { tagId: { in: filterTagIds }, transaction: { accountId, monthId } },
+      having: { tagId: { _count: { equals: filterTagIds.length } } },
+    });
+    const taggedIds = taggedTxs.map((r) => r.transactionId);
+    if (taggedIds.length === 0) return [];
+    where.id = { in: taggedIds };
+  }
+
+  const rows = await prisma.transaction.groupBy({
+    by: ["categoryId"],
+    where,
+    _sum: { amountCents: true },
+    orderBy: { _sum: { amountCents: "desc" } },
+    take: 10,
+  });
+
+  if (rows.length === 0) return [];
+
+  const categoryIds = rows.map((r) => r.categoryId).filter(Boolean) as string[];
+  const categoryNames = await prisma.category.findMany({
+    where: { id: { in: categoryIds } },
+    select: { id: true, name: true },
+  });
+  const catNameMap = new Map(categoryNames.map((c) => [c.id, c.name]));
+
+  return rows.map((r) => ({
+    categoryId: r.categoryId,
+    name: r.categoryId ? (catNameMap.get(r.categoryId) ?? "—") : "Sem categoria",
+    totalCents: (r._sum.amountCents ?? 0n).toString(),
+  }));
 });
 
 // ─── Category Treemap ──────────────────────────────────────────────

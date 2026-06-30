@@ -4,6 +4,7 @@ import { forwardRef, useState } from "react";
 import { useSnackbar } from "notistack";
 
 import Collapse from "@mui/material/Collapse";
+import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -24,78 +25,126 @@ type Props = {
   snackbarKey: string | number;
   message: string;
   results: AutoApplyResult[];
+  installmentsConverted?: {
+    converted: number;
+    failed: { groupDescription: string; reason: string }[];
+  };
 };
 
 export const AutoApplyResultSnackbar = forwardRef<HTMLDivElement, Props>(
-  function AutoApplyResultSnackbar({ snackbarKey, message, results }, ref) {
-  const { closeSnackbar } = useSnackbar();
-  const [expanded, setExpanded] = useState(false);
+  function AutoApplyResultSnackbar({ snackbarKey, message, results, installmentsConverted }, ref) {
+    const { closeSnackbar } = useSnackbar();
+    const [expanded, setExpanded] = useState(false);
 
-  const failureCount = results.filter((r) => !r.success).length;
-  const hasFailures = failureCount > 0;
+    const templateFailures = results.filter((r) => !r.success).length;
+    const installFailures = installmentsConverted?.failed.length ?? 0;
+    const hasFailures = templateFailures > 0 || installFailures > 0;
 
-  return (
-    <Paper
-      ref={ref}
-      elevation={0}
-      sx={{
-        border: 1,
-        borderColor: hasFailures ? "warning.main" : "border.default",
-        borderRadius: "8px",
-        bgcolor: "background.surface",
-        p: layout.inline,
-        minWidth: 280,
-        maxWidth: 380,
-      }}
-    >
-      <Stack direction="row" alignItems="center" spacing={layout.inline}>
-        {hasFailures ? (
-          <WarningAmberIcon sx={{ fontSize: 18, color: "warning.main", flexShrink: 0 }} />
-        ) : (
-          <TaskAltIcon sx={{ fontSize: 18, color: "success.main", flexShrink: 0 }} />
-        )}
-        <Typography variant="body2" sx={{ flex: 1, color: "text.primary" }}>
-          {message}
-        </Typography>
-        <Tooltip title={m.months.autoAppliedDetails}>
-          <IconButton
-            size="small"
-            onClick={() => setExpanded((v) => !v)}
-            sx={{
-              transition: "transform 0.2s",
-              transform: expanded ? "rotate(180deg)" : "none",
-            }}
-          >
-            <ExpandMoreIcon fontSize="small" />
+    return (
+      <Paper
+        ref={ref}
+        elevation={0}
+        sx={{
+          border: 1,
+          borderColor: hasFailures ? "warning.main" : "border.default",
+          borderRadius: "8px",
+          bgcolor: "background.surface",
+          p: layout.inline,
+          minWidth: 280,
+          maxWidth: 380,
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={layout.inline}>
+          {hasFailures ? (
+            <WarningAmberIcon sx={{ fontSize: 18, color: "warning.main", flexShrink: 0 }} />
+          ) : (
+            <TaskAltIcon sx={{ fontSize: 18, color: "success.main", flexShrink: 0 }} />
+          )}
+          <Typography variant="body2" sx={{ flex: 1, color: "text.primary" }}>
+            {message}
+          </Typography>
+          <Tooltip title={m.months.autoAppliedDetails}>
+            <IconButton
+              size="small"
+              onClick={() => setExpanded((v) => !v)}
+              sx={{
+                transition: "transform 0.2s",
+                transform: expanded ? "rotate(180deg)" : "none",
+              }}
+            >
+              <ExpandMoreIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <IconButton size="small" onClick={() => closeSnackbar(snackbarKey)}>
+            <CloseIcon fontSize="small" />
           </IconButton>
-        </Tooltip>
-        <IconButton size="small" onClick={() => closeSnackbar(snackbarKey)}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Stack>
-
-      <Collapse in={expanded}>
-        <Stack spacing={0.5} sx={{ mt: layout.inline, pl: layout.inline }}>
-          {results.map((r, i) => (
-            <Stack key={i} direction="row" alignItems="center" spacing={layout.inline}>
-              {r.success ? (
-                <CheckCircleOutlineIcon sx={{ fontSize: 14, color: "success.main", flexShrink: 0 }} />
-              ) : (
-                <Tooltip title={r.error ?? "Erro desconhecido"} placement="right">
-                  <ErrorOutlineIcon sx={{ fontSize: 14, color: "danger.main", flexShrink: 0 }} />
-                </Tooltip>
-              )}
-              <Typography
-                variant="caption"
-                color={r.success ? "text.secondary" : "danger.main"}
-                sx={{ lineHeight: 1.4 }}
-              >
-                {r.templateName}
-              </Typography>
-            </Stack>
-          ))}
         </Stack>
-      </Collapse>
-    </Paper>
-  );
-});
+
+        <Collapse in={expanded}>
+          <Stack spacing={0.5} sx={{ mt: layout.inline, pl: layout.inline }}>
+            {/* Modelos automáticos */}
+            {results.map((r, i) => (
+              <Stack key={i} direction="row" alignItems="center" spacing={layout.inline}>
+                {r.success ? (
+                  <CheckCircleOutlineIcon
+                    sx={{ fontSize: 14, color: "success.main", flexShrink: 0 }}
+                  />
+                ) : (
+                  <Tooltip title={r.error ?? "Erro desconhecido"} placement="right">
+                    <ErrorOutlineIcon sx={{ fontSize: 14, color: "danger.main", flexShrink: 0 }} />
+                  </Tooltip>
+                )}
+                <Typography
+                  variant="caption"
+                  color={r.success ? "text.secondary" : "danger.main"}
+                  sx={{ lineHeight: 1.4 }}
+                >
+                  {r.templateName}
+                </Typography>
+              </Stack>
+            ))}
+
+            {/* Parcelamentos vinculados — resumo de uma linha + falhas individuais */}
+            {installmentsConverted &&
+              (installmentsConverted.converted > 0 || installmentsConverted.failed.length > 0) && (
+                <>
+                  {results.length > 0 && (
+                    <Box sx={{ borderTop: "1px solid", borderColor: "divider", my: 0.5 }} />
+                  )}
+                  {installmentsConverted.converted > 0 && (
+                    <Stack direction="row" alignItems="center" spacing={layout.inline}>
+                      <CheckCircleOutlineIcon
+                        sx={{ fontSize: 14, color: "success.main", flexShrink: 0 }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
+                        {installmentsConverted.converted} parcela
+                        {installmentsConverted.converted !== 1 ? "s" : ""} vinculada
+                        {installmentsConverted.converted !== 1 ? "s" : ""} automaticamente
+                      </Typography>
+                    </Stack>
+                  )}
+                  {installmentsConverted.failed.map((f, i) => (
+                    <Stack
+                      key={`fail-${i}`}
+                      direction="row"
+                      alignItems="center"
+                      spacing={layout.inline}
+                    >
+                      <Tooltip title={f.reason} placement="right">
+                        <ErrorOutlineIcon
+                          sx={{ fontSize: 14, color: "danger.main", flexShrink: 0 }}
+                        />
+                      </Tooltip>
+                      <Typography variant="caption" color="danger.main" sx={{ lineHeight: 1.4 }}>
+                        {f.groupDescription}
+                      </Typography>
+                    </Stack>
+                  ))}
+                </>
+              )}
+          </Stack>
+        </Collapse>
+      </Paper>
+    );
+  },
+);

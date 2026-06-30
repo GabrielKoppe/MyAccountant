@@ -4,9 +4,11 @@ import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   analysisConfigSchema,
   budgetsConfigSchema,
+  categoryBreakdownConfigSchema,
   dailyHeatmapConfigSchema,
   filteredTransactionsConfigSchema,
   kpiCustomConfigSchema,
+  memberBreakdownConfigSchema,
   moneyFlowConfigSchema,
   pieChartConfigSchema,
   topCategoriesConfigSchema,
@@ -282,8 +284,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: PIE_VARIANTS,
       defaultVisible: true,
-      configSchema: pieChartConfigSchema,
-      defaultConfig: { chartType: "pie" },
+      configSchema: categoryBreakdownConfigSchema,
+      defaultConfig: { chartType: "pie", filterTagIds: [], filterExpenseType: "all" },
     },
     {
       id: "top-transactions",
@@ -307,8 +309,8 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       kind: "panel",
       sizeVariants: PIE_VARIANTS,
       defaultVisible: false,
-      configSchema: pieChartConfigSchema,
-      defaultConfig: { chartType: "pie" },
+      configSchema: memberBreakdownConfigSchema,
+      defaultConfig: { view: "donut", filterExpenseType: "all" },
     },
     {
       id: "member-list",

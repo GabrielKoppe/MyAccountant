@@ -14,6 +14,8 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import CheckIcon from "@mui/icons-material/Check";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { useState } from "react";
+import type { TransactionExpenseType, TransactionSource } from "@prisma/client";
 
 import { m } from "@/lib/messages";
 import { useMonthFilters } from "@/components/months/MonthFilterContext";
@@ -49,12 +51,51 @@ const emptyIcon = <Box sx={{ width: 16, height: 16 }} />;
 export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
   const { filters, setFilters, clearFilters, options } = useMonthFilters();
 
+  // Estado controlado dos accordions — inicializado uma vez a partir dos filtros atuais
+  const [open, setOpen] = useState<Record<string, boolean>>(() => ({
+    status: filters.pending || filters.favorite,
+    expenseType: filters.expenseTypes.length > 0,
+    sources: filters.sources.length > 0,
+    tags: filters.tagIds.length > 0,
+    categories: filters.categories.length > 0,
+    institutions: filters.institutions.length > 0,
+    responsible: filters.responsible.length > 0,
+  }));
+
+  function toggle(key: string) {
+    setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
   const hasAny =
     filters.categories.length > 0 ||
     filters.institutions.length > 0 ||
     filters.responsible.length > 0 ||
     filters.pending ||
-    filters.favorite;
+    filters.favorite ||
+    filters.expenseTypes.length > 0 ||
+    filters.sources.length > 0 ||
+    filters.tagIds.length > 0;
+
+  function toggleTag(id: string) {
+    const next = filters.tagIds.includes(id)
+      ? filters.tagIds.filter((t) => t !== id)
+      : [...filters.tagIds, id];
+    setFilters({ ...filters, tagIds: next });
+  }
+
+  function toggleSource(src: TransactionSource) {
+    const next = filters.sources.includes(src)
+      ? filters.sources.filter((s) => s !== src)
+      : [...filters.sources, src];
+    setFilters({ ...filters, sources: next });
+  }
+
+  function toggleExpenseType(type: TransactionExpenseType) {
+    const next = filters.expenseTypes.includes(type)
+      ? filters.expenseTypes.filter((t) => t !== type)
+      : [...filters.expenseTypes, type];
+    setFilters({ ...filters, expenseTypes: next });
+  }
 
   function toggleCategory(id: string) {
     const next = filters.categories.includes(id)
@@ -113,8 +154,16 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
         {/* Scrollable content */}
         <Box sx={{ flex: 1, overflowY: "auto" }}>
           {/* Status: Pendentes + Favoritas */}
-          <Accordion disableGutters defaultExpanded={filters.pending || filters.favorite} sx={accordionSx}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />} sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+          <Accordion
+            disableGutters
+            expanded={open.status}
+            onChange={() => toggle("status")}
+            sx={accordionSx}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}
+              sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}
+            >
               <Typography sx={summaryLabelSx}>
                 Status{badgeLabel((filters.pending ? 1 : 0) + (filters.favorite ? 1 : 0))}
               </Typography>
@@ -151,12 +200,146 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
             </AccordionDetails>
           </Accordion>
 
+          {/* Tipo de gasto (expenseType) */}
+          <Accordion
+            disableGutters
+            expanded={open.expenseType}
+            onChange={() => toggle("expenseType")}
+            sx={accordionSx}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}
+              sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}
+            >
+              <Typography sx={summaryLabelSx}>
+                {m.transactions.filters.expenseType}
+                {badgeLabel(filters.expenseTypes.length)}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>
+              <FormGroup>
+                {(["fixed", "variable", "one_time"] as TransactionExpenseType[]).map((type) => (
+                  <FormControlLabel
+                    key={type}
+                    sx={checkboxLabelSx}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={filters.expenseTypes.includes(type)}
+                        onChange={() => toggleExpenseType(type)}
+                        icon={emptyIcon}
+                        checkedIcon={checkIcon}
+                      />
+                    }
+                    label={m.transactions.expenseTypes[type]}
+                  />
+                ))}
+              </FormGroup>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Origem (source) */}
+          <Accordion
+            disableGutters
+            expanded={open.sources}
+            onChange={() => toggle("sources")}
+            sx={accordionSx}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}
+              sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}
+            >
+              <Typography sx={summaryLabelSx}>
+                {m.transactions.filters.source}
+                {badgeLabel(filters.sources.length)}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>
+              <FormGroup>
+                {(
+                  [
+                    "manual",
+                    "csv_import",
+                    "xlsx_import",
+                    "template",
+                    "auto_template",
+                    "duplicate",
+                  ] as TransactionSource[]
+                ).map((src) => (
+                  <FormControlLabel
+                    key={src}
+                    sx={checkboxLabelSx}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={filters.sources.includes(src)}
+                        onChange={() => toggleSource(src)}
+                        icon={emptyIcon}
+                        checkedIcon={checkIcon}
+                      />
+                    }
+                    label={m.transactions.sources[src]}
+                  />
+                ))}
+              </FormGroup>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Tags */}
+          {options.tags.length > 0 && (
+            <Accordion
+              disableGutters
+              expanded={open.tags}
+              onChange={() => toggle("tags")}
+              sx={accordionSx}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}
+                sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}
+              >
+                <Typography sx={summaryLabelSx}>
+                  {m.transactions.filters.tags}
+                  {badgeLabel(filters.tagIds.length)}
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>
+                <FormGroup>
+                  {options.tags.map((tag) => (
+                    <FormControlLabel
+                      key={tag.id}
+                      sx={checkboxLabelSx}
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={filters.tagIds.includes(tag.id)}
+                          onChange={() => toggleTag(tag.id)}
+                          icon={emptyIcon}
+                          checkedIcon={checkIcon}
+                        />
+                      }
+                      label={tag.name}
+                    />
+                  ))}
+                </FormGroup>
+              </AccordionDetails>
+            </Accordion>
+          )}
+
           {/* Categories */}
           {options.categories.length > 0 && (
-            <Accordion disableGutters defaultExpanded={filters.categories.length > 0} sx={accordionSx}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />} sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+            <Accordion
+              disableGutters
+              expanded={open.categories}
+              onChange={() => toggle("categories")}
+              sx={accordionSx}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}
+                sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}
+              >
                 <Typography sx={summaryLabelSx}>
-                  {m.transactions.filters.categories}{badgeLabel(filters.categories.length)}
+                  {m.transactions.filters.categories}
+                  {badgeLabel(filters.categories.length)}
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>
@@ -184,10 +367,19 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
 
           {/* Institutions */}
           {options.institutions.length > 0 && (
-            <Accordion disableGutters defaultExpanded={filters.institutions.length > 0} sx={accordionSx}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />} sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+            <Accordion
+              disableGutters
+              expanded={open.institutions}
+              onChange={() => toggle("institutions")}
+              sx={accordionSx}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}
+                sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}
+              >
                 <Typography sx={summaryLabelSx}>
-                  {m.transactions.filters.institutions}{badgeLabel(filters.institutions.length)}
+                  {m.transactions.filters.institutions}
+                  {badgeLabel(filters.institutions.length)}
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>
@@ -215,10 +407,19 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
 
           {/* Responsible */}
           {options.members.length > 0 && (
-            <Accordion disableGutters defaultExpanded={filters.responsible.length > 0} sx={accordionSx}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />} sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+            <Accordion
+              disableGutters
+              expanded={open.responsible}
+              onChange={() => toggle("responsible")}
+              sx={accordionSx}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}
+                sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}
+              >
                 <Typography sx={summaryLabelSx}>
-                  {m.transactions.filters.responsible}{badgeLabel(filters.responsible.length)}
+                  {m.transactions.filters.responsible}
+                  {badgeLabel(filters.responsible.length)}
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>

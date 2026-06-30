@@ -53,10 +53,7 @@ export async function listTemplates(accountId: string) {
   });
 }
 
-export async function createFromTable(
-  input: CreateTemplateFromTableInput,
-  ctx: ActionContext,
-) {
+export async function createFromTable(input: CreateTemplateFromTableInput, ctx: ActionContext) {
   const existing = await prisma.tableTemplate.findFirst({
     where: { accountId: ctx.accountId, name: input.name },
   });
@@ -115,10 +112,7 @@ export async function createFromTable(
   });
 }
 
-export async function createManual(
-  input: CreateTemplateManualInput,
-  ctx: ActionContext,
-) {
+export async function createManual(input: CreateTemplateManualInput, ctx: ActionContext) {
   const existing = await prisma.tableTemplate.findFirst({
     where: { accountId: ctx.accountId, name: input.name },
   });
@@ -223,7 +217,7 @@ export async function addItem(input: AddTemplateItemInput, ctx: ActionContext) {
       responsibleUserId: input.responsibleUserId ?? null,
       cardInstallment: input.cardInstallment ?? null,
       investmentType: input.investmentType ?? null,
-      displayOrder: input.displayOrder ?? ((maxOrder._max.displayOrder ?? -1) + 1),
+      displayOrder: input.displayOrder ?? (maxOrder._max.displayOrder ?? -1) + 1,
     },
   });
 }
@@ -303,6 +297,8 @@ export async function applyTemplate(
           responsibleUserId: item.responsibleUserId,
           cardInstallment: item.cardInstallment,
           investmentType: item.investmentType,
+          expenseType: item.expenseType ?? null,
+          source: "template",
           createdById: ctx.userId,
           metadata: {},
         })),

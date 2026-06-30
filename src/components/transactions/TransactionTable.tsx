@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SectionCountType } from "@prisma/client";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -23,11 +23,11 @@ import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 
-import { useSnackbar } from "notistack";
-
 import { m } from "@/lib/messages";
-import { deleteTransactionAction } from "@/actions/transactions";
+import { formatDateLong } from "@/lib/dates";
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
+import { useDeleteUndo } from "@/components/providers/DeleteUndoProvider";
+import { TagUpdateContext } from "@/components/tags/TagUpdateContext";
 import { BulkActionBar } from "./BulkActionBar";
 import { NewTransactionRow } from "./NewTransactionRow";
 import { TransactionRow } from "./TransactionRow";
@@ -108,6 +108,11 @@ type Props = {
   defaultResponsibleUserId: string | null;
   showNewRow: boolean;
   onNewRowClose: () => void;
+  groupByDate: boolean;
+  /** Notifica o pai quando o sort passa a ser não-padrão (true) ou volta ao padrão (false) */
+  onSortActiveChange?: (active: boolean) => void;
+  /** Incrementar para disparar reset do sort externamente */
+  resetSortSignal?: number;
 };
 
 export function TransactionTable({
@@ -127,6 +132,9 @@ export function TransactionTable({
   defaultResponsibleUserId,
   showNewRow,
   onNewRowClose,
+  groupByDate,
+  onSortActiveChange,
+  resetSortSignal,
 }: Props) {
   const [rows, setRows] = useState<TxRow[]>(initialTransactions);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -135,14 +143,31 @@ export function TransactionTable({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [sort, setSort] = useState<SortState>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const pendingBatchRef = useRef<{ id: string; row: TxRow }[]>([]);
-  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const snackbarKeyRef = useRef<string | number | null>(null);
-  const isMountedRef = useRef(true);
+  const [isGrouped, setIsGrouped] = useState(groupByDate);
 
-  const { filters, clearFilters, isActive: hasGlobalFilters } = useMonthFilters();
+  // Sincroniza se a prop muda (ex: após revalidação do server)
+  useEffect(() => {
+    setIsGrouped(groupByDate);
+  }, [groupByDate]);
+
+  // Reset do sort disparado pelo pai (ex: botão no header da tabela)
+  useEffect(() => {
+    if (resetSortSignal !== undefined && resetSortSignal > 0) {
+      setSort(null);
+      onSortActiveChange?.(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetSortSignal]);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { requestDelete, registerRestoreCallback, unregisterRestoreCallback } = useDeleteUndo();
+
+  const {
+    filters,
+    clearFilters,
+    isActive: hasGlobalFilters,
+    updateTagInOptions,
+  } = useMonthFilters();
 
   const isReadOnly = !sectionIsActive || !canEdit;
   const selectedIds = Array.from(selected);
@@ -203,6 +228,20 @@ export function TransactionTable({
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }, []);
 
+  /** Atualiza nome/cor de uma tag em TODAS as linhas da tabela e nas opções de filtro. */
+  const globalTagUpdate = useCallback(
+    (tagId: string, name: string, color: string | null) => {
+      setRows((prev) =>
+        prev.map((r) => ({
+          ...r,
+          tags: r.tags.map((t) => (t.id === tagId ? { ...t, name, color } : t)),
+        })),
+      );
+      updateTagInOptions(tagId, name, color);
+    },
+    [updateTagInOptions],
+  );
+
   function optimisticDelete(id: string) {
     setRows((prev) => prev.filter((r) => r.id !== id));
     setSelected((prev) => {
@@ -211,6 +250,18 @@ export function TransactionTable({
       return next;
     });
   }
+
+  // Registrar callback de restauração no provider global de undo
+  useEffect(() => {
+    registerRestoreCallback(tableId, (restoredRows) => {
+      setRows((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const toAdd = restoredRows.filter((r) => !existingIds.has(r.id));
+        return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+      });
+    });
+    return () => unregisterRestoreCallback(tableId);
+  }, [tableId, registerRestoreCallback, unregisterRestoreCallback]);
 
   const onDuplicated = useCallback((newTx: TxRow, sourceId: string) => {
     setRows((prev) => {
@@ -237,86 +288,16 @@ export function TransactionTable({
     setRows((prev) => prev.map((r) => (idSet.has(r.id) ? { ...r, ...patch } : r)));
   }
 
-  async function executePendingDeletes() {
-    const batch = [...pendingBatchRef.current];
-    if (batch.length === 0) return;
-    pendingBatchRef.current = [];
-    deleteTimerRef.current = null;
-
-    const results = await Promise.all(
-      batch.map(({ id }) => deleteTransactionAction(accountId, { transactionId: id })),
-    );
-
-    const failed = batch.filter((_, i) => !results[i]?.ok);
-    if (failed.length > 0 && isMountedRef.current) {
-      setRows((prev) => [...prev, ...failed.map((b) => b.row)]);
-      enqueueSnackbar(m.transactions.deleteError, { variant: "error" });
-    }
-  }
-
-  function handleUndoDelete(snackKey: string | number) {
-    closeSnackbar(snackKey);
-    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
-    deleteTimerRef.current = null;
-    snackbarKeyRef.current = null;
-
-    const batch = [...pendingBatchRef.current];
-    pendingBatchRef.current = [];
-    if (batch.length > 0) {
-      setRows((prev) => [...prev, ...batch.map((b) => b.row)]);
-    }
-  }
-
   const onDeleteRequested = useCallback(
     (id: string) => {
       const row = rows.find((r) => r.id === id);
       if (!row) return;
-
       optimisticDelete(id);
-      pendingBatchRef.current = [...pendingBatchRef.current, { id, row }];
-
-      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
-      if (snackbarKeyRef.current !== null) closeSnackbar(snackbarKeyRef.current);
-
-      const count = pendingBatchRef.current.length;
-      const message =
-        count === 1 ? `${m.transactions.deleted}.` : `${count} ${m.transactions.deletedMultiple}.`;
-
-      const key = enqueueSnackbar(message, {
-        variant: "info",
-        persist: true,
-        action: (snackKey) => (
-          <Button size="small" color="inherit" onClick={() => handleUndoDelete(snackKey)}>
-            {m.transactions.undoDelete}
-          </Button>
-        ),
-      });
-      snackbarKeyRef.current = key;
-
-      deleteTimerRef.current = setTimeout(() => {
-        if (snackbarKeyRef.current !== null) closeSnackbar(snackbarKeyRef.current);
-        snackbarKeyRef.current = null;
-        void executePendingDeletes();
-      }, 5000);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      requestDelete(id, row, accountId);
     },
-    [rows, enqueueSnackbar, closeSnackbar],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, requestDelete, accountId],
   );
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      if (pendingBatchRef.current.length > 0) {
-        if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
-        const batch = [...pendingBatchRef.current];
-        pendingBatchRef.current = [];
-        void Promise.all(
-          batch.map(({ id }) => deleteTransactionAction(accountId, { transactionId: id })),
-        );
-      }
-    };
-  }, [accountId]);
 
   function handleOpenSearch() {
     setSearchOpen(true);
@@ -329,7 +310,10 @@ export function TransactionTable({
   }
 
   function handleSortClick(field: SortField) {
-    setSort((prev) => nextSortState(prev, field));
+    const next = nextSortState(sort, field);
+    setSort(next);
+    const isNonDefault = next !== null && next.field !== DEFAULT_SORT_FIELD;
+    onSortActiveChange?.(isNonDefault);
   }
 
   const handleAutoEditConsumed = useCallback(() => setEditRequestId(null), []);
@@ -396,229 +380,311 @@ export function TransactionTable({
   }
 
   return (
-    <Box>
-      {selected.size > 0 && (
-        <BulkActionBar
-          accountId={accountId}
-          tableId={tableId}
-          monthId={monthId}
-          selectedIds={selectedIds}
-          allSelectedPending={allSelectedPending}
-          categories={categories}
-          institutions={institutions}
-          onClear={() => setSelected(new Set())}
-          onMoved={onBulkMoved}
-          onBulkUpdated={onBulkUpdated}
-        />
-      )}
-
-      {/* Search bar (expandable) */}
-      <Collapse in={searchOpen}>
-        <Box
-          sx={{
-            px: 2,
-            py: 1,
-            borderBottom: 1,
-            borderColor: "divider",
-            bgcolor: "background.subtle",
-          }}
-        >
-          <TextField
-            inputRef={searchInputRef}
-            size="small"
-            fullWidth
-            placeholder={m.transactions.filters.searchPlaceholder}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: 16, color: "text.tertiary" }} />
-                </InputAdornment>
-              ),
-              endAdornment: searchText ? (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setSearchText("")} edge="end">
-                    <CloseIcon sx={{ fontSize: 14 }} />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            }}
-            sx={{ "& .MuiOutlinedInput-root": { fontSize: 13 } }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") handleCloseSearch();
-            }}
+    <TagUpdateContext.Provider value={globalTagUpdate}>
+      <Box>
+        {selected.size > 0 && (
+          <BulkActionBar
+            accountId={accountId}
+            tableId={tableId}
+            monthId={monthId}
+            selectedIds={selectedIds}
+            allSelectedPending={allSelectedPending}
+            categories={categories}
+            institutions={institutions}
+            onClear={() => setSelected(new Set())}
+            onMoved={onBulkMoved}
+            onBulkUpdated={onBulkUpdated}
           />
-        </Box>
-      </Collapse>
+        )}
 
-      <Box sx={{ overflowX: "auto" }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow sx={{ bgcolor: "background.default" }}>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  size="small"
-                  checked={allSelected}
-                  indeterminate={someSelected}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                  disabled={isReadOnly}
-                />
-              </TableCell>
-              <SortableHeaderCell field="occurredOn" label="Data" />
-              <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Box
-                    component="span"
-                    sx={{
-                      cursor: "pointer",
-                      userSelect: "none",
-                      "&:hover": { color: "accent.primary" },
-                      color: sort?.field === "description" ? "accent.primary" : "inherit",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 0.25,
-                    }}
-                    onClick={() => handleSortClick("description")}
-                  >
-                    Descrição
-                    {sort?.field === "description" &&
-                      (sort.dir === "asc" ? (
-                        <ArrowUpwardIcon sx={{ fontSize: 12 }} />
-                      ) : (
-                        <ArrowDownwardIcon sx={{ fontSize: 12 }} />
-                      ))}
-                  </Box>
-                  <Box sx={{ flex: 1 }} />
-                  {!searchOpen && (
-                    <Tooltip title="Buscar por descrição">
-                      <IconButton size="small" onClick={handleOpenSearch} sx={{ ml: 0.5 }}>
-                        <SearchIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  {searchOpen && (
-                    <Tooltip title="Fechar busca">
-                      <IconButton size="small" onClick={handleCloseSearch} sx={{ ml: 0.5 }}>
-                        <CloseIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Box>
-              </TableCell>
-              {show("category") && <SortableHeaderCell field="categoryId" label="Categoria" />}
-              {show("subcategory") && (
-                <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Subcategoria</TableCell>
-              )}
-              {show("institution") && (
-                <SortableHeaderCell field="institutionId" label="Instituição" />
-              )}
-              <SortableHeaderCell field="amountCents" label="Valor" align="right" />
-              {show("responsibleUser") && (
-                <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Resp.</TableCell>
-              )}
+        {/* Search bar (expandable) */}
+        <Collapse in={searchOpen}>
+          <Box
+            sx={{
+              px: 2,
+              py: 1,
+              borderBottom: 1,
+              borderColor: "divider",
+              bgcolor: "background.subtle",
+            }}
+          >
+            <TextField
+              inputRef={searchInputRef}
+              size="small"
+              fullWidth
+              placeholder={m.transactions.filters.searchPlaceholder}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 16, color: "text.tertiary" }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchText ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearchText("")} edge="end">
+                      <CloseIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+              sx={{ "& .MuiOutlinedInput-root": { fontSize: 13 } }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") handleCloseSearch();
+              }}
+            />
+          </Box>
+        </Collapse>
 
-              {show("investmentType") && (
-                <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tipo inv.</TableCell>
-              )}
-              <TableCell />
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {showNewRow && (
-              <NewTransactionRow
-                tableId={tableId}
-                accountId={accountId}
-                currentUserId={currentUserId}
-                hiddenColumns={hiddenColumns}
-                categories={categories}
-                institutions={institutions}
-                members={members}
-                defaultResponsibleUserId={defaultResponsibleUserId}
-                onCreated={onNewCreated}
-                onCancel={onNewRowClose}
-              />
-            )}
-
-            {noRowsAfterFilter ? (
-              <TableRow>
-                <TableCell colSpan={99} sx={{ border: 0, py: 5 }}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 1.5,
-                      color: "text.disabled",
-                    }}
-                  >
-                    <FilterListOffIcon sx={{ fontSize: 40, opacity: 0.4 }} />
-                    <Typography variant="body2" fontWeight="medium" color="text.secondary">
-                      {m.transactions.filters.noResults}
-                    </Typography>
-                    <Typography variant="caption" color="text.tertiary" textAlign="center">
-                      {m.transactions.filters.noResultsHint}
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => {
-                        if (searchText) {
-                          setSearchText("");
-                          setSearchOpen(false);
-                        } else clearFilters();
+        <Box sx={{ overflowX: "auto" }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: "background.default" }}>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    size="small"
+                    checked={allSelected}
+                    indeterminate={someSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    disabled={isReadOnly}
+                  />
+                </TableCell>
+                <SortableHeaderCell field="occurredOn" label="Data" />
+                <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Box
+                      component="span"
+                      sx={{
+                        cursor: "pointer",
+                        userSelect: "none",
+                        "&:hover": { color: "accent.primary" },
+                        color: sort?.field === "description" ? "accent.primary" : "inherit",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 0.25,
                       }}
-                      sx={{ mt: 0.5 }}
+                      onClick={() => handleSortClick("description")}
                     >
-                      {m.transactions.filters.clearFilters}
-                    </Button>
+                      Descrição
+                      {sort?.field === "description" &&
+                        (sort.dir === "asc" ? (
+                          <ArrowUpwardIcon sx={{ fontSize: 12 }} />
+                        ) : (
+                          <ArrowDownwardIcon sx={{ fontSize: 12 }} />
+                        ))}
+                    </Box>
+                    <Box sx={{ flex: 1 }} />
+                    {!searchOpen && (
+                      <Tooltip title="Buscar por descrição">
+                        <IconButton size="small" onClick={handleOpenSearch} sx={{ ml: 0.5 }}>
+                          <SearchIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {searchOpen && (
+                      <Tooltip title="Fechar busca">
+                        <IconButton size="small" onClick={handleCloseSearch} sx={{ ml: 0.5 }}>
+                          <CloseIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Box>
                 </TableCell>
+                {show("category") && <SortableHeaderCell field="categoryId" label="Categoria" />}
+                {show("subcategory") && (
+                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Subcategoria</TableCell>
+                )}
+                {show("institution") && (
+                  <SortableHeaderCell field="institutionId" label="Instituição" />
+                )}
+                <SortableHeaderCell field="amountCents" label="Valor" align="right" />
+                {show("responsibleUser") && (
+                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Resp.</TableCell>
+                )}
+
+                {show("investmentType") && (
+                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tipo inv.</TableCell>
+                )}
+                {show("cardInstallment") && (
+                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
+                    {m.transactions.installments.column}
+                  </TableCell>
+                )}
+                {show("expenseType") && (
+                  <TableCell sx={{ fontSize: 12, fontWeight: "bold", width: 28, px: 0.5 }}>
+                    Tipo
+                  </TableCell>
+                )}
+                {show("tags") && (
+                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tags</TableCell>
+                )}
+                <TableCell sx={{ width: 200, minWidth: 200 }} />
               </TableRow>
-            ) : (
-              visibleRows.map((tx) => (
-                <TransactionRow
-                  key={tx.id}
-                  tx={tx}
+            </TableHead>
+
+            <TableBody>
+              {showNewRow && (
+                <NewTransactionRow
+                  tableId={tableId}
+                  monthId={monthId}
                   accountId={accountId}
                   currentUserId={currentUserId}
-                  isSelected={selected.has(tx.id)}
-                  isReadOnly={isReadOnly}
-                  sectionCountType={sectionCountType}
                   hiddenColumns={hiddenColumns}
                   categories={categories}
                   institutions={institutions}
                   members={members}
-                  autoEdit={editRequestId === tx.id}
-                  onSelect={handleSelect}
-                  onOptimisticUpdate={optimisticUpdate}
-                  onDeleteRequested={onDeleteRequested}
-                  onDuplicated={onDuplicated}
-                  onViewDetails={setDetailTxId}
-                  onAutoEditConsumed={handleAutoEditConsumed}
+                  defaultResponsibleUserId={defaultResponsibleUserId}
+                  onCreated={onNewCreated}
+                  onCancel={onNewRowClose}
                 />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Box>
+              )}
 
-      {detailTx && (
-        <TransactionDetailDialog
-          open
-          onClose={() => setDetailTxId(null)}
-          tx={detailTx}
-          sectionCountType={sectionCountType}
-          hiddenColumns={hiddenColumns}
-          categories={categories}
-          institutions={institutions}
-          members={members}
-          timezone={timezone}
-          canEdit={!isReadOnly}
-          onEdit={handleEditFromDetail}
-        />
-      )}
-    </Box>
+              {noRowsAfterFilter ? (
+                <TableRow>
+                  <TableCell colSpan={99} sx={{ border: 0, py: 5 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 1.5,
+                        color: "text.disabled",
+                      }}
+                    >
+                      <FilterListOffIcon sx={{ fontSize: 40, opacity: 0.4 }} />
+                      <Typography variant="body2" fontWeight="medium" color="text.secondary">
+                        {m.transactions.filters.noResults}
+                      </Typography>
+                      <Typography variant="caption" color="text.tertiary" textAlign="center">
+                        {m.transactions.filters.noResultsHint}
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          if (searchText) {
+                            setSearchText("");
+                            setSearchOpen(false);
+                          } else clearFilters();
+                        }}
+                        sx={{ mt: 0.5 }}
+                      >
+                        {m.transactions.filters.clearFilters}
+                      </Button>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                (() => {
+                  // Agrupamento por data: ativo se isGrouped=true E sort for a ordenação padrão (occurredOn)
+                  const groupingActive = isGrouped && (!sort || sort.field === "occurredOn");
+
+                  if (!groupingActive) {
+                    return visibleRows.map((tx) => (
+                      <TransactionRow
+                        key={tx.id}
+                        tx={tx}
+                        accountId={accountId}
+                        currentUserId={currentUserId}
+                        isSelected={selected.has(tx.id)}
+                        isReadOnly={isReadOnly}
+                        sectionCountType={sectionCountType}
+                        hiddenColumns={hiddenColumns}
+                        categories={categories}
+                        institutions={institutions}
+                        members={members}
+                        autoEdit={editRequestId === tx.id}
+                        onSelect={handleSelect}
+                        onOptimisticUpdate={optimisticUpdate}
+                        onDeleteRequested={onDeleteRequested}
+                        onDuplicated={onDuplicated}
+                        onViewDetails={setDetailTxId}
+                        onAutoEditConsumed={handleAutoEditConsumed}
+                      />
+                    ));
+                  }
+
+                  // Renderizar com separadores de data
+                  const result: React.ReactNode[] = [];
+                  let lastDate: string | null = null;
+                  for (const tx of visibleRows) {
+                    if (tx.occurredOn !== lastDate) {
+                      lastDate = tx.occurredOn;
+                      result.push(
+                        <TableRow
+                          key={`date-sep-${tx.occurredOn}`}
+                          sx={{ pointerEvents: "none", bgcolor: "background.subtle" }}
+                        >
+                          <TableCell
+                            colSpan={99}
+                            sx={{
+                              py: 0.5,
+                              px: 2,
+                              borderBottom: 0,
+                              borderTop: 1,
+                              borderColor: "divider",
+                            }}
+                          >
+                            <Typography variant="caption" color="text.tertiary" fontWeight={500}>
+                              {formatDateLong(tx.occurredOn)}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>,
+                      );
+                    }
+                    result.push(
+                      <TransactionRow
+                        key={tx.id}
+                        tx={tx}
+                        accountId={accountId}
+                        currentUserId={currentUserId}
+                        isSelected={selected.has(tx.id)}
+                        isReadOnly={isReadOnly}
+                        sectionCountType={sectionCountType}
+                        hiddenColumns={hiddenColumns}
+                        categories={categories}
+                        institutions={institutions}
+                        members={members}
+                        autoEdit={editRequestId === tx.id}
+                        onSelect={handleSelect}
+                        onOptimisticUpdate={optimisticUpdate}
+                        onDeleteRequested={onDeleteRequested}
+                        onDuplicated={onDuplicated}
+                        onViewDetails={setDetailTxId}
+                        onAutoEditConsumed={handleAutoEditConsumed}
+                      />,
+                    );
+                  }
+                  return result;
+                })()
+              )}
+            </TableBody>
+          </Table>
+        </Box>
+
+        {detailTx && (
+          <TransactionDetailDialog
+            open
+            onClose={() => setDetailTxId(null)}
+            tx={detailTx}
+            accountId={accountId}
+            sectionCountType={sectionCountType}
+            hiddenColumns={hiddenColumns}
+            categories={categories}
+            institutions={institutions}
+            members={members}
+            timezone={timezone}
+            canEdit={!isReadOnly}
+            onEdit={handleEditFromDetail}
+            onTagsChange={(tags) => optimisticUpdate(detailTx.id, { tags })}
+            onLinkCountChanged={(newCount) =>
+              optimisticUpdate(detailTx.id, { linkCount: newCount })
+            }
+            onViewLinkedTransaction={(txId) => setDetailTxId(txId)}
+          />
+        )}
+      </Box>
+    </TagUpdateContext.Provider>
   );
 }

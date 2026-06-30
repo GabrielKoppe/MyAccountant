@@ -262,3 +262,194 @@ describe("bulkUpdate", () => {
     );
   });
 });
+
+describe("expenseType — TRN-01", () => {
+  it("deve criar transação com expenseType = fixed", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-fixed-1" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 50000n,
+        isPending: false,
+        isFavorite: false,
+        expenseType: "fixed",
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ expenseType: "fixed" }),
+      }),
+    );
+  });
+
+  it("deve criar transação com expenseType = variable", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-variable-1" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 30000n,
+        isPending: false,
+        isFavorite: false,
+        expenseType: "variable",
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ expenseType: "variable" }),
+      }),
+    );
+  });
+
+  it("deve criar transação com expenseType = one_time", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-onetime-1" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 80000n,
+        isPending: false,
+        isFavorite: false,
+        expenseType: "one_time",
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ expenseType: "one_time" }),
+      }),
+    );
+  });
+
+  it("deve criar transação com expenseType = null (não classificado)", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-null-1" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 10000n,
+        isPending: false,
+        isFavorite: false,
+        // expenseType ausente → null
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ expenseType: null }),
+      }),
+    );
+  });
+
+  it("deve duplicar transação preservando expenseType original", async () => {
+    const source = buildTransaction({
+      id: "tx-source-fixed",
+      accountId: "acc-test-1",
+      expenseType: "fixed",
+    });
+    prismaMock.transaction.findUnique.mockResolvedValue(source as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-dup-1" } as any);
+
+    await duplicateTransaction({ transactionId: "tx-source-fixed" }, TEST_CTX);
+
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ expenseType: "fixed" }),
+      }),
+    );
+  });
+
+  it("deve atualizar expenseType via bulkUpdate", async () => {
+    prismaMock.transaction.updateMany.mockResolvedValue({ count: 2 });
+
+    await bulkUpdate(
+      {
+        ids: ["tx-1", "tx-2"],
+        monthId: "month-1",
+        patch: { expenseType: "variable" },
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ expenseType: "variable" }),
+      }),
+    );
+  });
+});
+
+describe("source — TRN-03", () => {
+  it("deve criar transação com source = manual por padrão", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-manual-1" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 10000n,
+        isPending: false,
+        isFavorite: false,
+      },
+      TEST_CTX,
+    );
+
+    // source = 'manual' é o default do Prisma; não precisa ser passado explicitamente
+    // mas o campo não pode ser outro valor
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ source: "duplicate" }),
+      }),
+    );
+  });
+
+  it("deve duplicar transação com source = duplicate", async () => {
+    const src = buildTransaction({ id: "tx-orig", accountId: "acc-test-1" });
+    prismaMock.transaction.findUnique.mockResolvedValue(src as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-dup-src" } as any);
+
+    await duplicateTransaction({ transactionId: "tx-orig" }, TEST_CTX);
+
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ source: "duplicate" }),
+      }),
+    );
+  });
+});

@@ -11,11 +11,12 @@ export type WidgetConfigOptions = {
   categories: ConfigFormOption[];
   institutions: ConfigFormOption[];
   members: ConfigFormOption[];
+  tags: ConfigFormOption[]; // Spec 41 Fase 14
 };
 
 export const getWidgetConfigOptions = cache(
   async (accountId: string): Promise<WidgetConfigOptions> => {
-    const [sections, categories, institutions, members] = await Promise.all([
+    const [sections, categories, institutions, members, tags] = await Promise.all([
       prisma.section.findMany({
         where: { accountId },
         orderBy: { order: "asc" },
@@ -35,6 +36,11 @@ export const getWidgetConfigOptions = cache(
         where: { accountId },
         select: { userId: true, user: { select: { name: true, email: true } } },
       }),
+      prisma.tag.findMany({
+        where: { accountId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
     ]);
 
     return {
@@ -45,6 +51,7 @@ export const getWidgetConfigOptions = cache(
         id: m.userId,
         name: m.user.name ?? m.user.email ?? "Membro",
       })),
+      tags,
     };
   },
 );

@@ -45,6 +45,7 @@ import type { BudgetProgress, BudgetFormOptions } from "@/server/queries/budgets
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   kpiCustomConfigSchema,
+  type CategoryBreakdownConfig,
   type PieChartConfig,
   type TopTransactionsConfig,
   type TreemapConfig,
@@ -105,6 +106,7 @@ type Props = {
   widgets: StoredWidget[];
   kpiCustomData: Record<string, KpiCustomResult>;
   analysisData: Record<string, SerializedSandboxResult>;
+  heatmapColorBy?: "intensity" | "expense_type"; // Spec 41 Fase 14
   // Spec 38
   institutionBreakdown: InstitutionBreakdownItem[];
   weeklySpending: WeeklySpendingItem[];
@@ -159,6 +161,7 @@ export function MonthlyDashboardClient({
   sparklineData,
   comparisonData,
   dailyTotals,
+  heatmapColorBy = "intensity",
   treemapData,
   sankeyData,
   budgets,
@@ -305,6 +308,7 @@ export function MonthlyDashboardClient({
         year={year}
         month={month}
         dailyTotals={dailyTotals}
+        colorBy={heatmapColorBy}
         onDayClick={(ids, day) => openDrawer(ids, `Gastos do dia ${day}/${month}/${year}`)}
         monthSummaryHref={`/${accountId}/months/${monthId}`}
       />
@@ -336,7 +340,7 @@ export function MonthlyDashboardClient({
     "category-breakdown": (
       <CategoryBreakdownWidget
         categories={topCategories}
-        config={configOf("category-breakdown") as PieChartConfig | undefined}
+        config={configOf("category-breakdown") as CategoryBreakdownConfig | undefined}
         renderMode={
           getRenderMode(widgets, "monthly", "category-breakdown") as "compact" | "default" | "full"
         }

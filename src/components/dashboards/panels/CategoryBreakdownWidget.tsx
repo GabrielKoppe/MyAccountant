@@ -10,11 +10,11 @@ import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import { m } from "@/lib/messages";
 import type { CategorySum } from "@/server/queries/dashboards";
-import type { PieChartConfig } from "@/lib/schemas/widget-config";
+import type { CategoryBreakdownConfig } from "@/lib/schemas/widget-config";
 
 type Props = {
   categories: CategorySum[];
-  config?: PieChartConfig;
+  config?: CategoryBreakdownConfig;
   renderMode?: PieRenderMode;
 };
 

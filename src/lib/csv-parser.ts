@@ -18,6 +18,9 @@ export type PreviewRow = {
     cardInstallment: string | null;
     investmentType: string | null;
     responsibleUserId: string | null;
+    originalAmountCents: bigint | null;
+    originalCurrency: string | null;
+    exchangeRate: number | null;
   };
   error?: string;
 };
@@ -45,7 +48,10 @@ export function parseAmountToCents(
   if (!s) return null;
 
   // Strip currency symbols
-  s = s.replace(/R\$\s*/g, "").replace(/\$\s*/g, "").trim();
+  s = s
+    .replace(/R\$\s*/g, "")
+    .replace(/\$\s*/g, "")
+    .trim();
 
   let negative = false;
   if (s.startsWith("-")) {
@@ -102,7 +108,12 @@ export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): P
       }
     }
     if (ignored) {
-      results.push({ rowIndex: relIdx, status: "ignored", original: row, error: "Filtrado por regra" });
+      results.push({
+        rowIndex: relIdx,
+        status: "ignored",
+        original: row,
+        error: "Filtrado por regra",
+      });
       continue;
     }
 
@@ -139,15 +150,9 @@ export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): P
       parsed: {
         occurredOn: parsedDate,
         amountCents: parsedAmount,
-        description: mapping.columns.description
-          ? row[mapping.columns.description] || null
-          : null,
-        notes: mapping.columns.notes
-          ? row[mapping.columns.notes] || null
-          : null,
-        categoryName: mapping.columns.category
-          ? row[mapping.columns.category] || null
-          : null,
+        description: mapping.columns.description ? row[mapping.columns.description] || null : null,
+        notes: mapping.columns.notes ? row[mapping.columns.notes] || null : null,
+        categoryName: mapping.columns.category ? row[mapping.columns.category] || null : null,
         subcategoryName: mapping.columns.subcategory
           ? row[mapping.columns.subcategory] || null
           : null,
@@ -168,6 +173,29 @@ export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): P
             (m) => m.text.toLowerCase() === cellVal.toLowerCase(),
           );
           return found?.userId ?? null;
+        })(),
+        ...(() => {
+          // Moeda estrangeira: só preenche quando fxAmount mapeado e valor > 0
+          if (!mapping.columns.fxAmount)
+            return { originalAmountCents: null, originalCurrency: null, exchangeRate: null };
+          const fxCents = parseAmountToCents(
+            row[mapping.columns.fxAmount] ?? "",
+            mapping.amountFormat,
+            "abs",
+          );
+          if (!fxCents || fxCents === 0n)
+            return { originalAmountCents: null, originalCurrency: null, exchangeRate: null };
+          const currency =
+            (mapping.columns.fxCurrency ? (row[mapping.columns.fxCurrency] ?? "").trim() : "") ||
+            mapping.fxCurrencyDefault ||
+            null;
+          let rate: number | null = null;
+          if (mapping.columns.fxRate) {
+            const rateRaw = (row[mapping.columns.fxRate] ?? "").replace(",", ".").trim();
+            const rateNum = parseFloat(rateRaw);
+            if (!isNaN(rateNum) && rateNum > 0) rate = rateNum;
+          }
+          return { originalAmountCents: fxCents, originalCurrency: currency, exchangeRate: rate };
         })(),
       },
     });

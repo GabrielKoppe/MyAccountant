@@ -1,5 +1,7 @@
 // Tipos compartilhados entre os componentes de transação
 
+import type { TransactionExpenseType, TransactionSource } from "@prisma/client";
+
 import type { InvestmentType } from "@/lib/schemas/transaction";
 import type { HiddenColumns } from "@/lib/schemas/settings";
 
@@ -7,6 +9,7 @@ export type { HiddenColumns };
 
 export type TransactionRow = {
   id: string;
+  monthId: string;
   occurredOn: string; // ISO date "YYYY-MM-DD"
   amountCents: string; // BigInt serializado como string
   description: string | null;
@@ -20,6 +23,16 @@ export type TransactionRow = {
   responsibleUserId: string | null;
   cardInstallment: string | null;
   investmentType: InvestmentType | null;
+  expenseType: TransactionExpenseType | null;
+  source: TransactionSource;
+  installmentGroupId: string | null;
+  installmentNumber: number | null;
+  installmentGroupCount: number | null;
+  originalAmountCents: string | null; // BigInt serializado como string
+  originalCurrency: string | null;
+  exchangeRate: number | null;
+  tags: { id: string; name: string; color: string | null }[];
+  linkCount: number;
   createdById: string;
   createdAt: string; // ISO string (timestamp UTC)
   updatedById: string | null;

@@ -36,6 +36,7 @@ import {
 } from "@/lib/schemas/sandbox";
 import {
   budgetsConfigSchema,
+  categoryBreakdownConfigSchema,
   dailyHeatmapConfigSchema,
   filteredTransactionsConfigSchema,
   kpiCustomConfigSchema,
@@ -238,6 +239,21 @@ function BudgetsForm({ widget, onSave }: { widget: StoredWidget; onSave: (c: unk
             )}
           />
         </Box>
+        <Box>
+          <FieldLabel>{m.settings.dashboards.config.expenseTypeFilterLabel}</FieldLabel>
+          <Controller
+            control={control}
+            name="filterExpenseType"
+            render={({ field }) => (
+              <Select size="small" fullWidth sx={selectSx} {...field}>
+                <MenuItem value="all" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeAll}</MenuItem>
+                <MenuItem value="fixed" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeFixed}</MenuItem>
+                <MenuItem value="variable" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeVariable}</MenuItem>
+                <MenuItem value="one_time" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeOneTime}</MenuItem>
+              </Select>
+            )}
+          />
+        </Box>
         <SaveButton />
       </Stack>
     </form>
@@ -298,6 +314,24 @@ function TopTransactionsForm({
             />
           )}
         />
+        <Box>
+          <FieldLabel>{m.settings.dashboards.config.sourceFilterLabel}</FieldLabel>
+          <Controller
+            control={control}
+            name="filterSource"
+            render={({ field }) => (
+              <Select size="small" fullWidth sx={selectSx} {...field}>
+                <MenuItem value="all" sx={menuItemSx}>{m.settings.dashboards.config.sourceAll}</MenuItem>
+                <MenuItem value="manual" sx={menuItemSx}>{m.settings.dashboards.config.sourceManual}</MenuItem>
+                <MenuItem value="csv_import" sx={menuItemSx}>{m.settings.dashboards.config.sourceCsvImport}</MenuItem>
+                <MenuItem value="xlsx_import" sx={menuItemSx}>{m.settings.dashboards.config.sourceXlsxImport}</MenuItem>
+                <MenuItem value="template" sx={menuItemSx}>{m.settings.dashboards.config.sourceTemplate}</MenuItem>
+                <MenuItem value="auto_template" sx={menuItemSx}>{m.settings.dashboards.config.sourceAutoTemplate}</MenuItem>
+                <MenuItem value="duplicate" sx={menuItemSx}>{m.settings.dashboards.config.sourceDuplicate}</MenuItem>
+              </Select>
+            )}
+          />
+        </Box>
         <SaveButton />
       </Stack>
     </form>
@@ -342,6 +376,21 @@ function MemberBreakdownForm({
                   sx={radioLabelSx}
                 />
               </RadioGroup>
+            )}
+          />
+        </Box>
+        <Box>
+          <FieldLabel>{m.settings.dashboards.config.expenseTypeFilterLabel}</FieldLabel>
+          <Controller
+            control={control}
+            name="filterExpenseType"
+            render={({ field }) => (
+              <Select size="small" fullWidth sx={selectSx} {...field}>
+                <MenuItem value="all" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeAll}</MenuItem>
+                <MenuItem value="fixed" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeFixed}</MenuItem>
+                <MenuItem value="variable" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeVariable}</MenuItem>
+                <MenuItem value="one_time" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeOneTime}</MenuItem>
+              </Select>
             )}
           />
         </Box>
@@ -397,7 +446,75 @@ function TopCategoriesForm({
   );
 }
 
-// ─── section-breakdown / category-breakdown (pizza ou barras) ────────────────
+// ─── category-breakdown (pizza + filtros Spec 41 Fase 14) ────────────────────
+
+function CategoryBreakdownForm({
+  widget,
+  options,
+  onSave,
+}: {
+  widget: StoredWidget;
+  options: WidgetConfigOptions;
+  onSave: (c: unknown) => void;
+}) {
+  const { control, handleSubmit } = useForm<z.infer<typeof categoryBreakdownConfigSchema>>({
+    resolver: zodResolver(categoryBreakdownConfigSchema),
+    defaultValues: resolveDefaults(categoryBreakdownConfigSchema, widget.config) as DefaultValues<
+      z.infer<typeof categoryBreakdownConfigSchema>
+    >,
+  });
+  return (
+    <form onSubmit={handleSubmit(onSave)}>
+      <Stack spacing={1}>
+        <Box>
+          <FieldLabel>{m.settings.dashboards.config.chartTypeLabel}</FieldLabel>
+          <Controller
+            control={control}
+            name="chartType"
+            render={({ field }) => (
+              <RadioGroup {...field}>
+                <FormControlLabel value="pie" control={<Radio size="small" sx={radioSx} />} label={m.settings.dashboards.config.chartTypePie} sx={radioLabelSx} />
+                <FormControlLabel value="bar" control={<Radio size="small" sx={radioSx} />} label={m.settings.dashboards.config.chartTypeBar} sx={radioLabelSx} />
+                <FormControlLabel value="hbar" control={<Radio size="small" sx={radioSx} />} label={m.settings.dashboards.config.chartTypeHBar} sx={radioLabelSx} />
+                <FormControlLabel value="vbar" control={<Radio size="small" sx={radioSx} />} label={m.settings.dashboards.config.chartTypeVBar} sx={radioLabelSx} />
+              </RadioGroup>
+            )}
+          />
+        </Box>
+        <Box>
+          <FieldLabel>{m.settings.dashboards.config.expenseTypeFilterLabel}</FieldLabel>
+          <Controller
+            control={control}
+            name="filterExpenseType"
+            render={({ field }) => (
+              <Select size="small" fullWidth sx={selectSx} {...field}>
+                <MenuItem value="all" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeAll}</MenuItem>
+                <MenuItem value="fixed" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeFixed}</MenuItem>
+                <MenuItem value="variable" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeVariable}</MenuItem>
+                <MenuItem value="one_time" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeOneTime}</MenuItem>
+              </Select>
+            )}
+          />
+        </Box>
+        <Controller
+          control={control}
+          name="filterTagIds"
+          render={({ field }) => (
+            <OptionsAutocomplete
+              label={m.settings.dashboards.config.tagFilterLabel}
+              options={options.tags}
+              value={field.value ?? []}
+              onChange={field.onChange}
+            />
+          )}
+        />
+        <SaveButton />
+      </Stack>
+    </form>
+  );
+}
+
+// ─── section-breakdown / institution-breakdown (pizza ou barras) ───────────
 
 function PieChartForm({ widget, onSave }: { widget: StoredWidget; onSave: (c: unknown) => void }) {
   const { control, handleSubmit } = useForm<z.infer<typeof pieChartConfigSchema>>({
@@ -485,6 +602,29 @@ function DailyHeatmapForm({
                   value="all_activity"
                   control={<Radio size="small" sx={radioSx} />}
                   label={m.settings.dashboards.config.heatmapMetricAll}
+                  sx={radioLabelSx}
+                />
+              </RadioGroup>
+            )}
+          />
+        </Box>
+        <Box>
+          <FieldLabel>{m.settings.dashboards.config.heatmapColorByLabel}</FieldLabel>
+          <Controller
+            control={control}
+            name="colorBy"
+            render={({ field }) => (
+              <RadioGroup {...field}>
+                <FormControlLabel
+                  value="intensity"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.heatmapColorByIntensity}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="expense_type"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.heatmapColorByExpenseType}
                   sx={radioLabelSx}
                 />
               </RadioGroup>
@@ -1214,8 +1354,9 @@ export function WidgetConfigForm({ context, def, widget, options, onSave }: Prop
     case "top-categories":
       return <TopCategoriesForm widget={widget} onSave={onSave} />;
     case "section-breakdown":
-    case "category-breakdown":
       return <PieChartForm widget={widget} onSave={onSave} />;
+    case "category-breakdown":
+      return <CategoryBreakdownForm widget={widget} options={options} onSave={onSave} />;
     case "daily-heatmap":
       return <DailyHeatmapForm widget={widget} onSave={onSave} />;
     case "kpi-custom":

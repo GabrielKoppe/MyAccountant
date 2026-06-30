@@ -32,6 +32,7 @@ export const updateFinanceTableSchema = z.object({
   tableId: z.string().cuid("ID inválido"),
   name: z.string().min(1, "Nome obrigatório").max(80).trim().optional(),
   countInMonth: z.boolean().optional(),
+  groupByDate: z.boolean().optional(),
   tableTypeId: z.string().cuid("ID inválido").optional(),
 });
 

@@ -20,15 +20,21 @@ export const treemapConfigSchema = z.object({
 export type TreemapConfig = z.infer<typeof treemapConfigSchema>;
 
 // budgets: mostrar todas as metas ou apenas as próximas do limite.
+// filterExpenseType: filtrar spending por tipo (Spec 41 Fase 14).
 export const budgetsConfigSchema = z.object({
   showOnly: z.enum(["all", "near_limit"]).default("all"),
+  filterExpenseType: z.enum(["all", "fixed", "variable", "one_time"]).default("all"),
 });
 export type BudgetsConfig = z.infer<typeof budgetsConfigSchema>;
 
 // top-transactions: quantas transações exibir.
+// filterSource: filtrar por origem da transação (Spec 41 Fase 14).
 export const topTransactionsConfigSchema = z.object({
   limit: z.union([z.literal(5), z.literal(10), z.literal(20)]).default(10),
   excludeSectionIds: z.array(z.string()).default([]),
+  filterSource: z
+    .enum(["all", "manual", "csv_import", "xlsx_import", "template", "auto_template", "duplicate"])
+    .default("all"),
 });
 export type TopTransactionsConfig = z.infer<typeof topTransactionsConfigSchema>;
 
@@ -56,9 +62,10 @@ export const filteredTransactionsConfigSchema = z.object({
 });
 export type FilteredTransactionsConfig = z.infer<typeof filteredTransactionsConfigSchema>;
 
-// member-breakdown: tipo de visualização do gráfico de gastos por membro.
+// member-breakdown: tipo de visualização + filtro por expenseType (Spec 41 Fase 14).
 export const memberBreakdownConfigSchema = z.object({
   view: z.enum(["donut", "bars"]).default("donut"),
+  filterExpenseType: z.enum(["all", "fixed", "variable", "one_time"]).default("all"),
 });
 export type MemberBreakdownConfig = z.infer<typeof memberBreakdownConfigSchema>;
 
@@ -68,15 +75,26 @@ export const topCategoriesConfigSchema = z.object({
 });
 export type TopCategoriesConfig = z.infer<typeof topCategoriesConfigSchema>;
 
-// section-breakdown / category-breakdown: tipo de gráfico.
+// section-breakdown / institution-breakdown: tipo de gráfico.
 export const pieChartConfigSchema = z.object({
   chartType: z.enum(["pie", "bar", "hbar", "vbar"]).default("pie"),
 });
 export type PieChartConfig = z.infer<typeof pieChartConfigSchema>;
 
-// daily-heatmap: quais transações considerar no mapa de calor.
+// category-breakdown: tipo de gráfico + filtro por tag e expenseType (Spec 41 Fase 14).
+export const categoryBreakdownConfigSchema = z.object({
+  chartType: z.enum(["pie", "bar", "hbar", "vbar"]).default("pie"),
+  filterTagIds: z.array(z.string()).default([]),
+  filterExpenseType: z.enum(["all", "fixed", "variable", "one_time"]).default("all"),
+});
+export type CategoryBreakdownConfig = z.infer<typeof categoryBreakdownConfigSchema>;
+
+// daily-heatmap: quais transações considerar + como colorir (Spec 41 Fase 14).
+// colorBy "intensity": gradiente por volume de gasto (comportamento original).
+// colorBy "expense_type": cor baseada no tipo dominante (fixo/variável/único) do dia.
 export const dailyHeatmapConfigSchema = z.object({
   metric: z.enum(["expense", "all_activity"]).default("expense"),
+  colorBy: z.enum(["intensity", "expense_type"]).default("intensity"),
 });
 export type DailyHeatmapConfig = z.infer<typeof dailyHeatmapConfigSchema>;
 

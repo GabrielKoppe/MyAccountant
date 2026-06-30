@@ -2,6 +2,7 @@ import { NotFoundError } from "@/server/api/errors";
 import type { ActionContext } from "@/server/api/define-action";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
+import * as installmentService from "./installment-service";
 import type {
   BulkDeleteInput,
   BulkUpdateInput,
@@ -56,6 +57,10 @@ export async function createTransaction(input: CreateTransactionInput, ctx: Acti
       responsibleUserId: input.responsibleUserId ?? null,
       cardInstallment: input.cardInstallment ?? null,
       investmentType: input.investmentType ?? null,
+      expenseType: input.expenseType ?? null,
+      originalAmountCents: input.originalAmountCents ?? null,
+      originalCurrency: input.originalCurrency ?? null,
+      exchangeRate: input.exchangeRate ?? null,
       createdById: ctx.userId,
     },
     select: { id: true },
@@ -94,6 +99,11 @@ export async function updateTransaction(
     data.responsibleUserId = input.responsibleUserId ?? null;
   if (input.cardInstallment !== undefined) data.cardInstallment = input.cardInstallment ?? null;
   if (input.investmentType !== undefined) data.investmentType = input.investmentType ?? null;
+  if (input.expenseType !== undefined) data.expenseType = input.expenseType ?? null;
+  if (input.originalAmountCents !== undefined)
+    data.originalAmountCents = input.originalAmountCents ?? null;
+  if (input.originalCurrency !== undefined) data.originalCurrency = input.originalCurrency ?? null;
+  if (input.exchangeRate !== undefined) data.exchangeRate = input.exchangeRate ?? null;
 
   await prisma.transaction.update({ where: { id: input.transactionId }, data });
 
@@ -105,8 +115,40 @@ export async function deleteTransaction(
   input: DeleteTransactionInput,
   ctx: ActionContext,
 ): Promise<{ monthId: string }> {
-  const tx = await getTransactionOrThrow(input.transactionId, ctx.accountId);
+  // Busca completa antes de deletar para preservar dados de parcelamento
+  const tx = await prisma.transaction.findUnique({
+    where: { id: input.transactionId },
+    select: {
+      accountId: true,
+      monthId: true,
+      installmentGroupId: true,
+      installmentNumber: true,
+      amountCents: true,
+      occurredOn: true,
+      description: true,
+      categoryId: true,
+      subcategoryId: true,
+      notes: true,
+    },
+  });
+  if (!tx || tx.accountId !== ctx.accountId) throw new NotFoundError("Transação");
+
   await prisma.transaction.delete({ where: { id: input.transactionId } });
+
+  // Se faz parte de um grupo de parcelamento, restaurar como PendingInstallment
+  if (tx.installmentGroupId && tx.installmentNumber) {
+    await installmentService.restoreAsPendingInstallment({
+      accountId: ctx.accountId,
+      installmentGroupId: tx.installmentGroupId,
+      installmentNumber: tx.installmentNumber,
+      amountCents: tx.amountCents,
+      occurredOn: tx.occurredOn,
+      description: tx.description,
+      categoryId: tx.categoryId,
+      subcategoryId: tx.subcategoryId,
+      notes: tx.notes,
+    });
+  }
 
   void notificationService.notifyTransactionMutation({
     accountId: ctx.accountId,
@@ -144,6 +186,8 @@ export async function duplicateTransaction(input: DuplicateTransactionInput, ctx
       responsibleUserId: source.responsibleUserId,
       cardInstallment: source.cardInstallment,
       investmentType: source.investmentType,
+      expenseType: source.expenseType,
+      source: "duplicate",
       metadata: source.metadata ?? {},
       createdById: ctx.userId,
     },
@@ -195,6 +239,7 @@ export async function bulkUpdate(input: BulkUpdateInput, ctx: ActionContext) {
   if (input.patch.categoryId !== undefined) data.categoryId = input.patch.categoryId ?? null;
   if (input.patch.institutionId !== undefined)
     data.institutionId = input.patch.institutionId ?? null;
+  if (input.patch.expenseType !== undefined) data.expenseType = input.patch.expenseType ?? null;
 
   await prisma.transaction.updateMany({
     where: { id: { in: input.ids }, accountId: ctx.accountId },

@@ -282,6 +282,7 @@ export type SectionTable = {
   name: string;
   sectionId: string;
   countInMonth: boolean;
+  groupByDate: boolean;
   tableTypeName: string | null;
   hiddenColumns: ReturnType<typeof parseHiddenColumns>;
   total: string;
@@ -309,6 +310,7 @@ export const getSectionTabData = cache(
           name: true,
           sectionId: true,
           countInMonth: true,
+          groupByDate: true,
           tableType: { select: { name: true, hiddenColumns: true } },
           _count: { select: { transactions: true } },
         },
@@ -329,6 +331,7 @@ export const getSectionTabData = cache(
       name: t.name,
       sectionId: t.sectionId,
       countInMonth: t.countInMonth,
+      groupByDate: t.groupByDate,
       tableTypeName: t.tableType?.name ?? null,
       hiddenColumns: parseHiddenColumns(t.tableType?.hiddenColumns),
       total: tableTotalsMap.get(t.id) ?? "0",
@@ -348,6 +351,7 @@ export const getSectionTabData = cache(
         id: true,
         tableId: true,
         sectionId: true,
+        monthId: true,
         occurredOn: true,
         amountCents: true,
         description: true,
@@ -361,10 +365,26 @@ export const getSectionTabData = cache(
         responsibleUserId: true,
         cardInstallment: true,
         investmentType: true,
+        expenseType: true,
+        source: true,
+        installmentGroupId: true,
+        installmentNumber: true,
+        originalAmountCents: true,
+        originalCurrency: true,
+        exchangeRate: true,
+        installmentGroup: {
+          select: { id: true, description: true, installmentCount: true },
+        },
         createdById: true,
         createdAt: true,
         updatedById: true,
         updatedAt: true,
+        tags: {
+          select: {
+            tag: { select: { id: true, name: true, color: true } },
+          },
+        },
+        _count: { select: { linksAsSource: true, linksAsTarget: true } },
       },
     });
 

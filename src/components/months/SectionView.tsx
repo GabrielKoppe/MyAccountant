@@ -34,6 +34,7 @@ type TableData = {
   name: string;
   sectionId: string;
   countInMonth: boolean;
+  groupByDate: boolean;
   tableTypeName: string | null;
   hiddenColumns: HiddenColumns;
   total: string;

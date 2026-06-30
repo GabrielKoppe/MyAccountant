@@ -1,4 +1,5 @@
-import { addMonths, getDaysInMonth } from "date-fns";
+import { addMonths, format, getDaysInMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 /**
  * Ajusta um dia (1–31) para um mês específico, respeitando o último dia válido.
@@ -8,8 +9,6 @@ export function applyDayToMonth(day: number, year: number, month: number): Date 
   const lastDay = getDaysInMonth(new Date(year, month - 1));
   return new Date(year, month - 1, Math.min(day, lastDay));
 }
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 export function formatMonthLabel(year: number, month: number): string {
   const date = new Date(year, month - 1, 1);
@@ -26,6 +25,14 @@ export function formatDateBr(date: Date | string): string {
 export function formatDateShort(date: Date | string): string {
   const d = typeof date === "string" ? parseLocalDate(date) : date;
   return format(d, "dd/MM", { locale: ptBR });
+}
+
+/**
+ * Formata data no formato longo: "15 de junho". Usado nos headers de agrupamento.
+ */
+export function formatDateLong(date: Date | string): string {
+  const d = typeof date === "string" ? parseLocalDate(date) : date;
+  return format(d, "d 'de' MMMM", { locale: ptBR });
 }
 
 /**

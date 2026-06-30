@@ -62,21 +62,43 @@ export function CreateMonthModal({ accountId, lastMonth, variant = "button" }: P
 
     setOpen(false);
 
-    const { autoApplied } = result.data;
+    const { autoApplied, installmentsConverted } = result.data;
 
-    if (autoApplied.length > 0) {
-      const successCount = autoApplied.filter((r) => r.success).length;
-      const failureCount = autoApplied.length - successCount;
-      const message =
-        failureCount > 0
-          ? m.months.autoAppliedPartial(successCount, autoApplied.length)
-          : m.months.autoAppliedAll(successCount);
+    const hasTemplates = autoApplied.length > 0;
+    const hasInstallments =
+      installmentsConverted.converted > 0 || installmentsConverted.failed.length > 0;
+
+    if (hasTemplates || hasInstallments) {
+      const templateSuccessCount = autoApplied.filter((r) => r.success).length;
+      const templateFailCount = autoApplied.length - templateSuccessCount;
+      const hasAnyFailure = templateFailCount > 0 || installmentsConverted.failed.length > 0;
+
+      // Compor mensagem unificada
+      const parts: string[] = [];
+      if (hasTemplates) {
+        parts.push(
+          templateFailCount > 0
+            ? m.months.autoAppliedPartial(templateSuccessCount, autoApplied.length)
+            : m.months.autoAppliedAll(templateSuccessCount),
+        );
+      }
+      if (hasInstallments) {
+        parts.push(
+          m.transactions.installments.convertedOnMonthCreate(installmentsConverted.converted),
+        );
+      }
+      const message = parts.join(" · ");
 
       enqueueSnackbar(message, {
-        persist: failureCount > 0,
-        autoHideDuration: failureCount > 0 ? undefined : 6000,
+        persist: hasAnyFailure,
+        autoHideDuration: hasAnyFailure ? undefined : 6000,
         content: (key) => (
-          <AutoApplyResultSnackbar snackbarKey={key} message={message} results={autoApplied} />
+          <AutoApplyResultSnackbar
+            snackbarKey={key}
+            message={message}
+            results={autoApplied}
+            installmentsConverted={hasInstallments ? installmentsConverted : undefined}
+          />
         ),
       });
     } else {

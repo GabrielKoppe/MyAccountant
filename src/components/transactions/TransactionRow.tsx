@@ -1,18 +1,27 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { SectionCountType } from "@prisma/client";
 import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
+import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
+import { tagChipSx } from "@/components/tags/tagChipSx";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import { useSnackbar } from "notistack";
 
 import { duplicateTransactionAction, updateTransactionAction } from "@/actions/transactions";
 import { formatCentsToBrl } from "@/lib/money";
 import { formatDateShort } from "@/lib/dates";
+import { m } from "@/lib/messages";
+import { InstallmentGroupPanel } from "@/components/installments/InstallmentGroupPanel";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -22,6 +31,8 @@ import type {
 } from "./types";
 import { TransactionRowEditor } from "./TransactionRowEditor";
 import { TransactionRowActions } from "./TransactionRowActions";
+import { TagPopover } from "@/components/tags/TagPopover";
+import { LinkTransactionDialog } from "./LinkTransactionDialog";
 
 type Props = {
   tx: TxRow;
@@ -67,8 +78,13 @@ export function TransactionRowBase({
   const [focusField, setFocusField] = useState("occurredOn");
   const [editValues, setEditValues] = useState<TxRow>(tx);
   const [_saving, setSaving] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tagAnchor, setTagAnchor] = useState<HTMLElement | null>(null);
+  const [localTags, setLocalTags] = useState(tx.tags);
+  const [installmentPanelOpen, setInstallmentPanelOpen] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const tagCellRef = useRef<HTMLTableCellElement>(null);
 
   const amount = BigInt(tx.amountCents);
   const isPositive = sectionCountType === "subtract" ? amount < 0n : amount >= 0n;
@@ -88,6 +104,11 @@ export function TransactionRowBase({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoEdit]);
+
+  // Sync localTags quando a prop tx.tags muda (ex: bulk tag)
+  useEffect(() => {
+    setLocalTags(tx.tags);
+  }, [tx.tags]);
 
   function startEditWithNote(e: React.MouseEvent) {
     e.stopPropagation();
@@ -141,6 +162,16 @@ export function TransactionRowBase({
         investmentType: editValues.investmentType,
       }),
       ...(editValues.notes !== tx.notes && { notes: editValues.notes }),
+      ...(editValues.originalCurrency !== tx.originalCurrency && {
+        originalCurrency: editValues.originalCurrency,
+      }),
+      ...(editValues.exchangeRate !== tx.exchangeRate && {
+        exchangeRate: editValues.exchangeRate,
+      }),
+      ...(editValues.originalAmountCents !== tx.originalAmountCents && {
+        originalAmountCents:
+          editValues.originalAmountCents !== null ? BigInt(editValues.originalAmountCents) : null,
+      }),
     });
 
     setSaving(false);
@@ -184,17 +215,14 @@ export function TransactionRowBase({
   }
 
   function handleDelete() {
-    setMenuAnchor(null);
     onDeleteRequested(tx.id);
   }
 
   function handleViewDetails() {
-    setMenuAnchor(null);
     onViewDetails(tx.id);
   }
 
   async function handleDuplicate() {
-    setMenuAnchor(null);
     const result = await duplicateTransactionAction(accountId, { transactionId: tx.id });
     if (!result.ok) {
       enqueueSnackbar(result.error.message, { variant: "error" });
@@ -227,11 +255,14 @@ export function TransactionRowBase({
         isSelected={isSelected}
         notesOpen={notesOpen}
         setNotesOpen={setNotesOpen}
+        tagsOpen={tagsOpen}
+        setTagsOpen={setTagsOpen}
         focusField={focusField}
         hiddenColumns={hiddenColumns}
         categories={categories}
         institutions={institutions}
         members={members}
+        accountId={accountId}
         onSelect={onSelect}
         onSave={saveEdit}
         onCancel={cancelEdit}
@@ -241,7 +272,18 @@ export function TransactionRowBase({
 
   // Modo leitura
   return (
-    <TableRow hover selected={isSelected} sx={{ opacity: tx.isPending ? 0.65 : 1 }}>
+    <TableRow
+      hover
+      selected={isSelected}
+      sx={{
+        opacity: tx.isPending ? 0.65 : 1,
+        // Ícones de ação: ocultos por padrão, visíveis no hover
+        "& .action-icon": { opacity: 0, transition: "opacity 0.15s" },
+        "&:hover .action-icon": { opacity: 1 },
+        // Estado ativo (favorito, pendente, nota): sempre levemente visível
+        "& .action-icon--active": { opacity: 0.75 },
+      }}
+    >
       <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
         <Checkbox
           checked={isSelected}
@@ -326,7 +368,24 @@ export function TransactionRowBase({
         }}
         onClick={() => !isReadOnly && startEdit("amountCents")}
       >
-        {formatCentsToBrl(amount)}
+        {tx.originalCurrency ? (
+          <Tooltip
+            title={[
+              "Moeda estrangeira",
+              tx.originalAmountCents && tx.originalAmountCents !== "0"
+                ? `${tx.originalCurrency} ${(Number(BigInt(tx.originalAmountCents)) / 100).toFixed(2)}`
+                : tx.originalCurrency,
+              tx.exchangeRate ? `câmbio R$${tx.exchangeRate.toFixed(2)}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            arrow
+          >
+            <span>{formatCentsToBrl(amount)}</span>
+          </Tooltip>
+        ) : (
+          formatCentsToBrl(amount)
+        )}
       </TableCell>
 
       {!hiddenColumns.responsibleUser && (
@@ -364,11 +423,126 @@ export function TransactionRowBase({
         </TableCell>
       )}
 
+      {/* Parcela estruturada ou texto legado */}
+      {!hiddenColumns.cardInstallment && (
+        <TableCell sx={{ px: 1 }}>
+          {tx.installmentGroupId && tx.installmentNumber && tx.installmentGroupCount ? (
+            <Tooltip
+              title={m.transactions.installments.badgeTooltip(
+                tx.installmentNumber,
+                tx.installmentGroupCount,
+                m.transactions.installments.panelTitle,
+              )}
+            >
+              <Chip
+                label={m.transactions.installments.badge(
+                  tx.installmentNumber,
+                  tx.installmentGroupCount,
+                )}
+                size="small"
+                variant="outlined"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setInstallmentPanelOpen(true);
+                }}
+                sx={{
+                  height: 20,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  "& .MuiChip-label": { px: 0.75 },
+                }}
+              />
+            </Tooltip>
+          ) : tx.cardInstallment ? (
+            <Typography variant="caption" color="text.secondary">
+              {tx.cardInstallment}
+            </Typography>
+          ) : null}
+        </TableCell>
+      )}
+      {!hiddenColumns.expenseType && tx.expenseType && (
+        <TableCell sx={{ px: 0.5, width: 28 }}>
+          <Tooltip title={m.transactions.expenseTypeTooltips[tx.expenseType] ?? ""}>
+            <span style={{ display: "inline-flex", alignItems: "center" }}>
+              {tx.expenseType === "fixed" && (
+                <LockOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+              )}
+              {tx.expenseType === "variable" && (
+                <WavesOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+              )}
+              {tx.expenseType === "one_time" && (
+                <FlashOnOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+              )}
+            </span>
+          </Tooltip>
+        </TableCell>
+      )}
+      {!hiddenColumns.expenseType && !tx.expenseType && <TableCell sx={{ px: 0.5, width: 28 }} />}
+
+      {/* Célula de tags */}
+      {!hiddenColumns.tags && (
+        <TableCell
+          ref={tagCellRef}
+          sx={{ cursor: "pointer", maxWidth: 160, minWidth: 60, px: 1 }}
+          onClick={(e) => setTagAnchor(e.currentTarget)}
+        >
+          {localTags.length > 0 ? (
+            <Box
+              sx={{
+                display: "flex",
+                gap: 0.5,
+                flexWrap: "nowrap",
+                overflow: "hidden",
+                alignItems: "center",
+              }}
+            >
+              {localTags.slice(0, 2).map((tag) => (
+                <Tooltip key={tag.id} title={tag.name} disableInteractive>
+                  <Chip
+                    label={tag.name}
+                    size="small"
+                    sx={{ ...tagChipSx(tag.color), maxWidth: 72 }}
+                  />
+                </Tooltip>
+              ))}
+              {localTags.length > 2 && (
+                <Chip
+                  label={`+${localTags.length - 2}`}
+                  size="small"
+                  sx={{ fontSize: 11, height: 20, "& .MuiChip-label": { px: 0.75 } }}
+                />
+              )}
+            </Box>
+          ) : (
+            <Tooltip title={m.transactions.tags.addTooltip}>
+              <LabelOutlinedIcon
+                className="action-icon"
+                sx={{ fontSize: 14, color: "text.disabled", display: "block" }}
+              />
+            </Tooltip>
+          )}
+        </TableCell>
+      )}
+
+      {tagAnchor && (
+        <TagPopover
+          anchorEl={tagAnchor}
+          onClose={() => setTagAnchor(null)}
+          accountId={accountId}
+          transactionId={tx.id}
+          currentTags={localTags}
+          onTagsChange={(tags) => {
+            setLocalTags(tags);
+            onOptimisticUpdate(tx.id, { tags });
+          }}
+        />
+      )}
+
       <TransactionRowActions
         tx={tx}
         isReadOnly={isReadOnly}
-        menuAnchor={menuAnchor}
-        setMenuAnchor={setMenuAnchor}
+        menuAnchor={null}
+        setMenuAnchor={() => {}}
         onStartEdit={() => startEdit()}
         onStartEditWithNote={startEditWithNote}
         onTogglePending={togglePending}
@@ -376,6 +550,27 @@ export function TransactionRowBase({
         onViewDetails={handleViewDetails}
         onDuplicate={handleDuplicate}
         onDelete={handleDelete}
+        onOpenLinkDialog={() => setLinkDialogOpen(true)}
+      />
+
+      {/* Painel de grupo de parcelamento — Drawer via portal */}
+      {tx.installmentGroupId && installmentPanelOpen && (
+        <InstallmentGroupPanel
+          open={installmentPanelOpen}
+          onClose={() => setInstallmentPanelOpen(false)}
+          accountId={accountId}
+          monthId={tx.monthId}
+          installmentGroupId={tx.installmentGroupId}
+          canEdit={!isReadOnly}
+        />
+      )}
+
+      <LinkTransactionDialog
+        open={linkDialogOpen}
+        onClose={() => setLinkDialogOpen(false)}
+        accountId={accountId}
+        transactionId={tx.id}
+        onLinked={() => onOptimisticUpdate(tx.id, { linkCount: tx.linkCount + 1 })}
       />
     </TableRow>
   );

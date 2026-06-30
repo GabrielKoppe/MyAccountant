@@ -1,9 +1,11 @@
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { formatCentsToBrl } from "@/lib/money";
@@ -21,6 +23,10 @@ export type TxRow = {
   sectionId: string;
   sectionName: string;
   sectionCountType: string;
+  source?: string;
+  installmentGroupId?: string | null;
+  installmentNumber?: number | null;
+  installmentGroupCount?: number | null;
 };
 
 function getAmountColor(amountCents: bigint, countType: string): string {
@@ -57,6 +63,8 @@ export function TxTable({ transactions }: { transactions: TxRow[] }) {
           {transactions.map((tx) => {
             const cents = BigInt(tx.amountCents);
             const amountColor = getAmountColor(cents, tx.sectionCountType);
+            const hasInstallment =
+              tx.installmentGroupId && tx.installmentNumber && tx.installmentGroupCount;
             return (
               <TableRow key={tx.id} hover>
                 <TableCell sx={{ fontSize: 12, whiteSpace: "nowrap" }}>
@@ -66,20 +74,41 @@ export function TxTable({ transactions }: { transactions: TxRow[] }) {
                   sx={{
                     fontSize: 12,
                     maxWidth: 220,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                   }}
                 >
-                  {tx.description ?? (
-                    <Typography
-                      component="span"
-                      variant="caption"
-                      sx={{ color: "text.disabled", fontStyle: "italic" }}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Box
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        flex: 1,
+                        minWidth: 0,
+                      }}
                     >
-                      Sem descrição
-                    </Typography>
-                  )}
+                      {tx.description ?? (
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          sx={{ color: "text.disabled", fontStyle: "italic" }}
+                        >
+                          Sem descrição
+                        </Typography>
+                      )}
+                    </Box>
+                    {hasInstallment && (
+                      <Tooltip
+                        title={`Parcela ${tx.installmentNumber} de ${tx.installmentGroupCount}`}
+                      >
+                        <Chip
+                          label={`${tx.installmentNumber}/${tx.installmentGroupCount}`}
+                          size="small"
+                          variant="outlined"
+                          sx={{ fontSize: 10, height: 18, px: 0.25, flexShrink: 0 }}
+                        />
+                      </Tooltip>
+                    )}
+                  </Box>
                 </TableCell>
                 <TableCell sx={{ fontSize: 11 }}>
                   <StatusBadge variant="neutral">{tx.sectionName}</StatusBadge>
@@ -116,18 +145,23 @@ export function TopTransactionTable({
 }) {
   const limit = config?.limit ?? 10;
   const excludeIds = config?.excludeSectionIds ?? [];
+  const filterSource = config?.filterSource ?? "all";
 
-  const filtered =
-    excludeIds.length > 0
-      ? transactions.filter((tx) => !excludeIds.includes(tx.sectionId))
-      : transactions;
+  let filtered = excludeIds.length > 0
+    ? transactions.filter((tx) => !excludeIds.includes(tx.sectionId))
+    : transactions;
+
+  if (filterSource !== "all") {
+    filtered = filtered.filter((tx) => tx.source === filterSource);
+  }
 
   const shown = filtered.slice(0, limit);
 
-  const subtitle =
-    excludeIds.length > 0
-      ? `Top ${limit} · ${excludeIds.length} seção ignorada${excludeIds.length > 1 ? "s" : ""}`
-      : `Top ${limit}`;
+  const subtitleParts: string[] = [`Top ${limit}`];
+  if (excludeIds.length > 0)
+    subtitleParts.push(`${excludeIds.length} seção ignorada${excludeIds.length > 1 ? "s" : ""}`);
+  if (filterSource !== "all") subtitleParts.push(`origem: ${filterSource.replace("_", " ")}`);
+  const subtitle = subtitleParts.join(" · ");
 
   return (
     <WidgetContainer

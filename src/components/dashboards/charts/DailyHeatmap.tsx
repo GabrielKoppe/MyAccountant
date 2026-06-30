@@ -18,6 +18,7 @@ type Props = {
   year: number;
   month: number; // 1-12
   dailyTotals: DayTotal[];
+  colorBy?: "intensity" | "expense_type"; // Spec 41 Fase 14
   onDayClick?: (transactionIds: string[], day: number) => void;
   monthSummaryHref: string;
 };
@@ -58,11 +59,19 @@ function getHeatIndex(cents: bigint, maxCents: bigint): 0 | 1 | 2 | 3 | 4 {
   return 4;
 }
 
-export function DailyHeatmap({ year, month, dailyTotals, onDayClick, monthSummaryHref }: Props) {
+export function DailyHeatmap({ year, month, dailyTotals, colorBy = "intensity", onDayClick, monthSummaryHref }: Props) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const colors = getColors(theme.palette.mode as "light" | "dark");
   const heatColors = isDark ? HEAT_COLORS_DARK : HEAT_COLORS_LIGHT;
+  // Cores semânticas para expenseType — derivadas do tema "Warm Calm"
+  // (alternam light/dark automaticamente, sem hex hardcoded).
+  const expenseTypeColors: Record<string, string> = {
+    fixed: theme.palette.accent.primary, // compromisso fixo (azul)
+    variable: theme.palette.success.main, // variável (verde)
+    one_time: theme.palette.warning.main, // evento único (âmbar/mostarda)
+    none: theme.palette.neutral.main, // sem tipo / não classificado (cinza)
+  };
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstWeekday = getFirstWeekday(year, month);
@@ -160,15 +169,22 @@ export function DailyHeatmap({ year, month, dailyTotals, onDayClick, monthSummar
               const data = dayMap.get(day);
               const cents = data ? BigInt(data.absoluteCents) : 0n;
               const heatIdx = getHeatIndex(cents, maxCents);
-              const bgColor = heatColors[heatIdx];
               const hasData = !!data;
 
-              const textColor =
-                heatIdx >= 3
-                  ? colors.text.inverse
-                  : heatIdx >= 1
-                    ? colors.text.tertiary
-                    : colors.text.disabled;
+              let bgColor: string;
+              let textColor: string;
+              if (colorBy === "expense_type" && data?.dominantExpenseType) {
+                bgColor = expenseTypeColors[data.dominantExpenseType] ?? heatColors[heatIdx];
+                textColor = heatIdx >= 1 ? colors.text.inverse : colors.text.disabled;
+              } else {
+                bgColor = heatColors[heatIdx];
+                textColor =
+                  heatIdx >= 3
+                    ? colors.text.inverse
+                    : heatIdx >= 1
+                      ? colors.text.tertiary
+                      : colors.text.disabled;
+              }
 
               return (
                 <Tooltip
@@ -243,27 +259,52 @@ export function DailyHeatmap({ year, month, dailyTotals, onDayClick, monthSummar
           </Box>
 
           {/* Legenda */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-            <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.6rem" }}>
-              Menos
-            </Typography>
-            {heatColors.map((c, i) => (
-              <Box
-                key={i}
-                sx={{
-                  width: 11,
-                  height: 11,
-                  borderRadius: "2px",
-                  bgcolor: c,
-                  border: "1px solid",
-                  borderColor: "border.subtle",
-                }}
-              />
-            ))}
-            <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.6rem" }}>
-              Mais
-            </Typography>
-          </Box>
+          {colorBy === "expense_type" ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+              {[
+                { key: "fixed", label: "Fixo" },
+                { key: "variable", label: "Variável" },
+                { key: "one_time", label: "Único" },
+                { key: "none", label: "Sem tipo" },
+              ].map(({ key, label }) => (
+                <Box key={key} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Box
+                    sx={{
+                      width: 11,
+                      height: 11,
+                      borderRadius: "2px",
+                      bgcolor: expenseTypeColors[key],
+                    }}
+                  />
+                  <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.6rem" }}>
+                    {label}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.6rem" }}>
+                Menos
+              </Typography>
+              {heatColors.map((c, i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    width: 11,
+                    height: 11,
+                    borderRadius: "2px",
+                    bgcolor: c,
+                    border: "1px solid",
+                    borderColor: "border.subtle",
+                  }}
+                />
+              ))}
+              <Typography variant="caption" sx={{ color: "text.disabled", fontSize: "0.6rem" }}>
+                Mais
+              </Typography>
+            </Box>
+          )}
         </Box>
       )}
     </WidgetContainer>

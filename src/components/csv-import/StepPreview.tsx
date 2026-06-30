@@ -19,12 +19,22 @@ import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import type { PreviewRow } from "@/lib/csv-parser";
+import type { InstallmentSuggestion } from "@/lib/installment-detector";
+import { InstallmentDetectionSection } from "@/components/import/InstallmentDetectionSection";
 
 type Props = {
   previewRows: PreviewRow[];
+  installmentSuggestions?: InstallmentSuggestion[];
+  acceptedInstallmentIds?: Set<string>;
+  onToggleInstallment?: (id: string) => void;
 };
 
-export function StepPreview({ previewRows }: Props) {
+export function StepPreview({
+  previewRows,
+  installmentSuggestions = [],
+  acceptedInstallmentIds = new Set(),
+  onToggleInstallment = () => {},
+}: Props) {
   const [showErrorsOnly, setShowErrorsOnly] = useState(false);
 
   const okCount = previewRows.filter((r) => r.status === "ok").length;
@@ -84,6 +94,15 @@ export function StepPreview({ previewRows }: Props) {
           <> — {m.csvImport.preview.showingFirst(displayed.length)}</>
         )}
       </Typography>
+
+      {/* Seção de parcelamentos detectados — acima da tabela, fechada por padrão */}
+      {installmentSuggestions.length > 0 && (
+        <InstallmentDetectionSection
+          suggestions={installmentSuggestions}
+          acceptedIds={acceptedInstallmentIds}
+          onToggle={onToggleInstallment}
+        />
+      )}
 
       <Box sx={{ overflowX: "auto", mt: 1 }}>
         <Table size="small">
@@ -157,18 +176,16 @@ export function StepPreview({ previewRows }: Props) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {row.status === "error"
-                    ? row.error
-                    : (row.parsed?.description ?? "—")}
+                  {row.status === "error" ? row.error : (row.parsed?.description ?? "—")}
                 </TableCell>
-                <TableCell sx={{ fontSize: 11 }}>
-                  {row.parsed?.categoryName ?? "—"}
-                </TableCell>
+                <TableCell sx={{ fontSize: 11 }}>{row.parsed?.categoryName ?? "—"}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </Box>
+
+      {/* Seção de parcelamentos detectados já aparece acima da tabela */}
     </Box>
   );
 }

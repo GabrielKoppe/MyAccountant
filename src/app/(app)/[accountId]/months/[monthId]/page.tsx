@@ -29,6 +29,9 @@ type Props = {
     responsible?: string;
     pending?: string;
     favorite?: string;
+    expenseTypes?: string;
+    sources?: string;
+    tagIds?: string;
   }>;
 };
 
@@ -52,7 +55,20 @@ export default async function MonthPage({ params, searchParams }: Props) {
     responsible: responsibleParam,
     pending: pendingParam,
     favorite: favoriteParam,
+    expenseTypes: expenseTypesParam,
+    sources: sourcesParam,
+    tagIds: tagIdsParam,
   } = await searchParams;
+
+  const VALID_EXPENSE_TYPES = ["fixed", "variable", "one_time"] as const;
+  const VALID_SOURCES = [
+    "manual",
+    "csv_import",
+    "xlsx_import",
+    "template",
+    "auto_template",
+    "duplicate",
+  ] as const;
 
   const initialFilters: MonthFilterState = {
     categories: categoriesParam ? categoriesParam.split(",").filter(Boolean) : [],
@@ -60,26 +76,47 @@ export default async function MonthPage({ params, searchParams }: Props) {
     responsible: responsibleParam ? responsibleParam.split(",").filter(Boolean) : [],
     pending: pendingParam === "1",
     favorite: favoriteParam === "1",
+    expenseTypes: expenseTypesParam
+      ? (expenseTypesParam
+          .split(",")
+          .filter((v) =>
+            VALID_EXPENSE_TYPES.includes(v as (typeof VALID_EXPENSE_TYPES)[number]),
+          ) as (typeof VALID_EXPENSE_TYPES)[number][])
+      : [],
+    sources: sourcesParam
+      ? (sourcesParam
+          .split(",")
+          .filter((v) =>
+            VALID_SOURCES.includes(v as (typeof VALID_SOURCES)[number]),
+          ) as (typeof VALID_SOURCES)[number][])
+      : [],
+    tagIds: tagIdsParam ? tagIdsParam.split(",").filter(Boolean) : [],
   };
 
   const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
   const canEdit = member.role === "owner" || member.role === "editor";
 
-  const [currentMonth, allMonths, sections, categories, institutions, membersRaw] = await Promise.all([
-    prisma.month.findUnique({
-      where: { id: monthId },
-      select: { id: true, year: true, month: true, accountId: true },
-    }),
-    prisma.month.findMany({
-      where: { accountId },
-      orderBy: [{ year: "asc" }, { month: "asc" }],
-      select: { id: true, year: true, month: true },
-    }),
-    getMonthSections(accountId, monthId),
-    getMonthCategories(accountId),
-    getMonthInstitutions(accountId),
-    getMonthMembers(accountId),
-  ]);
+  const [currentMonth, allMonths, sections, categories, institutions, membersRaw, accountTags] =
+    await Promise.all([
+      prisma.month.findUnique({
+        where: { id: monthId },
+        select: { id: true, year: true, month: true, accountId: true },
+      }),
+      prisma.month.findMany({
+        where: { accountId },
+        orderBy: [{ year: "asc" }, { month: "asc" }],
+        select: { id: true, year: true, month: true },
+      }),
+      getMonthSections(accountId, monthId),
+      getMonthCategories(accountId),
+      getMonthInstitutions(accountId),
+      getMonthMembers(accountId),
+      prisma.tag.findMany({
+        where: { accountId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, color: true },
+      }),
+    ]);
 
   const filterOptions = {
     categories,
@@ -90,6 +127,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
       email: m.user.email,
       image: m.user.image,
     })),
+    tags: accountTags,
   };
 
   if (!currentMonth || currentMonth.accountId !== accountId) notFound();
@@ -113,12 +151,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
           role={member.role}
         />
 
-        <MonthTabs
-          accountId={accountId}
-          monthId={monthId}
-          sections={sections}
-          activeTab={tab}
-        />
+        <MonthTabs accountId={accountId} monthId={monthId} sections={sections} activeTab={tab} />
 
         <ActiveFilterChips />
 

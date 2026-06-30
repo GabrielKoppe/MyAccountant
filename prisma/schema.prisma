@@ -49,6 +49,33 @@ enum TableSourceMethod {
   @@map("table_source_method")
 }
 
+enum TransactionExpenseType {
+  fixed
+  variable
+  one_time
+
+  @@map("transaction_expense_type")
+}
+
+enum TransactionSource {
+  manual
+  csv_import
+  xlsx_import
+  template
+  auto_template
+  duplicate
+
+  @@map("transaction_source")
+}
+
+enum TransactionLinkType {
+  reimbursed_by
+  paid_for
+  relates_to
+
+  @@map("transaction_link_type")
+}
+
 // =========================================
 // Auth (NextAuth v5 + Prisma Adapter)
 // =========================================
@@ -156,7 +183,11 @@ model Account {
   settings           AccountSettings?
   budgets            Budget[]
   notifications      Notification[]
+  tags               Tag[]
   dashboardLayouts   DashboardLayout[]
+  installmentGroups    InstallmentGroup[]
+  pendingInstallments  PendingInstallment[]
+  transactionLinks     TransactionLink[]
 
   @@map("accounts")
 }
@@ -227,6 +258,7 @@ model TableType {
   financeTables  FinanceTable[]
   tableTemplates TableTemplate[]
   budgets        Budget[]
+  installmentGroups InstallmentGroup[]
 
   @@unique([accountId, name])
   @@map("table_types")
@@ -281,6 +313,7 @@ model Section {
   tables       FinanceTable[]
   transactions Transaction[]
   budgets      Budget[]
+  installmentGroups InstallmentGroup[]
 
   @@unique([accountId, name])
   @@map("sections")
@@ -294,6 +327,7 @@ model FinanceTable {
   tableTypeId   String?           @map("table_type_id")
   name          String
   countInMonth  Boolean           @default(true) @map("count_in_month")
+  groupByDate   Boolean           @default(true) @map("group_by_date")
   sourceMethod  TableSourceMethod @default(empty) @map("source_method")
   sourceTableId String?           @map("source_table_id")
   displayOrder  Int               @default(0) @map("display_order")
@@ -336,6 +370,13 @@ model Transaction {
   responsibleUserId String?  @map("responsible_user_id")
   cardInstallment   String?  @map("card_installment")
   investmentType    String?  @map("investment_type")
+  expenseType       TransactionExpenseType? @map("expense_type")
+  source            TransactionSource @default(manual) @map("source")
+  installmentGroupId   String? @map("installment_group_id")
+  installmentNumber    Int?    @map("installment_number")
+  originalAmountCents  BigInt?  @map("original_amount_cents")
+  originalCurrency     String?  @map("original_currency")
+  exchangeRate         Decimal? @map("exchange_rate") @db.Decimal(18, 6)
   metadata          Json     @default("{}")
   createdById       String   @map("created_by_id")
   createdAt         DateTime @default(now()) @map("created_at")
@@ -352,11 +393,15 @@ model Transaction {
   responsibleUser User?        @relation("TransactionResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
   createdBy       User         @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy       User?        @relation("TransactionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-
+  tags            TransactionTag[]
+  installmentGroup InstallmentGroup? @relation(fields: [installmentGroupId], references: [id], onDelete: SetNull)
+  linksAsSource   TransactionLink[] @relation("LinkSource")
+  linksAsTarget   TransactionLink[] @relation("LinkTarget")
   @@index([tableId])
   @@index([accountId, monthId])
   @@index([accountId, occurredOn])
   @@index([categoryId])
+  @@index([installmentGroupId])
   @@map("transactions")
 }
 
@@ -466,6 +511,7 @@ model TableTemplateItem {
   responsibleUserId String?  @map("responsible_user_id")
   cardInstallment   String?  @map("card_installment")
   investmentType    String?  @map("investment_type")
+  expenseType       TransactionExpenseType? @map("expense_type")
   displayOrder      Int      @default(0) @map("display_order")
   createdAt         DateTime @default(now()) @map("created_at")
 
@@ -561,4 +607,105 @@ model Notification {
   @@index([userId, accountId, isRead])
   @@index([accountId])
   @@map("notifications")
+}
+
+// =========================================
+// Domain — Tags (Spec 41 TRN-04)
+// =========================================
+
+model Tag {
+  id        String   @id @default(cuid())
+  accountId String   @map("account_id")
+  name      String
+  color     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  account      Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transactions TransactionTag[]
+
+  @@unique([accountId, name])
+  @@index([accountId])
+  @@map("tags")
+}
+
+model TransactionTag {
+  transactionId String @map("transaction_id")
+  tagId         String @map("tag_id")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([transactionId, tagId])
+  @@index([tagId])
+  @@map("transaction_tags")
+}
+
+// =========================================
+// Domain — Installment Groups (Spec 41 TRN-02)
+// =========================================
+
+model InstallmentGroup {
+  id               String   @id @default(cuid())
+  accountId        String   @map("account_id")
+  description      String
+  totalCents       BigInt   @map("total_cents")
+  installmentCount Int      @map("installment_count")
+  downPaymentCents BigInt?  @map("down_payment_cents")
+  startDate        DateTime @map("start_date") @db.Date
+  sectionId        String   @map("section_id")
+  tableTypeId      String?  @map("table_type_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  account             Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  section             Section              @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  tableType           TableType?           @relation(fields: [tableTypeId], references: [id], onDelete: SetNull)
+  transactions        Transaction[]
+  pendingInstallments PendingInstallment[]
+
+  @@index([accountId])
+  @@map("installment_groups")
+}
+
+model PendingInstallment {
+  id                 String   @id @default(cuid())
+  accountId          String   @map("account_id")
+  installmentGroupId String   @map("installment_group_id")
+  installmentNumber  Int      @map("installment_number")
+  amountCents        BigInt   @map("amount_cents")
+  expectedDate       DateTime @map("expected_date") @db.Date
+  description        String?
+  categoryId         String?  @map("category_id")
+  subcategoryId      String?  @map("subcategory_id")
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  account Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  group   InstallmentGroup @relation(fields: [installmentGroupId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([installmentGroupId])
+  @@map("pending_installments")
+}
+
+// =========================================
+// Domain — Transaction Links (Spec 41 TRN-06)
+// =========================================
+
+model TransactionLink {
+  id        String              @id @default(cuid())
+  accountId String              @map("account_id")
+  sourceId  String              @map("source_id")
+  targetId  String              @map("target_id")
+  type      TransactionLinkType
+  notes     String?
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  account Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  source  Transaction @relation("LinkSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target  Transaction @relation("LinkTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([accountId])
+  @@map("transaction_links")
 }
