@@ -3,8 +3,9 @@
 import { AppError } from "@/server/api/errors";
 import { signOut } from "@/server/auth";
 import { logger } from "@/server/logger";
-import { createUser } from "@/server/services/auth-service";
+import { createUser, isEmailAllowed } from "@/server/services/auth-service";
 import { type ActionResult, actionError, actionSuccess } from "@/lib/action-result";
+import { m } from "@/lib/messages";
 import { signupSchema } from "@/lib/schemas/auth";
 
 const log = logger.child({ module: "auth-actions" });
@@ -18,6 +19,11 @@ export async function signupAction(rawInput: unknown): Promise<ActionResult<{ us
       if (path && !fieldErrors[path]) fieldErrors[path] = issue.message;
     }
     return actionError("VALIDATION", "Dados inválidos", fieldErrors);
+  }
+
+  if (!isEmailAllowed(parsed.data.email)) {
+    log.warn({ email: parsed.data.email }, "Signup blocked: email not in allowed list");
+    return actionError("FORBIDDEN", m.auth.emailNotAllowed);
   }
 
   try {

@@ -19,9 +19,11 @@ export const env = createEnv({
       .string()
       .regex(/^.+ <.+@.+>$|^.+@.+\..+$/, "EMAIL_FROM deve ser email ou 'Nome <email>'"),
 
-    LOG_LEVEL: z
-      .enum(["trace", "debug", "info", "warn", "error", "fatal"])
-      .optional(),
+    LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).optional(),
+
+    // Lista de emails permitidos para registro, separados por vírgula.
+    // Quando não definido ou vazio, qualquer email pode se cadastrar.
+    ALLOWED_EMAILS: z.string().optional(),
   },
 
   client: {
@@ -39,6 +41,7 @@ export const env = createEnv({
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
     LOG_LEVEL: process.env.LOG_LEVEL,
+    ALLOWED_EMAILS: process.env.ALLOWED_EMAILS,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   },
 

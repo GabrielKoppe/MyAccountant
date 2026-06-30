@@ -3,11 +3,27 @@ import bcrypt from "bcryptjs";
 import { ConflictError } from "@/server/api/errors";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
+import { env } from "@/lib/env";
 import type { SignupInput } from "@/lib/schemas/auth";
 
 const log = logger.child({ module: "auth-service" });
 
 const BCRYPT_ROUNDS = 12;
+
+/**
+ * Verifica se um email tem permissão para se cadastrar na plataforma.
+ * Quando ALLOWED_EMAILS não está definida ou está vazia, o registro é aberto.
+ */
+export function isEmailAllowed(email: string): boolean {
+  const raw = env.ALLOWED_EMAILS;
+  if (!raw) return true;
+  const allowed = raw
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (allowed.length === 0) return true;
+  return allowed.includes(email.toLowerCase());
+}
 
 export async function createUser(input: SignupInput) {
   const { name, email, password } = input;

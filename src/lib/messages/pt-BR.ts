@@ -31,6 +31,8 @@ export const messages = {
     accountCreated: "Conta criada com sucesso!",
     signingIn: "Entrando...",
     creatingAccount: "Criando conta...",
+    emailNotAllowed:
+      "Este email não tem permissão para se cadastrar. Entre em contato com o administrador.",
   },
   account: {
     selectAccount: "Selecionar conta",

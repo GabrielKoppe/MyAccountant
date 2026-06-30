@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { loginSchema } from "@/lib/schemas/auth";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
+import { isEmailAllowed } from "@/server/services/auth-service";
 import { authConfig } from "./config";
 
 const baseAdapter = PrismaAdapter(prisma);
@@ -93,6 +94,17 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
     updateAge: 24 * 60 * 60,
+  },
+  callbacks: {
+    ...authConfig.callbacks,
+    async signIn({ user, account }) {
+      // Bloquear Google OAuth se o email não estiver na lista permitida
+      if (account?.provider === "google" && user.email && !isEmailAllowed(user.email)) {
+        logger.warn({ email: user.email }, "Google sign-in blocked: email not in allowed list");
+        return "/login?error=EmailNotAllowed";
+      }
+      return true;
+    },
   },
   events: {
     async createUser({ user }: { user: { id?: string } }) {
