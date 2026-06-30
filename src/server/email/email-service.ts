@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 
 import { env } from "@/lib/env";
 import { logger } from "@/server/logger";
-import { resend } from "./client";
+import { transporter } from "./client";
 
 const log = logger.child({ module: "email-service" });
 
@@ -34,25 +34,16 @@ export const emailService = {
     const maskedRecipients = recipients.map(maskEmail);
 
     try {
-      const result = await resend.emails.send({
+      const info = await transporter.sendMail({
         from: env.EMAIL_FROM,
-        to: recipients,
+        to: recipients.join(", "),
         subject,
         html,
         text,
       });
 
-      if (result.error) {
-        log.warn(
-          { to: maskedRecipients, subject, error: result.error },
-          "Email send failed (resend error)",
-        );
-        if (throwOnError) throw new Error(`Email send failed: ${result.error.message}`);
-        return { ok: false };
-      }
-
-      log.info({ to: maskedRecipients, subject, emailId: result.data?.id }, "Email sent");
-      return { ok: true, id: result.data?.id };
+      log.info({ to: maskedRecipients, subject, messageId: info.messageId }, "Email sent");
+      return { ok: true, id: info.messageId };
     } catch (err) {
       log.error({ err, to: maskedRecipients, subject }, "Email send threw");
       if (throwOnError) throw err;

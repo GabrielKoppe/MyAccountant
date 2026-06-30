@@ -14,7 +14,8 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
 
-    RESEND_API_KEY: z.string().min(1),
+    BREVO_SMTP_USER: z.string().email(),
+    BREVO_SMTP_KEY: z.string().min(1),
     EMAIL_FROM: z
       .string()
       .regex(/^.+ <.+@.+>$|^.+@.+\..+$/, "EMAIL_FROM deve ser email ou 'Nome <email>'"),
@@ -38,7 +39,8 @@ export const env = createEnv({
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    BREVO_SMTP_USER: process.env.BREVO_SMTP_USER,
+    BREVO_SMTP_KEY: process.env.BREVO_SMTP_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
     LOG_LEVEL: process.env.LOG_LEVEL,
     ALLOWED_EMAILS: process.env.ALLOWED_EMAILS,
