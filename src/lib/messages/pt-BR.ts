@@ -104,6 +104,20 @@ export const messages = {
       invalidToken: "Convite inválido ou expirado.",
       wrongEmail: "Este convite não é para o seu email.",
       alreadyMember: "Você já é membro desta conta.",
+      // Tela pública de aceite
+      welcomeTitle: "Você foi convidado!",
+      invitedBy: (inviter: string, account: string) =>
+        `${inviter} convidou você para participar da conta ${account}.`,
+      roleLine: (role: string) => `Você entrará como ${role}.`,
+      createAccountCta: "Criar conta para aceitar",
+      loginCta: "Já tenho conta",
+      confirmHint: "Confirme para entrar na conta. O convite expira em 7 dias.",
+      expired: "Este convite expirou. Peça um novo ao proprietário da conta.",
+      revoked: "Este convite foi revogado.",
+      alreadyAccepted: "Este convite já foi aceito.",
+      wrongEmailDetail: (email: string) =>
+        `Este convite é para ${email}. Saia e entre com esse email para aceitar.`,
+      goToApp: "Ir para o início",
     },
   },
   settings: {

@@ -7,6 +7,8 @@ import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/error
 
 import {
   acceptInvite,
+  getInviteByToken,
+  getPendingInviteForEmail,
   inviteMember,
   leaveAccount,
   removeMember,
@@ -151,6 +153,105 @@ describe("acceptInvite", () => {
     } as any);
 
     await expect(acceptInvite("token-usado", "user-novo")).rejects.toThrow(ForbiddenError);
+  });
+});
+
+describe("getInviteByToken", () => {
+  const baseInvite = {
+    email: "convidado@test.com",
+    role: "editor" as const,
+    accountId: "acc-test-1",
+    account: { name: "Conta Teste" },
+    invitedBy: { name: "Anfitrião", email: "host@test.com" },
+  };
+
+  it("retorna null quando token vazio", async () => {
+    await expect(getInviteByToken("")).resolves.toBeNull();
+    expect(prismaMock.accountInvite.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("retorna null quando token não existe", async () => {
+    prismaMock.accountInvite.findUnique.mockResolvedValue(null);
+    await expect(getInviteByToken("inexistente")).resolves.toBeNull();
+  });
+
+  it("marca isValid=true para convite pendente não expirado", async () => {
+    prismaMock.accountInvite.findUnique.mockResolvedValue({
+      ...baseInvite,
+      status: "pending",
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+    } as any);
+
+    const result = await getInviteByToken("token-valido");
+
+    expect(result).toMatchObject({
+      accountName: "Conta Teste",
+      inviterName: "Anfitrião",
+      isValid: true,
+      isExpired: false,
+    });
+  });
+
+  it("marca isValid=false e isExpired=true para convite expirado", async () => {
+    prismaMock.accountInvite.findUnique.mockResolvedValue({
+      ...baseInvite,
+      status: "pending",
+      expiresAt: new Date(Date.now() - 1000),
+    } as any);
+
+    const result = await getInviteByToken("token-expirado");
+
+    expect(result?.isExpired).toBe(true);
+    expect(result?.isValid).toBe(false);
+  });
+
+  it("marca isValid=false para convite revogado", async () => {
+    prismaMock.accountInvite.findUnique.mockResolvedValue({
+      ...baseInvite,
+      status: "revoked",
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+    } as any);
+
+    const result = await getInviteByToken("token-revogado");
+
+    expect(result?.isValid).toBe(false);
+  });
+
+  it("usa email do convidador como inviterName quando name é nulo", async () => {
+    prismaMock.accountInvite.findUnique.mockResolvedValue({
+      ...baseInvite,
+      invitedBy: { name: null, email: "host@test.com" },
+      status: "pending",
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+    } as any);
+
+    const result = await getInviteByToken("token-valido");
+
+    expect(result?.inviterName).toBe("host@test.com");
+  });
+});
+
+describe("getPendingInviteForEmail", () => {
+  it("retorna o token do convite pendente para o email", async () => {
+    prismaMock.accountInvite.findFirst.mockResolvedValue({ token: "tok-123" } as any);
+
+    const result = await getPendingInviteForEmail("convidado@test.com");
+
+    expect(result?.token).toBe("tok-123");
+    expect(prismaMock.accountInvite.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "pending",
+          email: { equals: "convidado@test.com", mode: "insensitive" },
+        }),
+      }),
+    );
+  });
+
+  it("retorna null quando não há convite pendente", async () => {
+    prismaMock.accountInvite.findFirst.mockResolvedValue(null);
+
+    await expect(getPendingInviteForEmail("sem@test.com")).resolves.toBeNull();
   });
 });
 

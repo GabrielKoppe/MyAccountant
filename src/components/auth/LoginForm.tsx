@@ -98,7 +98,7 @@ function LoginFormInner() {
 
       <Divider>ou</Divider>
 
-      <GoogleButton />
+      <GoogleButton callbackUrl={callbackUrl} />
     </Box>
   );
 }

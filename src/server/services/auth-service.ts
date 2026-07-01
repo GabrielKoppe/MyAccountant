@@ -25,6 +25,31 @@ export function isEmailAllowed(email: string): boolean {
   return allowed.includes(email.toLowerCase());
 }
 
+/**
+ * Verifica se há um convite pendente e não expirado para o email.
+ */
+export async function hasPendingInvite(email: string): Promise<boolean> {
+  const invite = await prisma.accountInvite.findFirst({
+    where: {
+      email: { equals: email, mode: "insensitive" },
+      status: "pending",
+      expiresAt: { gt: new Date() },
+    },
+    select: { id: true },
+  });
+  return invite !== null;
+}
+
+/**
+ * Um email pode se cadastrar se estiver na allowlist OU se tiver um convite pendente.
+ * Convite pendente libera o acesso mesmo fora de `ALLOWED_EMAILS` — senão o convidado
+ * externo nunca conseguiria aceitar o convite.
+ */
+export async function isSignupAllowed(email: string): Promise<boolean> {
+  if (isEmailAllowed(email)) return true;
+  return hasPendingInvite(email);
+}
+
 export async function createUser(input: SignupInput) {
   const { name, email, password } = input;
 

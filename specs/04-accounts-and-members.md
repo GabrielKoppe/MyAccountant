@@ -69,22 +69,46 @@ Uma **Account** é um espaço compartilhado por múltiplos `User`s. Toda Account
 
 ### 4.3 Aceitar convite
 
-**Cenário A**: Usuário já tem conta.
-1. Click no link do email → `/invite/accept?token=<token>`.
-2. Se não logado: redireciona para `/login?next=...`.
-3. Se logado:
-   - Server Action `acceptInvite(token)`.
+A rota `/invite/accept?token=<token>` é uma **tela de confirmação pública** (fora do grupo `(app)`,
+liberada no middleware) que serve tanto usuários logados quanto deslogados. Ela **nunca** aceita o
+convite automaticamente: o convidado sempre confirma explicitamente (botão "Aceitar e entrar"),
+funcionando como um onboarding leve de boas-vindas ("você foi convidado para a Account X").
+
+**Fonte de dados**: a página carrega os dados do convite via `memberService.getInviteByToken(token)`
+(retorna `accountName`, `inviterName`, `role`, `status`, `expiresAt`, `email`, `isValid`). Token
+inválido/expirado/revogado/já-aceito → mensagem de erro apropriada, sem botão de aceite.
+
+**Cenário A — Usuário SEM conta** (novo cadastro):
+1. Click no link → `/invite/accept?token=<token>`.
+2. Não logado → a tela exibe "Você foi convidado para a **Account X** por **Fulano** como **editor**"
+   e dois botões:
+   - **Criar conta** → `/signup?callbackUrl=/invite/accept?token=<token>`
+   - **Já tenho conta** → `/login?callbackUrl=/invite/accept?token=<token>`
+3. O `callbackUrl` (com o token) é **preservado por toda a auth**: middleware, formulários de
+   login/signup e botão Google. Após criar a conta (credentials ou Google OAuth), o usuário retorna
+   para `/invite/accept?token=<token>` já autenticado.
+4. Agora logado com o email do convite → tela de confirmação → botão "Aceitar e entrar" →
+   `acceptInviteAction(token)` → entra na Account. **Não passa pelo onboarding de criação de account.**
+
+**Cenário B — Usuário JÁ tem conta**:
+1. Click no link → `/invite/accept?token=<token>` (já logado).
+2. Tela de confirmação direta (pula login e onboarding).
+3. `acceptInviteAction(token)`:
    - Verifica token válido, não expirado, não revogado.
    - Verifica email do invite == email do user logado (case insensitive).
    - Cria `AccountMember` com role do invite.
    - Marca `AccountInvite.status = accepted`, `acceptedAt = now`.
    - Redireciona para a Account.
+4. Email logado ≠ email do convite → mensagem "Este convite é para {email}, entre com esse email".
 
-**Cenário B**: Usuário não tem conta.
-1. Click no link → `/invite/accept?token=<token>`.
-2. Página exibe: "Você foi convidado para a Account X. Crie uma conta para aceitar."
-3. Botão leva para `/signup?invite=<token>` (token preserved).
-4. Após signup, automaticamente executa o aceite.
+**Rede de segurança (roteamento)**: se um usuário recém-criado chegar a `/home` sem nenhuma
+membership (ex.: token perdido no OAuth), o `/home` verifica se há `AccountInvite` pendente e não
+expirado para o email dele e, se houver, redireciona para `/invite/accept?token=<token>` em vez de
+`/onboarding`. Isso evita a criação acidental de uma account nova.
+
+**Allowlist × convite**: quando `ALLOWED_EMAILS` está configurada, ela normalmente bloqueia o
+cadastro. Um **convite pendente e não expirado libera o email** (signup por credentials e Google),
+mesmo que ele não esteja na allowlist — ver `isSignupAllowed(email)` em `auth-service`.
 
 **Notificação in-app**:
 - Se o email do invite corresponde a um User existente, mostrar badge no menu do usuário e em `/settings/profile` com invites pendentes.

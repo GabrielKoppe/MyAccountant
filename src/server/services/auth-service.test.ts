@@ -3,20 +3,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { ConflictError } from "@/server/api/errors";
 
-import { createUser, verifyPassword } from "./auth-service";
+import { createUser, hasPendingInvite, isSignupAllowed, verifyPassword } from "./auth-service";
 
 // vi.hoisted permite usar as fns mock na factory e nos testes sem problemas de hoisting
 const mockHash = vi.hoisted(() => vi.fn());
 const mockCompare = vi.hoisted(() => vi.fn());
+const envMock = vi.hoisted(() => ({ ALLOWED_EMAILS: undefined as string | undefined }));
 
 vi.mock("bcryptjs", () => ({
   default: { hash: mockHash, compare: mockCompare },
 }));
+vi.mock("@/lib/env", () => ({ env: envMock }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockHash.mockResolvedValue("$2b$12$hashedpassword");
   mockCompare.mockResolvedValue(true);
+  envMock.ALLOWED_EMAILS = undefined;
 });
 
 describe("createUser", () => {
@@ -121,5 +124,49 @@ describe("verifyPassword", () => {
 
     expect(result).toBeNull();
     expect(mockCompare).not.toHaveBeenCalled();
+  });
+});
+
+describe("hasPendingInvite", () => {
+  it("deve retornar true quando existe convite pendente e não expirado", async () => {
+    prismaMock.accountInvite.findFirst.mockResolvedValue({ id: "invite-1" } as any);
+
+    await expect(hasPendingInvite("convidado@test.com")).resolves.toBe(true);
+  });
+
+  it("deve retornar false quando não há convite pendente", async () => {
+    prismaMock.accountInvite.findFirst.mockResolvedValue(null);
+
+    await expect(hasPendingInvite("qualquer@test.com")).resolves.toBe(false);
+  });
+});
+
+describe("isSignupAllowed", () => {
+  it("libera qualquer email quando ALLOWED_EMAILS não está definida", async () => {
+    envMock.ALLOWED_EMAILS = undefined;
+
+    await expect(isSignupAllowed("qualquer@test.com")).resolves.toBe(true);
+    expect(prismaMock.accountInvite.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("libera email presente na allowlist sem consultar convites", async () => {
+    envMock.ALLOWED_EMAILS = "permitido@test.com";
+
+    await expect(isSignupAllowed("permitido@test.com")).resolves.toBe(true);
+    expect(prismaMock.accountInvite.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("libera email fora da allowlist quando há convite pendente", async () => {
+    envMock.ALLOWED_EMAILS = "permitido@test.com";
+    prismaMock.accountInvite.findFirst.mockResolvedValue({ id: "invite-1" } as any);
+
+    await expect(isSignupAllowed("convidado@test.com")).resolves.toBe(true);
+  });
+
+  it("bloqueia email fora da allowlist e sem convite", async () => {
+    envMock.ALLOWED_EMAILS = "permitido@test.com";
+    prismaMock.accountInvite.findFirst.mockResolvedValue(null);
+
+    await expect(isSignupAllowed("estranho@test.com")).resolves.toBe(false);
   });
 });

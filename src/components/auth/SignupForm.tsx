@@ -1,8 +1,8 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -17,8 +17,10 @@ import { signupFormSchema, type SignupFormValues } from "@/lib/schemas/auth";
 import { m } from "@/lib/messages";
 import { GoogleButton } from "./GoogleButton";
 
-export function SignupForm() {
+function SignupFormInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/home";
   const { enqueueSnackbar } = useSnackbar();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
@@ -55,12 +57,12 @@ export function SignupForm() {
 
     if (signInResult?.error) {
       enqueueSnackbar("Conta criada! Faca login para continuar.", { variant: "info" });
-      router.push("/login");
+      router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
 
     enqueueSnackbar(m.auth.accountCreated, { variant: "success" });
-    router.push("/home");
+    router.push(callbackUrl);
     router.refresh();
   }
 
@@ -147,7 +149,16 @@ export function SignupForm() {
 
       <Divider>ou</Divider>
 
-      <GoogleButton />
+      <GoogleButton callbackUrl={callbackUrl} />
     </Box>
+  );
+}
+
+// Envolver em Suspense porque useSearchParams() requer Suspense boundary no App Router
+export function SignupForm() {
+  return (
+    <Suspense>
+      <SignupFormInner />
+    </Suspense>
   );
 }

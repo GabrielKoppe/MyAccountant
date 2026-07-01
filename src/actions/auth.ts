@@ -3,7 +3,7 @@
 import { AppError } from "@/server/api/errors";
 import { signOut } from "@/server/auth";
 import { logger } from "@/server/logger";
-import { createUser, isEmailAllowed } from "@/server/services/auth-service";
+import { createUser, isSignupAllowed } from "@/server/services/auth-service";
 import { type ActionResult, actionError, actionSuccess } from "@/lib/action-result";
 import { m } from "@/lib/messages";
 import { signupSchema } from "@/lib/schemas/auth";
@@ -21,7 +21,7 @@ export async function signupAction(rawInput: unknown): Promise<ActionResult<{ us
     return actionError("VALIDATION", "Dados inválidos", fieldErrors);
   }
 
-  if (!isEmailAllowed(parsed.data.email)) {
+  if (!(await isSignupAllowed(parsed.data.email))) {
     log.warn({ email: parsed.data.email }, "Signup blocked: email not in allowed list");
     return actionError("FORBIDDEN", m.auth.emailNotAllowed);
   }

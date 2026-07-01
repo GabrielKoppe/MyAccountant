@@ -98,6 +98,59 @@ export async function revokeInvite(input: RevokeInviteInput, ctx: ActionContext)
   log.info({ inviteId: invite.id, accountId: ctx.accountId }, "Invite revoked");
 }
 
+/**
+ * Carrega os dados de um convite a partir do token, para exibição na tela pública
+ * de aceite (`/invite/accept`). Retorna `null` se o token não existir.
+ * Expõe apenas campos seguros — quem tem o token é o próprio convidado.
+ */
+export async function getInviteByToken(token: string) {
+  if (!token) return null;
+
+  const invite = await prisma.accountInvite.findUnique({
+    where: { token },
+    select: {
+      email: true,
+      role: true,
+      status: true,
+      expiresAt: true,
+      accountId: true,
+      account: { select: { name: true } },
+      invitedBy: { select: { name: true, email: true } },
+    },
+  });
+  if (!invite) return null;
+
+  const isExpired = invite.expiresAt < new Date();
+  return {
+    email: invite.email,
+    role: invite.role,
+    status: invite.status,
+    expiresAt: invite.expiresAt,
+    accountId: invite.accountId,
+    accountName: invite.account.name,
+    inviterName: invite.invitedBy.name ?? invite.invitedBy.email,
+    isExpired,
+    isValid: invite.status === "pending" && !isExpired,
+  };
+}
+
+/**
+ * Retorna o convite pendente e não expirado mais recente para um email, ou `null`.
+ * Usado como rede de segurança no roteamento: um usuário recém-criado sem membership
+ * é levado para o aceite do convite em vez do onboarding de criar account.
+ */
+export async function getPendingInviteForEmail(email: string) {
+  return prisma.accountInvite.findFirst({
+    where: {
+      email: { equals: email, mode: "insensitive" },
+      status: "pending",
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { token: true },
+  });
+}
+
 export async function acceptInvite(token: string, userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },

@@ -5,12 +5,17 @@ import Button from "@mui/material/Button";
 
 import { m } from "@/lib/messages";
 
-export function GoogleButton() {
+type GoogleButtonProps = {
+  /** Destino após o OAuth. Repassado do callbackUrl da URL para preservar o contexto (ex.: convite). */
+  callbackUrl?: string;
+};
+
+export function GoogleButton({ callbackUrl = "/home" }: GoogleButtonProps) {
   return (
     <Button
       variant="outlined"
       fullWidth
-      onClick={() => signIn("google", { callbackUrl: "/home" })}
+      onClick={() => signIn("google", { callbackUrl })}
       sx={{ gap: 1 }}
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
