@@ -1,9 +1,8 @@
 import { render } from "@react-email/components";
 import type { ReactElement } from "react";
 
-import { env } from "@/lib/env";
 import { logger } from "@/server/logger";
-import { transporter } from "./client";
+import { sendEmail } from "./client";
 
 const log = logger.child({ module: "email-service" });
 
@@ -34,16 +33,9 @@ export const emailService = {
     const maskedRecipients = recipients.map(maskEmail);
 
     try {
-      const info = await transporter.sendMail({
-        from: env.EMAIL_FROM,
-        to: recipients.join(", "),
-        subject,
-        html,
-        text,
-      });
-
-      log.info({ to: maskedRecipients, subject, messageId: info.messageId }, "Email sent");
-      return { ok: true, id: info.messageId };
+      const result = await sendEmail({ to: recipients, subject, html, text });
+      log.info({ to: maskedRecipients, subject, messageId: result.messageId }, "Email sent");
+      return { ok: true, id: result.messageId };
     } catch (err) {
       log.error({ err, to: maskedRecipients, subject }, "Email send threw");
       if (throwOnError) throw err;
