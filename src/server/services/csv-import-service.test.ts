@@ -125,6 +125,30 @@ describe("executeImport", () => {
     expect(result.imported).toBe(1);
   });
 
+  it("pula linhas válidas marcadas manualmente em manualIgnoreRows", async () => {
+    setupFoundResources();
+    const txMock = setupTxMock();
+
+    const input = {
+      ...EXEC_INPUT,
+      rows: [
+        { Data: "03/01/2026", Valor: "100,00" }, // rowIndex 0 — ignorada manualmente
+        { Data: "04/01/2026", Valor: "200,00" }, // rowIndex 1 — importada
+      ],
+      manualIgnoreRows: [0],
+    };
+
+    const result = await csvImportService.executeImport(input as any, EXEC_CTX);
+
+    expect(result.imported).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(result.errors).toHaveLength(0);
+    // só a linha não-ignorada vira transação
+    const createManyArg = txMock.transaction.createMany.mock.calls[0][0];
+    expect(createManyArg.data).toHaveLength(1);
+    expect(createManyArg.data[0].amountCents).toBe(20000n);
+  });
+
   it("lança NotFoundError quando mês pertence a outra account (multi-tenancy)", async () => {
     prismaMock.month.findFirst.mockResolvedValue(null); // month.findFirst com accountId filtra corretamente
     prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1" } as any);

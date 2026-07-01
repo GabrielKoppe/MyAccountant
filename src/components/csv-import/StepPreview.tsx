@@ -13,6 +13,7 @@ import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import DoNotDisturbOnOutlinedIcon from "@mui/icons-material/DoNotDisturbOnOutlined";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 
@@ -24,6 +25,10 @@ import { InstallmentDetectionSection } from "@/components/import/InstallmentDete
 
 type Props = {
   previewRows: PreviewRow[];
+  /** rowIndexes que o usuário optou por ignorar manualmente */
+  manualIgnoredRows?: Set<number>;
+  /** Alterna uma linha válida entre "será importada" e "ignorada" */
+  onToggleRow?: (rowIndex: number) => void;
   installmentSuggestions?: InstallmentSuggestion[];
   acceptedInstallmentIds?: Set<string>;
   onToggleInstallment?: (id: string) => void;
@@ -31,14 +36,21 @@ type Props = {
 
 export function StepPreview({
   previewRows,
+  manualIgnoredRows = new Set(),
+  onToggleRow = () => {},
   installmentSuggestions = [],
   acceptedInstallmentIds = new Set(),
   onToggleInstallment = () => {},
 }: Props) {
   const [showErrorsOnly, setShowErrorsOnly] = useState(false);
 
-  const okCount = previewRows.filter((r) => r.status === "ok").length;
-  const ignoredCount = previewRows.filter((r) => r.status === "ignored").length;
+  const isManuallyIgnored = (r: PreviewRow) =>
+    r.status === "ok" && manualIgnoredRows.has(r.rowIndex);
+
+  const okCount = previewRows.filter((r) => r.status === "ok" && !isManuallyIgnored(r)).length;
+  const ignoredCount =
+    previewRows.filter((r) => r.status === "ignored").length +
+    previewRows.filter((r) => isManuallyIgnored(r)).length;
   const errorCount = previewRows.filter((r) => r.status === "error").length;
 
   const displayed = showErrorsOnly
@@ -48,7 +60,7 @@ export function StepPreview({
   return (
     <Box>
       {/* Summary */}
-      <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+      <Box sx={{ display: "flex", gap: 1, mb: 1, flexWrap: "wrap", alignItems: "center" }}>
         <Chip
           icon={<CheckCircleOutlineIcon />}
           label={m.csvImport.preview.okChip(okCount)}
@@ -88,6 +100,9 @@ export function StepPreview({
         )}
       </Box>
 
+      <Typography variant="caption" color="text.secondary" display="block">
+        {m.csvImport.preview.toggleHint}
+      </Typography>
       <Typography variant="caption" color="text.secondary" gutterBottom display="block">
         {m.csvImport.preview.summary(okCount, ignoredCount, errorCount)}
         {displayed.length < previewRows.length && !showErrorsOnly && (
@@ -119,73 +134,91 @@ export function StepPreview({
             </TableRow>
           </TableHead>
           <TableBody>
-            {displayed.map((row) => (
-              <TableRow
-                key={row.rowIndex}
-                sx={{
-                  bgcolor:
-                    row.status === "error"
-                      ? "error.subtle"
-                      : row.status === "ignored"
-                        ? "action.hover"
-                        : "inherit",
-                }}
-              >
-                <TableCell sx={{ fontSize: 11, color: "text.disabled" }}>
-                  {row.rowIndex + 1}
-                </TableCell>
-                <TableCell sx={{ fontSize: 11 }}>
-                  {row.status === "ok" && (
-                    <Tooltip title="Será importada">
-                      <CheckCircleOutlineIcon color="success" fontSize="small" />
-                    </Tooltip>
-                  )}
-                  {row.status === "error" && (
-                    <Tooltip title={row.error ?? "Erro"}>
-                      <ErrorOutlineIcon color="error" fontSize="small" />
-                    </Tooltip>
-                  )}
-                  {row.status === "ignored" && (
-                    <Tooltip title={row.error ?? "Ignorada"}>
-                      <RemoveCircleOutlineIcon sx={{ color: "text.disabled" }} fontSize="small" />
-                    </Tooltip>
-                  )}
-                </TableCell>
-                <TableCell sx={{ fontSize: 11, whiteSpace: "nowrap" }}>
-                  {row.parsed?.occurredOn ?? "—"}
-                </TableCell>
-                <TableCell sx={{ fontSize: 11, whiteSpace: "nowrap" }} align="right">
-                  {row.parsed ? (
-                    <Typography
-                      component="span"
-                      variant="caption"
-                      color={row.parsed.amountCents < 0n ? "error.main" : "success.main"}
-                    >
-                      {formatCentsToBrl(row.parsed.amountCents)}
-                    </Typography>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell
+            {displayed.map((row) => {
+              const manual = isManuallyIgnored(row);
+              return (
+                <TableRow
+                  key={row.rowIndex}
                   sx={{
-                    fontSize: 11,
-                    maxWidth: 200,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    bgcolor:
+                      row.status === "error"
+                        ? "error.subtle"
+                        : row.status === "ignored" || manual
+                          ? "action.hover"
+                          : "inherit",
+                    opacity: manual ? 0.7 : 1,
                   }}
                 >
-                  {row.status === "error" ? row.error : (row.parsed?.description ?? "—")}
-                </TableCell>
-                <TableCell sx={{ fontSize: 11 }}>{row.parsed?.categoryName ?? "—"}</TableCell>
-              </TableRow>
-            ))}
+                  <TableCell sx={{ fontSize: 11, color: "text.disabled" }}>
+                    {row.rowIndex + 1}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 11 }}>
+                    {row.status === "ok" &&
+                      (manual ? (
+                        <Tooltip title={m.csvImport.preview.toggleToImport}>
+                          <DoNotDisturbOnOutlinedIcon
+                            color="warning"
+                            fontSize="small"
+                            onClick={() => onToggleRow(row.rowIndex)}
+                            sx={{ cursor: "pointer" }}
+                          />
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title={m.csvImport.preview.toggleToIgnore}>
+                          <CheckCircleOutlineIcon
+                            color="success"
+                            fontSize="small"
+                            onClick={() => onToggleRow(row.rowIndex)}
+                            sx={{ cursor: "pointer" }}
+                          />
+                        </Tooltip>
+                      ))}
+                    {row.status === "error" && (
+                      <Tooltip title={row.error ?? "Erro"}>
+                        <ErrorOutlineIcon color="error" fontSize="small" />
+                      </Tooltip>
+                    )}
+                    {row.status === "ignored" && (
+                      <Tooltip title={row.error ?? "Ignorada"}>
+                        <RemoveCircleOutlineIcon sx={{ color: "text.disabled" }} fontSize="small" />
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 11, whiteSpace: "nowrap" }}>
+                    {row.parsed?.occurredOn ?? "—"}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 11, whiteSpace: "nowrap" }} align="right">
+                    {row.parsed ? (
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        color={row.parsed.amountCents < 0n ? "error.main" : "success.main"}
+                        sx={{ textDecoration: manual ? "line-through" : "none" }}
+                      >
+                        {formatCentsToBrl(row.parsed.amountCents)}
+                      </Typography>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontSize: 11,
+                      maxWidth: 200,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {row.status === "error" ? row.error : (row.parsed?.description ?? "—")}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 11 }}>{row.parsed?.categoryName ?? "—"}</TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </Box>
-
-      {/* Seção de parcelamentos detectados já aparece acima da tabela */}
     </Box>
   );
 }

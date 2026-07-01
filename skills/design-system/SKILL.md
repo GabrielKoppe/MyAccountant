@@ -625,6 +625,24 @@ Usar para acoes **secundarias** apenas. Label curto (2-3 palavras). Cor padrao `
 
 ---
 
+### 5.11 `<FieldGroup />`
+
+Card tematico para agrupar campos relacionados de um formulario (borda sutil, sem sombra, titulo em overline + hint opcional). Use em forms densos/multi-secao (ex: wizard de importacao) em vez de empilhar campos com `<Divider>` soltos.
+
+```tsx
+import { FieldGroup } from "@/components/ui/FieldGroup";
+
+<FieldGroup title="Valor" hint="Como o valor é lido do arquivo">
+  <Stack spacing={layout.stack}>{/* campos */}</Stack>
+</FieldGroup>
+```
+
+**Props:** `title` (string), `hint` (string opcional), `action` (ReactNode opcional alinhado à direita do título), `children`.
+
+**Anti-pattern:** usar para um único campo isolado (overhead visual desnecessário) ou aninhar FieldGroup dentro de FieldGroup.
+
+---
+
 ## 6. Especificacao de Componentes MUI
 
 Para cada componente MUI: anatomia, variants permitidas, codigo de referencia, antipatterns. **Toda customizacao ja esta no tema** — voce nao precisa redefinir cores/radius/padding na maioria dos casos.

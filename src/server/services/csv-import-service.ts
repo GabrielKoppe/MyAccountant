@@ -131,6 +131,8 @@ async function executeImport(
 
   const importErrors: { rowIndex: number; message: string }[] = [];
   let skipped = 0;
+  // rowIndexes que o usuário marcou para ignorar manualmente no preview
+  const manualIgnore = new Set(input.manualIgnoreRows ?? []);
 
   type TxData = {
     rowIndex: number;
@@ -159,6 +161,11 @@ async function executeImport(
     }
     if (row.status === "error" || !row.parsed) {
       importErrors.push({ rowIndex: row.rowIndex, message: row.error ?? "Erro desconhecido" });
+      continue;
+    }
+    // Linha válida que o usuário optou por ignorar manualmente no preview
+    if (manualIgnore.has(row.rowIndex)) {
+      skipped++;
       continue;
     }
 

@@ -18,12 +18,22 @@ type Props = {
   result: ImportResult;
   accountId: string;
   monthId: string;
+  sectionId: string;
   onClose: () => void;
   onImportAnother: () => void;
 };
 
-export function StepResult({ result, accountId, monthId, onClose, onImportAnother }: Props) {
+export function StepResult({
+  result,
+  accountId,
+  monthId,
+  sectionId,
+  onClose,
+  onImportAnother,
+}: Props) {
   const hasErrors = result.errors.length > 0;
+  // Leva à aba da seção onde a tabela foi criada, com âncora para a tabela.
+  const tableHref = `/${accountId}/months/${monthId}?tab=${sectionId}#table-${result.tableId}`;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, py: 2 }}>
@@ -77,12 +87,7 @@ export function StepResult({ result, accountId, monthId, onClose, onImportAnothe
       )}
 
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
-        <Button
-          variant="contained"
-          endIcon={<OpenInNewIcon />}
-          href={`/${accountId}/months/${monthId}`}
-          onClick={onClose}
-        >
+        <Button variant="contained" endIcon={<OpenInNewIcon />} href={tableHref} onClick={onClose}>
           {m.csvImport.result.viewTable}
         </Button>
         <Button variant="outlined" onClick={onImportAnother}>

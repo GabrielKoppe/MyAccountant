@@ -232,7 +232,11 @@ export function FinanceTableCard({
   }
 
   return (
-    <Paper variant="outlined" sx={{ mb: 2, overflow: "hidden" }}>
+    <Paper
+      variant="outlined"
+      id={`table-${table.id}`}
+      sx={{ mb: 2, overflow: "hidden", scrollMarginTop: 80 }}
+    >
       {/* Header */}
       <Box
         sx={{

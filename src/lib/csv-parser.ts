@@ -86,10 +86,13 @@ function normalizeDateFormat(fmt: string): string {
 }
 
 export function parseDateString(str: string, fmt: string): string | null {
-  if (!str.trim()) return null;
+  const trimmed = str.trim();
+  if (!trimmed) return null;
+  // Remove parte de hora: "01/06/2026 10:26:53" ou "2026-06-01T10:00" → só a data
+  const dateOnly = trimmed.split(/[ T]/)[0];
   const normalizedFmt = normalizeDateFormat(fmt);
   const ref = new Date(2000, 0, 1);
-  const parsed = dateParse(str.trim(), normalizedFmt, ref);
+  const parsed = dateParse(dateOnly, normalizedFmt, ref);
   if (!dateIsValid(parsed)) return null;
   return dateFormat(parsed, "yyyy-MM-dd");
 }
@@ -109,6 +112,11 @@ export function parseAmountToCents(
     .trim();
 
   let negative = false;
+  // Parênteses = negativo (padrão contábil): (1.234,56) → -1234,56
+  if (s.startsWith("(") && s.endsWith(")")) {
+    negative = true;
+    s = s.slice(1, -1).trim();
+  }
   if (s.startsWith("-")) {
     negative = true;
     s = s.slice(1).trim();
@@ -137,6 +145,92 @@ export function parseAmountToCents(
   else if (signMode === "abs") cents = Math.abs(cents);
 
   return BigInt(cents);
+}
+
+/**
+ * Analisa amostras de valores e adivinha o formato numérico ("brl" 1.234,56 ou "us" 1,234.56).
+ * Regra: com os dois separadores, o mais à direita é o decimal. Só vírgula → brl.
+ * Só ponto → decimal ponto (us), exceto quando há exatamente 3 dígitos após (milhar → brl).
+ * Retorna null quando não há sinal claro (valores inteiros/ambíguos).
+ */
+export function detectAmountFormat(values: string[]): "brl" | "us" | null {
+  let brl = 0;
+  let us = 0;
+  for (const raw of values) {
+    const s = raw.replace(/[^0-9.,]/g, "");
+    const lastComma = s.lastIndexOf(",");
+    const lastDot = s.lastIndexOf(".");
+    if (lastComma === -1 && lastDot === -1) continue; // inteiro puro, ambíguo
+    if (lastComma > -1 && lastDot > -1) {
+      if (lastComma > lastDot) brl++;
+      else us++;
+    } else if (lastComma > -1) {
+      brl++;
+    } else {
+      const digitsAfter = s.length - lastDot - 1;
+      if (digitsAfter === 3) brl++;
+      else us++;
+    }
+  }
+  if (brl === 0 && us === 0) return null;
+  return brl >= us ? "brl" : "us";
+}
+
+/** Aplica o modo de sinal (invert/abs) a um valor já em centavos. */
+function applySign(cents: bigint, signMode: "raw" | "invert" | "abs"): bigint {
+  if (signMode === "invert") return -cents;
+  if (signMode === "abs") return cents < 0n ? -cents : cents;
+  return cents;
+}
+
+/**
+ * Calcula o valor em centavos de uma linha conforme `amountMode`:
+ * - "single": lê `columns.amount` respeitando o sinal do arquivo + `amountSign`.
+ * - "creditDebit": valorCents = entrada − saída (cada coluna lida em módulo),
+ *   depois aplica `amountSign`. Ex: entrada 5514,04 / saída 0,00 → +5514,04;
+ *   entrada 0,00 / saída 249,00 → −249,00.
+ */
+function parseRowAmount(
+  row: ParsedRow,
+  mapping: ImportMapping,
+): { cents: bigint | null; error?: string } {
+  if (mapping.amountMode === "creditDebit") {
+    const creditStr = mapping.columns.amountCredit ? (row[mapping.columns.amountCredit] ?? "") : "";
+    const debitStr = mapping.columns.amountDebit ? (row[mapping.columns.amountDebit] ?? "") : "";
+    const hasCredit = creditStr.trim() !== "";
+    const hasDebit = debitStr.trim() !== "";
+
+    if (!hasCredit && !hasDebit) {
+      return { cents: null, error: "Entrada e saída vazias" };
+    }
+    // Cada coluna é lida em módulo; o sinal vem de qual coluna tem valor.
+    const credit = hasCredit ? parseAmountToCents(creditStr, mapping.amountFormat, "abs") : 0n;
+    const debit = hasDebit ? parseAmountToCents(debitStr, mapping.amountFormat, "abs") : 0n;
+    if (credit === null || debit === null) {
+      return {
+        cents: null,
+        error: `Valor inválido (entrada/saída): "${creditStr}" / "${debitStr}"`,
+      };
+    }
+    return { cents: applySign(credit - debit, mapping.amountSign) };
+  }
+
+  const amountStr = row[mapping.columns.amount] ?? "";
+  const cents = parseAmountToCents(amountStr, mapping.amountFormat, mapping.amountSign);
+  return cents === null ? { cents: null, error: `Valor inválido: "${amountStr}"` } : { cents };
+}
+
+/**
+ * Monta o campo `notes` a partir de uma ou mais colunas mapeadas.
+ * Cada coluna com célula não-vazia vira uma linha "NomeColuna: valor".
+ * Retorna null quando nenhuma coluna produz conteúdo.
+ */
+function buildNotes(row: ParsedRow, noteColumns: string[]): string | null {
+  const parts = noteColumns
+    .map((col) => ({ col, value: (row[col] ?? "").trim() }))
+    .filter((p) => p.value)
+    .map((p) => `${p.col}: ${p.value}`);
+  return parts.length > 0 ? parts.join("\n") : null;
 }
 
 export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): PreviewRow[] {
@@ -186,15 +280,14 @@ export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): P
       continue;
     }
 
-    // Parse amount
-    const amountStr = row[mapping.columns.amount] ?? "";
-    const parsedAmount = parseAmountToCents(amountStr, mapping.amountFormat, mapping.amountSign);
+    // Parse amount — coluna única (com sinal) ou entrada − saída (creditDebit)
+    const { cents: parsedAmount, error: amountError } = parseRowAmount(row, mapping);
     if (parsedAmount === null) {
       results.push({
         rowIndex: relIdx,
         status: "error",
         original: row,
-        error: `Valor inválido: "${amountStr}"`,
+        error: amountError ?? "Valor inválido",
       });
       continue;
     }
@@ -207,7 +300,7 @@ export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): P
         occurredOn: parsedDate,
         amountCents: parsedAmount,
         description: mapping.columns.description ? row[mapping.columns.description] || null : null,
-        notes: mapping.columns.notes ? row[mapping.columns.notes] || null : null,
+        notes: buildNotes(row, mapping.columns.notes),
         categoryName: mapping.columns.category ? row[mapping.columns.category] || null : null,
         subcategoryName: mapping.columns.subcategory
           ? row[mapping.columns.subcategory] || null

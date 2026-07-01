@@ -5,15 +5,20 @@ import {
   parseAmountToCents,
   applyMappingToRows,
   deriveHeadersAndRows,
+  detectAmountFormat,
 } from "./csv-parser";
 import type { ImportMapping } from "./schemas/csv-import";
 import { DEFAULT_MAPPING } from "./schemas/csv-import";
 
-function mkMapping(overrides: Partial<ImportMapping> = {}): ImportMapping {
+type MappingOverrides = Partial<Omit<ImportMapping, "columns">> & {
+  columns?: Partial<ImportMapping["columns"]>;
+};
+
+function mkMapping(overrides: MappingOverrides = {}): ImportMapping {
   return {
     ...DEFAULT_MAPPING,
     ...overrides,
-    columns: { date: "Data", amount: "Valor", ...overrides.columns },
+    columns: { ...DEFAULT_MAPPING.columns, date: "Data", amount: "Valor", ...overrides.columns },
   };
 }
 
@@ -41,6 +46,30 @@ describe("parseDateString", () => {
   describe("formato US (MM/DD/YYYY)", () => {
     it("analisa data no formato americano", () => {
       expect(parseDateString("01/03/2026", "MM/DD/YYYY")).toBe("2026-01-03");
+    });
+  });
+
+  describe("variantes de separador", () => {
+    it("analisa YYYY/MM/DD", () => {
+      expect(parseDateString("2026/01/03", "YYYY/MM/DD")).toBe("2026-01-03");
+    });
+
+    it("analisa DD-MM-YYYY", () => {
+      expect(parseDateString("03-01-2026", "DD-MM-YYYY")).toBe("2026-01-03");
+    });
+
+    it("analisa DD.MM.YYYY", () => {
+      expect(parseDateString("03.01.2026", "DD.MM.YYYY")).toBe("2026-01-03");
+    });
+  });
+
+  describe("data com hora", () => {
+    it("ignora a parte de hora separada por espaço", () => {
+      expect(parseDateString("01/06/2026 10:26:53", "DD/MM/YYYY")).toBe("2026-06-01");
+    });
+
+    it("ignora a parte de hora separada por T (ISO)", () => {
+      expect(parseDateString("2026-06-01T10:26:53", "YYYY-MM-DD")).toBe("2026-06-01");
     });
   });
 
@@ -115,6 +144,14 @@ describe("parseAmountToCents", () => {
     it("analisa sinal no fim (padrão de alguns extratos)", () => {
       expect(parseAmountToCents("100,00-", "brl", "raw")).toBe(-10000n);
     });
+
+    it("trata parênteses como negativo (padrão contábil)", () => {
+      expect(parseAmountToCents("(1.234,56)", "brl", "raw")).toBe(-123456n);
+    });
+
+    it("parênteses com símbolo de moeda", () => {
+      expect(parseAmountToCents("(R$ 50,00)", "brl", "raw")).toBe(-5000n);
+    });
   });
 
   describe("signMode", () => {
@@ -163,7 +200,7 @@ describe("applyMappingToRows", () => {
 
     it("mapeia campos opcionais quando presentes", () => {
       const mapping = mkMapping({
-        columns: { date: "Data", amount: "Valor", description: "Desc", notes: "Notas" },
+        columns: { date: "Data", amount: "Valor", description: "Desc", notes: ["Notas"] },
       });
       const rows = [
         { Data: "03/01/2026", Valor: "50,00", Desc: "Mercado", Notas: "Compra semanal" },
@@ -171,7 +208,34 @@ describe("applyMappingToRows", () => {
       const result = applyMappingToRows(rows, mapping);
 
       expect(result[0].parsed?.description).toBe("Mercado");
-      expect(result[0].parsed?.notes).toBe("Compra semanal");
+      expect(result[0].parsed?.notes).toBe("Notas: Compra semanal");
+    });
+
+    it("junta múltiplas colunas de notas como 'Coluna: valor' por linha", () => {
+      const mapping = mkMapping({
+        columns: { date: "Data", amount: "Valor", notes: ["Data Contábil", "Número do cartão"] },
+      });
+      const rows = [
+        {
+          Data: "03/01/2026",
+          Valor: "50,00",
+          "Data Contábil": "04/01/2026",
+          "Número do cartão": "1234",
+        },
+      ];
+      const result = applyMappingToRows(rows, mapping);
+
+      expect(result[0].parsed?.notes).toBe("Data Contábil: 04/01/2026\nNúmero do cartão: 1234");
+    });
+
+    it("ignora colunas de nota vazias e retorna null quando nenhuma tem valor", () => {
+      const mapping = mkMapping({
+        columns: { date: "Data", amount: "Valor", notes: ["A", "B"] },
+      });
+      const rows = [{ Data: "03/01/2026", Valor: "50,00", A: "", B: "  " }];
+      const result = applyMappingToRows(rows, mapping);
+
+      expect(result[0].parsed?.notes).toBeNull();
     });
 
     it("campos opcionais não mapeados retornam null no parsed", () => {
@@ -294,6 +358,70 @@ describe("applyMappingToRows", () => {
     });
   });
 
+  describe("modo entrada/saída (creditDebit)", () => {
+    function mkCd(overrides: MappingOverrides = {}): ImportMapping {
+      return mkMapping({
+        amountMode: "creditDebit",
+        amountFormat: "us", // extratos tipo C6 usam ponto decimal (5514.04)
+        ...overrides,
+        columns: {
+          date: "Data",
+          amount: "",
+          amountCredit: "Entrada",
+          amountDebit: "Saida",
+          ...overrides.columns,
+        },
+      });
+    }
+
+    it("entrada vira valor positivo", () => {
+      const rows = [{ Data: "01/06/2026", Entrada: "5514.04", Saida: "0.00" }];
+      const result = applyMappingToRows(rows, mkCd());
+
+      expect(result[0].status).toBe("ok");
+      expect(result[0].parsed?.amountCents).toBe(551404n);
+    });
+
+    it("saída vira valor negativo", () => {
+      const rows = [{ Data: "01/06/2026", Entrada: "0.00", Saida: "249.00" }];
+      const result = applyMappingToRows(rows, mkCd());
+
+      expect(result[0].parsed?.amountCents).toBe(-24900n);
+    });
+
+    it("lê valor de saída em módulo mesmo se vier com sinal no arquivo", () => {
+      const rows = [{ Data: "01/06/2026", Entrada: "0.00", Saida: "-249.00" }];
+      const result = applyMappingToRows(rows, mkCd());
+
+      expect(result[0].parsed?.amountCents).toBe(-24900n);
+    });
+
+    it("erro quando entrada e saída estão ambas vazias", () => {
+      const rows = [{ Data: "01/06/2026", Entrada: "", Saida: "" }];
+      const result = applyMappingToRows(rows, mkCd());
+
+      expect(result[0].status).toBe("error");
+    });
+
+    it("funciona com apenas a coluna de saída mapeada", () => {
+      const mapping = mkCd({
+        columns: { date: "Data", amount: "", amountDebit: "Saida" },
+      });
+      const rows = [{ Data: "01/06/2026", Saida: "80.00" }];
+      const result = applyMappingToRows(rows, mapping);
+
+      expect(result[0].parsed?.amountCents).toBe(-8000n);
+    });
+
+    it("amountSign=invert troca o sinal do resultado combinado", () => {
+      const mapping = mkCd({ amountSign: "invert" });
+      const rows = [{ Data: "01/06/2026", Entrada: "0.00", Saida: "249.00" }];
+      const result = applyMappingToRows(rows, mapping);
+
+      expect(result[0].parsed?.amountCents).toBe(24900n);
+    });
+  });
+
   describe("edge cases de tamanho do array", () => {
     it("retorna [] para array de rows vazio", () => {
       expect(applyMappingToRows([], mkMapping())).toEqual([]);
@@ -367,5 +495,35 @@ describe("deriveHeadersAndRows", () => {
   it("retorna vazio quando skipRows descarta todo o arquivo", () => {
     const matrix = [["Data", "Valor"]];
     expect(deriveHeadersAndRows(matrix, 5, true)).toEqual({ headers: [], rows: [] });
+  });
+});
+
+describe("detectAmountFormat", () => {
+  it("detecta US quando ponto é decimal (ex: C6 5514.04)", () => {
+    expect(detectAmountFormat(["5514.04", "0.00", "249.00"])).toBe("us");
+  });
+
+  it("detecta BRL quando vírgula é decimal", () => {
+    expect(detectAmountFormat(["1.234,56", "249,00", "50,00"])).toBe("brl");
+  });
+
+  it("detecta BRL com ambos separadores (vírgula à direita)", () => {
+    expect(detectAmountFormat(["1.234,56"])).toBe("brl");
+  });
+
+  it("detecta US com ambos separadores (ponto à direita)", () => {
+    expect(detectAmountFormat(["1,234.56"])).toBe("us");
+  });
+
+  it("trata ponto com 3 dígitos como milhar (BRL)", () => {
+    expect(detectAmountFormat(["1.234", "5.678"])).toBe("brl");
+  });
+
+  it("retorna null para valores inteiros ambíguos", () => {
+    expect(detectAmountFormat(["100", "250", ""])).toBeNull();
+  });
+
+  it("retorna null para lista vazia", () => {
+    expect(detectAmountFormat([])).toBeNull();
   });
 });

@@ -39,7 +39,7 @@ export interface DialogShellProps {
   /** Acoes do rodape (botoes). Em mobile, ficam empilhadas. Quando loading=true, todos os botoes recebem disabled. */
   actions?: ReactNode;
   /** Largura maxima. Padrao: "sm" (640px). */
-  maxWidth?: "xs" | "sm" | "md" | "lg";
+  maxWidth?: "xs" | "sm" | "md" | "lg" | "xl";
   /** Em mobile, abre fullscreen. Default: true. */
   fullScreenOnMobile?: boolean;
   /** Esconde o botao X (use somente se houver acoes obrigatorias) */
@@ -155,6 +155,9 @@ export function DialogShell({
             px: layout.card,
             pb: actions ? 0 : layout.card,
             overflow: hideContentScroll ? "hidden" : "auto",
+            // Reserva o espaço da barra de rolagem sempre, evitando o "flick"/reflow
+            // quando o scroll aparece ao trocar de step (ex: mapeamento é mais alto).
+            scrollbarGutter: "stable",
           }}
         >
           {children}
