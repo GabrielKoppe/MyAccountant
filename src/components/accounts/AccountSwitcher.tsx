@@ -94,10 +94,7 @@ export function AccountSwitcher({ currentAccountId, currentAccountName, otherAcc
               router.push(`/${account.id}`);
             }}
           >
-            <ListItemText
-              primary={account.name}
-              primaryTypographyProps={{ variant: "body2" }}
-            />
+            <ListItemText primary={account.name} primaryTypographyProps={{ variant: "body2" }} />
           </MenuItem>
         ))}
 

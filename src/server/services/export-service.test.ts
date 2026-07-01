@@ -47,9 +47,12 @@ function buildPrismaRow(overrides?: {
       countType: overrides?.sectionCountType ?? "subtract",
     },
     table: { name: "Alimentação" },
-    category: overrides?.categoryName !== undefined
-      ? (overrides.categoryName ? { name: overrides.categoryName } : null)
-      : { name: "Mercado" },
+    category:
+      overrides?.categoryName !== undefined
+        ? overrides.categoryName
+          ? { name: overrides.categoryName }
+          : null
+        : { name: "Mercado" },
     subcategory: null,
     institution: null,
     responsibleUser: null,
@@ -74,7 +77,9 @@ describe("buildMonthCsv", () => {
   });
 
   it("aplica sinal negativo para seções subtract", () => {
-    const csv = buildMonthCsv([buildExportTx({ amountCents: 15000n, sectionCountType: "subtract" })]);
+    const csv = buildMonthCsv([
+      buildExportTx({ amountCents: 15000n, sectionCountType: "subtract" }),
+    ]);
     expect(csv).toContain("-150.00");
   });
 
@@ -88,12 +93,14 @@ describe("buildMonthCsv", () => {
     const csv = buildMonthCsv([buildExportTx({ isPending: true, isFavorite: false })]);
     const dataRow = csv.split("\r\n")[1]!;
     const cells = dataRow.split(",");
-    expect(cells[9]).toBe("Sim");  // Pendente
+    expect(cells[9]).toBe("Sim"); // Pendente
     expect(cells[10]).toBe("Não"); // Favorita
   });
 
   it("formata data como DD/MM/YYYY", () => {
-    const csv = buildMonthCsv([buildExportTx({ occurredOn: new Date("2024-07-04T00:00:00.000Z") })]);
+    const csv = buildMonthCsv([
+      buildExportTx({ occurredOn: new Date("2024-07-04T00:00:00.000Z") }),
+    ]);
     expect(csv).toContain("04/07/2024");
   });
 
@@ -170,7 +177,11 @@ describe("getMonthDataForPdf", () => {
     prismaMock.account.findUnique.mockResolvedValue({ name: "Conta" } as any);
     prismaMock.transaction.findMany.mockResolvedValue([
       buildPrismaRow({ sectionName: "Receitas", sectionCountType: "add", amountCents: 500000n }),
-      buildPrismaRow({ sectionName: "Despesas", sectionCountType: "subtract", amountCents: 150000n }),
+      buildPrismaRow({
+        sectionName: "Despesas",
+        sectionCountType: "subtract",
+        amountCents: 150000n,
+      }),
     ] as any);
 
     const result = await getMonthDataForPdf(accountId, monthId);
@@ -193,7 +204,7 @@ describe("getMonthDataForPdf", () => {
     prismaMock.month.findFirst.mockResolvedValue({ year: 2024, month: 3 } as any);
     prismaMock.account.findUnique.mockResolvedValue({ name: "Conta" } as any);
 
-    const rows = ["A","B","C","D","E","F","G","H","I"].map((cat, i) =>
+    const rows = ["A", "B", "C", "D", "E", "F", "G", "H", "I"].map((cat, i) =>
       buildPrismaRow({ categoryName: cat, amountCents: BigInt((9 - i) * 100) }),
     );
     prismaMock.transaction.findMany.mockResolvedValue(rows as any);

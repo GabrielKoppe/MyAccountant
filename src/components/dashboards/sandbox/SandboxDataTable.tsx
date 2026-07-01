@@ -51,7 +51,11 @@ export function SandboxDataTable({ result, config }: Props) {
             </TableCell>
             {hasSeries ? (
               series.map((s) => (
-                <TableCell key={s.key} align="right" sx={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+                <TableCell
+                  key={s.key}
+                  align="right"
+                  sx={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}
+                >
                   {s.label}
                 </TableCell>
               ))
@@ -112,7 +116,9 @@ export function SandboxDataTable({ result, config }: Props) {
                 color: result.grandTotalCents >= 0n ? "success.main" : "danger.main",
               }}
             >
-              {formatCentsToBrl(result.grandTotalCents < 0n ? -result.grandTotalCents : result.grandTotalCents)}
+              {formatCentsToBrl(
+                result.grandTotalCents < 0n ? -result.grandTotalCents : result.grandTotalCents,
+              )}
             </Typography>
           </Typography>
         </Box>

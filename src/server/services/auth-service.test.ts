@@ -52,7 +52,11 @@ describe("createUser", () => {
 
   it("deve fazer hash da senha antes de salvar", async () => {
     prismaMock.user.findUnique.mockResolvedValue(null);
-    prismaMock.user.create.mockResolvedValue({ id: "user-1", email: "test@test.com", name: "T" } as any);
+    prismaMock.user.create.mockResolvedValue({
+      id: "user-1",
+      email: "test@test.com",
+      name: "T",
+    } as any);
 
     await createUser({ name: "T", email: "test@test.com", password: "minhasenha" });
 

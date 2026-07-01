@@ -67,7 +67,11 @@ export function InviteForm({ accountId }: Props) {
               type="submit"
               form="invite-form"
               variant="contained"
-              endIcon={form.formState.isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}
+              endIcon={
+                form.formState.isSubmitting ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : undefined
+              }
             >
               {m.account.invite.sendButton}
             </Button>

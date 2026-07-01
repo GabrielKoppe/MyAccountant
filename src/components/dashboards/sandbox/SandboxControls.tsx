@@ -215,11 +215,11 @@ export function SandboxControls({
         >
           {(
             [
-              ["month",       ms.controls.groupByMonth],
-              ["section",     ms.controls.groupBySection],
-              ["category",    ms.controls.groupByCategory],
+              ["month", ms.controls.groupByMonth],
+              ["section", ms.controls.groupBySection],
+              ["category", ms.controls.groupByCategory],
               ["institution", ms.controls.groupByInstitution],
-              ["table_type",  ms.controls.groupByTableType],
+              ["table_type", ms.controls.groupByTableType],
             ] as const
           ).map(([v, label]) => (
             <FormControlLabel
@@ -242,12 +242,12 @@ export function SandboxControls({
         >
           {(
             [
-              ["none",        ms.controls.seriesByNone],
-              ["section",     ms.controls.seriesBySection],
-              ["category",    ms.controls.seriesByCategory],
-              ["member",      ms.controls.seriesByMember],
+              ["none", ms.controls.seriesByNone],
+              ["section", ms.controls.seriesBySection],
+              ["category", ms.controls.seriesByCategory],
+              ["member", ms.controls.seriesByMember],
               ["institution", ms.controls.seriesByInstitution],
-              ["table_type",  ms.controls.seriesByTableType],
+              ["table_type", ms.controls.seriesByTableType],
             ] as const
           ).map(([v, label]) => (
             <FormControlLabel
@@ -412,11 +412,7 @@ function FilterMultiSelect({
           <Divider />
           {items.map((item) => (
             <MenuItem key={item.id} value={item.id} sx={{ fontSize: "0.8125rem" }}>
-              <Checkbox
-                size="small"
-                checked={selectedSet.has(item.id)}
-                sx={{ p: 0, mr: 1 }}
-              />
+              <Checkbox size="small" checked={selectedSet.has(item.id)} sx={{ p: 0, mr: 1 }} />
               {item.name}
             </MenuItem>
           ))}

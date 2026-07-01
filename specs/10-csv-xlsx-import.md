@@ -74,7 +74,8 @@ Um **CsvTemplate** salva o mapeamento "este formato de arquivo do banco X corres
   amountSign: "raw",           // "raw" (mantém), "invert" (inverte), "abs" (absoluto)
   csvDelimiter: ",",           // ou ";", "\t"
   hasHeader: true,
-  skipRows: 0,                 // pular N linhas iniciais (ex: headers de banco)
+  skipRows: 0,                 // pular N linhas FÍSICAS no topo do arquivo ANTES da linha de cabeçalho
+                               // (ex: os 8 blocos de metadados de um extrato C6 antes da tabela real)
 
   // Regras de filtragem
   ignoreEmptyRows: true,
@@ -96,6 +97,11 @@ Um **CsvTemplate** salva o mapeamento "este formato de arquivo do banco X corres
 > **Nota sobre `institutionText` vs `institution`**: `institution` mapeia para um registro FK (cadastrado), `institutionText` é texto livre que não exige cadastro — útil quando o CSV tem muitos estabelecimentos não cadastráveis.
 
 > **Nota sobre `responsibleUser`**: diferente dos outros campos, a coluna de responsável não faz lookup direto. O valor da célula (ex: "GABRIEL KOPPE") é cruzado com `responsibleUserMappings` para resolver o `userId`. Isso permite que um extrato de cartão com múltiplos portadores (titular + adicional) seja importado com cada transação já atribuída ao membro correto. Quando um membro ainda não existe na account, deixe o campo sem mapear — pode ser atualizado manualmente depois ou quando o membro entrar e o template for editado.
+
+> **Nota sobre `skipRows` (linhas iniciais)**: muitos bancos exportam um bloco de metadados antes da tabela real (ex: o C6 emite 8 linhas — nome do extrato, agência/conta, período, linhas em branco — antes da linha de cabeçalho `Data Lançamento,Data Contábil,...`). `skipRows` é o número de **linhas físicas** a descartar do topo do arquivo **antes** de identificar a linha de cabeçalho. Ele é aplicado na **tokenização** (client), não como filtro de linhas de dados. Consequências:
+> - O arquivo é tokenizado **uma única vez** em uma matriz crua (`string[][]`, `header:false`). A partir dela, `headers` e `rows` são derivados reativamente: com `hasHeader=true`, `headers = matrix[skipRows]` e os dados começam em `matrix[skipRows + 1]`; com `hasHeader=false`, gera-se `coluna_0…coluna_N` e os dados começam em `matrix[skipRows]`.
+> - Como as `rows` enviadas ao servidor **já excluem** o preâmbulo, `applyMappingToRows` **não** re-pula linhas (itera a partir do índice 0). `skipRows` fica no `mapping`/template apenas como metadado de tokenização.
+> - A **"Amostra do arquivo"** (Step de mapeamento) reflete `skipRows` em tempo real: mostra as primeiras linhas físicas cruas com as linhas puladas esmaecidas e a linha de cabeçalho destacada, além da tabela já derivada. Assim o usuário ajusta o número e vê o efeito imediatamente.
 
 ### 4.3 CRUD de templates
 
@@ -124,9 +130,10 @@ Página: `/settings/templates`.
 ### 5.2 Step 1 — Upload
 - Input file (drag-and-drop ou click).
 - Validação: extensão (.csv, .xlsx, .xls), tamanho ≤ 5 MB.
-- Parse client-side **só do header + 10 primeiras linhas** para preview.
+- Tokenização client-side do arquivo inteiro em uma **matriz crua** (`string[][]`, sem interpretar cabeçalho): CSV via papaparse (`header:false`, delimitador auto-detectado), XLSX via `sheet_to_json({ header: 1 })`.
+- A matriz é guardada no estado do wizard; `headers`/`rows` são derivados dela conforme `skipRows`/`hasHeader` (ver nota sobre `skipRows`). Isso permite recalcular a amostra sem re-ler o arquivo.
 
-> Parse completo só no server, após confirmação.
+> O servidor recebe as `rows` já derivadas (pós-`skipRows`) + o mapping, e re-aplica o parsing de data/valor de forma autoritativa.
 
 ### 5.3 Step 2 — Template
 Opções:
@@ -136,7 +143,9 @@ Opções:
 
 ### 5.4 Step 3 — Mapeamento (Step 2 no wizard atual)
 Tela dividida:
-- **Esquerda**: amostra das primeiras 5 linhas do arquivo.
+- **Esquerda**: amostra do arquivo. Contém dois blocos:
+  - **Linhas cruas** — primeiras ~10 linhas físicas do arquivo, com as `skipRows` iniciais esmaecidas/tachadas e a linha de cabeçalho destacada. Um controle numérico "Pular linhas iniciais" fica junto, para o usuário ajustar e ver o efeito na hora.
+  - **Tabela derivada** — as primeiras 5 linhas de dados já com os cabeçalhos corretos (pós-`skipRows`).
 - **Direita**: form de mapeamento em seções:
   1. **Template salvo** — select para aplicar mapeamento de um template existente (preenche o form automaticamente)
   2. **Colunas essenciais**: date *, amount *, description, category, subcategory, institution
@@ -144,6 +153,8 @@ Tela dividida:
   4. **Configurações de parsing**: dateFormat, amountFormat, amountSign
   5. **Opções avançadas** (colapsável): hasHeader, skipRows, csvDelimiter
   - Quando coluna de category/subcategory/institution é mapeada, aparece switch "Criar automaticamente se não encontrado"
+
+> `skipRows` aparece em dois lugares (junto da amostra e nas opções avançadas) apontando para o mesmo campo do mapping — ambos refletem/atualizam o mesmo valor.
 
 **Validação ao avançar**:
 - `date` e `amount` são obrigatórios.
@@ -362,7 +373,9 @@ export type ExecuteImportInput = z.input<typeof executeImportSchema>; // tipo in
 - **Valor com vírgula sem decimal** (ex: `100,`): tratar como `100,00`.
 - **Coluna com texto onde deveria ser número**: erro de linha.
 - **Cabeçalho com nomes idênticos**: papaparse desambigua automaticamente (`Coluna`, `Coluna_1`).
-- **Arquivo sem header**: configurar `hasHeader: false`, mapear por índice de coluna (`column_0`, `column_1`, ...).
+- **Arquivo sem header**: configurar `hasHeader: false`, mapear por índice de coluna (`coluna_0`, `coluna_1`, ...).
+- **Preâmbulo de banco antes da tabela** (ex: extrato C6 com 8 linhas de metadados): configurar `skipRows` = nº de linhas do preâmbulo. A linha de cabeçalho real passa a ser reconhecida e as colunas ficam mapeáveis. A "Amostra do arquivo" mostra o efeito em tempo real (ver §5.4).
+- **Cabeçalhos duplicados/vazios na matriz derivada**: ao derivar `headers` de `matrix[skipRows]`, células vazias viram `coluna_<i>` e nomes repetidos são desambiguados com sufixo `_1`, `_2`, … (mesma semântica do papaparse com `header:true`).
 
 ## 14. Decisões em aberto
 

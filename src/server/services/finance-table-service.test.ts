@@ -51,7 +51,11 @@ describe("createFinanceTable — sourceMethod=empty", () => {
   });
 
   it("não deve criar tabela com mês de outra account (segurança multi-tenancy)", async () => {
-    prismaMock.month.findUnique.mockResolvedValue({ accountId: "acc-OUTRA", year: 2026, month: 6 } as any);
+    prismaMock.month.findUnique.mockResolvedValue({
+      accountId: "acc-OUTRA",
+      year: 2026,
+      month: 6,
+    } as any);
 
     await expect(
       createFinanceTable(
@@ -216,7 +220,10 @@ describe("updateFinanceTable", () => {
     prismaMock.financeTable.findUnique.mockResolvedValue({ accountId: "acc-test-1" } as any);
     prismaMock.financeTable.update.mockResolvedValue({} as any);
 
-    await updateFinanceTable({ tableId: "table-1", name: "Novo Nome", countInMonth: false }, TEST_CTX);
+    await updateFinanceTable(
+      { tableId: "table-1", name: "Novo Nome", countInMonth: false },
+      TEST_CTX,
+    );
 
     expect(prismaMock.financeTable.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -232,6 +239,31 @@ describe("updateFinanceTable", () => {
     await expect(
       updateFinanceTable({ tableId: "table-1", name: "Novo" }, TEST_CTX),
     ).rejects.toThrow(NotFoundError);
+  });
+
+  it("deve alterar o tableTypeId quando o tipo pertence à account", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({ accountId: "acc-test-1" } as any);
+    prismaMock.tableType.findUnique.mockResolvedValue({ accountId: "acc-test-1" } as any);
+    prismaMock.financeTable.update.mockResolvedValue({} as any);
+
+    await updateFinanceTable({ tableId: "table-1", tableTypeId: "type-2" }, TEST_CTX);
+
+    expect(prismaMock.financeTable.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "table-1" },
+        data: expect.objectContaining({ tableTypeId: "type-2" }),
+      }),
+    );
+  });
+
+  it("não deve aceitar tableTypeId de outra account (segurança multi-tenancy)", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({ accountId: "acc-test-1" } as any);
+    prismaMock.tableType.findUnique.mockResolvedValue({ accountId: "acc-OUTRA" } as any);
+
+    await expect(
+      updateFinanceTable({ tableId: "table-1", tableTypeId: "type-alheio" }, TEST_CTX),
+    ).rejects.toThrow(NotFoundError);
+    expect(prismaMock.financeTable.update).not.toHaveBeenCalled();
   });
 });
 

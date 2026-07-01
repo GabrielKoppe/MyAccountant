@@ -35,10 +35,7 @@ export async function GET(
     const transactions = await getMonthTransactionsForExport(accountId, monthId);
 
     if (transactions.length === 0) {
-      return Response.json(
-        { code: "NO_DATA", message: m.export.noData },
-        { status: 422 },
-      );
+      return Response.json({ code: "NO_DATA", message: m.export.noData }, { status: 422 });
     }
 
     const csv = buildMonthCsv(transactions);

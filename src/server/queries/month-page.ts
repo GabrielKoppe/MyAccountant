@@ -283,6 +283,7 @@ export type SectionTable = {
   sectionId: string;
   countInMonth: boolean;
   groupByDate: boolean;
+  tableTypeId: string | null;
   tableTypeName: string | null;
   hiddenColumns: ReturnType<typeof parseHiddenColumns>;
   total: string;
@@ -311,6 +312,7 @@ export const getSectionTabData = cache(
           sectionId: true,
           countInMonth: true,
           groupByDate: true,
+          tableTypeId: true,
           tableType: { select: { name: true, hiddenColumns: true } },
           _count: { select: { transactions: true } },
         },
@@ -332,6 +334,7 @@ export const getSectionTabData = cache(
       sectionId: t.sectionId,
       countInMonth: t.countInMonth,
       groupByDate: t.groupByDate,
+      tableTypeId: t.tableTypeId,
       tableTypeName: t.tableType?.name ?? null,
       hiddenColumns: parseHiddenColumns(t.tableType?.hiddenColumns),
       total: tableTotalsMap.get(t.id) ?? "0",

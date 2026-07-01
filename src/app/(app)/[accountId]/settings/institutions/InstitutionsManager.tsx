@@ -67,14 +67,20 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
           institutionId: editTarget.id,
           name: nameInput.trim(),
         });
-        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        if (!result.ok) {
+          enqueueSnackbar(result.error.message, { variant: "error" });
+          return;
+        }
         setInstitutions((prev) =>
           prev.map((i) => (i.id === editTarget.id ? { ...i, name: nameInput.trim() } : i)),
         );
         enqueueSnackbar(m.settings.institutions.updated, { variant: "success" });
       } else {
         const result = await createInstitutionAction(accountId, { name: nameInput.trim() });
-        if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+        if (!result.ok) {
+          enqueueSnackbar(result.error.message, { variant: "error" });
+          return;
+        }
         setInstitutions((prev) =>
           [...prev, { id: result.data.institutionId, name: nameInput.trim() }].sort((a, b) =>
             a.name.localeCompare(b.name),
@@ -206,12 +212,7 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
             <Button size="small" onClick={() => setDeleteTarget(null)}>
               {m.common.cancel}
             </Button>
-            <Button
-              size="small"
-              color="error"
-              variant="contained"
-              onClick={confirmDelete}
-            >
+            <Button size="small" color="error" variant="contained" onClick={confirmDelete}>
               {m.common.delete}
             </Button>
           </>

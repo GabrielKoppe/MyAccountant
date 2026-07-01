@@ -68,10 +68,7 @@ export function SectionPieChart({ sections, sectionTotals }: Props) {
           }}
         />
 
-        <Legend
-          iconSize={0}
-          content={(props: any) => <PieLegend {...props} />}
-        />
+        <Legend iconSize={0} content={(props: any) => <PieLegend {...props} />} />
       </PieChart>
     </ResponsiveContainer>
   );

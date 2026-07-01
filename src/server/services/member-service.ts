@@ -8,7 +8,12 @@ import type {
   RevokeInviteInput,
   UpdateMemberRoleInput,
 } from "@/lib/schemas/account";
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from "@/server/api/errors";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+} from "@/server/api/errors";
 import { inviteEmailTemplate } from "@/emails";
 import { emailService } from "@/server/email/email-service";
 import { logger } from "@/server/logger";
@@ -164,7 +169,8 @@ export async function acceptInvite(token: string, userId: string) {
   });
 
   if (!invite) throw new NotFoundError("Convite");
-  if (invite.status !== "pending") throw new ForbiddenError("Este convite já foi usado ou revogado.");
+  if (invite.status !== "pending")
+    throw new ForbiddenError("Este convite já foi usado ou revogado.");
   if (invite.expiresAt < new Date()) throw new ForbiddenError("Este convite expirou.");
   if (invite.email.toLowerCase() !== user.email.toLowerCase()) {
     throw new ForbiddenError(m.account.acceptInvite.wrongEmail);
@@ -212,7 +218,8 @@ export async function declineInvite(token: string, userId: string) {
   const invite = await prisma.accountInvite.findUnique({ where: { token } });
 
   if (!invite) throw new NotFoundError("Convite");
-  if (invite.status !== "pending") throw new ForbiddenError("Este convite já foi usado ou revogado.");
+  if (invite.status !== "pending")
+    throw new ForbiddenError("Este convite já foi usado ou revogado.");
   if (invite.email.toLowerCase() !== user.email.toLowerCase()) {
     throw new ForbiddenError(m.account.acceptInvite.wrongEmail);
   }
@@ -288,7 +295,9 @@ export async function leaveAccount(ctx: ActionContext) {
         where: { accountId: ctx.accountId },
       });
       if (totalMembers > 1) {
-        throw new ForbiddenError("Você é o único proprietário. Promova outro membro antes de sair.");
+        throw new ForbiddenError(
+          "Você é o único proprietário. Promova outro membro antes de sair.",
+        );
       }
       throw new ForbiddenError("Você é o único membro. Delete a conta em vez de sair.");
     }

@@ -172,6 +172,15 @@ export async function updateFinanceTable(
   });
   if (!table || table.accountId !== ctx.accountId) throw new NotFoundError("Tabela");
 
+  if (input.tableTypeId !== undefined) {
+    const tableType = await prisma.tableType.findUnique({
+      where: { id: input.tableTypeId },
+      select: { accountId: true },
+    });
+    if (!tableType || tableType.accountId !== ctx.accountId)
+      throw new NotFoundError("Tipo de tabela");
+  }
+
   await prisma.financeTable.update({
     where: { id: input.tableId },
     data: {

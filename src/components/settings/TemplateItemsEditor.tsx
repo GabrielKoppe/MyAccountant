@@ -90,14 +90,20 @@ export function TemplateItemsEditor({
 
   function pf(partial: Partial<typeof EMPTY_FORM>) {
     setForm((prev) => ({ ...prev, ...partial }));
-    if (partial.categoryId !== undefined) setForm((prev) => ({ ...prev, ...partial, subcategoryId: "" }));
+    if (partial.categoryId !== undefined)
+      setForm((prev) => ({ ...prev, ...partial, subcategoryId: "" }));
   }
 
   const selectedCategory = categories.find((c) => c.id === form.categoryId);
 
   function handleAdd() {
-    const amountCents = Math.round(parseFloat(form.amountRaw.replace(/\./g, "").replace(",", ".")) * 100);
-    if (isNaN(amountCents)) { enqueueSnackbar("Valor inválido", { variant: "error" }); return; }
+    const amountCents = Math.round(
+      parseFloat(form.amountRaw.replace(/\./g, "").replace(",", ".")) * 100,
+    );
+    if (isNaN(amountCents)) {
+      enqueueSnackbar("Valor inválido", { variant: "error" });
+      return;
+    }
 
     startTransition(async () => {
       const result = await addTemplateItemAction(accountId, {
@@ -113,7 +119,10 @@ export function TemplateItemsEditor({
         cardInstallment: form.cardInstallment || undefined,
         investmentType: (form.investmentType || undefined) as InvestmentType | undefined,
       });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
 
       const newItem: Item = {
         id: result.data.id,
@@ -141,7 +150,10 @@ export function TemplateItemsEditor({
   function handleDelete(itemId: string) {
     startTransition(async () => {
       const result = await deleteTemplateItemAction(accountId, { itemId });
-      if (!result.ok) { enqueueSnackbar(result.error.message, { variant: "error" }); return; }
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
       const updated = items.filter((i) => i.id !== itemId);
       setItems(updated);
       onItemsChanged(updated);
@@ -176,7 +188,9 @@ export function TemplateItemsEditor({
               <TableRow sx={{ bgcolor: "background.default" }}>
                 <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Dia</TableCell>
                 <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Descrição</TableCell>
-                <TableCell sx={{ fontSize: 11, fontWeight: "bold" }} align="right">Valor</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: "bold" }} align="right">
+                  Valor
+                </TableCell>
                 <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Categoria</TableCell>
                 <TableCell sx={{ width: 48 }} />
               </TableRow>
@@ -187,17 +201,37 @@ export function TemplateItemsEditor({
                 return (
                   <TableRow key={item.id}>
                     <TableCell sx={{ fontSize: 12 }}>Dia {item.day}</TableCell>
-                    <TableCell sx={{ fontSize: 12, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {item.description ?? <Typography variant="caption" color="text.disabled">—</Typography>}
+                    <TableCell
+                      sx={{
+                        fontSize: 12,
+                        maxWidth: 200,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.description ?? (
+                        <Typography variant="caption" color="text.disabled">
+                          —
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell sx={{ fontSize: 12, whiteSpace: "nowrap" }} align="right">
-                      <Typography variant="caption" color={BigInt(item.amountCents) < 0n ? "error.main" : "success.main"}>
+                      <Typography
+                        variant="caption"
+                        color={BigInt(item.amountCents) < 0n ? "error.main" : "success.main"}
+                      >
                         {formatCentsToBrl(BigInt(item.amountCents))}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ fontSize: 12 }}>{cat?.name ?? "—"}</TableCell>
                     <TableCell>
-                      <IconButton size="small" color="error" onClick={() => handleDelete(item.id)} disabled={isPending}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDelete(item.id)}
+                        disabled={isPending}
+                      >
                         <DeleteOutlineIcon fontSize="small" />
                       </IconButton>
                     </TableCell>
@@ -230,7 +264,9 @@ export function TemplateItemsEditor({
               label={m.tableModels.dayLabel}
               type="number"
               value={form.day}
-              onChange={(e) => pf({ day: Math.min(31, Math.max(1, parseInt(e.target.value) || 1)) })}
+              onChange={(e) =>
+                pf({ day: Math.min(31, Math.max(1, parseInt(e.target.value) || 1)) })
+              }
               inputProps={{ min: 1, max: 31 }}
               sx={{ width: 100 }}
               size="small"
@@ -262,16 +298,32 @@ export function TemplateItemsEditor({
           <Box sx={{ display: "flex", gap: 2 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Categoria</InputLabel>
-              <Select value={form.categoryId} label="Categoria" onChange={(e) => pf({ categoryId: e.target.value })}>
+              <Select
+                value={form.categoryId}
+                label="Categoria"
+                onChange={(e) => pf({ categoryId: e.target.value })}
+              >
                 <MenuItem value="">— Nenhuma —</MenuItem>
-                {categories.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+                {categories.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
             <FormControl fullWidth size="small" disabled={!selectedCategory}>
               <InputLabel>Subcategoria</InputLabel>
-              <Select value={form.subcategoryId} label="Subcategoria" onChange={(e) => pf({ subcategoryId: e.target.value })}>
+              <Select
+                value={form.subcategoryId}
+                label="Subcategoria"
+                onChange={(e) => pf({ subcategoryId: e.target.value })}
+              >
                 <MenuItem value="">— Nenhuma —</MenuItem>
-                {selectedCategory?.subcategories.map((s) => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+                {selectedCategory?.subcategories.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
@@ -279,16 +331,32 @@ export function TemplateItemsEditor({
           <Box sx={{ display: "flex", gap: 2 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Instituição</InputLabel>
-              <Select value={form.institutionId} label="Instituição" onChange={(e) => pf({ institutionId: e.target.value })}>
+              <Select
+                value={form.institutionId}
+                label="Instituição"
+                onChange={(e) => pf({ institutionId: e.target.value })}
+              >
                 <MenuItem value="">— Nenhuma —</MenuItem>
-                {institutions.map((i) => <MenuItem key={i.id} value={i.id}>{i.name}</MenuItem>)}
+                {institutions.map((i) => (
+                  <MenuItem key={i.id} value={i.id}>
+                    {i.name}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
             <FormControl fullWidth size="small">
               <InputLabel>Responsável</InputLabel>
-              <Select value={form.responsibleUserId} label="Responsável" onChange={(e) => pf({ responsibleUserId: e.target.value })}>
+              <Select
+                value={form.responsibleUserId}
+                label="Responsável"
+                onChange={(e) => pf({ responsibleUserId: e.target.value })}
+              >
                 <MenuItem value="">— Nenhum —</MenuItem>
-                {members.map((mem) => <MenuItem key={mem.id} value={mem.id}>{mem.name ?? mem.email}</MenuItem>)}
+                {members.map((mem) => (
+                  <MenuItem key={mem.id} value={mem.id}>
+                    {mem.name ?? mem.email}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
@@ -302,13 +370,21 @@ export function TemplateItemsEditor({
             >
               <MenuItem value="">— {m.transactions.investmentTypeNone} —</MenuItem>
               {INVESTMENT_TYPES.map((t) => (
-                <MenuItem key={t} value={t}>{t}</MenuItem>
+                <MenuItem key={t} value={t}>
+                  {t}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
 
           <FormControlLabel
-            control={<Checkbox size="small" checked={form.isPending} onChange={(e) => pf({ isPending: e.target.checked })} />}
+            control={
+              <Checkbox
+                size="small"
+                checked={form.isPending}
+                onChange={(e) => pf({ isPending: e.target.checked })}
+              />
+            }
             label="Marcar como pendente ao aplicar"
           />
         </Stack>

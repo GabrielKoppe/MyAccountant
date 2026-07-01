@@ -40,7 +40,9 @@ export function ActiveFilterChips() {
   function label(prefix: string, value: string) {
     return (
       <Box component="span" sx={{ fontSize: "inherit" }}>
-        <Box component="span" sx={{ fontWeight: 600, opacity: 0.7 }}>{prefix}: </Box>
+        <Box component="span" sx={{ fontWeight: 600, opacity: 0.7 }}>
+          {prefix}:{" "}
+        </Box>
         {value}
       </Box>
     );
@@ -64,7 +66,13 @@ export function ActiveFilterChips() {
         const cat = options.categories.find((c) => c.id === id);
         if (!cat) return null;
         return (
-          <Chip key={id} label={label("Categoria", cat.name)} size="small" onDelete={() => removeCategory(id)} sx={chipSx} />
+          <Chip
+            key={id}
+            label={label("Categoria", cat.name)}
+            size="small"
+            onDelete={() => removeCategory(id)}
+            sx={chipSx}
+          />
         );
       })}
 
@@ -72,7 +80,13 @@ export function ActiveFilterChips() {
         const inst = options.institutions.find((i) => i.id === id);
         if (!inst) return null;
         return (
-          <Chip key={id} label={label("Instituição", inst.name)} size="small" onDelete={() => removeInstitution(id)} sx={chipSx} />
+          <Chip
+            key={id}
+            label={label("Instituição", inst.name)}
+            size="small"
+            onDelete={() => removeInstitution(id)}
+            sx={chipSx}
+          />
         );
       })}
 
@@ -80,7 +94,13 @@ export function ActiveFilterChips() {
         const member = options.members.find((mem) => mem.id === id);
         if (!member) return null;
         return (
-          <Chip key={id} label={label("Responsável", member.name ?? member.email)} size="small" onDelete={() => removeResponsible(id)} sx={chipSx} />
+          <Chip
+            key={id}
+            label={label("Responsável", member.name ?? member.email)}
+            size="small"
+            onDelete={() => removeResponsible(id)}
+            sx={chipSx}
+          />
         );
       })}
 

@@ -13,7 +13,11 @@ const templateItemFields = z.object({
   subcategoryId: z.string().cuid().nullable().optional(),
   institutionId: z.string().cuid().nullable().optional(),
   responsibleUserId: z.string().cuid().nullable().optional(),
-  cardInstallment: z.string().regex(/^\d+\/\d+$/, "Formato: 3/12").optional().nullable(),
+  cardInstallment: z
+    .string()
+    .regex(/^\d+\/\d+$/, "Formato: 3/12")
+    .optional()
+    .nullable(),
   investmentType: investmentTypeSchema,
 });
 

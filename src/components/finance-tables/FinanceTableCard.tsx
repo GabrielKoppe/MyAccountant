@@ -28,6 +28,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import ViewColumnOutlinedIcon from "@mui/icons-material/ViewColumnOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import RestoreIcon from "@mui/icons-material/Restore";
 import { useSnackbar } from "notistack";
@@ -44,6 +45,7 @@ import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
 
 import {
+  FinanceTableChangeTypeDialog,
   FinanceTableDeleteDialog,
   FinanceTableRenameDialog,
   FinanceTableSaveModelDialog,
@@ -59,6 +61,7 @@ import type {
 type TableData = {
   id: string;
   name: string;
+  tableTypeId: string | null;
   tableTypeName: string | null;
   countInMonth: boolean;
   groupByDate: boolean;
@@ -66,6 +69,8 @@ type TableData = {
   transactionCount: number;
   hiddenColumns: HiddenColumns;
 };
+
+type TableTypeOption = { id: string; name: string; isDefault: boolean };
 
 type Props = {
   table: TableData;
@@ -76,6 +81,7 @@ type Props = {
   timezone: string;
   sectionIsActive: boolean;
   sectionCountType: SectionCountType;
+  tableTypes: TableTypeOption[];
   transactions: TransactionRow[];
   categories: CategoryOption[];
   institutions: InstitutionOption[];
@@ -93,6 +99,7 @@ export function FinanceTableCard({
   timezone,
   sectionIsActive,
   sectionCountType,
+  tableTypes,
   transactions,
   categories,
   institutions,
@@ -109,6 +116,9 @@ export function FinanceTableCard({
   const [showNewRow, setShowNewRow] = useState(false);
   const [saveModelOpen, setSaveModelOpen] = useState(false);
   const [modelName, setModelName] = useState(table.name);
+  const [changeTypeOpen, setChangeTypeOpen] = useState(false);
+  const [selectedTypeId, setSelectedTypeId] = useState(table.tableTypeId ?? "");
+  const [changingType, setChangingType] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [renaming, setRenaming] = useState(false);
   const [installmentDialogOpen, setInstallmentDialogOpen] = useState(false);
@@ -168,6 +178,28 @@ export function FinanceTableCard({
       setRenameOpen(false);
     } finally {
       setRenaming(false);
+    }
+  }
+
+  async function handleChangeType() {
+    if (!selectedTypeId || selectedTypeId === table.tableTypeId) {
+      setChangeTypeOpen(false);
+      return;
+    }
+    setChangingType(true);
+    try {
+      const result = await updateFinanceTableAction(accountId, {
+        tableId: table.id,
+        tableTypeId: selectedTypeId,
+      });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      enqueueSnackbar(m.financeTables.updated, { variant: "success" });
+      setChangeTypeOpen(false);
+    } finally {
+      setChangingType(false);
     }
   }
 
@@ -343,6 +375,19 @@ export function FinanceTableCard({
         <MenuItem
           onClick={() => {
             setMenuAnchor(null);
+            setSelectedTypeId(table.tableTypeId ?? "");
+            setChangeTypeOpen(true);
+          }}
+          sx={{ py: 0.75, fontSize: 13 }}
+        >
+          <ListItemIcon sx={{ minWidth: 32 }}>
+            <ViewColumnOutlinedIcon sx={{ fontSize: 16 }} />
+          </ListItemIcon>
+          {m.financeTables.menuChangeType}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMenuAnchor(null);
             handleToggleCount();
           }}
           sx={{ py: 0.75, fontSize: 13 }}
@@ -440,6 +485,17 @@ export function FinanceTableCard({
         onChangeName={setNewName}
         onClose={() => setRenameOpen(false)}
         onConfirm={handleRename}
+      />
+
+      {/* Change type dialog */}
+      <FinanceTableChangeTypeDialog
+        open={changeTypeOpen}
+        loading={changingType}
+        tableTypes={tableTypes}
+        tableTypeId={selectedTypeId}
+        onChangeTableTypeId={setSelectedTypeId}
+        onClose={() => setChangeTypeOpen(false)}
+        onConfirm={handleChangeType}
       />
 
       {/* Delete dialog */}

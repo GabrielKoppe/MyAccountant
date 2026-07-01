@@ -246,10 +246,18 @@ function BudgetsForm({ widget, onSave }: { widget: StoredWidget; onSave: (c: unk
             name="filterExpenseType"
             render={({ field }) => (
               <Select size="small" fullWidth sx={selectSx} {...field}>
-                <MenuItem value="all" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeAll}</MenuItem>
-                <MenuItem value="fixed" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeFixed}</MenuItem>
-                <MenuItem value="variable" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeVariable}</MenuItem>
-                <MenuItem value="one_time" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeOneTime}</MenuItem>
+                <MenuItem value="all" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeAll}
+                </MenuItem>
+                <MenuItem value="fixed" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeFixed}
+                </MenuItem>
+                <MenuItem value="variable" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeVariable}
+                </MenuItem>
+                <MenuItem value="one_time" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeOneTime}
+                </MenuItem>
               </Select>
             )}
           />
@@ -321,13 +329,27 @@ function TopTransactionsForm({
             name="filterSource"
             render={({ field }) => (
               <Select size="small" fullWidth sx={selectSx} {...field}>
-                <MenuItem value="all" sx={menuItemSx}>{m.settings.dashboards.config.sourceAll}</MenuItem>
-                <MenuItem value="manual" sx={menuItemSx}>{m.settings.dashboards.config.sourceManual}</MenuItem>
-                <MenuItem value="csv_import" sx={menuItemSx}>{m.settings.dashboards.config.sourceCsvImport}</MenuItem>
-                <MenuItem value="xlsx_import" sx={menuItemSx}>{m.settings.dashboards.config.sourceXlsxImport}</MenuItem>
-                <MenuItem value="template" sx={menuItemSx}>{m.settings.dashboards.config.sourceTemplate}</MenuItem>
-                <MenuItem value="auto_template" sx={menuItemSx}>{m.settings.dashboards.config.sourceAutoTemplate}</MenuItem>
-                <MenuItem value="duplicate" sx={menuItemSx}>{m.settings.dashboards.config.sourceDuplicate}</MenuItem>
+                <MenuItem value="all" sx={menuItemSx}>
+                  {m.settings.dashboards.config.sourceAll}
+                </MenuItem>
+                <MenuItem value="manual" sx={menuItemSx}>
+                  {m.settings.dashboards.config.sourceManual}
+                </MenuItem>
+                <MenuItem value="csv_import" sx={menuItemSx}>
+                  {m.settings.dashboards.config.sourceCsvImport}
+                </MenuItem>
+                <MenuItem value="xlsx_import" sx={menuItemSx}>
+                  {m.settings.dashboards.config.sourceXlsxImport}
+                </MenuItem>
+                <MenuItem value="template" sx={menuItemSx}>
+                  {m.settings.dashboards.config.sourceTemplate}
+                </MenuItem>
+                <MenuItem value="auto_template" sx={menuItemSx}>
+                  {m.settings.dashboards.config.sourceAutoTemplate}
+                </MenuItem>
+                <MenuItem value="duplicate" sx={menuItemSx}>
+                  {m.settings.dashboards.config.sourceDuplicate}
+                </MenuItem>
               </Select>
             )}
           />
@@ -386,10 +408,18 @@ function MemberBreakdownForm({
             name="filterExpenseType"
             render={({ field }) => (
               <Select size="small" fullWidth sx={selectSx} {...field}>
-                <MenuItem value="all" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeAll}</MenuItem>
-                <MenuItem value="fixed" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeFixed}</MenuItem>
-                <MenuItem value="variable" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeVariable}</MenuItem>
-                <MenuItem value="one_time" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeOneTime}</MenuItem>
+                <MenuItem value="all" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeAll}
+                </MenuItem>
+                <MenuItem value="fixed" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeFixed}
+                </MenuItem>
+                <MenuItem value="variable" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeVariable}
+                </MenuItem>
+                <MenuItem value="one_time" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeOneTime}
+                </MenuItem>
               </Select>
             )}
           />
@@ -473,10 +503,30 @@ function CategoryBreakdownForm({
             name="chartType"
             render={({ field }) => (
               <RadioGroup {...field}>
-                <FormControlLabel value="pie" control={<Radio size="small" sx={radioSx} />} label={m.settings.dashboards.config.chartTypePie} sx={radioLabelSx} />
-                <FormControlLabel value="bar" control={<Radio size="small" sx={radioSx} />} label={m.settings.dashboards.config.chartTypeBar} sx={radioLabelSx} />
-                <FormControlLabel value="hbar" control={<Radio size="small" sx={radioSx} />} label={m.settings.dashboards.config.chartTypeHBar} sx={radioLabelSx} />
-                <FormControlLabel value="vbar" control={<Radio size="small" sx={radioSx} />} label={m.settings.dashboards.config.chartTypeVBar} sx={radioLabelSx} />
+                <FormControlLabel
+                  value="pie"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.chartTypePie}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="bar"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.chartTypeBar}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="hbar"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.chartTypeHBar}
+                  sx={radioLabelSx}
+                />
+                <FormControlLabel
+                  value="vbar"
+                  control={<Radio size="small" sx={radioSx} />}
+                  label={m.settings.dashboards.config.chartTypeVBar}
+                  sx={radioLabelSx}
+                />
               </RadioGroup>
             )}
           />
@@ -488,10 +538,18 @@ function CategoryBreakdownForm({
             name="filterExpenseType"
             render={({ field }) => (
               <Select size="small" fullWidth sx={selectSx} {...field}>
-                <MenuItem value="all" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeAll}</MenuItem>
-                <MenuItem value="fixed" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeFixed}</MenuItem>
-                <MenuItem value="variable" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeVariable}</MenuItem>
-                <MenuItem value="one_time" sx={menuItemSx}>{m.settings.dashboards.config.expenseTypeOneTime}</MenuItem>
+                <MenuItem value="all" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeAll}
+                </MenuItem>
+                <MenuItem value="fixed" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeFixed}
+                </MenuItem>
+                <MenuItem value="variable" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeVariable}
+                </MenuItem>
+                <MenuItem value="one_time" sx={menuItemSx}>
+                  {m.settings.dashboards.config.expenseTypeOneTime}
+                </MenuItem>
               </Select>
             )}
           />

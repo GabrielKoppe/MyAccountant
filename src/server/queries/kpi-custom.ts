@@ -33,9 +33,7 @@ export const getKpiCustomData = cache(
       monthId: { in: monthIds },
       table: { countInMonth: true },
       ...(config.filterSectionIds?.length ? { sectionId: { in: config.filterSectionIds } } : {}),
-      ...(config.filterCategoryIds?.length
-        ? { categoryId: { in: config.filterCategoryIds } }
-        : {}),
+      ...(config.filterCategoryIds?.length ? { categoryId: { in: config.filterCategoryIds } } : {}),
       ...(config.filterMemberIds?.length
         ? { responsibleUserId: { in: config.filterMemberIds } }
         : {}),

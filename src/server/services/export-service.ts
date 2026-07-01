@@ -163,9 +163,7 @@ export function buildMonthCsv(transactions: ExportTransaction[]): string {
   return CSV_BOM + lines.join("\r\n");
 }
 
-export function buildYearCsv(
-  transactions: (ExportTransaction & { monthNum: number })[],
-): string {
+export function buildYearCsv(transactions: (ExportTransaction & { monthNum: number })[]): string {
   const headers = ["Mês", ...MONTH_CSV_HEADERS];
   const lines = [buildCsvRow(headers)];
   for (const tx of transactions) {

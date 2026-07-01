@@ -37,6 +37,8 @@ type MemberOption = { id: string; name: string | null; email: string };
 type Props = {
   headers: string[];
   sampleRows: ParsedRow[];
+  /** Primeiras linhas físicas cruas do arquivo (para ajustar skipRows visualmente) */
+  rawPreviewLines: string[][];
   mapping: ImportMapping;
   templates: TemplateOption[];
   members: MemberOption[];
@@ -163,8 +165,17 @@ function CollapsibleSection({
   );
 }
 
-export function StepMapping({ headers, sampleRows, mapping, templates, members, onChange }: Props) {
-  const [showSample, setShowSample] = useState(false);
+export function StepMapping({
+  headers,
+  sampleRows,
+  rawPreviewLines,
+  mapping,
+  templates,
+  members,
+  onChange,
+}: Props) {
+  const [showSample, setShowSample] = useState(true);
+  const [showRawLines, setShowRawLines] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showAdditional, setShowAdditional] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -243,46 +254,230 @@ export function StepMapping({ headers, sampleRows, mapping, templates, members, 
           />
         </Box>
         <Collapse in={showSample}>
-          <Box sx={{ overflowX: "auto", p: layout.inline }}>
-            {preview.length > 0 ? (
-              <Table
-                size="small"
-                sx={{ "& .MuiTableCell-root": { py: "3px", px: "10px", fontSize: 11 } }}
+          <Box
+            sx={{ p: layout.inline, display: "flex", flexDirection: "column", gap: layout.stack }}
+          >
+            {/* Linhas cruas + controle de skipRows — colapsável (fechado por padrão) */}
+            {rawPreviewLines.length > 0 && (
+              <Box
+                sx={{
+                  border: 1,
+                  borderColor: "border.subtle",
+                  borderRadius: 1,
+                  overflow: "hidden",
+                }}
               >
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "background.subtle" }}>
-                    {headers.map((h) => (
-                      <TableCell key={h} sx={{ fontWeight: "medium", whiteSpace: "nowrap" }}>
-                        {h}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {preview.map((row, i) => (
-                    <TableRow key={i}>
-                      {headers.map((h) => (
-                        <TableCell
-                          key={h}
-                          sx={{
-                            whiteSpace: "nowrap",
-                            maxWidth: 180,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {row[h] ?? "—"}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                Nenhuma linha para exibir.
-              </Typography>
+                <Box
+                  onClick={() => setShowRawLines((p) => !p)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: layout.inline,
+                    px: layout.inline,
+                    py: layout.micro,
+                    cursor: "pointer",
+                    userSelect: "none",
+                    bgcolor: "background.subtle",
+                    "&:hover": { bgcolor: "background.muted" },
+                    transition: "background-color 0.15s ease",
+                  }}
+                >
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ flex: 1, lineHeight: 1 }}
+                  >
+                    {m.csvImport.mapping.rawLinesTitle}
+                  </Typography>
+                  {mapping.skipRows > 0 && (
+                    <Typography variant="caption" color="accent.primary" fontWeight="medium">
+                      {m.csvImport.mapping.skippingLines(mapping.skipRows)}
+                    </Typography>
+                  )}
+                  <ExpandMoreIcon
+                    fontSize="small"
+                    sx={{
+                      color: "text.disabled",
+                      transform: showRawLines ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s ease",
+                    }}
+                  />
+                </Box>
+                <Collapse in={showRawLines}>
+                  <Divider sx={{ borderColor: "border.subtle" }} />
+                  <Box sx={{ p: layout.inline }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: layout.inline,
+                        mb: layout.inline,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <TextField
+                        label={m.csvImport.mapping.skipRowsLabel}
+                        type="number"
+                        value={mapping.skipRows}
+                        onChange={(e) =>
+                          patch({ skipRows: Math.max(0, parseInt(e.target.value) || 0) })
+                        }
+                        size="small"
+                        inputProps={{ min: 0 }}
+                        sx={{ width: 150 }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                        {m.csvImport.mapping.skipRowsHint}
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        border: 1,
+                        borderColor: "border.subtle",
+                        borderRadius: 1,
+                        overflow: "hidden",
+                      }}
+                    >
+                      {rawPreviewLines.map((cells, i) => {
+                        const isSkipped = i < mapping.skipRows;
+                        const isHeader = mapping.hasHeader && i === mapping.skipRows;
+                        const isEmpty = cells.every((c) => !c.trim());
+                        const content = isEmpty
+                          ? m.csvImport.mapping.rawLineEmpty
+                          : cells.join("  ·  ");
+                        return (
+                          <Box
+                            key={i}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: layout.inline,
+                              px: layout.inline,
+                              py: "3px",
+                              borderTop: i === 0 ? 0 : 1,
+                              borderColor: "border.subtle",
+                              bgcolor: isHeader
+                                ? "accent.primarySubtle"
+                                : isSkipped
+                                  ? "background.subtle"
+                                  : "transparent",
+                              opacity: isSkipped ? 0.5 : 1,
+                            }}
+                            onClick={() => patch({ skipRows: i })}
+                            title={`Definir pular linhas = ${i}`}
+                          >
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                flex: "0 0 auto",
+                                width: 22,
+                                textAlign: "right",
+                                fontFamily: "monospace",
+                                color: "text.disabled",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {i + 1}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                flex: 1,
+                                fontFamily: "monospace",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                textDecoration: isSkipped ? "line-through" : "none",
+                                color: isEmpty ? "text.disabled" : "text.primary",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {content}
+                            </Typography>
+                            {isSkipped && (
+                              <Typography
+                                variant="caption"
+                                color="text.disabled"
+                                sx={{ flex: "0 0 auto", textTransform: "uppercase", fontSize: 9 }}
+                              >
+                                {m.csvImport.mapping.lineSkipped}
+                              </Typography>
+                            )}
+                            {isHeader && (
+                              <Typography
+                                variant="caption"
+                                color="accent.primary"
+                                sx={{
+                                  flex: "0 0 auto",
+                                  textTransform: "uppercase",
+                                  fontSize: 9,
+                                  fontWeight: "medium",
+                                }}
+                              >
+                                {m.csvImport.mapping.lineHeader}
+                              </Typography>
+                            )}
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                </Collapse>
+              </Box>
             )}
+
+            {/* Tabela derivada (pós-skipRows) */}
+            <Box>
+              <Typography
+                variant="overline"
+                color="text.tertiary"
+                display="block"
+                sx={{ lineHeight: 1, mb: layout.micro }}
+              >
+                {m.csvImport.mapping.derivedTableTitle}
+              </Typography>
+              <Box sx={{ overflowX: "auto" }}>
+                {preview.length > 0 && headers.length > 0 ? (
+                  <Table
+                    size="small"
+                    sx={{ "& .MuiTableCell-root": { py: "3px", px: "10px", fontSize: 11 } }}
+                  >
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "background.subtle" }}>
+                        {headers.map((h) => (
+                          <TableCell key={h} sx={{ fontWeight: "medium", whiteSpace: "nowrap" }}>
+                            {h}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {preview.map((row, i) => (
+                        <TableRow key={i}>
+                          {headers.map((h) => (
+                            <TableCell
+                              key={h}
+                              sx={{
+                                whiteSpace: "nowrap",
+                                maxWidth: 180,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {row[h] ?? "—"}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Nenhuma linha para exibir.
+                  </Typography>
+                )}
+              </Box>
+            </Box>
           </Box>
         </Collapse>
       </Box>

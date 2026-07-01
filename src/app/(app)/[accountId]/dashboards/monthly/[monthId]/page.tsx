@@ -159,9 +159,8 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     : null; // null = usar topCategories do deepDive (sem filtro)
 
   // Spec 41 Fase 14 — member-breakdown: filtro por expenseType
-  const memberBreakdownRawConfig = widgets.find((w) => w.widgetId === "member-breakdown")?.config as
-    | { filterExpenseType?: string }
-    | undefined;
+  const memberBreakdownRawConfig = widgets.find((w) => w.widgetId === "member-breakdown")
+    ?.config as { filterExpenseType?: string } | undefined;
   const memberExpenseTypeStr = memberBreakdownRawConfig?.filterExpenseType;
   const memberBreakdown =
     memberExpenseTypeStr && memberExpenseTypeStr !== "all"

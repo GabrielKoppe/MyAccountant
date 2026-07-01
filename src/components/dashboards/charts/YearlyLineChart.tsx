@@ -32,7 +32,10 @@ function formatReais(reais: number): string {
   return formatCentsToBrl(BigInt(Math.round(reais * 100)));
 }
 
-const compactPtBR = new Intl.NumberFormat("pt-BR", { notation: "compact", compactDisplay: "short" });
+const compactPtBR = new Intl.NumberFormat("pt-BR", {
+  notation: "compact",
+  compactDisplay: "short",
+});
 
 export function YearlyLineChart({ months, sections }: Props) {
   const theme = useTheme();
@@ -72,9 +75,7 @@ export function YearlyLineChart({ months, sections }: Props) {
 
         <Tooltip
           cursor={{ stroke: gridColor, strokeWidth: 1, strokeDasharray: "3 3" }}
-          content={(props: any) => (
-            <ChartTooltip {...props} formatValue={formatReais} />
-          )}
+          content={(props: any) => <ChartTooltip {...props} formatValue={formatReais} />}
         />
 
         <Legend

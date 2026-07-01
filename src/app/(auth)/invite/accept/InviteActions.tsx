@@ -68,7 +68,13 @@ export function InviteActions({ token }: Props) {
           {error}
         </Alert>
       )}
-      <Button variant="contained" size="large" fullWidth disabled={isPending} onClick={handleAccept}>
+      <Button
+        variant="contained"
+        size="large"
+        fullWidth
+        disabled={isPending}
+        onClick={handleAccept}
+      >
         {isPending ? (
           <CircularProgress size={20} color="inherit" />
         ) : (

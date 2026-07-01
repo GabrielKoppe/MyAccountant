@@ -2,11 +2,7 @@ import { unstable_cache } from "next/cache";
 
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
-import {
-  getInsightsData,
-  type AdherenceHistory,
-  type BudgetRisk,
-} from "@/server/queries/insights";
+import { getInsightsData, type AdherenceHistory, type BudgetRisk } from "@/server/queries/insights";
 
 // ─── Tipos ────────────────────────────────────────────────────────
 

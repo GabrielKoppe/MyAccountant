@@ -133,7 +133,12 @@ export async function notifyTransactionMutation(params: {
     );
 
     log.debug(
-      { accountId: params.accountId, actorId: params.actorId, type: params.type, recipients: recipientIds.length },
+      {
+        accountId: params.accountId,
+        actorId: params.actorId,
+        type: params.type,
+        recipients: recipientIds.length,
+      },
       "Notifications dispatched",
     );
   } catch (err) {
@@ -159,17 +164,19 @@ export async function notifyInviteAccepted(params: {
 
     await Promise.all(
       recipientIds.map((userId) =>
-        prisma.notification.create({
-          data: {
-            userId,
-            accountId: params.accountId,
-            actorId: params.actorId,
-            type: "invite_accepted",
-            title,
-            link: null,
-            count: 1,
-          },
-        }).then(() => enforceNotificationLimit(userId, params.accountId)),
+        prisma.notification
+          .create({
+            data: {
+              userId,
+              accountId: params.accountId,
+              actorId: params.actorId,
+              type: "invite_accepted",
+              title,
+              link: null,
+              count: 1,
+            },
+          })
+          .then(() => enforceNotificationLimit(userId, params.accountId)),
       ),
     );
 
@@ -190,7 +197,15 @@ export async function listAndMarkAllRead(
     where: { userId, accountId },
     orderBy: { createdAt: "desc" },
     take: 20,
-    select: { id: true, type: true, title: true, link: true, count: true, isRead: true, createdAt: true },
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      link: true,
+      count: true,
+      isRead: true,
+      createdAt: true,
+    },
   });
 
   void prisma.notification.updateMany({

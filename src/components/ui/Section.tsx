@@ -30,13 +30,7 @@ export interface SectionProps {
  * Use entre PageHeader e o conteudo da pagina, agrupando blocos logicos.
  * Quando a pagina tem multiplas secoes, envolva-as em um <Stack spacing={layout.section}>.
  */
-export function Section({
-  title,
-  description,
-  action,
-  children,
-  id,
-}: SectionProps) {
+export function Section({ title, description, action, children, id }: SectionProps) {
   const hasHeader = title || action;
 
   return (
@@ -52,10 +46,7 @@ export function Section({
           <Box sx={{ minWidth: 0, flex: 1 }}>
             {title && <Typography variant="h2">{title}</Typography>}
             {description && (
-              <Typography
-                variant="body2"
-                sx={{ color: "text.secondary", mt: layout.micro }}
-              >
+              <Typography variant="body2" sx={{ color: "text.secondary", mt: layout.micro }}>
                 {description}
               </Typography>
             )}

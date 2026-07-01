@@ -25,7 +25,10 @@ import { m } from "@/lib/messages";
 import type { MemberBreakdownRow } from "@/server/queries/member-analytics";
 
 import { ChartTooltip, PieLegend } from "@/components/dashboards/_shared/ChartTooltip";
-import { buildMemberColorMap, memberDisplayName } from "@/components/dashboards/_shared/member-display";
+import {
+  buildMemberColorMap,
+  memberDisplayName,
+} from "@/components/dashboards/_shared/member-display";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import MuiTooltip from "@mui/material/Tooltip";
 import DonutLargeIcon from "@mui/icons-material/DonutLarge";

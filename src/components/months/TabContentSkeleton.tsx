@@ -3,7 +3,6 @@
 import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
 
-
 export function TabContentSkeleton() {
   return (
     <Box sx={{ p: 3 }}>

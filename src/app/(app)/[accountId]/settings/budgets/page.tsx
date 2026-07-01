@@ -19,10 +19,6 @@ export default async function BudgetsPage({ params }: Props) {
   ]);
 
   return (
-    <BudgetsManager
-      accountId={accountId}
-      initialBudgets={budgets}
-      formOptions={formOptions}
-    />
+    <BudgetsManager accountId={accountId} initialBudgets={budgets} formOptions={formOptions} />
   );
 }

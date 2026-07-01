@@ -317,7 +317,11 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
               type="submit"
               form="table-types-form"
               variant="contained"
-              endIcon={form.formState.isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}
+              endIcon={
+                form.formState.isSubmitting ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : undefined
+              }
             >
               {m.common.create}
             </Button>
@@ -356,12 +360,7 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
             <Button size="small" onClick={() => setDeleteTarget(null)}>
               {m.common.cancel}
             </Button>
-            <Button
-              size="small"
-              color="error"
-              variant="contained"
-              onClick={confirmDelete}
-            >
+            <Button size="small" color="error" variant="contained" onClick={confirmDelete}>
               {m.common.delete}
             </Button>
           </>

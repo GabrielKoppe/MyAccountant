@@ -38,7 +38,11 @@ const TOP_N = 5;
 
 // ─── Base de despesa (idêntica ao resto do app: spec 11 §7.2) ──────
 // Seções subtract, amountCents > 0, table.countInMonth = true.
-function expenseWhere(accountId: string, monthFilter: object, expenseType?: TransactionExpenseType) {
+function expenseWhere(
+  accountId: string,
+  monthFilter: object,
+  expenseType?: TransactionExpenseType,
+) {
   return {
     accountId, // ✅ multi-tenancy
     ...monthFilter,

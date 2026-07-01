@@ -2,15 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import type { SectionCountType } from "@prisma/client";
 import { formatCentsToBrl } from "@/lib/money";
 import { ChartTooltip } from "@/components/dashboards/_shared/ChartTooltip";
@@ -28,10 +20,10 @@ export function MonthSectionBarChart({ sections, sectionTotals, accountId, month
 
   // error.main = danger.main do design system (terracota), info.main = accent.primary (índigo)
   const countTypeColors: Record<SectionCountType, string> = {
-    add:      theme.palette.success.main,
+    add: theme.palette.success.main,
     subtract: theme.palette.error.main,
-    neutral:  theme.palette.info.main,
-    ignore:   theme.palette.text.disabled,
+    neutral: theme.palette.info.main,
+    ignore: theme.palette.text.disabled,
   };
 
   const data = sections
@@ -53,11 +45,7 @@ export function MonthSectionBarChart({ sections, sectionTotals, accountId, month
 
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
-      <BarChart
-        data={data}
-        layout="vertical"
-        margin={{ left: 0, right: 8, top: 0, bottom: 0 }}
-      >
+      <BarChart data={data} layout="vertical" margin={{ left: 0, right: 8, top: 0, bottom: 0 }}>
         <XAxis type="number" hide />
         <YAxis
           type="category"
@@ -76,12 +64,14 @@ export function MonthSectionBarChart({ sections, sectionTotals, accountId, month
             return (
               <ChartTooltip
                 active
-                payload={[{
-                  name: entry.payload.name,
-                  value: entry.value,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  color: countTypeColors[entry.payload.countType as SectionCountType],
-                }]}
+                payload={[
+                  {
+                    name: entry.payload.name,
+                    value: entry.value,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    color: countTypeColors[entry.payload.countType as SectionCountType],
+                  },
+                ]}
                 formatValue={() => formatCentsToBrl(BigInt(entry.payload.raw))}
                 hideName={false}
               />

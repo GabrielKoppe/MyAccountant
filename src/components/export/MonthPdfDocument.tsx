@@ -196,7 +196,10 @@ const styles = StyleSheet.create({
 function formatMoney(cents: bigint): string {
   const value = Number(cents) / 100;
   const abs = Math.abs(value);
-  const formatted = abs.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatted = abs.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   return value < 0 ? `-R$ ${formatted}` : `R$ ${formatted}`;
 }
 
@@ -265,8 +268,7 @@ export function MonthPdfDocument({ data }: Props) {
             <View style={styles.block}>
               <Text style={styles.blockTitle}>Por seção</Text>
               {data.sections.map((s) => {
-                const displayValue =
-                  s.countType === "subtract" ? -s.total : s.total;
+                const displayValue = s.countType === "subtract" ? -s.total : s.total;
                 return (
                   <View key={s.name} style={styles.row}>
                     <Text style={styles.rowLabel}>{s.name}</Text>
@@ -318,10 +320,7 @@ export function MonthPdfDocument({ data }: Props) {
                 {table.rows.map((tx, i) => {
                   const value = applyFinancialSign(tx.amountCents, tx.sectionCountType);
                   return (
-                    <View
-                      key={i}
-                      style={[styles.txRow, i % 2 === 1 ? styles.txRowAlt : {}]}
-                    >
+                    <View key={i} style={[styles.txRow, i % 2 === 1 ? styles.txRowAlt : {}]}>
                       <Text style={[styles.txCell, styles.colDate]}>
                         {formatDateDDMMYYYY(tx.occurredOn)}
                       </Text>
@@ -329,9 +328,7 @@ export function MonthPdfDocument({ data }: Props) {
                         {tx.description ?? "—"}
                         {tx.isPending ? " ⏳" : ""}
                       </Text>
-                      <Text style={[styles.txCell, styles.colCat]}>
-                        {tx.categoryName ?? ""}
-                      </Text>
+                      <Text style={[styles.txCell, styles.colCat]}>{tx.categoryName ?? ""}</Text>
                       <Text style={[styles.txCell, styles.colAmount]}>
                         {value < 0
                           ? `-R$ ${Math.abs(value).toFixed(2).replace(".", ",")}`
@@ -347,7 +344,9 @@ export function MonthPdfDocument({ data }: Props) {
 
         {/* ── Footer ── */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>MyAccountant — {data.accountName} — {data.monthLabel}</Text>
+          <Text style={styles.footerText}>
+            MyAccountant — {data.accountName} — {data.monthLabel}
+          </Text>
           <Text
             style={styles.footerText}
             render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}

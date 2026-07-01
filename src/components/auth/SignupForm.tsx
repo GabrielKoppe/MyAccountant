@@ -134,13 +134,7 @@ function SignupFormInner() {
         )}
       />
 
-      <Button
-        type="submit"
-        variant="contained"
-        size="large"
-        disabled={isLoading}
-        fullWidth
-      >
+      <Button type="submit" variant="contained" size="large" disabled={isLoading} fullWidth>
         {isLoading ? m.auth.creatingAccount : m.auth.signup}
       </Button>
 

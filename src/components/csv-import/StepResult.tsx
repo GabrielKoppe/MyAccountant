@@ -30,9 +30,7 @@ export function StepResult({ result, accountId, monthId, onClose, onImportAnothe
       <CheckCircleIcon color="success" sx={{ fontSize: 72 }} />
 
       <Box sx={{ textAlign: "center" }}>
-        <Typography variant="h6">
-          {m.csvImport.result.success}
-        </Typography>
+        <Typography variant="h6">{m.csvImport.result.success}</Typography>
         <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
           {m.csvImport.result.importedCount(result.imported)}
         </Typography>

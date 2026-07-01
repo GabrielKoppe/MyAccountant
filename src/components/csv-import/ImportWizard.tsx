@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -14,7 +14,7 @@ import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
 import { useSnackbar } from "notistack";
 
 import { executeImportAction, listTemplatesAction } from "@/actions/csv-import";
-import { applyMappingToRows } from "@/lib/csv-parser";
+import { applyMappingToRows, deriveHeadersAndRows } from "@/lib/csv-parser";
 import { DEFAULT_MAPPING } from "@/lib/schemas/csv-import";
 import { m } from "@/lib/messages";
 import { StepUpload } from "./StepUpload";
@@ -22,7 +22,7 @@ import { StepMapping } from "./StepMapping";
 import { StepPreview } from "./StepPreview";
 import { StepConfig, type ImportConfig } from "./StepConfig";
 import { StepResult } from "./StepResult";
-import type { ParsedRow, PreviewRow } from "@/lib/csv-parser";
+import type { FileMatrix, PreviewRow } from "@/lib/csv-parser";
 import type { ImportMapping } from "@/lib/schemas/csv-import";
 import type { ImportResult } from "@/server/services/csv-import-service";
 import { detectInstallments, type InstallmentSuggestion } from "@/lib/installment-detector";
@@ -41,6 +41,9 @@ type Props = {
   preSelectedSectionId?: string;
   trigger?: "button";
 };
+
+// Linhas físicas cruas exibidas na "Amostra do arquivo" para ajustar skipRows
+const RAW_PREVIEW_LINES = 12;
 
 const STEPS = [
   m.csvImport.steps.upload,
@@ -62,13 +65,19 @@ export function ImportWizard({
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
 
-  // Step 0
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [rows, setRows] = useState<ParsedRow[]>([]);
+  // Step 0 — matriz crua do arquivo (sem interpretar cabeçalho)
+  const [matrix, setMatrix] = useState<FileMatrix>([]);
+  const [fileType, setFileType] = useState<"csv" | "xlsx">("csv");
 
   // Step 1
   const [mapping, setMapping] = useState<ImportMapping>(DEFAULT_MAPPING);
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
+
+  // headers/rows derivados da matriz conforme skipRows + hasHeader (reativo)
+  const { headers, rows } = useMemo(
+    () => deriveHeadersAndRows(matrix, mapping.skipRows, mapping.hasHeader),
+    [matrix, mapping.skipRows, mapping.hasHeader],
+  );
 
   // Step 2
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
@@ -107,8 +116,8 @@ export function ImportWizard({
 
   function openWizard() {
     setStep(0);
-    setHeaders([]);
-    setRows([]);
+    setMatrix([]);
+    setFileType("csv");
     setMapping(DEFAULT_MAPPING);
     setPreviewRows([]);
     setConfig({
@@ -123,9 +132,9 @@ export function ImportWizard({
     setOpen(true);
   }
 
-  function handleFileParsed(h: string[], r: ParsedRow[]) {
-    setHeaders(h);
-    setRows(r);
+  function handleFileParsed(m: FileMatrix, ft: "csv" | "xlsx") {
+    setMatrix(m);
+    setFileType(ft);
   }
 
   function handleNext() {
@@ -194,6 +203,7 @@ export function ImportWizard({
         mapping,
         saveTemplateAs: config.saveTemplate ? config.templateName.trim() : undefined,
         rows,
+        fileType,
         acceptedInstallments: installmentSuggestions
           .filter((s) => acceptedInstallmentIds.has(s.id))
           .map((s) => ({
@@ -284,6 +294,7 @@ export function ImportWizard({
               <StepMapping
                 headers={headers}
                 sampleRows={rows}
+                rawPreviewLines={matrix.slice(0, RAW_PREVIEW_LINES)}
                 mapping={mapping}
                 templates={templates}
                 members={members}
@@ -323,8 +334,7 @@ export function ImportWizard({
                 onClose={() => setOpen(false)}
                 onImportAnother={() => {
                   setStep(0);
-                  setRows([]);
-                  setHeaders([]);
+                  setMatrix([]);
                   setPreviewRows([]);
                   setResult(null);
                 }}

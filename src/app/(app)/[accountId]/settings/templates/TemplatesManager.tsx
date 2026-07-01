@@ -195,12 +195,7 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
             <Button size="small" onClick={() => setDeleteId(null)}>
               {m.common.cancel}
             </Button>
-            <Button
-              size="small"
-              color="error"
-              variant="contained"
-              onClick={handleDelete}
-            >
+            <Button size="small" color="error" variant="contained" onClick={handleDelete}>
               {m.common.delete}
             </Button>
           </>

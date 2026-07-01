@@ -10,13 +10,13 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
-import type { ParsedRow } from "@/lib/csv-parser";
+import type { FileMatrix } from "@/lib/csv-parser";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const ACCEPT = [".csv", ".xlsx", ".xls"];
 
 type Props = {
-  onParsed: (headers: string[], rows: ParsedRow[], file: File) => void;
+  onParsed: (matrix: FileMatrix, fileType: "csv" | "xlsx", file: File) => void;
 };
 
 export function StepUpload({ onParsed }: Props) {
@@ -41,17 +41,11 @@ export function StepUpload({ onParsed }: Props) {
 
     setLoading(true);
     try {
-      let headers: string[];
-      let rows: ParsedRow[];
+      const isCsv = file.name.toLowerCase().endsWith(".csv");
+      const matrix = isCsv ? await parseCsv(file) : await parseXlsx(file);
 
-      if (file.name.toLowerCase().endsWith(".csv")) {
-        ({ headers, rows } = await parseCsv(file));
-      } else {
-        ({ headers, rows } = await parseXlsx(file));
-      }
-
-      setFileInfo({ name: file.name, rows: rows.length });
-      onParsed(headers, rows, file);
+      setFileInfo({ name: file.name, rows: matrix.length });
+      onParsed(matrix, isCsv ? "csv" : "xlsx", file);
     } catch {
       setError(m.csvImport.upload.parseError);
     } finally {
@@ -59,22 +53,21 @@ export function StepUpload({ onParsed }: Props) {
     }
   }
 
-  async function parseCsv(file: File): Promise<{ headers: string[]; rows: ParsedRow[] }> {
+  // Tokeniza o CSV inteiro em matriz crua (header:false). A interpretação de
+  // cabeçalho/skipRows acontece depois, em deriveHeadersAndRows, de forma reativa.
+  async function parseCsv(file: File): Promise<FileMatrix> {
     const Papa = (await import("papaparse")).default;
     return new Promise((resolve, reject) => {
-      Papa.parse<ParsedRow>(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (result) => {
-          const headers = result.meta.fields ?? [];
-          resolve({ headers, rows: result.data });
-        },
+      Papa.parse<string[]>(file, {
+        header: false,
+        skipEmptyLines: false,
+        complete: (result) => resolve(result.data.map((r) => r.map((c) => String(c ?? "")))),
         error: reject,
       });
     });
   }
 
-  async function parseXlsx(file: File): Promise<{ headers: string[]; rows: ParsedRow[] }> {
+  async function parseXlsx(file: File): Promise<FileMatrix> {
     const XLSX = await import("xlsx");
     const buffer = await file.arrayBuffer();
     const wb = XLSX.read(buffer, { type: "array", raw: false });
@@ -85,13 +78,7 @@ export function StepUpload({ onParsed }: Props) {
       raw: false,
     }) as string[][];
 
-    if (raw.length === 0) return { headers: [], rows: [] };
-
-    const headers = raw[0].map((h, i) => (String(h).trim() || `coluna_${i}`));
-    const rows: ParsedRow[] = raw.slice(1).map((r) =>
-      Object.fromEntries(headers.map((h, i) => [h, String(r[i] ?? "")])),
-    );
-    return { headers, rows };
+    return raw.map((r) => r.map((c) => String(c ?? "")));
   }
 
   return (
@@ -111,7 +98,10 @@ export function StepUpload({ onParsed }: Props) {
           "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" },
         }}
         onClick={() => inputRef.current?.click()}
-        onDragEnter={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
         onDragLeave={() => setDragging(false)}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -138,11 +128,7 @@ export function StepUpload({ onParsed }: Props) {
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
             <CheckCircleOutlineIcon color="success" sx={{ fontSize: 48 }} />
             <Typography fontWeight="medium">{fileInfo.name}</Typography>
-            <Chip
-              label={m.csvImport.upload.rowCount(fileInfo.rows)}
-              color="success"
-              size="small"
-            />
+            <Chip label={m.csvImport.upload.rowCount(fileInfo.rows)} color="success" size="small" />
             <Typography variant="caption" color="text.secondary">
               {m.csvImport.upload.changeFile}
             </Typography>
@@ -151,9 +137,7 @@ export function StepUpload({ onParsed }: Props) {
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
             <UploadFileIcon sx={{ fontSize: 48, color: "text.disabled" }} />
             <Typography variant="h6" color="text.secondary">
-              {dragging
-                ? m.csvImport.upload.dropzoneActive
-                : m.csvImport.upload.dropzone}
+              {dragging ? m.csvImport.upload.dropzoneActive : m.csvImport.upload.dropzone}
             </Typography>
             <Typography variant="caption" color="text.disabled">
               {m.csvImport.upload.accept}

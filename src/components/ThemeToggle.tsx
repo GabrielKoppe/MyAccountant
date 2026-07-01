@@ -10,19 +10,19 @@ import { useThemeMode, type ThemeMode } from "@/components/providers/ThemeContex
 
 const cycleMap: Record<ThemeMode, ThemeMode> = {
   system: "light",
-  light:  "dark",
-  dark:   "system",
+  light: "dark",
+  dark: "system",
 };
 
 const icons: Record<ThemeMode, React.ReactNode> = {
-  light:  <LightModeIcon fontSize="small" />,
-  dark:   <DarkModeIcon fontSize="small" />,
+  light: <LightModeIcon fontSize="small" />,
+  dark: <DarkModeIcon fontSize="small" />,
   system: <BrightnessAutoIcon fontSize="small" />,
 };
 
 const labels: Record<ThemeMode, string> = {
-  light:  "Modo claro — clique para escuro",
-  dark:   "Modo escuro — clique para automático",
+  light: "Modo claro — clique para escuro",
+  dark: "Modo escuro — clique para automático",
   system: "Modo automático — clique para claro",
 };
 

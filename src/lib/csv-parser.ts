@@ -3,6 +3,61 @@ import type { ImportMapping } from "./schemas/csv-import";
 
 export type ParsedRow = Record<string, string>;
 
+/** Matriz crua do arquivo: uma linha por array de células, sem interpretar cabeçalho. */
+export type FileMatrix = string[][];
+
+/**
+ * Desambigua nomes de cabeçalho como o papaparse faz com `header:true`:
+ * célula vazia vira `coluna_<i>`; nome repetido ganha sufixo `_1`, `_2`, …
+ */
+function disambiguateHeaders(cells: string[]): string[] {
+  const seen = new Map<string, number>();
+  return cells.map((cell, i) => {
+    const base = String(cell ?? "").trim() || `coluna_${i}`;
+    const count = seen.get(base) ?? 0;
+    seen.set(base, count + 1);
+    return count === 0 ? base : `${base}_${count}`;
+  });
+}
+
+/**
+ * Deriva `headers` + `rows` de uma matriz crua aplicando `skipRows` (linhas físicas
+ * puladas no topo, antes do cabeçalho) e `hasHeader`.
+ *
+ * - `hasHeader=true`: `headers = matrix[skipRows]` (desambiguado); dados a partir de `skipRows + 1`.
+ * - `hasHeader=false`: gera `coluna_0…coluna_N` pela maior largura dos dados; dados a partir de `skipRows`.
+ *
+ * Como as `rows` retornadas já excluem o preâmbulo, `applyMappingToRows` itera a partir do índice 0.
+ */
+export function deriveHeadersAndRows(
+  matrix: FileMatrix,
+  skipRows: number,
+  hasHeader: boolean,
+): { headers: string[]; rows: ParsedRow[] } {
+  const start = Math.max(0, skipRows);
+  const body = matrix.slice(start);
+
+  if (body.length === 0) return { headers: [], rows: [] };
+
+  let headers: string[];
+  let dataRows: string[][];
+
+  if (hasHeader) {
+    headers = disambiguateHeaders(body[0]);
+    dataRows = body.slice(1);
+  } else {
+    const width = body.reduce((max, r) => Math.max(max, r.length), 0);
+    headers = Array.from({ length: width }, (_, i) => `coluna_${i}`);
+    dataRows = body;
+  }
+
+  const rows: ParsedRow[] = dataRows.map((cells) =>
+    Object.fromEntries(headers.map((h, i) => [h, String(cells[i] ?? "")])),
+  );
+
+  return { headers, rows };
+}
+
 export type PreviewRow = {
   rowIndex: number;
   status: "ok" | "error" | "ignored";
@@ -86,11 +141,12 @@ export function parseAmountToCents(
 
 export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): PreviewRow[] {
   const results: PreviewRow[] = [];
-  const startIndex = mapping.skipRows;
 
-  for (let i = startIndex; i < rows.length; i++) {
+  // `skipRows` já foi aplicado na tokenização (deriveHeadersAndRows): as `rows` aqui
+  // não incluem o preâmbulo, então iteramos a partir do índice 0.
+  for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const relIdx = i - startIndex;
+    const relIdx = i;
 
     // Skip empty rows
     if (mapping.ignoreEmptyRows && Object.values(row).every((v) => !v.trim())) {

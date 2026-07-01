@@ -152,7 +152,8 @@ export function UserMenuButton({ userName, userImage }: Props) {
                   width: 12,
                   height: 12,
                   borderRadius: "50%",
-                  bgcolor: ACCENT_COLORS.find((c) => c.key === accentColor)?.swatch ?? "primary.main",
+                  bgcolor:
+                    ACCENT_COLORS.find((c) => c.key === accentColor)?.swatch ?? "primary.main",
                   flexShrink: 0,
                 }}
               />

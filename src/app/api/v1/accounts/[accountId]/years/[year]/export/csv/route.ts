@@ -34,10 +34,7 @@ export async function GET(
     const transactions = await getYearTransactionsForExport(accountId, year);
 
     if (transactions.length === 0) {
-      return Response.json(
-        { code: "NO_DATA", message: m.export.noData },
-        { status: 422 },
-      );
+      return Response.json({ code: "NO_DATA", message: m.export.noData }, { status: 422 });
     }
 
     const csv = buildYearCsv(transactions);

@@ -18,9 +18,7 @@ const MONTH = { id: "month-test-1", year: 2026, month: 1 };
 function mockPrerequisites() {
   prismaMock.user.findUnique.mockResolvedValue(ACTOR as any);
   prismaMock.month.findUnique.mockResolvedValue(MONTH as any);
-  prismaMock.accountMember.findMany.mockResolvedValue([
-    { userId: RECIPIENT_ID } as any,
-  ]);
+  prismaMock.accountMember.findMany.mockResolvedValue([{ userId: RECIPIENT_ID } as any]);
   prismaMock.notification.findFirst.mockResolvedValue(null);
   prismaMock.notification.create.mockResolvedValue({ id: "notif-1" } as any);
   prismaMock.notification.count.mockResolvedValue(1);
@@ -127,9 +125,7 @@ describe("notifyTransactionMutation", () => {
 describe("notifyInviteAccepted", () => {
   it("cria notificação para todos os membros existentes", async () => {
     prismaMock.user.findUnique.mockResolvedValue(ACTOR as any);
-    prismaMock.accountMember.findMany.mockResolvedValue([
-      { userId: RECIPIENT_ID } as any,
-    ]);
+    prismaMock.accountMember.findMany.mockResolvedValue([{ userId: RECIPIENT_ID } as any]);
     prismaMock.notification.create.mockResolvedValue({ id: "notif-2" } as any);
     prismaMock.notification.count.mockResolvedValue(1);
 

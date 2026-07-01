@@ -59,7 +59,14 @@ function getHeatIndex(cents: bigint, maxCents: bigint): 0 | 1 | 2 | 3 | 4 {
   return 4;
 }
 
-export function DailyHeatmap({ year, month, dailyTotals, colorBy = "intensity", onDayClick, monthSummaryHref }: Props) {
+export function DailyHeatmap({
+  year,
+  month,
+  dailyTotals,
+  colorBy = "intensity",
+  onDayClick,
+  monthSummaryHref,
+}: Props) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const colors = getColors(theme.palette.mode as "light" | "dark");

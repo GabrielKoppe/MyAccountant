@@ -52,7 +52,10 @@ describe("createManual", () => {
 
   it("cria template com accountId e createdById corretos", async () => {
     prismaMock.tableTemplate.findFirst.mockResolvedValue(null);
-    prismaMock.tableTemplate.create.mockResolvedValue({ id: "tpl-novo", name: "Gastos Fixos" } as any);
+    prismaMock.tableTemplate.create.mockResolvedValue({
+      id: "tpl-novo",
+      name: "Gastos Fixos",
+    } as any);
 
     await createManual(INPUT, TEST_CTX);
 
@@ -75,7 +78,10 @@ describe("createManual", () => {
 
   it("verifica duplicata filtrando por accountId E nome", async () => {
     prismaMock.tableTemplate.findFirst.mockResolvedValue(null);
-    prismaMock.tableTemplate.create.mockResolvedValue({ id: "tpl-novo", name: "Gastos Fixos" } as any);
+    prismaMock.tableTemplate.create.mockResolvedValue({
+      id: "tpl-novo",
+      name: "Gastos Fixos",
+    } as any);
 
     await createManual(INPUT, TEST_CTX);
 
@@ -136,10 +142,7 @@ describe("updateTemplate", () => {
     prismaMock.tableTemplate.findFirst.mockResolvedValue(TEMPLATE_STUB as any);
 
     await expect(
-      updateTemplate(
-        { templateId: "tpl-1", autoApply: true, autoSectionId: "sec-1" },
-        TEST_CTX,
-      ),
+      updateTemplate({ templateId: "tpl-1", autoApply: true, autoSectionId: "sec-1" }, TEST_CTX),
     ).rejects.toThrow(AppError);
   });
 
@@ -150,7 +153,12 @@ describe("updateTemplate", () => {
 
     await expect(
       updateTemplate(
-        { templateId: "tpl-1", autoApply: true, autoSectionId: "sec-OUTRA", autoTableTypeId: "tt-1" },
+        {
+          templateId: "tpl-1",
+          autoApply: true,
+          autoSectionId: "sec-OUTRA",
+          autoTableTypeId: "tt-1",
+        },
         TEST_CTX,
       ),
     ).rejects.toThrow(NotFoundError);

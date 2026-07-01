@@ -28,7 +28,10 @@ describe("inviteMember", () => {
     prismaMock.account.findUnique.mockResolvedValue({ name: "Conta Teste" } as any);
     prismaMock.accountMember.findFirst.mockResolvedValue(null);
     prismaMock.accountInvite.findFirst.mockResolvedValue(null);
-    prismaMock.user.findUnique.mockResolvedValue({ name: "Convidador", email: "host@test.com" } as any);
+    prismaMock.user.findUnique.mockResolvedValue({
+      name: "Convidador",
+      email: "host@test.com",
+    } as any);
     prismaMock.accountInvite.create.mockResolvedValue({ id: "invite-novo-1" } as any);
 
     const result = await inviteMember({ email: "novo@test.com", role: "editor" }, TEST_CTX);
@@ -271,9 +274,9 @@ describe("removeMember", () => {
 
   it("deve lançar ForbiddenError ao tentar remover a si mesmo", async () => {
     // targetUserId === ctx.userId
-    await expect(
-      removeMember({ targetUserId: "user-test-1" }, TEST_CTX),
-    ).rejects.toThrow(ForbiddenError);
+    await expect(removeMember({ targetUserId: "user-test-1" }, TEST_CTX)).rejects.toThrow(
+      ForbiddenError,
+    );
   });
 
   it("deve lançar ForbiddenError ao tentar remover o último owner", async () => {

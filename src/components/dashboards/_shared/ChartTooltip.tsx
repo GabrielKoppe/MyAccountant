@@ -58,10 +58,7 @@ export function ChartTooltip({ active, payload, label, formatValue, hideName }: 
         </Typography>
       )}
       {payload.map((entry, i) => (
-        <Box
-          key={i}
-          sx={{ display: "flex", alignItems: "center", gap: 1, mt: i > 0 ? 0.5 : 0 }}
-        >
+        <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, mt: i > 0 ? 0.5 : 0 }}>
           <Box
             component="span"
             sx={{

@@ -23,7 +23,12 @@ const EXEC_INPUT = {
 };
 
 function setupFoundResources() {
-  prismaMock.month.findFirst.mockResolvedValue({ id: "month-1", year: 2026, month: 1, accountId: "acc-test-1" } as any);
+  prismaMock.month.findFirst.mockResolvedValue({
+    id: "month-1",
+    year: 2026,
+    month: 1,
+    accountId: "acc-test-1",
+  } as any);
   prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1" } as any);
   prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
   prismaMock.category.findMany.mockResolvedValue([]);
@@ -125,9 +130,9 @@ describe("executeImport", () => {
     prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1" } as any);
     prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
 
-    await expect(
-      csvImportService.executeImport(EXEC_INPUT as any, EXEC_CTX),
-    ).rejects.toThrow(NotFoundError);
+    await expect(csvImportService.executeImport(EXEC_INPUT as any, EXEC_CTX)).rejects.toThrow(
+      NotFoundError,
+    );
   });
 
   it("lança NotFoundError quando seção pertence a outra account (multi-tenancy)", async () => {
@@ -135,9 +140,9 @@ describe("executeImport", () => {
     prismaMock.section.findFirst.mockResolvedValue(null);
     prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
 
-    await expect(
-      csvImportService.executeImport(EXEC_INPUT as any, EXEC_CTX),
-    ).rejects.toThrow(NotFoundError);
+    await expect(csvImportService.executeImport(EXEC_INPUT as any, EXEC_CTX)).rejects.toThrow(
+      NotFoundError,
+    );
   });
 
   it("não chama $transaction quando recursos não são encontrados", async () => {
@@ -145,9 +150,9 @@ describe("executeImport", () => {
     prismaMock.section.findFirst.mockResolvedValue(null);
     prismaMock.tableType.findFirst.mockResolvedValue(null);
 
-    await expect(
-      csvImportService.executeImport(EXEC_INPUT as any, EXEC_CTX),
-    ).rejects.toThrow(NotFoundError);
+    await expect(csvImportService.executeImport(EXEC_INPUT as any, EXEC_CTX)).rejects.toThrow(
+      NotFoundError,
+    );
 
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
@@ -159,7 +164,10 @@ describe("createTemplate", () => {
 
   it("cria template com accountId e createdById corretos", async () => {
     prismaMock.csvTemplate.findFirst.mockResolvedValue(null);
-    prismaMock.csvTemplate.create.mockResolvedValue({ id: "csv-tpl-1", name: "Extrato Banco X" } as any);
+    prismaMock.csvTemplate.create.mockResolvedValue({
+      id: "csv-tpl-1",
+      name: "Extrato Banco X",
+    } as any);
 
     await csvImportService.createTemplate(INPUT as any, TPL_CTX);
 

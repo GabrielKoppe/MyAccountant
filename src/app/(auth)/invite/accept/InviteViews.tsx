@@ -22,7 +22,15 @@ const HALO: Record<Tone, { bgcolor: string; color: string }> = {
 };
 
 /** Card centrado com halo circular no ícone — moldura compartilhada por todos os estados. */
-export function InviteFrame({ tone, icon, children }: { tone: Tone; icon: ReactNode; children: ReactNode }) {
+export function InviteFrame({
+  tone,
+  icon,
+  children,
+}: {
+  tone: Tone;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <Card>
       <CardContent sx={{ p: layout.card }}>
@@ -123,7 +131,11 @@ export function InvitePromptView({
         >
           {m.account.acceptInvite.createAccountCta}
         </Button>
-        <Button variant="text" fullWidth href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}>
+        <Button
+          variant="text"
+          fullWidth
+          href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+        >
           {m.account.acceptInvite.loginCta}
         </Button>
       </Stack>

@@ -100,7 +100,9 @@ export function AccountDangerZone({ accountId, accountName, role }: Props) {
       <Collapse in={expanded}>
         <Divider sx={{ borderColor: "error.light" }} />
         <Stack spacing={layout.stack} sx={{ px: 3, py: 2.5 }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+          <Box
+            sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}
+          >
             <Box>
               <Typography variant="body2" fontWeight="medium">
                 {m.account.settings.leaveAccount}
@@ -124,7 +126,14 @@ export function AccountDangerZone({ accountId, accountName, role }: Props) {
           {role === "owner" && (
             <>
               <Divider />
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 2,
+                }}
+              >
                 <Box>
                   <Typography variant="body2" fontWeight="medium">
                     {m.account.settings.deleteAccount}

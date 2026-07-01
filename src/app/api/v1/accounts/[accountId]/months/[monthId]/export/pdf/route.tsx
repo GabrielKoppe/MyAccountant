@@ -27,16 +27,12 @@ export async function GET(
     }
 
     if (pdfData.transactions.length === 0) {
-      return Response.json(
-        { code: "NO_DATA", message: m.export.noData },
-        { status: 422 },
-      );
+      return Response.json({ code: "NO_DATA", message: m.export.noData }, { status: 422 });
     }
 
-    const element = React.createElement(
-      MonthPdfDocument,
-      { data: pdfData },
-    ) as React.ReactElement<DocumentProps>;
+    const element = React.createElement(MonthPdfDocument, {
+      data: pdfData,
+    }) as React.ReactElement<DocumentProps>;
 
     const buffer = await renderToBuffer(element);
     const arrayBuffer = new Uint8Array(buffer);
@@ -45,10 +41,7 @@ export async function GET(
     const monthStr = String(pdfData.month).padStart(2, "0");
     const filename = `${slug}_${pdfData.year}-${monthStr}.pdf`;
 
-    log.info(
-      { accountId, monthId, count: pdfData.transactions.length },
-      "Month PDF exported",
-    );
+    log.info({ accountId, monthId, count: pdfData.transactions.length }, "Month PDF exported");
 
     return new Response(arrayBuffer, {
       headers: {

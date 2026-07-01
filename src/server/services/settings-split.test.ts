@@ -4,21 +4,9 @@ import { prismaMock } from "@/../tests/mocks/prisma";
 import { TEST_CTX } from "@/../tests/fixtures/account";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/errors";
 
-import {
-  createCategory,
-  deleteCategory,
-  updateCategory,
-} from "./category-service";
-import {
-  createInstitution,
-  deleteInstitution,
-  updateInstitution,
-} from "./institution-service";
-import {
-  createSection,
-  deleteSection,
-  updateSection,
-} from "./section-service";
+import { createCategory, deleteCategory, updateCategory } from "./category-service";
+import { createInstitution, deleteInstitution, updateInstitution } from "./institution-service";
+import { createSection, deleteSection, updateSection } from "./section-service";
 import { deleteTableType, updateTableType } from "./table-type-service";
 
 // ─── Sections ────────────────────────────────────────────────────
@@ -29,7 +17,10 @@ describe("createSection", () => {
     prismaMock.section.findUnique.mockResolvedValue(null);
     prismaMock.section.create.mockResolvedValue({ id: "sec-nova", name: "Nova" } as any);
 
-    const result = await createSection({ name: "Nova", countType: "add", isActive: true }, TEST_CTX);
+    const result = await createSection(
+      { name: "Nova", countType: "add", isActive: true },
+      TEST_CTX,
+    );
 
     expect(result.sectionId).toBe("sec-nova");
     expect(prismaMock.section.create).toHaveBeenCalledWith(
@@ -73,7 +64,10 @@ describe("updateSection", () => {
     prismaMock.section.findFirst.mockResolvedValue(null); // sem conflito de nome
     prismaMock.section.update.mockResolvedValue({} as any);
 
-    await updateSection({ sectionId: "sec-1", name: "Novo Nome", countType: "subtract", isActive: true }, TEST_CTX);
+    await updateSection(
+      { sectionId: "sec-1", name: "Novo Nome", countType: "subtract", isActive: true },
+      TEST_CTX,
+    );
 
     expect(prismaMock.section.update).toHaveBeenCalled();
   });
@@ -82,7 +76,10 @@ describe("updateSection", () => {
     prismaMock.section.findUnique.mockResolvedValue({ accountId: "acc-OUTRA" } as any);
 
     await expect(
-      updateSection({ sectionId: "sec-1", name: "Novo Nome", countType: "subtract", isActive: true }, TEST_CTX),
+      updateSection(
+        { sectionId: "sec-1", name: "Novo Nome", countType: "subtract", isActive: true },
+        TEST_CTX,
+      ),
     ).rejects.toThrow(NotFoundError);
   });
 });
@@ -140,9 +137,9 @@ describe("updateCategory", () => {
   it("não deve atualizar categoria de outra account (segurança multi-tenancy)", async () => {
     prismaMock.category.findUnique.mockResolvedValue({ accountId: "acc-OUTRA" } as any);
 
-    await expect(
-      updateCategory({ categoryId: "cat-1", name: "Novo" }, TEST_CTX),
-    ).rejects.toThrow(NotFoundError);
+    await expect(updateCategory({ categoryId: "cat-1", name: "Novo" }, TEST_CTX)).rejects.toThrow(
+      NotFoundError,
+    );
   });
 
   it("deve lançar ConflictError se novo nome já existe", async () => {

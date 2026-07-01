@@ -35,10 +35,7 @@ export function CollapsibleNavItem({
   return (
     <>
       <ListItem disablePadding>
-        <ListItemButton
-          onClick={() => setOpen((v) => !v)}
-          sx={{ borderRadius: 0 }}
-        >
+        <ListItemButton onClick={() => setOpen((v) => !v)} sx={{ borderRadius: 0 }}>
           <ListItemText primary={label} />
           {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
         </ListItemButton>
@@ -66,10 +63,7 @@ export function CollapsibleNavItem({
                     },
                   }}
                 >
-                  <ListItemText
-                    primary={subLabel}
-                    primaryTypographyProps={{ variant: "body2" }}
-                  />
+                  <ListItemText primary={subLabel} primaryTypographyProps={{ variant: "body2" }} />
                 </ListItemButton>
               </ListItem>
             );

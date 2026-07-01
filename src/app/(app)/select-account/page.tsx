@@ -41,12 +41,7 @@ export default async function SelectAccountPage() {
             Bem-vindo, {session.user.name?.split(" ")[0]}!
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          href="/accounts/new"
-          size="small"
-        >
+        <Button variant="contained" startIcon={<AddIcon />} href="/accounts/new" size="small">
           {m.account.newAccount}
         </Button>
       </Stack>

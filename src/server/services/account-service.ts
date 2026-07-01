@@ -27,7 +27,9 @@ export async function createAccount(input: CreateAccountInput & { createdById: s
     select: { id: true },
   });
   if (duplicate) {
-    throw new ConflictError("Você já tem uma conta com este nome.", { name: "Você já tem uma conta com este nome." });
+    throw new ConflictError("Você já tem uma conta com este nome.", {
+      name: "Você já tem uma conta com este nome.",
+    });
   }
 
   const account = await prisma.$transaction(async (tx) => {

@@ -54,7 +54,10 @@ export function StepConfig({ config, sections, tableTypes, okCount, errorCount, 
         <Typography variant="body2">
           <strong>{okCount}</strong> transação(ões) serão importadas.
           {errorCount > 0 && (
-            <> <strong>{errorCount}</strong> linha(s) com erro serão ignoradas.</>
+            <>
+              {" "}
+              <strong>{errorCount}</strong> linha(s) com erro serão ignoradas.
+            </>
           )}
         </Typography>
       </Box>
@@ -97,7 +100,12 @@ export function StepConfig({ config, sections, tableTypes, okCount, errorCount, 
             <MenuItem key={t.id} value={t.id}>
               {t.name}
               {t.isDefault && (
-                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                <Typography
+                  component="span"
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ ml: 1 }}
+                >
                   (padrão)
                 </Typography>
               )}

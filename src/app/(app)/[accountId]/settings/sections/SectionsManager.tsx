@@ -233,7 +233,11 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
               type="submit"
               form="sections-form"
               variant="contained"
-              endIcon={form.formState.isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}
+              endIcon={
+                form.formState.isSubmitting ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : undefined
+              }
             >
               {m.common.save}
             </Button>
@@ -269,26 +273,43 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
                     renderValue={(value) => (
                       <Chip
                         size="small"
-                        label={(m.settings.sections.countTypes as Record<SectionCountType, string>)[value as SectionCountType]}
+                        label={
+                          (m.settings.sections.countTypes as Record<SectionCountType, string>)[
+                            value as SectionCountType
+                          ]
+                        }
                         color={COUNT_TYPE_COLORS[value as SectionCountType]}
                       />
                     )}
                   >
-                    {(["add", "subtract", "ignore", "neutral"] as SectionCountType[]).map((type) => (
-                      <MenuItem key={type} value={type}>
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-                          <Chip
-                            size="small"
-                            label={(m.settings.sections.countTypes as Record<SectionCountType, string>)[type]}
-                            color={COUNT_TYPE_COLORS[type]}
-                            sx={{ alignSelf: "flex-start" }}
-                          />
-                          <Typography variant="caption" color="text.secondary">
-                            {(m.settings.sections.countTypeHints as Record<SectionCountType, string>)[type]}
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-                    ))}
+                    {(["add", "subtract", "ignore", "neutral"] as SectionCountType[]).map(
+                      (type) => (
+                        <MenuItem key={type} value={type}>
+                          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                            <Chip
+                              size="small"
+                              label={
+                                (
+                                  m.settings.sections.countTypes as Record<SectionCountType, string>
+                                )[type]
+                              }
+                              color={COUNT_TYPE_COLORS[type]}
+                              sx={{ alignSelf: "flex-start" }}
+                            />
+                            <Typography variant="caption" color="text.secondary">
+                              {
+                                (
+                                  m.settings.sections.countTypeHints as Record<
+                                    SectionCountType,
+                                    string
+                                  >
+                                )[type]
+                              }
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ),
+                    )}
                   </Select>
                 </FormControl>
               )}
@@ -328,12 +349,7 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
             <Button size="small" onClick={() => setDeleteTarget(null)}>
               {m.common.cancel}
             </Button>
-            <Button
-              size="small"
-              color="error"
-              variant="contained"
-              onClick={confirmDelete}
-            >
+            <Button size="small" color="error" variant="contained" onClick={confirmDelete}>
               {m.common.delete}
             </Button>
           </>

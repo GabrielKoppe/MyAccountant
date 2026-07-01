@@ -35,6 +35,7 @@ type TableData = {
   sectionId: string;
   countInMonth: boolean;
   groupByDate: boolean;
+  tableTypeId: string | null;
   tableTypeName: string | null;
   hiddenColumns: HiddenColumns;
   total: string;
@@ -289,6 +290,7 @@ export function SectionView({
           timezone={timezone}
           sectionIsActive={section.isActive}
           sectionCountType={section.countType}
+          tableTypes={tableTypes}
           transactions={transactionsByTable[table.id] ?? []}
           categories={categories}
           institutions={institutions}

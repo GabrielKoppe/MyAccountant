@@ -170,8 +170,6 @@ describe("formatDateTimeInTz", () => {
   });
 
   it("deve aceitar objeto Date", () => {
-    expect(formatDateTimeInTz(new Date("2026-01-15T00:00:00Z"), "UTC")).toBe(
-      "15/01/2026 00:00",
-    );
+    expect(formatDateTimeInTz(new Date("2026-01-15T00:00:00Z"), "UTC")).toBe("15/01/2026 00:00");
   });
 });

@@ -106,7 +106,12 @@ export function MembersTable({ accountId, members, currentUserId, currentUserRol
                         <Typography variant="body2" fontWeight="medium">
                           {displayName}
                           {isSelf && (
-                            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ ml: 0.5 }}
+                            >
                               (você)
                             </Typography>
                           )}

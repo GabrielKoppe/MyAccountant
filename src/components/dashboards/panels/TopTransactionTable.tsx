@@ -147,9 +147,10 @@ export function TopTransactionTable({
   const excludeIds = config?.excludeSectionIds ?? [];
   const filterSource = config?.filterSource ?? "all";
 
-  let filtered = excludeIds.length > 0
-    ? transactions.filter((tx) => !excludeIds.includes(tx.sectionId))
-    : transactions;
+  let filtered =
+    excludeIds.length > 0
+      ? transactions.filter((tx) => !excludeIds.includes(tx.sectionId))
+      : transactions;
 
   if (filterSource !== "all") {
     filtered = filtered.filter((tx) => tx.source === filterSource);

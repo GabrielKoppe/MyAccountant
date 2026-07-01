@@ -113,7 +113,10 @@ export function BudgetsManager({ accountId, initialBudgets, formOptions }: Props
 
       <BudgetFormDialog
         open={formOpen}
-        onClose={() => { setFormOpen(false); setEditBudget(undefined); }}
+        onClose={() => {
+          setFormOpen(false);
+          setEditBudget(undefined);
+        }}
         accountId={accountId}
         formOptions={formOptions}
         budget={editBudget}
@@ -129,7 +132,9 @@ export function BudgetsManager({ accountId, initialBudgets, formOptions }: Props
         loading={isPending}
         actions={
           <>
-            <Button size="small" onClick={() => setDeleteTarget(null)}>{m.common.cancel}</Button>
+            <Button size="small" onClick={() => setDeleteTarget(null)}>
+              {m.common.cancel}
+            </Button>
             <Button size="small" color="error" variant="contained" onClick={handleDelete}>
               {m.common.delete}
             </Button>

@@ -13,7 +13,7 @@ type Props = {
 const variantStyles: Record<Variant, { bgcolor: string; color: string }> = {
   success: { bgcolor: "success.light", color: "success.main" },
   warning: { bgcolor: "warning.light", color: "warning.main" },
-  danger:  { bgcolor: "danger.subtle", color: "danger.main" },
+  danger: { bgcolor: "danger.subtle", color: "danger.main" },
   neutral: { bgcolor: "neutral.subtle", color: "neutral.main" },
 };
 

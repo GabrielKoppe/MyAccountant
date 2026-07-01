@@ -19,11 +19,16 @@ export const createBudgetSchema = z
   })
   .superRefine((data, ctx) => {
     const hasDimension =
-      data.sectionId || data.categoryId || data.memberUserId || data.institutionId || data.tableTypeId;
+      data.sectionId ||
+      data.categoryId ||
+      data.memberUserId ||
+      data.institutionId ||
+      data.tableTypeId;
     if (!hasDimension) {
       ctx.addIssue({
         code: "custom",
-        message: "Selecione pelo menos uma dimensão (seção, categoria, membro, instituição ou tipo de tabela)",
+        message:
+          "Selecione pelo menos uma dimensão (seção, categoria, membro, instituição ou tipo de tabela)",
         path: ["sectionId"],
       });
     }

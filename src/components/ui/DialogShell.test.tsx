@@ -11,15 +11,9 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 function renderShell(props: Partial<Parameters<typeof DialogShell>[0]> = {}) {
-  return render(
-    <DialogShell
-      open={true}
-      onClose={noop}
-      title="Título teste"
-      {...props}
-    />,
-    { wrapper: Wrapper },
-  );
+  return render(<DialogShell open={true} onClose={noop} title="Título teste" {...props} />, {
+    wrapper: Wrapper,
+  });
 }
 
 describe("DialogShell", () => {

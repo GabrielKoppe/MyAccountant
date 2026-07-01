@@ -58,18 +58,12 @@ export function OnboardingWizard({ accountId, lastMonth }: Props) {
       {/* Cabeçalho */}
       <Box sx={{ textAlign: "center", mb: layout.section }}>
         <Typography variant="h2" gutterBottom>
-          {m.setup.steps.done === STEPS[activeStep]
-            ? m.setup.done.title
-            : "Configurar minha conta"}
+          {m.setup.steps.done === STEPS[activeStep] ? m.setup.done.title : "Configurar minha conta"}
         </Typography>
       </Box>
 
       {/* Stepper */}
-      <Stepper
-        activeStep={activeStep}
-        alternativeLabel
-        sx={{ mb: layout.section }}
-      >
+      <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: layout.section }}>
         {STEPS.map((label, index) => (
           <Step key={label} completed={index < activeStep}>
             <StepLabel>{label}</StepLabel>

@@ -22,7 +22,12 @@ export function CancelButton() {
 
   return (
     <Tooltip title={m.common.cancel}>
-      <IconButton color="inherit" onClick={handleCancel} aria-label={m.common.cancel} sx={{ mr: 1 }}>
+      <IconButton
+        color="inherit"
+        onClick={handleCancel}
+        aria-label={m.common.cancel}
+        sx={{ mr: 1 }}
+      >
         <ArrowBackIcon />
       </IconButton>
     </Tooltip>

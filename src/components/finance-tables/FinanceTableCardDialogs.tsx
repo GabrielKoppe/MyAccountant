@@ -2,6 +2,7 @@
 
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 
 import { m } from "@/lib/messages";
@@ -85,6 +86,69 @@ export function FinanceTableDeleteDialog({ open, onClose, onConfirm }: DeleteDia
         </>
       }
     />
+  );
+}
+
+type TableTypeOption = { id: string; name: string; isDefault: boolean };
+
+type ChangeTypeDialogProps = {
+  open: boolean;
+  loading: boolean;
+  tableTypes: TableTypeOption[];
+  tableTypeId: string;
+  onChangeTableTypeId: (id: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+};
+
+export function FinanceTableChangeTypeDialog({
+  open,
+  loading,
+  tableTypes,
+  tableTypeId,
+  onChangeTableTypeId,
+  onClose,
+  onConfirm,
+}: ChangeTypeDialogProps) {
+  return (
+    <DialogShell
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      title={m.financeTables.changeTypeTitle}
+      loading={loading}
+      actions={
+        <>
+          <Button onClick={onClose}>{m.common.cancel}</Button>
+          <Button
+            variant="contained"
+            onClick={onConfirm}
+            disabled={!tableTypeId}
+            endIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
+          >
+            {m.common.save}
+          </Button>
+        </>
+      }
+    >
+      <TextField
+        select
+        label={m.financeTables.tableTypeLabel}
+        value={tableTypeId}
+        onChange={(e) => onChangeTableTypeId(e.target.value)}
+        fullWidth
+        autoFocus
+        helperText={m.financeTables.changeTypeHelperText}
+        sx={{ mt: 2 }}
+      >
+        {tableTypes.map((type) => (
+          <MenuItem key={type.id} value={type.id}>
+            {type.name}
+            {type.isDefault ? " (padrão)" : ""}
+          </MenuItem>
+        ))}
+      </TextField>
+    </DialogShell>
   );
 }
 
