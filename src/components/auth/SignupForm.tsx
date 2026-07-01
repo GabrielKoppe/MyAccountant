@@ -6,13 +6,14 @@ import { Suspense, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import { useSnackbar } from "notistack";
 
 import { signupAction } from "@/actions/auth";
+import { layout } from "@/lib/design-tokens";
 import { signupFormSchema, type SignupFormValues } from "@/lib/schemas/auth";
 import { m } from "@/lib/messages";
 import { GoogleButton } from "./GoogleButton";
@@ -69,11 +70,7 @@ function SignupFormInner() {
   const isLoading = form.formState.isSubmitting || isSigningIn;
 
   return (
-    <Box
-      component="form"
-      onSubmit={form.handleSubmit(onSubmit)}
-      sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-    >
+    <Stack component="form" onSubmit={form.handleSubmit(onSubmit)} spacing={layout.stack}>
       <Controller
         name="name"
         control={form.control}
@@ -147,10 +144,10 @@ function SignupFormInner() {
         {isLoading ? m.auth.creatingAccount : m.auth.signup}
       </Button>
 
-      <Divider>ou</Divider>
+      <Divider>{m.auth.orDivider}</Divider>
 
       <GoogleButton callbackUrl={callbackUrl} />
-    </Box>
+    </Stack>
   );
 }
 

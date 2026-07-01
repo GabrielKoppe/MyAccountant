@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Stack from "@mui/material/Stack";
 
 import { acceptInviteAction, declineInviteAction } from "@/actions/members";
+import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 
 type Props = {
@@ -51,37 +52,32 @@ export function InviteActions({ token }: Props) {
 
   if (declined) {
     return (
-      <>
-        <Alert severity="info" sx={{ mt: 1, mb: 3 }}>
-          {m.account.acceptInvite.declined}
-        </Alert>
-        <Button variant="outlined" onClick={() => router.push("/home")}>
+      <Stack spacing={layout.stack} sx={{ width: "100%" }}>
+        <Alert severity="info">{m.account.acceptInvite.declined}</Alert>
+        <Button variant="outlined" fullWidth onClick={() => router.push("/home")}>
           {m.account.acceptInvite.goToApp}
         </Button>
-      </>
+      </Stack>
     );
   }
 
   return (
-    <>
+    <Stack spacing={layout.inline} sx={{ width: "100%" }}>
       {error && (
-        <Alert severity="error" sx={{ mb: 2, textAlign: "left" }}>
+        <Alert severity="error" sx={{ textAlign: "left" }}>
           {error}
         </Alert>
       )}
-
-      <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
-        <Button variant="outlined" color="inherit" disabled={isPending} onClick={handleDecline}>
-          {isPending ? m.account.acceptInvite.declining : m.account.acceptInvite.declineButton}
-        </Button>
-        <Button variant="contained" disabled={isPending} onClick={handleAccept}>
-          {isPending ? (
-            <CircularProgress size={20} color="inherit" />
-          ) : (
-            m.account.acceptInvite.acceptButton
-          )}
-        </Button>
-      </Box>
-    </>
+      <Button variant="contained" size="large" fullWidth disabled={isPending} onClick={handleAccept}>
+        {isPending ? (
+          <CircularProgress size={20} color="inherit" />
+        ) : (
+          m.account.acceptInvite.acceptButton
+        )}
+      </Button>
+      <Button variant="text" fullWidth disabled={isPending} onClick={handleDecline}>
+        {m.account.acceptInvite.declineButton}
+      </Button>
+    </Stack>
   );
 }

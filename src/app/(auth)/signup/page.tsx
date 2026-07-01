@@ -1,24 +1,19 @@
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-
+import { AuthCard } from "@/components/auth/AuthCard";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { AppLink } from "@/components/ui/AppLink";
 import { m } from "@/lib/messages";
 
 export default function SignupPage() {
   return (
-    <Paper sx={{ p: 4, borderRadius: 2 }}>
-      <Typography variant="h6" mb={0.5}>
-        {m.auth.signup}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Ja tem conta?{" "}
-        <AppLink href="/login">
-          {m.auth.login}
-        </AppLink>
-      </Typography>
-
+    <AuthCard
+      title={m.auth.signup}
+      description={
+        <>
+          {m.auth.haveAccountQuestion} <AppLink href="/login">{m.auth.login}</AppLink>
+        </>
+      }
+    >
       <SignupForm />
-    </Paper>
+    </AuthCard>
   );
 }

@@ -6,10 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 
+import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 
 const forgotPasswordSchema = z.object({
@@ -32,19 +33,11 @@ export function ForgotPasswordForm() {
   }
 
   if (submitted) {
-    return (
-      <Alert severity="success">
-        Se este email estiver cadastrado, voce recebera um link de recuperacao em breve.
-      </Alert>
-    );
+    return <Alert severity="success">{m.auth.resetLinkSent}</Alert>;
   }
 
   return (
-    <Box
-      component="form"
-      onSubmit={form.handleSubmit(onSubmit)}
-      sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-    >
+    <Stack component="form" onSubmit={form.handleSubmit(onSubmit)} spacing={layout.stack}>
       <Controller
         name="email"
         control={form.control}
@@ -63,11 +56,12 @@ export function ForgotPasswordForm() {
       <Button
         type="submit"
         variant="contained"
+        size="large"
         fullWidth
         disabled={form.formState.isSubmitting}
       >
-        Enviar link de recuperacao
+        {m.auth.sendResetLink}
       </Button>
-    </Box>
+    </Stack>
   );
 }

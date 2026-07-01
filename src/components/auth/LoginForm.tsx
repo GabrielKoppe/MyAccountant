@@ -7,12 +7,13 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import { useSnackbar } from "notistack";
 
+import { layout } from "@/lib/design-tokens";
 import { loginSchema, type LoginInput } from "@/lib/schemas/auth";
 import { m } from "@/lib/messages";
 import { GoogleButton } from "./GoogleButton";
@@ -47,11 +48,7 @@ function LoginFormInner() {
   }
 
   return (
-    <Box
-      component="form"
-      onSubmit={form.handleSubmit(onSubmit)}
-      sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-    >
+    <Stack component="form" onSubmit={form.handleSubmit(onSubmit)} spacing={layout.stack}>
       {loginError && <Alert severity="error">{loginError}</Alert>}
 
       <Controller
@@ -96,10 +93,10 @@ function LoginFormInner() {
         {form.formState.isSubmitting ? m.auth.signingIn : m.auth.login}
       </Button>
 
-      <Divider>ou</Divider>
+      <Divider>{m.auth.orDivider}</Divider>
 
       <GoogleButton callbackUrl={callbackUrl} />
-    </Box>
+    </Stack>
   );
 }
 
