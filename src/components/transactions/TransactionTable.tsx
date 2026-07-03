@@ -22,12 +22,19 @@ import SearchIcon from "@mui/icons-material/Search";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import { useSnackbar } from "notistack";
 
 import { m } from "@/lib/messages";
 import { formatDateLong } from "@/lib/dates";
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import { useDeleteUndo } from "@/components/providers/DeleteUndoProvider";
 import { TagUpdateContext } from "@/components/tags/TagUpdateContext";
+import { OptionsProvider } from "./OptionsContext";
+import {
+  createCategoryAction,
+  createInstitutionAction,
+  createSubcategoryAction,
+} from "@/actions/account-settings";
 import { BulkActionBar } from "./BulkActionBar";
 import { NewTransactionRow } from "./NewTransactionRow";
 import { TransactionRow } from "./TransactionRow";
@@ -128,8 +135,8 @@ export function TransactionTable({
   sectionCountType,
   hiddenColumns,
   initialTransactions,
-  categories,
-  institutions,
+  categories: propCategories,
+  institutions: propInstitutions,
   members,
   parties,
   defaultResponsiblePartyId,
@@ -139,8 +146,26 @@ export function TransactionTable({
   onSortActiveChange,
   resetSortSignal,
 }: Props) {
+  const { enqueueSnackbar } = useSnackbar();
   const [rows, setRows] = useState<TxRow[]>(initialTransactions);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Categoria/instituição vivem em state (em vez de ler a prop direto) para permitir
+  // criação inline otimista via CreatableEntitySelect (Spec V3 · Model D) sem esperar
+  // o round-trip de revalidação do server.
+  const [categories, setCategories] = useState<CategoryOption[]>(propCategories);
+  const [institutions, setInstitutions] = useState<InstitutionOption[]>(propInstitutions);
+
+  // O server continua sendo fonte da verdade — quando a prop mudar (ex: revalidação
+  // após a action de criação, ou navegação), realinha o state local.
+  useEffect(() => {
+    setCategories(propCategories);
+  }, [propCategories]);
+
+  useEffect(() => {
+    setInstitutions(propInstitutions);
+  }, [propInstitutions]);
+
   const [detailTxId, setDetailTxId] = useState<string | null>(null);
   const [editRequestId, setEditRequestId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -302,6 +327,77 @@ export function TransactionTable({
     [rows, requestDelete, accountId],
   );
 
+  // ─── Criação inline de categoria/subcategoria/instituição (CreatableEntitySelect) ───
+  // Reusam as mesmas Server Actions do fluxo "criar em Configurações"; aqui só
+  // injetamos o resultado no state local para auto-seleção otimista na linha.
+
+  const onCreateCategory = useCallback(
+    async (name: string): Promise<string | null> => {
+      const res = await createCategoryAction(accountId, { name });
+      if (!res.ok) {
+        enqueueSnackbar(res.error.message || m.transactions.options.createError, {
+          variant: "error",
+        });
+        return null;
+      }
+      setCategories((prev) =>
+        [...prev, { id: res.data.categoryId, name, subcategories: [] }].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
+      );
+      enqueueSnackbar(m.transactions.options.created, { variant: "success" });
+      return res.data.categoryId;
+    },
+    [accountId, enqueueSnackbar],
+  );
+
+  const onCreateSubcategory = useCallback(
+    async (categoryId: string, name: string): Promise<string | null> => {
+      const res = await createSubcategoryAction(accountId, { categoryId, name });
+      if (!res.ok) {
+        enqueueSnackbar(res.error.message || m.transactions.options.createError, {
+          variant: "error",
+        });
+        return null;
+      }
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === categoryId
+            ? {
+                ...c,
+                subcategories: [...c.subcategories, { id: res.data.subcategoryId, name }].sort(
+                  (a, b) => a.name.localeCompare(b.name),
+                ),
+              }
+            : c,
+        ),
+      );
+      enqueueSnackbar(m.transactions.options.created, { variant: "success" });
+      return res.data.subcategoryId;
+    },
+    [accountId, enqueueSnackbar],
+  );
+
+  const onCreateInstitution = useCallback(
+    async (name: string): Promise<string | null> => {
+      const res = await createInstitutionAction(accountId, { name });
+      if (!res.ok) {
+        enqueueSnackbar(res.error.message || m.transactions.options.createError, {
+          variant: "error",
+        });
+        return null;
+      }
+      setInstitutions((prev) =>
+        [...prev, { id: res.data.institutionId, name }].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
+      );
+      enqueueSnackbar(m.transactions.options.created, { variant: "success" });
+      return res.data.institutionId;
+    },
+    [accountId, enqueueSnackbar],
+  );
+
   function handleOpenSearch() {
     setSearchOpen(true);
     setTimeout(() => searchInputRef.current?.focus(), 50);
@@ -383,317 +479,328 @@ export function TransactionTable({
   }
 
   return (
-    <TagUpdateContext.Provider value={globalTagUpdate}>
-      <Box>
-        {selected.size > 0 && (
-          <BulkActionBar
-            accountId={accountId}
-            tableId={tableId}
-            monthId={monthId}
-            sourceCountType={sectionCountType}
-            sampleAmountCents={String(rows.find((r) => r.id === selectedIds[0])?.amountCents ?? "")}
-            selectedIds={selectedIds}
-            allSelectedPending={allSelectedPending}
-            categories={categories}
-            institutions={institutions}
-            onClear={() => setSelected(new Set())}
-            onMoved={onBulkMoved}
-            onBulkUpdated={onBulkUpdated}
-          />
-        )}
-
-        {/* Search bar (expandable) */}
-        <Collapse in={searchOpen}>
-          <Box
-            sx={{
-              px: 2,
-              py: 1,
-              borderBottom: 1,
-              borderColor: "divider",
-              bgcolor: "background.subtle",
-            }}
-          >
-            <TextField
-              inputRef={searchInputRef}
-              size="small"
-              fullWidth
-              placeholder={m.transactions.filters.searchPlaceholder}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 16, color: "text.tertiary" }} />
-                  </InputAdornment>
-                ),
-                endAdornment: searchText ? (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setSearchText("")} edge="end">
-                      <CloseIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-              }}
-              sx={{ "& .MuiOutlinedInput-root": { fontSize: 13 } }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") handleCloseSearch();
-              }}
-            />
-          </Box>
-        </Collapse>
-
-        <Box sx={{ overflowX: "auto" }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: "background.default" }}>
-                <TableCell padding="checkbox">
-                  <Checkbox
-                    size="small"
-                    checked={allSelected}
-                    indeterminate={someSelected}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    disabled={isReadOnly}
-                  />
-                </TableCell>
-                <SortableHeaderCell field="occurredOn" label="Data" />
-                <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Box
-                      component="span"
-                      sx={{
-                        cursor: "pointer",
-                        userSelect: "none",
-                        "&:hover": { color: "accent.primary" },
-                        color: sort?.field === "description" ? "accent.primary" : "inherit",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 0.25,
-                      }}
-                      onClick={() => handleSortClick("description")}
-                    >
-                      Descrição
-                      {sort?.field === "description" &&
-                        (sort.dir === "asc" ? (
-                          <ArrowUpwardIcon sx={{ fontSize: 12 }} />
-                        ) : (
-                          <ArrowDownwardIcon sx={{ fontSize: 12 }} />
-                        ))}
-                    </Box>
-                    <Box sx={{ flex: 1 }} />
-                    {!searchOpen && (
-                      <Tooltip title="Buscar por descrição">
-                        <IconButton size="small" onClick={handleOpenSearch} sx={{ ml: 0.5 }}>
-                          <SearchIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    {searchOpen && (
-                      <Tooltip title="Fechar busca">
-                        <IconButton size="small" onClick={handleCloseSearch} sx={{ ml: 0.5 }}>
-                          <CloseIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </Box>
-                </TableCell>
-                {show("category") && <SortableHeaderCell field="categoryId" label="Categoria" />}
-                {show("subcategory") && (
-                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Subcategoria</TableCell>
-                )}
-                {show("institution") && (
-                  <SortableHeaderCell field="institutionId" label="Instituição" />
-                )}
-                <SortableHeaderCell field="amountCents" label="Valor" align="right" />
-                {show("responsibleUser") && (
-                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Resp.</TableCell>
-                )}
-
-                {show("investmentType") && (
-                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tipo inv.</TableCell>
-                )}
-                {show("cardInstallment") && (
-                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
-                    {m.transactions.installments.column}
-                  </TableCell>
-                )}
-                {show("expenseType") && (
-                  <TableCell sx={{ fontSize: 12, fontWeight: "bold", width: 28, px: 0.5 }}>
-                    Tipo
-                  </TableCell>
-                )}
-                {show("tags") && (
-                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tags</TableCell>
-                )}
-                <TableCell sx={{ width: 200, minWidth: 200 }} />
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {showNewRow && (
-                <NewTransactionRow
-                  tableId={tableId}
-                  monthId={monthId}
-                  accountId={accountId}
-                  currentUserId={currentUserId}
-                  hiddenColumns={hiddenColumns}
-                  categories={categories}
-                  institutions={institutions}
-                  members={members}
-                  parties={parties}
-                  defaultResponsiblePartyId={defaultResponsiblePartyId}
-                  onCreated={onNewCreated}
-                  onCancel={onNewRowClose}
-                />
+    <OptionsProvider
+      value={{
+        onCreateCategory,
+        onCreateSubcategory,
+        onCreateInstitution,
+        canManageOptions: canEdit,
+      }}
+    >
+      <TagUpdateContext.Provider value={globalTagUpdate}>
+        <Box>
+          {selected.size > 0 && (
+            <BulkActionBar
+              accountId={accountId}
+              tableId={tableId}
+              monthId={monthId}
+              sourceCountType={sectionCountType}
+              sampleAmountCents={String(
+                rows.find((r) => r.id === selectedIds[0])?.amountCents ?? "",
               )}
+              selectedIds={selectedIds}
+              allSelectedPending={allSelectedPending}
+              categories={categories}
+              institutions={institutions}
+              onClear={() => setSelected(new Set())}
+              onMoved={onBulkMoved}
+              onBulkUpdated={onBulkUpdated}
+            />
+          )}
 
-              {noRowsAfterFilter ? (
-                <TableRow>
-                  <TableCell colSpan={99} sx={{ border: 0, py: 5 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 1.5,
-                        color: "text.disabled",
-                      }}
-                    >
-                      <FilterListOffIcon sx={{ fontSize: 40, opacity: 0.4 }} />
-                      <Typography variant="body2" fontWeight="medium" color="text.secondary">
-                        {m.transactions.filters.noResults}
-                      </Typography>
-                      <Typography variant="caption" color="text.tertiary" textAlign="center">
-                        {m.transactions.filters.noResultsHint}
-                      </Typography>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => {
-                          if (searchText) {
-                            setSearchText("");
-                            setSearchOpen(false);
-                          } else clearFilters();
+          {/* Search bar (expandable) */}
+          <Collapse in={searchOpen}>
+            <Box
+              sx={{
+                px: 2,
+                py: 1,
+                borderBottom: 1,
+                borderColor: "divider",
+                bgcolor: "background.subtle",
+              }}
+            >
+              <TextField
+                inputRef={searchInputRef}
+                size="small"
+                fullWidth
+                placeholder={m.transactions.filters.searchPlaceholder}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ fontSize: 16, color: "text.tertiary" }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchText ? (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setSearchText("")} edge="end">
+                        <CloseIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
+                }}
+                sx={{ "& .MuiOutlinedInput-root": { fontSize: 13 } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") handleCloseSearch();
+                }}
+              />
+            </Box>
+          </Collapse>
+
+          <Box sx={{ overflowX: "auto" }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: "background.default" }}>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      checked={allSelected}
+                      indeterminate={someSelected}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      disabled={isReadOnly}
+                    />
+                  </TableCell>
+                  <SortableHeaderCell field="occurredOn" label="Data" />
+                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Box
+                        component="span"
+                        sx={{
+                          cursor: "pointer",
+                          userSelect: "none",
+                          "&:hover": { color: "accent.primary" },
+                          color: sort?.field === "description" ? "accent.primary" : "inherit",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 0.25,
                         }}
-                        sx={{ mt: 0.5 }}
+                        onClick={() => handleSortClick("description")}
                       >
-                        {m.transactions.filters.clearFilters}
-                      </Button>
+                        Descrição
+                        {sort?.field === "description" &&
+                          (sort.dir === "asc" ? (
+                            <ArrowUpwardIcon sx={{ fontSize: 12 }} />
+                          ) : (
+                            <ArrowDownwardIcon sx={{ fontSize: 12 }} />
+                          ))}
+                      </Box>
+                      <Box sx={{ flex: 1 }} />
+                      {!searchOpen && (
+                        <Tooltip title="Buscar por descrição">
+                          <IconButton size="small" onClick={handleOpenSearch} sx={{ ml: 0.5 }}>
+                            <SearchIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {searchOpen && (
+                        <Tooltip title="Fechar busca">
+                          <IconButton size="small" onClick={handleCloseSearch} sx={{ ml: 0.5 }}>
+                            <CloseIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Box>
                   </TableCell>
+                  {show("category") && <SortableHeaderCell field="categoryId" label="Categoria" />}
+                  {show("subcategory") && (
+                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Subcategoria</TableCell>
+                  )}
+                  {show("institution") && (
+                    <SortableHeaderCell field="institutionId" label="Instituição" />
+                  )}
+                  <SortableHeaderCell field="amountCents" label="Valor" align="right" />
+                  {show("responsibleUser") && (
+                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Resp.</TableCell>
+                  )}
+
+                  {show("investmentType") && (
+                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tipo inv.</TableCell>
+                  )}
+                  {show("cardInstallment") && (
+                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
+                      {m.transactions.installments.column}
+                    </TableCell>
+                  )}
+                  {show("expenseType") && (
+                    <TableCell sx={{ fontSize: 12, fontWeight: "bold", width: 28, px: 0.5 }}>
+                      Tipo
+                    </TableCell>
+                  )}
+                  {show("tags") && (
+                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tags</TableCell>
+                  )}
+                  <TableCell sx={{ width: 200, minWidth: 200 }} />
                 </TableRow>
-              ) : (
-                (() => {
-                  // Agrupamento por data: ativo se isGrouped=true E sort for a ordenação padrão (occurredOn)
-                  const groupingActive = isGrouped && (!sort || sort.field === "occurredOn");
+              </TableHead>
 
-                  if (!groupingActive) {
-                    return visibleRows.map((tx) => (
-                      <TransactionRow
-                        key={tx.id}
-                        tx={tx}
-                        accountId={accountId}
-                        currentUserId={currentUserId}
-                        isSelected={selected.has(tx.id)}
-                        isReadOnly={isReadOnly}
-                        sectionCountType={sectionCountType}
-                        hiddenColumns={hiddenColumns}
-                        categories={categories}
-                        institutions={institutions}
-                        members={members}
-                        parties={parties}
-                        autoEdit={editRequestId === tx.id}
-                        onSelect={handleSelect}
-                        onOptimisticUpdate={optimisticUpdate}
-                        onDeleteRequested={onDeleteRequested}
-                        onDuplicated={onDuplicated}
-                        onViewDetails={setDetailTxId}
-                        onAutoEditConsumed={handleAutoEditConsumed}
-                      />
-                    ));
-                  }
+              <TableBody>
+                {showNewRow && (
+                  <NewTransactionRow
+                    tableId={tableId}
+                    monthId={monthId}
+                    accountId={accountId}
+                    currentUserId={currentUserId}
+                    hiddenColumns={hiddenColumns}
+                    categories={categories}
+                    institutions={institutions}
+                    members={members}
+                    parties={parties}
+                    defaultResponsiblePartyId={defaultResponsiblePartyId}
+                    onCreated={onNewCreated}
+                    onCancel={onNewRowClose}
+                  />
+                )}
 
-                  // Renderizar com separadores de data
-                  const result: React.ReactNode[] = [];
-                  let lastDate: string | null = null;
-                  for (const tx of visibleRows) {
-                    if (tx.occurredOn !== lastDate) {
-                      lastDate = tx.occurredOn;
-                      result.push(
-                        <TableRow
-                          key={`date-sep-${tx.occurredOn}`}
-                          sx={{ pointerEvents: "none", bgcolor: "background.subtle" }}
+                {noRowsAfterFilter ? (
+                  <TableRow>
+                    <TableCell colSpan={99} sx={{ border: 0, py: 5 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 1.5,
+                          color: "text.disabled",
+                        }}
+                      >
+                        <FilterListOffIcon sx={{ fontSize: 40, opacity: 0.4 }} />
+                        <Typography variant="body2" fontWeight="medium" color="text.secondary">
+                          {m.transactions.filters.noResults}
+                        </Typography>
+                        <Typography variant="caption" color="text.tertiary" textAlign="center">
+                          {m.transactions.filters.noResultsHint}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            if (searchText) {
+                              setSearchText("");
+                              setSearchOpen(false);
+                            } else clearFilters();
+                          }}
+                          sx={{ mt: 0.5 }}
                         >
-                          <TableCell
-                            colSpan={99}
-                            sx={{
-                              py: 0.5,
-                              px: 2,
-                              borderBottom: 0,
-                              borderTop: 1,
-                              borderColor: "divider",
-                            }}
+                          {m.transactions.filters.clearFilters}
+                        </Button>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  (() => {
+                    // Agrupamento por data: ativo se isGrouped=true E sort for a ordenação padrão (occurredOn)
+                    const groupingActive = isGrouped && (!sort || sort.field === "occurredOn");
+
+                    if (!groupingActive) {
+                      return visibleRows.map((tx) => (
+                        <TransactionRow
+                          key={tx.id}
+                          tx={tx}
+                          accountId={accountId}
+                          currentUserId={currentUserId}
+                          isSelected={selected.has(tx.id)}
+                          isReadOnly={isReadOnly}
+                          sectionCountType={sectionCountType}
+                          hiddenColumns={hiddenColumns}
+                          categories={categories}
+                          institutions={institutions}
+                          members={members}
+                          parties={parties}
+                          autoEdit={editRequestId === tx.id}
+                          onSelect={handleSelect}
+                          onOptimisticUpdate={optimisticUpdate}
+                          onDeleteRequested={onDeleteRequested}
+                          onDuplicated={onDuplicated}
+                          onViewDetails={setDetailTxId}
+                          onAutoEditConsumed={handleAutoEditConsumed}
+                        />
+                      ));
+                    }
+
+                    // Renderizar com separadores de data
+                    const result: React.ReactNode[] = [];
+                    let lastDate: string | null = null;
+                    for (const tx of visibleRows) {
+                      if (tx.occurredOn !== lastDate) {
+                        lastDate = tx.occurredOn;
+                        result.push(
+                          <TableRow
+                            key={`date-sep-${tx.occurredOn}`}
+                            sx={{ pointerEvents: "none", bgcolor: "background.subtle" }}
                           >
-                            <Typography variant="caption" color="text.tertiary" fontWeight={500}>
-                              {formatDateLong(tx.occurredOn)}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>,
+                            <TableCell
+                              colSpan={99}
+                              sx={{
+                                py: 0.5,
+                                px: 2,
+                                borderBottom: 0,
+                                borderTop: 1,
+                                borderColor: "divider",
+                              }}
+                            >
+                              <Typography variant="caption" color="text.tertiary" fontWeight={500}>
+                                {formatDateLong(tx.occurredOn)}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>,
+                        );
+                      }
+                      result.push(
+                        <TransactionRow
+                          key={tx.id}
+                          tx={tx}
+                          accountId={accountId}
+                          currentUserId={currentUserId}
+                          isSelected={selected.has(tx.id)}
+                          isReadOnly={isReadOnly}
+                          sectionCountType={sectionCountType}
+                          hiddenColumns={hiddenColumns}
+                          categories={categories}
+                          institutions={institutions}
+                          members={members}
+                          parties={parties}
+                          autoEdit={editRequestId === tx.id}
+                          onSelect={handleSelect}
+                          onOptimisticUpdate={optimisticUpdate}
+                          onDeleteRequested={onDeleteRequested}
+                          onDuplicated={onDuplicated}
+                          onViewDetails={setDetailTxId}
+                          onAutoEditConsumed={handleAutoEditConsumed}
+                        />,
                       );
                     }
-                    result.push(
-                      <TransactionRow
-                        key={tx.id}
-                        tx={tx}
-                        accountId={accountId}
-                        currentUserId={currentUserId}
-                        isSelected={selected.has(tx.id)}
-                        isReadOnly={isReadOnly}
-                        sectionCountType={sectionCountType}
-                        hiddenColumns={hiddenColumns}
-                        categories={categories}
-                        institutions={institutions}
-                        members={members}
-                        parties={parties}
-                        autoEdit={editRequestId === tx.id}
-                        onSelect={handleSelect}
-                        onOptimisticUpdate={optimisticUpdate}
-                        onDeleteRequested={onDeleteRequested}
-                        onDuplicated={onDuplicated}
-                        onViewDetails={setDetailTxId}
-                        onAutoEditConsumed={handleAutoEditConsumed}
-                      />,
-                    );
-                  }
-                  return result;
-                })()
-              )}
-            </TableBody>
-          </Table>
-        </Box>
+                    return result;
+                  })()
+                )}
+              </TableBody>
+            </Table>
+          </Box>
 
-        {detailTx && (
-          <TransactionDetailDialog
-            open
-            onClose={() => setDetailTxId(null)}
-            tx={detailTx}
-            accountId={accountId}
-            sectionCountType={sectionCountType}
-            hiddenColumns={hiddenColumns}
-            categories={categories}
-            institutions={institutions}
-            members={members}
-            parties={parties}
-            timezone={timezone}
-            canEdit={!isReadOnly}
-            onEdit={handleEditFromDetail}
-            onTagsChange={(tags) => optimisticUpdate(detailTx.id, { tags })}
-            onLinkCountChanged={(newCount) =>
-              optimisticUpdate(detailTx.id, { linkCount: newCount })
-            }
-            onViewLinkedTransaction={(txId) => setDetailTxId(txId)}
-          />
-        )}
-      </Box>
-    </TagUpdateContext.Provider>
+          {detailTx && (
+            <TransactionDetailDialog
+              open
+              onClose={() => setDetailTxId(null)}
+              tx={detailTx}
+              accountId={accountId}
+              sectionCountType={sectionCountType}
+              hiddenColumns={hiddenColumns}
+              categories={categories}
+              institutions={institutions}
+              members={members}
+              parties={parties}
+              timezone={timezone}
+              canEdit={!isReadOnly}
+              onEdit={handleEditFromDetail}
+              onTagsChange={(tags) => optimisticUpdate(detailTx.id, { tags })}
+              onLinkCountChanged={(newCount) =>
+                optimisticUpdate(detailTx.id, { linkCount: newCount })
+              }
+              onViewLinkedTransaction={(txId) => setDetailTxId(txId)}
+            />
+          )}
+        </Box>
+      </TagUpdateContext.Provider>
+    </OptionsProvider>
   );
 }

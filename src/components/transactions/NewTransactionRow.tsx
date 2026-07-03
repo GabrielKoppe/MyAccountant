@@ -40,6 +40,8 @@ import type {
   TransactionRow,
 } from "./types";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
+import { CreatableEntitySelect } from "./CreatableEntitySelect";
+import { useOptions } from "./OptionsContext";
 
 type Props = {
   tableId: string;
@@ -74,6 +76,8 @@ export function NewTransactionRow({
   onCancel,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
+  const { onCreateCategory, onCreateSubcategory, onCreateInstitution, canManageOptions } =
+    useOptions();
   const [saving, setSaving] = useState(false);
   const [occurredOn, setOccurredOn] = useState(todayISO());
   const [amountCents, setAmountCents] = useState("0");
@@ -210,65 +214,56 @@ export function NewTransactionRow({
 
         {!hiddenColumns.category && (
           <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={categoryId ?? ""}
-              onChange={(e) => {
-                setCategoryId(e.target.value || null);
+            <CreatableEntitySelect
+              value={categoryId}
+              onChange={(id) => {
+                setCategoryId(id);
                 setSubcategoryId(null);
               }}
-              sx={{ minWidth: 110, fontSize: 13 }}
-            >
-              <MenuItem value="">
-                <em>Nenhuma</em>
-              </MenuItem>
-              {categories.map((c) => (
-                <MenuItem key={c.id} value={c.id} sx={{ fontSize: 13 }}>
-                  {c.name}
-                </MenuItem>
-              ))}
-            </Select>
+              options={categories}
+              onCreate={onCreateCategory}
+              canCreate={canManageOptions}
+              variant="standard"
+              ariaLabel={m.transactions.fields.category}
+              placeholderNone={m.common.none}
+              sx={{ minWidth: 110 }}
+            />
           </TableCell>
         )}
 
         {!hiddenColumns.subcategory && (
           <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={subcategoryId ?? ""}
-              onChange={(e) => setSubcategoryId(e.target.value || null)}
-              sx={{ minWidth: 110, fontSize: 13 }}
+            <CreatableEntitySelect
+              value={subcategoryId}
+              onChange={setSubcategoryId}
+              options={subcatsForCategory}
+              onCreate={(name) => {
+                if (!categoryId) return Promise.resolve(null);
+                return onCreateSubcategory(categoryId, name);
+              }}
+              canCreate={canManageOptions && !!categoryId}
               disabled={!categoryId}
-            >
-              <MenuItem value="">
-                <em>Nenhuma</em>
-              </MenuItem>
-              {subcatsForCategory.map((s) => (
-                <MenuItem key={s.id} value={s.id} sx={{ fontSize: 13 }}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </Select>
+              variant="standard"
+              ariaLabel={m.transactions.fields.subcategory}
+              placeholderNone={m.common.none}
+              sx={{ minWidth: 110 }}
+            />
           </TableCell>
         )}
 
         {!hiddenColumns.institution && (
           <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={institutionId ?? ""}
-              onChange={(e) => setInstitutionId(e.target.value || null)}
-              sx={{ minWidth: 110, fontSize: 13 }}
-            >
-              <MenuItem value="">
-                <em>Nenhuma</em>
-              </MenuItem>
-              {institutions.map((i) => (
-                <MenuItem key={i.id} value={i.id} sx={{ fontSize: 13 }}>
-                  {i.name}
-                </MenuItem>
-              ))}
-            </Select>
+            <CreatableEntitySelect
+              value={institutionId}
+              onChange={setInstitutionId}
+              options={institutions}
+              onCreate={onCreateInstitution}
+              canCreate={canManageOptions}
+              variant="standard"
+              ariaLabel={m.transactions.fields.institution}
+              placeholderNone={m.common.none}
+              sx={{ minWidth: 110 }}
+            />
           </TableCell>
         )}
 

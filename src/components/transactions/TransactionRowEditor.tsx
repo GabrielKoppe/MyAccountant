@@ -55,6 +55,8 @@ import type {
   TransactionRow as TxRow,
 } from "./types";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
+import { CreatableEntitySelect } from "./CreatableEntitySelect";
+import { useOptions } from "./OptionsContext";
 import { formatDateBr } from "@/lib/dates";
 
 type Props = {
@@ -99,6 +101,9 @@ export function TransactionRowEditor({
 }: Props) {
   const subcatsForCategory =
     categories.find((c) => c.id === editValues.categoryId)?.subcategories ?? [];
+
+  const { onCreateCategory, onCreateSubcategory, onCreateInstitution, canManageOptions } =
+    useOptions();
 
   const sharedInputProps = { size: "small" as const, variant: "standard" as const };
 
@@ -184,77 +189,64 @@ export function TransactionRowEditor({
         {/* Categoria */}
         {!hiddenColumns.category && (
           <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={editValues.categoryId ?? ""}
-              onChange={(e) =>
+            <CreatableEntitySelect
+              value={editValues.categoryId}
+              onChange={(id) =>
                 setEditValues((prev) => ({
                   ...prev,
-                  categoryId: e.target.value || null,
+                  categoryId: id,
                   subcategoryId: null,
                 }))
               }
-              sx={{ minWidth: 110, fontSize: 13 }}
+              options={categories}
+              onCreate={onCreateCategory}
+              canCreate={canManageOptions}
+              variant="standard"
+              ariaLabel={m.transactions.fields.category}
+              placeholderNone={m.common.none}
+              sx={{ minWidth: 110 }}
               autoFocus={focusField === "categoryId"}
-            >
-              <MenuItem value="">
-                <em>Nenhuma</em>
-              </MenuItem>
-              {categories.map((c) => (
-                <MenuItem key={c.id} value={c.id} sx={{ fontSize: 13 }}>
-                  {c.name}
-                </MenuItem>
-              ))}
-            </Select>
+            />
           </TableCell>
         )}
 
         {/* Subcategoria */}
         {!hiddenColumns.subcategory && (
           <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={editValues.subcategoryId ?? ""}
-              onChange={(e) =>
-                setEditValues((prev) => ({ ...prev, subcategoryId: e.target.value || null }))
-              }
-              sx={{ minWidth: 110, fontSize: 13 }}
+            <CreatableEntitySelect
+              value={editValues.subcategoryId}
+              onChange={(id) => setEditValues((prev) => ({ ...prev, subcategoryId: id }))}
+              options={subcatsForCategory}
+              onCreate={(name) => {
+                if (!editValues.categoryId) return Promise.resolve(null);
+                return onCreateSubcategory(editValues.categoryId, name);
+              }}
+              canCreate={canManageOptions && !!editValues.categoryId}
               disabled={!editValues.categoryId}
+              variant="standard"
+              ariaLabel={m.transactions.fields.subcategory}
+              placeholderNone={m.common.none}
+              sx={{ minWidth: 110 }}
               autoFocus={focusField === "subcategoryId"}
-            >
-              <MenuItem value="">
-                <em>Nenhuma</em>
-              </MenuItem>
-              {subcatsForCategory.map((s) => (
-                <MenuItem key={s.id} value={s.id} sx={{ fontSize: 13 }}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </Select>
+            />
           </TableCell>
         )}
 
         {/* Instituição */}
         {!hiddenColumns.institution && (
           <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={editValues.institutionId ?? ""}
-              onChange={(e) =>
-                setEditValues((prev) => ({ ...prev, institutionId: e.target.value || null }))
-              }
-              sx={{ minWidth: 110, fontSize: 13 }}
+            <CreatableEntitySelect
+              value={editValues.institutionId}
+              onChange={(id) => setEditValues((prev) => ({ ...prev, institutionId: id }))}
+              options={institutions}
+              onCreate={onCreateInstitution}
+              canCreate={canManageOptions}
+              variant="standard"
+              ariaLabel={m.transactions.fields.institution}
+              placeholderNone={m.common.none}
+              sx={{ minWidth: 110 }}
               autoFocus={focusField === "institutionId"}
-            >
-              <MenuItem value="">
-                <em>Nenhuma</em>
-              </MenuItem>
-              {institutions.map((i) => (
-                <MenuItem key={i.id} value={i.id} sx={{ fontSize: 13 }}>
-                  {i.name}
-                </MenuItem>
-              ))}
-            </Select>
+            />
           </TableCell>
         )}
 

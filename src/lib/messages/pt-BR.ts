@@ -11,6 +11,7 @@ export const messages = {
     confirm: "Confirmar",
     close: "Fechar",
     none: "Nenhum",
+    createNamed: (name: string) => `Criar "${name}"`,
   },
   auth: {
     login: "Entrar",
@@ -816,6 +817,13 @@ export const messages = {
       empty: "Nenhum vínculo registrado",
       badge: "Tem vínculos",
       notesLabel: "Observação (opcional)",
+    },
+    // Criação inline de categoria/subcategoria/instituição a partir da linha de
+    // transação (CreatableEntitySelect — Spec V3 · Model D).
+    options: {
+      created: "Opção criada.",
+      createError: "Não foi possível criar a opção.",
+      noOptions: "Nenhuma opção encontrada",
     },
   },
   dashboards: {
