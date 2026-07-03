@@ -26,6 +26,7 @@ const editorLinks = [
   { href: "sections", label: m.settings.nav.sections },
   { href: "categories", label: m.settings.nav.categories },
   { href: "institutions", label: m.settings.nav.institutions },
+  { href: "responsibles", label: m.settings.nav.responsibles },
   { href: "table-types", label: m.settings.nav.tableTypes },
   { href: "models", label: "Modelos de tabela" },
   { href: "templates", label: m.settings.nav.templates },

@@ -139,6 +139,7 @@ export const messages = {
       templates: "Templates de importação",
       analyses: "Análises Salvas",
       members: "Membros",
+      responsibles: "Responsáveis",
       account: "Conta",
       visualization: "Visualização",
       dashboards: {
@@ -368,6 +369,35 @@ export const messages = {
       deleteConfirm:
         "Tem certeza que deseja deletar esta instituição? Transações associadas mantêm o histórico.",
       noInstitutions: "Nenhuma instituição cadastrada.",
+    },
+    responsibleParties: {
+      title: "Responsáveis",
+      subtitle:
+        "Grupos (ex.: Casal) e pessoas sem login (ex.: um filho). Os membros da conta já têm um responsável próprio.",
+      createGroup: "Novo grupo",
+      createExternal: "Nova pessoa externa",
+      addButton: "Novo responsável",
+      nameLabel: "Nome",
+      emojiLabel: "Ícone (emoji)",
+      emojiHint: "Opcional — um único emoji para representar visualmente.",
+      membersLabel: "Membros do grupo",
+      membersHint: "Selecione ao menos 2 membros.",
+      kindPersonal: "Pessoal",
+      kindGroup: "Grupo",
+      kindExternal: "Externo",
+      created: "Responsável criado.",
+      updated: "Responsável atualizado.",
+      deleted: "Responsável excluído.",
+      archived: "Responsável arquivado.",
+      unarchived: "Responsável reativado.",
+      archive: "Arquivar",
+      unarchive: "Reativar",
+      archivedBadge: "Arquivado",
+      deleteTitle: "Excluir responsável",
+      deleteConfirm:
+        "Tem certeza? As transações associadas mantêm o histórico (ficam sem responsável).",
+      empty: "Nenhum grupo ou pessoa externa cadastrado.",
+      personalHint: "(membro da conta)",
     },
     tableTypes: {
       title: "Tipos de tabela",
