@@ -42,7 +42,7 @@ type Props = {
 };
 
 function rowKey(r: MemberBreakdownRow): string {
-  return r.userId ?? "unassigned";
+  return r.partyId ?? "unassigned";
 }
 
 // Trunca nomes longos para os eixos do radar

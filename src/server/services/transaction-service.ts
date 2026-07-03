@@ -58,6 +58,7 @@ export async function createTransaction(input: CreateTransactionInput, ctx: Acti
       institutionId: input.institutionId ?? null,
       institutionText: input.institutionText ?? null,
       responsibleUserId: input.responsibleUserId ?? null,
+      responsiblePartyId: input.responsiblePartyId ?? null,
       cardInstallment: input.cardInstallment ?? null,
       investmentType: input.investmentType ?? null,
       expenseType: input.expenseType ?? null,
@@ -100,6 +101,8 @@ export async function updateTransaction(
   if (input.institutionText !== undefined) data.institutionText = input.institutionText ?? null;
   if (input.responsibleUserId !== undefined)
     data.responsibleUserId = input.responsibleUserId ?? null;
+  if (input.responsiblePartyId !== undefined)
+    data.responsiblePartyId = input.responsiblePartyId ?? null;
   if (input.cardInstallment !== undefined) data.cardInstallment = input.cardInstallment ?? null;
   if (input.investmentType !== undefined) data.investmentType = input.investmentType ?? null;
   if (input.expenseType !== undefined) data.expenseType = input.expenseType ?? null;

@@ -32,6 +32,7 @@ export const baseTransactionSchema = z.object({
   institutionId: z.string().cuid("ID inválido").nullable().optional(),
   institutionText: z.string().max(80).optional().nullable(),
   responsibleUserId: z.string().cuid("ID inválido").nullable().optional(),
+  responsiblePartyId: z.string().cuid("ID inválido").nullable().optional(),
   cardInstallment: z
     .string()
     .regex(/^\d+\/\d+$/, "Formato: 3/12")

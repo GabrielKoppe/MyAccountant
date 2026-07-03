@@ -30,7 +30,7 @@ export function MemberBreakdownWidget({ rows, config, renderMode = "default" }: 
   }));
 
   const barItems: BarItem[] = spenders.map((r) => ({
-    id: r.userId ?? "unassigned",
+    id: r.partyId ?? "unassigned",
     name: memberDisplayName(r.name, r.isFormerMember),
     valueCents: r.totalCents,
   }));
