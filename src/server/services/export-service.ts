@@ -53,7 +53,7 @@ export async function getMonthTransactionsForExport(
       category: { select: { name: true } },
       subcategory: { select: { name: true } },
       institution: { select: { name: true } },
-      responsibleUser: { select: { name: true } },
+      responsibleParty: { select: { name: true } },
     },
   });
 
@@ -67,7 +67,7 @@ export async function getMonthTransactionsForExport(
     categoryName: r.category?.name ?? null,
     subcategoryName: r.subcategory?.name ?? null,
     institutionName: r.institution?.name ?? null,
-    responsibleName: r.responsibleUser?.name ?? null,
+    responsibleName: r.responsibleParty?.name ?? null,
     isPending: r.isPending,
     isFavorite: r.isFavorite,
     notes: r.notes,
@@ -98,7 +98,7 @@ export async function getYearTransactionsForExport(
       category: { select: { name: true } },
       subcategory: { select: { name: true } },
       institution: { select: { name: true } },
-      responsibleUser: { select: { name: true } },
+      responsibleParty: { select: { name: true } },
       month: { select: { month: true } },
     },
   });
@@ -113,7 +113,7 @@ export async function getYearTransactionsForExport(
     categoryName: r.category?.name ?? null,
     subcategoryName: r.subcategory?.name ?? null,
     institutionName: r.institution?.name ?? null,
-    responsibleName: r.responsibleUser?.name ?? null,
+    responsibleName: r.responsibleParty?.name ?? null,
     isPending: r.isPending,
     isFavorite: r.isFavorite,
     notes: r.notes,

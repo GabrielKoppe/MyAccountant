@@ -51,8 +51,10 @@ import type {
   HiddenColumns,
   InstitutionOption,
   MemberOption,
+  ResponsiblePartyOption,
   TransactionRow as TxRow,
 } from "./types";
+import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
 import { formatDateBr } from "@/lib/dates";
 
 type Props = {
@@ -69,6 +71,7 @@ type Props = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
+  parties: ResponsiblePartyOption[];
   accountId: string;
   onSelect: (id: string, checked: boolean) => void;
   onSave: () => void;
@@ -88,7 +91,7 @@ export function TransactionRowEditor({
   hiddenColumns,
   categories,
   institutions,
-  members,
+  parties,
   accountId,
   onSelect,
   onSave,
@@ -278,24 +281,16 @@ export function TransactionRowEditor({
         {/* Responsável */}
         {!hiddenColumns.responsibleUser && (
           <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={editValues.responsibleUserId ?? ""}
-              onChange={(e) =>
-                setEditValues((prev) => ({ ...prev, responsibleUserId: e.target.value || null }))
+            <ResponsiblePartySelect
+              value={editValues.responsiblePartyId}
+              onChange={(partyId) =>
+                setEditValues((prev) => ({ ...prev, responsiblePartyId: partyId }))
               }
-              sx={{ minWidth: 90, fontSize: 13 }}
+              parties={parties}
+              variant="standard"
+              sx={{ minWidth: 90 }}
               autoFocus={focusField === "responsibleUserId"}
-            >
-              <MenuItem value="">
-                <em>Nenhum</em>
-              </MenuItem>
-              {members.map((mem) => (
-                <MenuItem key={mem.id} value={mem.id} sx={{ fontSize: 13 }}>
-                  {mem.name ?? mem.email}
-                </MenuItem>
-              ))}
-            </Select>
+            />
           </TableCell>
         )}
 

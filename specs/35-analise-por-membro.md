@@ -32,6 +32,8 @@ A despesa por membro usa a mesma base de "despesa" do resto do app (seções `su
 
 #### Resolução de identidade do responsável (vale para ambas as queries)
 
+> **Delta pendente (Spec 60, ready):** a atribuição passa a ser por `responsiblePartyId` (party), não `responsibleUserId`. `groupBy` agrega por party — invariante do `sharePercent` (shares somam 100%) preservado (cardinalidade 1). Uma party `group` ("Casal") é **uma linha/série**, sem fan-out para membros (non-goal). A resolução "(ex-membro)" abaixo é substituída pela precedência de nome da Spec 60 §2.4 (party pessoal de membro atual = nome ao vivo; external/group/desanexada = `party.name` snapshot). Ver `specs/60-...md`.
+
 A partir do conjunto de `responsibleUserId` distintos retornados pelas agregações:
 
 1. `responsibleUserId = null` → bucket único **"Sem responsável"** (`m.dashboards.members.unassigned`).

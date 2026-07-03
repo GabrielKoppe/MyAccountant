@@ -40,7 +40,7 @@ export function MemberListWidget({ rows, renderMode = "default" }: Props) {
   }
 
   function rowKey(r: MemberBreakdownRow): string {
-    return r.userId ?? "unassigned";
+    return r.partyId ?? "unassigned";
   }
 
   // ── Compact (2×1): cards estilo MonthCardGrid ──────────────────────────

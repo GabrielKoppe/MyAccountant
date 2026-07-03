@@ -1,6 +1,7 @@
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
 import { ConflictError } from "@/server/api/errors";
+import { ensurePersonalParty } from "@/server/services/responsible-party-service";
 import type { CreateAccountInput } from "@/lib/schemas/account";
 
 const log = logger.child({ module: "account-service" });
@@ -83,6 +84,18 @@ export async function createAccount(input: CreateAccountInput & { createdById: s
         },
       });
     }
+
+    // Personal party do dono (Spec 60 §2) — auto-criada junto da conta.
+    const owner = await tx.user.findUnique({
+      where: { id: createdById },
+      select: { name: true, email: true },
+    });
+    await ensurePersonalParty(
+      tx,
+      created.id,
+      createdById,
+      owner?.name ?? owner?.email ?? "Você",
+    );
 
     return created;
   });

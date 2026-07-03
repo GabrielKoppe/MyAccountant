@@ -3,6 +3,7 @@ import { cache } from "react";
 import type { TransactionExpenseType } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { formatCentsToBrl } from "@/lib/money";
+import { personalPartyIdsForUsers } from "./responsible-party-filter";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -215,7 +216,11 @@ async function calcSpent(
   }
 
   if (budget.categoryId) where.categoryId = budget.categoryId;
-  if (budget.memberUserId) where.responsibleUserId = budget.memberUserId;
+  if (budget.memberUserId) {
+    // memberUserId → party pessoal do membro (Spec 60); orçamento por membro.
+    const pids = await personalPartyIdsForUsers(accountId, [budget.memberUserId]);
+    where.responsiblePartyId = { in: pids };
+  }
   if (budget.institutionId) where.institutionId = budget.institutionId;
   if (budget.tableTypeId) where.table = { tableTypeId: budget.tableTypeId };
 

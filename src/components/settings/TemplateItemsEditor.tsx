@@ -29,6 +29,8 @@ import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
 import type { InvestmentType } from "@/lib/schemas/transaction";
+import { ResponsiblePartySelect } from "@/components/transactions/ResponsiblePartySelect";
+import type { ResponsiblePartyOption } from "@/components/transactions/types";
 
 type Item = {
   id: string;
@@ -39,7 +41,7 @@ type Item = {
   categoryId: string | null;
   subcategoryId: string | null;
   institutionId: string | null;
-  responsibleUserId: string | null;
+  responsiblePartyId: string | null;
   cardInstallment: string | null;
   investmentType: InvestmentType | null;
   displayOrder: number;
@@ -53,7 +55,7 @@ type Props = {
   template: Template;
   categories: CategoryOption[];
   institutions: { id: string; name: string }[];
-  members: { id: string; name: string | null; email: string }[];
+  parties: ResponsiblePartyOption[];
   open: boolean;
   onClose: () => void;
   onItemsChanged: (items: Item[]) => void;
@@ -67,7 +69,7 @@ const EMPTY_FORM = {
   categoryId: "",
   subcategoryId: "",
   institutionId: "",
-  responsibleUserId: "",
+  responsiblePartyId: "",
   cardInstallment: "",
   investmentType: "",
 };
@@ -77,7 +79,7 @@ export function TemplateItemsEditor({
   template,
   categories,
   institutions,
-  members,
+  parties,
   open,
   onClose,
   onItemsChanged,
@@ -115,7 +117,7 @@ export function TemplateItemsEditor({
         categoryId: form.categoryId || undefined,
         subcategoryId: form.subcategoryId || undefined,
         institutionId: form.institutionId || undefined,
-        responsibleUserId: form.responsibleUserId || undefined,
+        responsiblePartyId: form.responsiblePartyId || undefined,
         cardInstallment: form.cardInstallment || undefined,
         investmentType: (form.investmentType || undefined) as InvestmentType | undefined,
       });
@@ -133,7 +135,7 @@ export function TemplateItemsEditor({
         categoryId: form.categoryId || null,
         subcategoryId: form.subcategoryId || null,
         institutionId: form.institutionId || null,
-        responsibleUserId: form.responsibleUserId || null,
+        responsiblePartyId: form.responsiblePartyId || null,
         cardInstallment: form.cardInstallment || null,
         investmentType: (form.investmentType || null) as InvestmentType | null,
         displayOrder: items.length,
@@ -345,19 +347,14 @@ export function TemplateItemsEditor({
               </Select>
             </FormControl>
             <FormControl fullWidth size="small">
-              <InputLabel>Responsável</InputLabel>
-              <Select
-                value={form.responsibleUserId}
-                label="Responsável"
-                onChange={(e) => pf({ responsibleUserId: e.target.value })}
-              >
-                <MenuItem value="">— Nenhum —</MenuItem>
-                {members.map((mem) => (
-                  <MenuItem key={mem.id} value={mem.id}>
-                    {mem.name ?? mem.email}
-                  </MenuItem>
-                ))}
-              </Select>
+              <Typography variant="caption" sx={{ mb: 0.5, color: "text.secondary" }}>
+                {m.transactions.fields.responsibleUser}
+              </Typography>
+              <ResponsiblePartySelect
+                value={form.responsiblePartyId || null}
+                onChange={(partyId) => pf({ responsiblePartyId: partyId ?? "" })}
+                parties={parties}
+              />
             </FormControl>
           </Box>
 

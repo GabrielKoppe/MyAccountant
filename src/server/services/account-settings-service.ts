@@ -10,7 +10,7 @@ export async function updateAccountSettings(input: UpdateAccountSettingsInput, c
     accountName,
     currency,
     monthStartDay,
-    defaultResponsibleUserId,
+    defaultResponsiblePartyId,
     invertSignOnMoveByDefault,
   } = input;
 
@@ -24,7 +24,7 @@ export async function updateAccountSettings(input: UpdateAccountSettingsInput, c
       data: {
         currency,
         monthStartDay,
-        defaultResponsibleUserId: defaultResponsibleUserId ?? null,
+        defaultResponsiblePartyId: defaultResponsiblePartyId ?? null,
         invertSignOnMoveByDefault,
       },
     }),

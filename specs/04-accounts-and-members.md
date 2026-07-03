@@ -129,6 +129,8 @@ mesmo que ele não esteja na allowlist — ver `isSignupAllowed(email)` em `auth
 4. Deletar `AccountMember`.
 5. **Não deleta** transações criadas pelo membro removido (mantém histórico, `createdById` aponta para User órfão da Account).
 
+> **Delta pendente (Spec 60, ready):** remover um membro **não** apaga a party `personal` dele — a `ResponsibleParty` é dado da Account e sobrevive, preservando a atribuição histórica (o nome vira snapshot + "(ex-membro)"). Ver `specs/60-...md`.
+
 ### 4.6 Mudar papel de membro
 
 **Trigger**: Owner em `/settings/members` → dropdown de role.

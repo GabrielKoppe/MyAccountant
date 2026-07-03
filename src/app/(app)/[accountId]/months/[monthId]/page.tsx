@@ -6,6 +6,7 @@ import Box from "@mui/material/Box";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { MONTH_NAMES } from "@/lib/dates";
+import { toResponsiblePartyOption } from "@/lib/party-display";
 import { MonthHeader } from "@/components/months/MonthHeader";
 import { MonthTabs } from "@/components/months/MonthTabs";
 import { MonthFilterProvider, type MonthFilterState } from "@/components/months/MonthFilterContext";
@@ -18,6 +19,7 @@ import {
   getMonthCategories,
   getMonthInstitutions,
   getMonthMembers,
+  getMonthResponsibleParties,
 } from "@/server/queries/month-page";
 
 type Props = {
@@ -96,7 +98,16 @@ export default async function MonthPage({ params, searchParams }: Props) {
   const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
   const canEdit = member.role === "owner" || member.role === "editor";
 
-  const [currentMonth, allMonths, sections, categories, institutions, membersRaw, accountTags] =
+  const [
+    currentMonth,
+    allMonths,
+    sections,
+    categories,
+    institutions,
+    membersRaw,
+    partiesRaw,
+    accountTags,
+  ] =
     await Promise.all([
       prisma.month.findUnique({
         where: { id: monthId },
@@ -111,6 +122,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
       getMonthCategories(accountId),
       getMonthInstitutions(accountId),
       getMonthMembers(accountId),
+      getMonthResponsibleParties(accountId),
       prisma.tag.findMany({
         where: { accountId },
         orderBy: { name: "asc" },
@@ -118,15 +130,14 @@ export default async function MonthPage({ params, searchParams }: Props) {
       }),
     ]);
 
+  // Resolve exibição das parties (Spec 60 §2.4).
+  const currentMemberIds = new Set(membersRaw.map((mm) => mm.user.id));
+  const filterParties = partiesRaw.map((p) => toResponsiblePartyOption(p, currentMemberIds));
+
   const filterOptions = {
     categories,
     institutions,
-    members: membersRaw.map((m) => ({
-      id: m.user.id,
-      name: m.user.name,
-      email: m.user.email,
-      image: m.user.image,
-    })),
+    parties: filterParties,
     tags: accountTags,
   };
 

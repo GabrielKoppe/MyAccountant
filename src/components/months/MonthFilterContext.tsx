@@ -6,7 +6,7 @@ import type { TransactionExpenseType, TransactionSource } from "@prisma/client";
 import type {
   CategoryOption,
   InstitutionOption,
-  MemberOption,
+  ResponsiblePartyOption,
   TransactionRow,
 } from "@/components/transactions/types";
 
@@ -70,7 +70,7 @@ export function applyGlobalFilters(
       return false;
     if (
       filters.responsible.length > 0 &&
-      !filters.responsible.includes(row.responsibleUserId ?? "")
+      !filters.responsible.includes(row.responsiblePartyId ?? "")
     )
       return false;
     if (filters.pending && !row.isPending) return false;
@@ -91,7 +91,7 @@ export function applyGlobalFilters(
 type FilterOptions = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
-  members: MemberOption[];
+  parties: ResponsiblePartyOption[];
   tags: { id: string; name: string; color: string | null }[];
 };
 

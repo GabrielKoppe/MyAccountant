@@ -22,14 +22,16 @@ import {
   type UpdateAccountSettingsInput,
 } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
+import { ResponsiblePartySelect } from "@/components/transactions/ResponsiblePartySelect";
+import type { ResponsiblePartyOption } from "@/components/transactions/types";
 
 type Props = {
   accountId: string;
   defaultValues: UpdateAccountSettingsInput;
-  members: { id: string; label: string }[];
+  parties: ResponsiblePartyOption[];
 };
 
-export function GeneralSettingsForm({ accountId, defaultValues, members }: Props) {
+export function GeneralSettingsForm({ accountId, defaultValues, parties }: Props) {
   const { enqueueSnackbar } = useSnackbar();
 
   const form = useForm<UpdateAccountSettingsInput>({
@@ -104,25 +106,18 @@ export function GeneralSettingsForm({ accountId, defaultValues, members }: Props
         />
 
         <Controller
-          name="defaultResponsibleUserId"
+          name="defaultResponsiblePartyId"
           control={form.control}
           render={({ field, fieldState }) => (
             <FormControl error={!!fieldState.error} fullWidth>
-              <InputLabel>{m.settings.general.defaultResponsibleLabel}</InputLabel>
-              <Select
-                {...field}
-                value={field.value ?? ""}
-                onChange={(e) => field.onChange(e.target.value || null)}
-                label={m.settings.general.defaultResponsibleLabel}
-                size="small"
-              >
-                <MenuItem value="">{m.settings.general.defaultResponsibleNone}</MenuItem>
-                {members.map((member) => (
-                  <MenuItem key={member.id} value={member.id}>
-                    {member.label}
-                  </MenuItem>
-                ))}
-              </Select>
+              <Typography variant="body2" sx={{ mb: 0.5, color: "text.secondary" }}>
+                {m.settings.general.defaultResponsibleLabel}
+              </Typography>
+              <ResponsiblePartySelect
+                value={field.value ?? null}
+                onChange={field.onChange}
+                parties={parties}
+              />
               {fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
             </FormControl>
           )}

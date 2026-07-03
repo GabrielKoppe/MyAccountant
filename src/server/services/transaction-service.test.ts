@@ -49,6 +49,31 @@ describe("createTransaction", () => {
     );
   });
 
+  it("grava responsiblePartyId direto do input (Spec 60 Fase 5)", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-p" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 10000n,
+        isPending: false,
+        isFavorite: false,
+        responsiblePartyId: "party-1",
+      },
+      TEST_CTX,
+    );
+
+    const data = (prismaMock.transaction.create.mock.calls[0][0] as any).data;
+    expect(data.responsiblePartyId).toBe("party-1");
+    expect(data.responsibleUserId).toBeUndefined();
+  });
+
   it("deve lançar NotFoundError se tabela pertence a outra account (segurança multi-tenancy)", async () => {
     prismaMock.financeTable.findUnique.mockResolvedValue({
       accountId: "acc-OUTRA",

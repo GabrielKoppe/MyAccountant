@@ -45,7 +45,7 @@ type Props = {
 };
 
 function seriesKey(row: MemberBreakdownRow): string {
-  return row.userId ?? "unassigned";
+  return row.partyId ?? "unassigned";
 }
 
 export function MemberBreakdownChart({ rows, view }: Props) {

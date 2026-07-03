@@ -91,12 +91,12 @@ export function ActiveFilterChips() {
       })}
 
       {filters.responsible.map((id) => {
-        const member = options.members.find((mem) => mem.id === id);
-        if (!member) return null;
+        const party = options.parties.find((p) => p.id === id);
+        if (!party) return null;
         return (
           <Chip
             key={id}
-            label={label("Responsável", member.name ?? member.email)}
+            label={label("Responsável", party.icon ? `${party.icon} ${party.name}` : party.name)}
             size="small"
             onDelete={() => removeResponsible(id)}
             sx={chipSx}

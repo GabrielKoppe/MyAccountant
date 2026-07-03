@@ -51,6 +51,12 @@ export function revalidateBudgets(accountId: string) {
   revalidatePath(`/${accountId}/settings/budgets`);
 }
 
+/** Revalida a gestão de responsáveis (personas). */
+export function revalidateResponsibleParties(accountId: string) {
+  revalidatePath(`/${accountId}/settings/responsibles`);
+  revalidatePath(`/${accountId}`);
+}
+
 /** Revalida dashboards (layout completo — usar com moderação). */
 export function revalidateDashboards(accountId: string) {
   revalidatePath(`/${accountId}/dashboards`, "layout");

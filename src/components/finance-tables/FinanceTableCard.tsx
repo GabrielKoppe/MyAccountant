@@ -55,6 +55,7 @@ import type {
   HiddenColumns,
   InstitutionOption,
   MemberOption,
+  ResponsiblePartyOption,
   TransactionRow,
 } from "@/components/transactions/types";
 
@@ -86,7 +87,8 @@ type Props = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
-  defaultResponsibleUserId: string | null;
+  parties: ResponsiblePartyOption[];
+  defaultResponsiblePartyId: string | null;
   onDuplicate: () => void;
 };
 
@@ -104,7 +106,8 @@ export function FinanceTableCard({
   categories,
   institutions,
   members,
-  defaultResponsibleUserId,
+  parties,
+  defaultResponsiblePartyId,
   onDuplicate,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
@@ -472,7 +475,8 @@ export function FinanceTableCard({
           categories={categories}
           institutions={institutions}
           members={members}
-          defaultResponsibleUserId={defaultResponsibleUserId}
+          parties={parties}
+          defaultResponsiblePartyId={defaultResponsiblePartyId}
           showNewRow={showNewRow}
           onNewRowClose={() => setShowNewRow(false)}
           groupByDate={table.groupByDate}

@@ -6,6 +6,7 @@ import { requireAccountAccess } from "@/server/auth/session";
 import * as svc from "@/server/services/table-template-service";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
+import { toResponsiblePartyOption } from "@/lib/party-display";
 import type { InvestmentType } from "@/lib/schemas/transaction";
 import { TableModelsManager } from "@/app/(app)/[accountId]/settings/models/TableModelsManager";
 
@@ -21,7 +22,8 @@ export default async function TableModelsPage({ params }: Props) {
   const { accountId } = await params;
   await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
-  const [templates, categories, institutions, members, tableTypes, sections] = await Promise.all([
+  const [templates, categories, institutions, members, partiesRaw, tableTypes, sections] =
+    await Promise.all([
     svc.listTemplates(accountId),
     prisma.category.findMany({
       where: { accountId },
@@ -36,6 +38,20 @@ export default async function TableModelsPage({ params }: Props) {
     prisma.accountMember.findMany({
       where: { accountId },
       include: { user: { select: { id: true, name: true, email: true } } },
+    }),
+    prisma.responsibleParty.findMany({
+      where: { accountId, archivedAt: null },
+      orderBy: [{ kind: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        icon: true,
+        color: true,
+        members: {
+          select: { userId: true, user: { select: { name: true, email: true, image: true } } },
+        },
+      },
     }),
     prisma.tableType.findMany({
       where: { accountId },
@@ -59,11 +75,8 @@ export default async function TableModelsPage({ params }: Props) {
     })),
   }));
 
-  const memberOptions = members.map((m: any) => ({
-    id: m.user.id,
-    name: m.user.name,
-    email: m.user.email,
-  }));
+  const currentMemberIds = new Set(members.map((mm: any) => mm.user.id));
+  const parties = partiesRaw.map((p) => toResponsiblePartyOption(p, currentMemberIds));
 
   return (
     <TableModelsManager
@@ -71,7 +84,7 @@ export default async function TableModelsPage({ params }: Props) {
       initialTemplates={serializedTemplates}
       categories={categories}
       institutions={institutions}
-      members={memberOptions}
+      parties={parties}
       tableTypes={tableTypes}
       sections={sections}
       title={m.tableModels.title}

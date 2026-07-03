@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { kpiCustomConfigSchema, type KpiCustomConfig } from "@/lib/schemas/widget-config";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import { personalPartyIdsForUsers } from "./responsible-party-filter";
 
 // Resultado serializado do KPI customizado (BigInt → string).
 // `valueCents` = valor monetário do metric (total líquido / entradas / saídas / média);
@@ -28,15 +29,18 @@ export const getKpiCustomData = cache(
       return { metric: config.metric, valueCents: "0", count: 0 };
     }
 
+    // filterMemberIds guarda userIds de membros → traduz p/ suas parties personais.
+    const responsiblePartyIds = config.filterMemberIds?.length
+      ? await personalPartyIdsForUsers(accountId, config.filterMemberIds)
+      : [];
+
     const where: Prisma.TransactionWhereInput = {
       accountId,
       monthId: { in: monthIds },
       table: { countInMonth: true },
       ...(config.filterSectionIds?.length ? { sectionId: { in: config.filterSectionIds } } : {}),
       ...(config.filterCategoryIds?.length ? { categoryId: { in: config.filterCategoryIds } } : {}),
-      ...(config.filterMemberIds?.length
-        ? { responsibleUserId: { in: config.filterMemberIds } }
-        : {}),
+      ...(responsiblePartyIds.length ? { responsiblePartyId: { in: responsiblePartyIds } } : {}),
     };
 
     const [rows, sections] = await Promise.all([

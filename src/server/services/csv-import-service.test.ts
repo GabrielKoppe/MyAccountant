@@ -34,6 +34,7 @@ function setupFoundResources() {
   prismaMock.category.findMany.mockResolvedValue([]);
   prismaMock.subcategory.findMany.mockResolvedValue([]);
   prismaMock.institution.findMany.mockResolvedValue([]);
+  prismaMock.responsiblePartyMember.findMany.mockResolvedValue([]);
 }
 
 function setupTxMock() {

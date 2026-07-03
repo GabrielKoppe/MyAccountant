@@ -95,24 +95,24 @@ model User {
   sessions      Session[]
 
   // App relations
-  settings              UserSettings?
-  accountsCreated       Account[]       @relation("AccountCreatedBy")
-  memberships           AccountMember[]
-  invitesSent           AccountInvite[] @relation("InviteSentBy")
-  tablesCreated         FinanceTable[]  @relation("TableCreatedBy")
-  tablesUpdated         FinanceTable[]  @relation("TableUpdatedBy")
-  transCreated          Transaction[]   @relation("TransactionCreatedBy")
-  transUpdated          Transaction[]   @relation("TransactionUpdatedBy")
-  transResponsible      Transaction[]   @relation("TransactionResponsible")
-  membersAdded          AccountMember[] @relation("MemberAddedBy")
-  catsCreated           Category[]      @relation("CategoryCreatedBy")
-  instCreated           Institution[]   @relation("InstitutionCreatedBy")
-  templatesCreated      CsvTemplate[]   @relation("TemplateCreatedBy")
-  tableModelsCreated    TableTemplate[] @relation("TableTemplateCreatedBy")
-  monthsCreated         Month[]         @relation("MonthCreatedBy")
-  budgetsAsMember       Budget[]        @relation("BudgetMember")
-  notificationsReceived Notification[]  @relation("NotificationRecipient")
-  notificationsSent     Notification[]  @relation("NotificationActor")
+  settings                    UserSettings?
+  accountsCreated             Account[]                @relation("AccountCreatedBy")
+  memberships                 AccountMember[]
+  invitesSent                 AccountInvite[]          @relation("InviteSentBy")
+  tablesCreated               FinanceTable[]           @relation("TableCreatedBy")
+  tablesUpdated               FinanceTable[]           @relation("TableUpdatedBy")
+  transCreated                Transaction[]            @relation("TransactionCreatedBy")
+  transUpdated                Transaction[]            @relation("TransactionUpdatedBy")
+  responsiblePartyMemberships ResponsiblePartyMember[]
+  membersAdded                AccountMember[]          @relation("MemberAddedBy")
+  catsCreated                 Category[]               @relation("CategoryCreatedBy")
+  instCreated                 Institution[]            @relation("InstitutionCreatedBy")
+  templatesCreated            CsvTemplate[]            @relation("TemplateCreatedBy")
+  tableModelsCreated          TableTemplate[]          @relation("TableTemplateCreatedBy")
+  monthsCreated               Month[]                  @relation("MonthCreatedBy")
+  budgetsAsMember             Budget[]                 @relation("BudgetMember")
+  notificationsReceived       Notification[]           @relation("NotificationRecipient")
+  notificationsSent           Notification[]           @relation("NotificationActor")
 
   @@map("users")
 }
@@ -188,6 +188,7 @@ model Account {
   installmentGroups   InstallmentGroup[]
   pendingInstallments PendingInstallment[]
   transactionLinks    TransactionLink[]
+  responsibleParties  ResponsibleParty[]
 
   @@map("accounts")
 }
@@ -233,17 +234,61 @@ model AccountInvite {
 // =========================================
 
 model AccountSettings {
-  accountId                String    @id @map("account_id")
-  currency                 String    @default("BRL")
-  monthStartDay            Int       @default(1) @map("month_start_day")
-  defaultResponsibleUserId String?   @map("default_responsible_user_id")
-  onboardingCompletedAt    DateTime? @map("onboarding_completed_at")
-  createdAt                DateTime  @default(now()) @map("created_at")
-  updatedAt                DateTime  @updatedAt @map("updated_at")
+  accountId                 String    @id @map("account_id")
+  currency                  String    @default("BRL")
+  monthStartDay             Int       @default(1) @map("month_start_day")
+  defaultResponsiblePartyId String?   @map("default_responsible_party_id")
+  invertSignOnMoveByDefault Boolean   @default(true) @map("invert_sign_on_move_by_default")
+  onboardingCompletedAt     DateTime? @map("onboarding_completed_at")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
 
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account                 Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  defaultResponsibleParty ResponsibleParty? @relation("SettingsDefaultResponsibleParty", fields: [defaultResponsiblePartyId], references: [id], onDelete: SetNull)
 
   @@map("account_settings")
+}
+
+enum ResponsiblePartyKind {
+  personal
+  group
+  external
+
+  @@map("responsible_party_kind")
+}
+
+model ResponsibleParty {
+  id         String               @id @default(cuid())
+  accountId  String               @map("account_id")
+  name       String
+  kind       ResponsiblePartyKind
+  icon       String?              // chave do set curado (src/lib/persona-icons.ts)
+  color      String?              // chave de cor accent (src/lib/accent-colors.ts)
+  archivedAt DateTime?            @map("archived_at")
+  createdAt  DateTime             @default(now()) @map("created_at")
+  updatedAt  DateTime             @updatedAt @map("updated_at")
+
+  account           Account                  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  members           ResponsiblePartyMember[]
+  transactions      Transaction[]            @relation("TransactionResponsibleParty")
+  templateItems     TableTemplateItem[]      @relation("TemplateItemResponsibleParty")
+  settingsDefaultOf AccountSettings[]        @relation("SettingsDefaultResponsibleParty")
+
+  @@unique([accountId, name])
+  @@index([accountId])
+  @@map("responsible_parties")
+}
+
+model ResponsiblePartyMember {
+  partyId String @map("party_id")
+  userId  String @map("user_id")
+
+  party ResponsibleParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([partyId, userId])
+  @@index([userId])
+  @@map("responsible_party_members")
 }
 
 model TableType {
@@ -367,7 +412,7 @@ model Transaction {
   subcategoryId       String?                 @map("subcategory_id")
   institutionId       String?                 @map("institution_id")
   institutionText     String?                 @map("institution_text")
-  responsibleUserId   String?                 @map("responsible_user_id")
+  responsiblePartyId  String?                 @map("responsible_party_id")
   cardInstallment     String?                 @map("card_installment")
   investmentType      String?                 @map("investment_type")
   expenseType         TransactionExpenseType? @map("expense_type")
@@ -390,7 +435,7 @@ model Transaction {
   category         Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   subcategory      Subcategory?      @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
   institution      Institution?      @relation(fields: [institutionId], references: [id], onDelete: SetNull)
-  responsibleUser  User?             @relation("TransactionResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  responsibleParty ResponsibleParty? @relation("TransactionResponsibleParty", fields: [responsiblePartyId], references: [id], onDelete: SetNull)
   createdBy        User              @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy        User?             @relation("TransactionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   tags             TransactionTag[]
@@ -403,6 +448,7 @@ model Transaction {
   @@index([accountId, occurredOn])
   @@index([categoryId])
   @@index([installmentGroupId])
+  @@index([responsiblePartyId])
   @@map("transactions")
 }
 
@@ -498,26 +544,27 @@ model TableTemplate {
 }
 
 model TableTemplateItem {
-  id                String                  @id @default(cuid())
-  templateId        String                  @map("template_id")
-  accountId         String                  @map("account_id")
-  day               Int
-  amountCents       BigInt                  @map("amount_cents")
-  description       String?
-  notes             String?
-  isPending         Boolean                 @default(false) @map("is_pending")
-  categoryId        String?                 @map("category_id")
-  subcategoryId     String?                 @map("subcategory_id")
-  institutionId     String?                 @map("institution_id")
-  responsibleUserId String?                 @map("responsible_user_id")
-  cardInstallment   String?                 @map("card_installment")
-  investmentType    String?                 @map("investment_type")
-  expenseType       TransactionExpenseType? @map("expense_type")
-  displayOrder      Int                     @default(0) @map("display_order")
-  createdAt         DateTime                @default(now()) @map("created_at")
+  id                 String                  @id @default(cuid())
+  templateId         String                  @map("template_id")
+  accountId          String                  @map("account_id")
+  day                Int
+  amountCents        BigInt                  @map("amount_cents")
+  description        String?
+  notes              String?
+  isPending          Boolean                 @default(false) @map("is_pending")
+  categoryId         String?                 @map("category_id")
+  subcategoryId      String?                 @map("subcategory_id")
+  institutionId      String?                 @map("institution_id")
+  responsiblePartyId String?                 @map("responsible_party_id")
+  cardInstallment    String?                 @map("card_installment")
+  investmentType     String?                 @map("investment_type")
+  expenseType        TransactionExpenseType? @map("expense_type")
+  displayOrder       Int                     @default(0) @map("display_order")
+  createdAt          DateTime                @default(now()) @map("created_at")
 
-  template TableTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  account  Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  template         TableTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  account          Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  responsibleParty ResponsibleParty? @relation("TemplateItemResponsibleParty", fields: [responsiblePartyId], references: [id], onDelete: SetNull)
 
   @@index([templateId])
   @@map("table_template_items")

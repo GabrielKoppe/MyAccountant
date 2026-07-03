@@ -51,10 +51,31 @@ export const getMonthMembers = cache(async (accountId: string) =>
   }),
 );
 
+// Parties (personas) ativas da Account, com membros para resolução de nome ao vivo.
+export const getMonthResponsibleParties = cache(async (accountId: string) =>
+  prisma.responsibleParty.findMany({
+    where: { accountId, archivedAt: null },
+    orderBy: [{ kind: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      icon: true,
+      color: true,
+      members: {
+        select: { userId: true, user: { select: { name: true, email: true, image: true } } },
+      },
+    },
+  }),
+);
+
 export const getMonthAccountSettings = cache(async (accountId: string) =>
   prisma.accountSettings.findUnique({
     where: { accountId },
-    select: { defaultResponsibleUserId: true, monthStartDay: true },
+    select: {
+      defaultResponsiblePartyId: true,
+      monthStartDay: true,
+    },
   }),
 );
 
@@ -365,7 +386,7 @@ export const getSectionTabData = cache(
         subcategoryId: true,
         institutionId: true,
         institutionText: true,
-        responsibleUserId: true,
+        responsiblePartyId: true,
         cardInstallment: true,
         investmentType: true,
         expenseType: true,

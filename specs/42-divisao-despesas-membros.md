@@ -106,6 +106,9 @@ model ExpenseSplit {
 - Notificação ao membro devedor quando uma despesa é dividida — depende da Spec 45 (feed/menções); pode ser ligada depois.
 - Divisão de despesas com pessoas **fora** da Account (não-membros) — todos os participantes precisam ser `AccountMember`.
 - Histórico/relatório de saldos ao longo do tempo — apenas o saldo corrente (não quitado).
+- **Atribuição de responsável (quem é o responsável pela transação) — ver Spec 60.** Esta spec é rateio (quem deve quanto), não atribuição.
+
+> **Nota de fronteira (Spec 60 — Atribuição por Persona, ready).** Atribuição (`responsiblePartyId`, party — pode ser grupo ou externo) e rateio (`ExpenseSplit.debtorUserId`, só membro) são **eixos ortogonais** e não se referenciam no schema. Uma transação pode ter responsável = party "Casal" **e** splits de dívida entre membros. **Ressalva de implementação:** o "pagador" cujo resíduo é calculado em §2.1 NÃO pode ser derivado de `responsiblePartyId` (ambíguo para `group`, inexistente para `external`) — usar `createdById` ou um campo de pagador explícito. Ratear uma transação de responsável `external` é impedido pela AC de §4 ("debtorUserId não-membro → rejeitar").
 
 ## 6. Decisões de Design
 

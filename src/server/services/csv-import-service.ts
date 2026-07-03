@@ -2,6 +2,7 @@ import { addMonths } from "date-fns";
 import { prisma } from "@/server/prisma";
 import { NotFoundError, ConflictError } from "@/server/api/errors";
 import { applyMappingToRows } from "@/lib/csv-parser";
+import { personalPartyMapForAccount } from "@/server/queries/responsible-party-filter";
 import { calcInstallmentAmounts } from "@/lib/installment-utils";
 import {
   importMappingSchema,
@@ -145,7 +146,7 @@ async function executeImport(
     institutionId: string | null;
     cardInstallment: string | null;
     investmentType: string | null;
-    responsibleUserId: string | null;
+    responsiblePartyId: string | null;
     installmentGroupId?: string;
     installmentNumber?: number;
     originalAmountCents: bigint | null;
@@ -153,6 +154,9 @@ async function executeImport(
     exchangeRate: number | null;
   };
   const transactionData: TxData[] = [];
+  // O parser resolve o responsável para userId de membro (responsibleUserMappings);
+  // traduz p/ a party pessoal, já que a transação é atribuída por responsiblePartyId.
+  const personalPartyMap = await personalPartyMapForAccount(ctx.accountId);
 
   for (const row of previewRows) {
     if (row.status === "ignored") {
@@ -259,7 +263,9 @@ async function executeImport(
       institutionId,
       cardInstallment: row.parsed.cardInstallment,
       investmentType: row.parsed.investmentType,
-      responsibleUserId: row.parsed.responsibleUserId,
+      responsiblePartyId: row.parsed.responsibleUserId
+        ? (personalPartyMap.get(row.parsed.responsibleUserId) ?? null)
+        : null,
       originalAmountCents: row.parsed.originalAmountCents ?? null,
       originalCurrency: row.parsed.originalCurrency ?? null,
       exchangeRate: row.parsed.exchangeRate ?? null,
@@ -371,7 +377,7 @@ async function executeImport(
           subcategoryId: t.subcategoryId,
           cardInstallment: t.cardInstallment,
           investmentType: t.investmentType,
-          responsibleUserId: t.responsibleUserId,
+          responsiblePartyId: t.responsiblePartyId,
           categoryId: t.categoryId,
           institutionId: t.institutionId,
           source: txSource,

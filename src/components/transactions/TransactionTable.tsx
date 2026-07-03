@@ -37,6 +37,7 @@ import type {
   HiddenColumns,
   InstitutionOption,
   MemberOption,
+  ResponsiblePartyOption,
   TransactionRow as TxRow,
 } from "./types";
 
@@ -105,7 +106,8 @@ type Props = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
-  defaultResponsibleUserId: string | null;
+  parties: ResponsiblePartyOption[];
+  defaultResponsiblePartyId: string | null;
   showNewRow: boolean;
   onNewRowClose: () => void;
   groupByDate: boolean;
@@ -129,7 +131,8 @@ export function TransactionTable({
   categories,
   institutions,
   members,
-  defaultResponsibleUserId,
+  parties,
+  defaultResponsiblePartyId,
   showNewRow,
   onNewRowClose,
   groupByDate,
@@ -536,7 +539,8 @@ export function TransactionTable({
                   categories={categories}
                   institutions={institutions}
                   members={members}
-                  defaultResponsibleUserId={defaultResponsibleUserId}
+                  parties={parties}
+                  defaultResponsiblePartyId={defaultResponsiblePartyId}
                   onCreated={onNewCreated}
                   onCancel={onNewRowClose}
                 />
@@ -596,6 +600,7 @@ export function TransactionTable({
                         categories={categories}
                         institutions={institutions}
                         members={members}
+                        parties={parties}
                         autoEdit={editRequestId === tx.id}
                         onSelect={handleSelect}
                         onOptimisticUpdate={optimisticUpdate}
@@ -648,6 +653,7 @@ export function TransactionTable({
                         categories={categories}
                         institutions={institutions}
                         members={members}
+                        parties={parties}
                         autoEdit={editRequestId === tx.id}
                         onSelect={handleSelect}
                         onOptimisticUpdate={optimisticUpdate}
@@ -676,6 +682,7 @@ export function TransactionTable({
             categories={categories}
             institutions={institutions}
             members={members}
+            parties={parties}
             timezone={timezone}
             canEdit={!isReadOnly}
             onEdit={handleEditFromDetail}

@@ -406,7 +406,7 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
           )}
 
           {/* Responsible */}
-          {options.members.length > 0 && (
+          {options.parties.length > 0 && (
             <Accordion
               disableGutters
               expanded={open.responsible}
@@ -424,20 +424,29 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
               </AccordionSummary>
               <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>
                 <FormGroup>
-                  {options.members.map((member) => (
+                  {options.parties.map((party) => (
                     <FormControlLabel
-                      key={member.id}
+                      key={party.id}
                       sx={checkboxLabelSx}
                       control={
                         <Checkbox
                           size="small"
-                          checked={filters.responsible.includes(member.id)}
-                          onChange={() => toggleResponsible(member.id)}
+                          checked={filters.responsible.includes(party.id)}
+                          onChange={() => toggleResponsible(party.id)}
                           icon={emptyIcon}
                           checkedIcon={checkIcon}
                         />
                       }
-                      label={member.name ?? member.email}
+                      label={
+                        <Box component="span" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                          {party.icon && (
+                            <Box component="span" sx={{ fontSize: 15 }}>
+                              {party.icon}
+                            </Box>
+                          )}
+                          {party.name}
+                        </Box>
+                      }
                     />
                   ))}
                 </FormGroup>

@@ -4,6 +4,7 @@ import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
 import type { Prisma } from "@prisma/client";
 import type { CreateBudgetInput, UpdateBudgetInput, DeleteBudgetInput } from "@/lib/schemas/budget";
+import { personalPartyIdsForUsers } from "@/server/queries/responsible-party-filter";
 
 const log = logger.child({ module: "budget-service" });
 
@@ -129,7 +130,10 @@ export async function getBudgetTransactions(
     where.section = { countType: { not: "ignore" } };
   }
   if (budget.categoryId) where.categoryId = budget.categoryId;
-  if (budget.memberUserId) where.responsibleUserId = budget.memberUserId;
+  if (budget.memberUserId) {
+    const pids = await personalPartyIdsForUsers(ctx.accountId, [budget.memberUserId]);
+    where.responsiblePartyId = { in: pids };
+  }
   if (budget.institutionId) where.institutionId = budget.institutionId;
   if (budget.tableTypeId) where.table = { tableTypeId: budget.tableTypeId };
 

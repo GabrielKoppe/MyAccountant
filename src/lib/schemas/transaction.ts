@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { TransactionExpenseType } from "@prisma/client";
 
+import { partyIdSchema } from "./responsible-party";
+
 export { TransactionExpenseType };
 
 export const INVESTMENT_TYPES = [
@@ -31,7 +33,7 @@ export const baseTransactionSchema = z.object({
   subcategoryId: z.string().cuid("ID inválido").nullable().optional(),
   institutionId: z.string().cuid("ID inválido").nullable().optional(),
   institutionText: z.string().max(80).optional().nullable(),
-  responsibleUserId: z.string().cuid("ID inválido").nullable().optional(),
+  responsiblePartyId: partyIdSchema.nullable().optional(),
   cardInstallment: z
     .string()
     .regex(/^\d+\/\d+$/, "Formato: 3/12")

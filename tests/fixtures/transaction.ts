@@ -17,7 +17,7 @@ export function buildTransaction(overrides: Partial<Transaction> = {}): Transact
     subcategoryId: null,
     institutionId: null,
     institutionText: null,
-    responsibleUserId: null,
+    responsiblePartyId: null,
     cardInstallment: null,
     investmentType: null,
     expenseType: null,
