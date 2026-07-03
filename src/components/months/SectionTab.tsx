@@ -107,7 +107,6 @@ export async function SectionTab({ accountId, monthId, sectionId, canEdit }: Pro
       institutions={institutions}
       members={members}
       parties={parties}
-      defaultResponsibleUserId={accountSettings?.defaultResponsibleUserId ?? null}
       defaultResponsiblePartyId={accountSettings?.defaultResponsiblePartyId ?? null}
     />
   );

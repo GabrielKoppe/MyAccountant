@@ -54,7 +54,7 @@ type TemplateItem = {
   categoryId: string | null;
   subcategoryId: string | null;
   institutionId: string | null;
-  responsibleUserId: string | null;
+  responsiblePartyId: string | null;
   cardInstallment: string | null;
   investmentType: import("@/lib/schemas/transaction").InvestmentType | null;
   displayOrder: number;
@@ -82,7 +82,7 @@ type Props = {
   initialTemplates: Template[];
   categories: { id: string; name: string; subcategories: { id: string; name: string }[] }[];
   institutions: { id: string; name: string }[];
-  members: { id: string; name: string | null; email: string }[];
+  parties: import("@/components/transactions/types").ResponsiblePartyOption[];
   tableTypes: TableType[];
   sections: Section[];
   title?: string;
@@ -93,7 +93,7 @@ export function TableModelsManager({
   initialTemplates,
   categories,
   institutions,
-  members,
+  parties,
   tableTypes,
   sections,
   title,
@@ -388,7 +388,7 @@ export function TableModelsManager({
           template={editTemplate}
           categories={categories}
           institutions={institutions}
-          members={members}
+          parties={parties}
           open={!!editItemsId}
           onClose={() => setEditItemsId(null)}
           onItemsChanged={(items) => handleItemsUpdated(editTemplate.id, items)}

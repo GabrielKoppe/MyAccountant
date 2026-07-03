@@ -21,7 +21,8 @@ export default async function TableModelsPage({ params }: Props) {
   const { accountId } = await params;
   await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
-  const [templates, categories, institutions, members, tableTypes, sections] = await Promise.all([
+  const [templates, categories, institutions, members, partiesRaw, tableTypes, sections] =
+    await Promise.all([
     svc.listTemplates(accountId),
     prisma.category.findMany({
       where: { accountId },
@@ -36,6 +37,17 @@ export default async function TableModelsPage({ params }: Props) {
     prisma.accountMember.findMany({
       where: { accountId },
       include: { user: { select: { id: true, name: true, email: true } } },
+    }),
+    prisma.responsibleParty.findMany({
+      where: { accountId, archivedAt: null },
+      orderBy: [{ kind: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        icon: true,
+        members: { select: { userId: true, user: { select: { name: true, email: true } } } },
+      },
     }),
     prisma.tableType.findMany({
       where: { accountId },
@@ -59,11 +71,15 @@ export default async function TableModelsPage({ params }: Props) {
     })),
   }));
 
-  const memberOptions = members.map((m: any) => ({
-    id: m.user.id,
-    name: m.user.name,
-    email: m.user.email,
-  }));
+  const currentMemberIds = new Set(members.map((mm: any) => mm.user.id));
+  const parties = partiesRaw.map((p: any) => {
+    let name = p.name;
+    if (p.kind === "personal" && p.members.length === 1) {
+      const link = p.members[0];
+      if (currentMemberIds.has(link.userId)) name = link.user.name ?? link.user.email;
+    }
+    return { id: p.id, name, kind: p.kind, icon: p.icon };
+  });
 
   return (
     <TableModelsManager
@@ -71,7 +87,7 @@ export default async function TableModelsPage({ params }: Props) {
       initialTemplates={serializedTemplates}
       categories={categories}
       institutions={institutions}
-      members={memberOptions}
+      parties={parties}
       tableTypes={tableTypes}
       sections={sections}
       title={m.tableModels.title}

@@ -12,7 +12,6 @@ const templateItemFields = z.object({
   categoryId: z.string().cuid().nullable().optional(),
   subcategoryId: z.string().cuid().nullable().optional(),
   institutionId: z.string().cuid().nullable().optional(),
-  responsibleUserId: z.string().cuid().nullable().optional(),
   responsiblePartyId: z.string().cuid().nullable().optional(),
   cardInstallment: z
     .string()

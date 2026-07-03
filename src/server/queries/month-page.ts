@@ -70,7 +70,6 @@ export const getMonthAccountSettings = cache(async (accountId: string) =>
   prisma.accountSettings.findUnique({
     where: { accountId },
     select: {
-      defaultResponsibleUserId: true,
       defaultResponsiblePartyId: true,
       monthStartDay: true,
     },
@@ -384,7 +383,6 @@ export const getSectionTabData = cache(
         subcategoryId: true,
         institutionId: true,
         institutionText: true,
-        responsibleUserId: true,
         responsiblePartyId: true,
         cardInstallment: true,
         investmentType: true,

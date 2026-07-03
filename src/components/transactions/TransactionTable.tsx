@@ -107,7 +107,6 @@ type Props = {
   institutions: InstitutionOption[];
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
-  defaultResponsibleUserId: string | null;
   defaultResponsiblePartyId: string | null;
   showNewRow: boolean;
   onNewRowClose: () => void;
@@ -133,7 +132,6 @@ export function TransactionTable({
   institutions,
   members,
   parties,
-  defaultResponsibleUserId,
   defaultResponsiblePartyId,
   showNewRow,
   onNewRowClose,
@@ -542,7 +540,6 @@ export function TransactionTable({
                   institutions={institutions}
                   members={members}
                   parties={parties}
-                  defaultResponsibleUserId={defaultResponsibleUserId}
                   defaultResponsiblePartyId={defaultResponsiblePartyId}
                   onCreated={onNewCreated}
                   onCancel={onNewRowClose}

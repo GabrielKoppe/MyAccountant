@@ -51,7 +51,6 @@ type Props = {
   institutions: InstitutionOption[];
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
-  defaultResponsibleUserId: string | null;
   defaultResponsiblePartyId: string | null;
   onCreated: (tx: TransactionRow) => void;
   onCancel: () => void;
@@ -154,7 +153,6 @@ export function NewTransactionRow({
       subcategoryId,
       institutionId,
       institutionText: null,
-      responsibleUserId: null,
       responsiblePartyId,
       cardInstallment: null,
       investmentType,

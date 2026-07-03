@@ -88,7 +88,6 @@ type Props = {
   institutions: InstitutionOption[];
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
-  defaultResponsibleUserId: string | null;
   defaultResponsiblePartyId: string | null;
   onDuplicate: () => void;
 };
@@ -108,7 +107,6 @@ export function FinanceTableCard({
   institutions,
   members,
   parties,
-  defaultResponsibleUserId,
   defaultResponsiblePartyId,
   onDuplicate,
 }: Props) {
@@ -478,7 +476,6 @@ export function FinanceTableCard({
           institutions={institutions}
           members={members}
           parties={parties}
-          defaultResponsibleUserId={defaultResponsibleUserId}
           defaultResponsiblePartyId={defaultResponsiblePartyId}
           showNewRow={showNewRow}
           onNewRowClose={() => setShowNewRow(false)}

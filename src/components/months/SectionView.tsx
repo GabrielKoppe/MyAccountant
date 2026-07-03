@@ -71,7 +71,6 @@ type Props = {
   institutions: InstitutionOption[];
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
-  defaultResponsibleUserId: string | null;
   defaultResponsiblePartyId: string | null;
 };
 
@@ -92,7 +91,6 @@ export function SectionView({
   institutions,
   members,
   parties,
-  defaultResponsibleUserId,
   defaultResponsiblePartyId,
 }: Props) {
   const [duplicateFrom, setDuplicateFrom] = useState<string | null>(null);
@@ -301,7 +299,6 @@ export function SectionView({
           institutions={institutions}
           members={members}
           parties={parties}
-          defaultResponsibleUserId={defaultResponsibleUserId}
           defaultResponsiblePartyId={defaultResponsiblePartyId}
           onDuplicate={() => setDuplicateFrom(table.id)}
         />

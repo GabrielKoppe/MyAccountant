@@ -124,7 +124,6 @@ async function applyAutoTemplates(
               categoryId: item.categoryId,
               subcategoryId: item.subcategoryId,
               institutionId: item.institutionId,
-              responsibleUserId: item.responsibleUserId,
               responsiblePartyId: item.responsiblePartyId,
               cardInstallment: item.cardInstallment,
               investmentType: item.investmentType,

@@ -21,6 +21,20 @@ export async function personalPartyIdsForUsers(
 }
 
 /**
+ * Mapa userId (membro) → id da sua party `personal` na Account. Usado na importação CSV,
+ * que mapeia células de texto para membros (userIds) e precisa gravar `responsiblePartyId`.
+ */
+export async function personalPartyMapForAccount(
+  accountId: string,
+): Promise<Map<string, string>> {
+  const links = await prisma.responsiblePartyMember.findMany({
+    where: { party: { accountId, kind: "personal" } },
+    select: { userId: true, partyId: true },
+  });
+  return new Map(links.map((l) => [l.userId, l.partyId]));
+}
+
+/**
  * Mapa partyId → nome de exibição (Spec 60 §2.4). Para `personal` de membro atual usa o
  * nome ao vivo do User; demais usam o snapshot `party.name`. Usado por agregações que
  * agrupam por responsável (ex.: sandbox seriesBy=member).

@@ -20,7 +20,6 @@ export type TransactionRow = {
   subcategoryId: string | null;
   institutionId: string | null;
   institutionText: string | null;
-  responsibleUserId: string | null;
   responsiblePartyId: string | null;
   cardInstallment: string | null;
   investmentType: InvestmentType | null;
