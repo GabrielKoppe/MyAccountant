@@ -6,6 +6,7 @@ import { requireAccountAccess } from "@/server/auth/session";
 import * as svc from "@/server/services/table-template-service";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
+import { toResponsiblePartyOption } from "@/lib/party-display";
 import type { InvestmentType } from "@/lib/schemas/transaction";
 import { TableModelsManager } from "@/app/(app)/[accountId]/settings/models/TableModelsManager";
 
@@ -46,7 +47,10 @@ export default async function TableModelsPage({ params }: Props) {
         name: true,
         kind: true,
         icon: true,
-        members: { select: { userId: true, user: { select: { name: true, email: true } } } },
+        color: true,
+        members: {
+          select: { userId: true, user: { select: { name: true, email: true, image: true } } },
+        },
       },
     }),
     prisma.tableType.findMany({
@@ -72,14 +76,7 @@ export default async function TableModelsPage({ params }: Props) {
   }));
 
   const currentMemberIds = new Set(members.map((mm: any) => mm.user.id));
-  const parties = partiesRaw.map((p: any) => {
-    let name = p.name;
-    if (p.kind === "personal" && p.members.length === 1) {
-      const link = p.members[0];
-      if (currentMemberIds.has(link.userId)) name = link.user.name ?? link.user.email;
-    }
-    return { id: p.id, name, kind: p.kind, icon: p.icon };
-  });
+  const parties = partiesRaw.map((p) => toResponsiblePartyOption(p, currentMemberIds));
 
   return (
     <TableModelsManager

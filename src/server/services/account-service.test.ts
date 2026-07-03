@@ -15,6 +15,13 @@ function makeTxMock() {
     category: {
       create: vi.fn().mockResolvedValue({ id: "cat-1" }),
     },
+    user: {
+      findUnique: vi.fn().mockResolvedValue({ name: "Test User", email: "test@example.com" }),
+    },
+    responsibleParty: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: "party-1" }),
+    },
   };
 }
 

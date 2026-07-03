@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 import type { ActionContext } from "@/server/api/define-action";
 import { AppError } from "@/server/api/errors";
 import { logger } from "@/server/logger";
@@ -23,6 +25,53 @@ async function assertMembers(accountId: string, userIds: string[]) {
   }
 }
 
+/**
+ * Garante a personal party de um membro da Account (Spec 60 §2). Idempotente:
+ * se já existe, reativa caso esteja arquivada (membro voltou); senão cria com 1 vínculo.
+ * Deve rodar dentro da mesma transação em que o membro entra na conta.
+ */
+export async function ensurePersonalParty(
+  client: Prisma.TransactionClient,
+  accountId: string,
+  userId: string,
+  name: string,
+) {
+  const existing = await client.responsibleParty.findFirst({
+    where: { accountId, kind: "personal", members: { some: { userId } } },
+    select: { id: true, archivedAt: true },
+  });
+  if (existing) {
+    if (existing.archivedAt) {
+      await client.responsibleParty.update({
+        where: { id: existing.id },
+        data: { archivedAt: null },
+      });
+    }
+    return existing.id;
+  }
+  const party = await client.responsibleParty.create({
+    data: { accountId, name, kind: "personal", members: { create: { userId } } },
+    select: { id: true },
+  });
+  log.info({ accountId, userId, partyId: party.id }, "Personal party auto-created");
+  return party.id;
+}
+
+/**
+ * Arquiva a personal party de um membro que saiu/foi removido da Account.
+ * Preserva o histórico das transações; só some dos seletores de novas transações.
+ */
+export async function archivePersonalPartyForUser(
+  client: Prisma.TransactionClient,
+  accountId: string,
+  userId: string,
+) {
+  await client.responsibleParty.updateMany({
+    where: { accountId, kind: "personal", members: { some: { userId } }, archivedAt: null },
+    data: { archivedAt: new Date() },
+  });
+}
+
 export async function listResponsibleParties(accountId: string) {
   return prisma.responsibleParty.findMany({
     where: { accountId },
@@ -45,6 +94,7 @@ export async function createResponsibleParty(
       name: input.name,
       kind: input.kind,
       icon: input.icon ?? null,
+      color: input.color ?? null,
       ...(input.kind === "group"
         ? { members: { create: input.memberUserIds.map((userId) => ({ userId })) } }
         : {}),
@@ -79,6 +129,7 @@ export async function updateResponsibleParty(
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.icon !== undefined ? { icon: input.icon } : {}),
+        ...(input.color !== undefined ? { color: input.color } : {}),
       },
     });
     if (input.memberUserIds) {

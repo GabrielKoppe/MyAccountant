@@ -1,11 +1,17 @@
 import { z } from "zod";
 
-// Emoji único: exige um único grapheme contendo pictograma. Rejeita string arbitrária.
-export const emojiSchema = z
-  .string()
-  .trim()
-  .refine((s) => s.length > 0 && /\p{Extended_Pictographic}/u.test(s), "Escolha um emoji")
-  .refine((s) => [...new Intl.Segmenter().segment(s)].length === 1, "Apenas um emoji");
+import { ACCENT_COLOR_KEYS } from "@/lib/accent-colors";
+import { PERSONA_ICON_KEYS } from "@/lib/persona-icons";
+
+// Id de party: aceita cuid (criadas no app) OU uuid (backfill da migração inicial).
+// Não é um id que o cliente inventa — ele só ecoa o que veio do banco — então
+// validamos apenas "string não-vazia" em vez de travar num formato específico.
+export const partyIdSchema = z.string().min(1, "ID inválido");
+
+// Ícone = chave de set curado (não emoji livre). Ver src/lib/persona-icons.ts.
+export const iconKeySchema = z.enum(PERSONA_ICON_KEYS);
+// Cor = chave da paleta accent do sistema. Ver src/lib/accent-colors.ts.
+export const colorKeySchema = z.enum(ACCENT_COLOR_KEYS as [string, ...string[]]);
 
 const nameSchema = z.string().min(1, "Nome obrigatório").max(40).trim();
 
@@ -14,7 +20,8 @@ export const createResponsiblePartySchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("group"),
     name: nameSchema,
-    icon: emojiSchema.nullable().optional(),
+    icon: iconKeySchema.nullable().optional(),
+    color: colorKeySchema.nullable().optional(),
     memberUserIds: z
       .array(z.string().cuid("ID inválido"))
       .min(2, "Grupo exige ao menos 2 membros"),
@@ -22,24 +29,26 @@ export const createResponsiblePartySchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("external"),
     name: nameSchema,
-    icon: emojiSchema.nullable().optional(),
+    icon: iconKeySchema.nullable().optional(),
+    color: colorKeySchema.nullable().optional(),
   }),
 ]);
 
 export const updateResponsiblePartySchema = z.object({
-  partyId: z.string().cuid("ID inválido"),
+  partyId: partyIdSchema,
   name: nameSchema.optional(),
-  icon: emojiSchema.nullable().optional(),
+  icon: iconKeySchema.nullable().optional(),
+  color: colorKeySchema.nullable().optional(),
   memberUserIds: z.array(z.string().cuid("ID inválido")).min(2, "Grupo exige ao menos 2 membros").optional(),
 });
 
 export const archiveResponsiblePartySchema = z.object({
-  partyId: z.string().cuid("ID inválido"),
+  partyId: partyIdSchema,
   archived: z.boolean(),
 });
 
 export const deleteResponsiblePartySchema = z.object({
-  partyId: z.string().cuid("ID inválido"),
+  partyId: partyIdSchema,
 });
 
 export type CreateResponsiblePartyInput = z.infer<typeof createResponsiblePartySchema>;

@@ -295,6 +295,7 @@ export function NewTransactionRow({
               value={responsiblePartyId}
               onChange={setResponsiblePartyId}
               parties={parties}
+              variant="standard"
               sx={{ minWidth: 90 }}
             />
           </TableCell>

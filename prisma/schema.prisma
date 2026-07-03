@@ -262,7 +262,8 @@ model ResponsibleParty {
   accountId  String               @map("account_id")
   name       String
   kind       ResponsiblePartyKind
-  icon       String?
+  icon       String?              // chave do set curado (src/lib/persona-icons.ts)
+  color      String?              // chave de cor accent (src/lib/accent-colors.ts)
   archivedAt DateTime?            @map("archived_at")
   createdAt  DateTime             @default(now()) @map("created_at")
   updatedAt  DateTime             @updatedAt @map("updated_at")

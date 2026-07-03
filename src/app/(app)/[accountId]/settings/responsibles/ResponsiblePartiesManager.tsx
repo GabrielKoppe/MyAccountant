@@ -29,6 +29,10 @@ import {
 import { DialogShell } from "@/components/ui/DialogShell";
 import { EmptyState } from "@/components/ui/EmptyState";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
+import { PersonaStyleFields } from "@/components/settings/PersonaStyleFields";
+import { PartyAvatar } from "@/components/transactions/PartyAvatar";
+import type { PersonaIconKey } from "@/lib/persona-icons";
+import type { AccentColorKey } from "@/lib/accent-colors";
 import { m } from "@/lib/messages";
 
 type PartyKind = "personal" | "group" | "external";
@@ -38,8 +42,11 @@ type Party = {
   name: string;
   kind: PartyKind;
   icon: string | null;
+  color: string | null;
   isArchived: boolean;
   memberUserIds: string[];
+  transactionCount: number;
+  imageUrl: string | null;
 };
 
 type MemberOption = { userId: string; label: string };
@@ -68,7 +75,8 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
   const [editTarget, setEditTarget] = useState<Party | null>(null);
   const [formKind, setFormKind] = useState<"group" | "external">("group");
   const [nameInput, setNameInput] = useState("");
-  const [iconInput, setIconInput] = useState("");
+  const [iconKey, setIconKey] = useState<PersonaIconKey | null>(null);
+  const [colorKey, setColorKey] = useState<AccentColorKey | null>(null);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [nameError, setNameError] = useState("");
   const [membersError, setMembersError] = useState("");
@@ -81,7 +89,8 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
 
   function resetForm() {
     setNameInput("");
-    setIconInput("");
+    setIconKey(null);
+    setColorKey(null);
     setSelectedMembers([]);
     setNameError("");
     setMembersError("");
@@ -98,7 +107,8 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
     setEditTarget(party);
     setFormKind(party.kind === "external" ? "external" : "group");
     setNameInput(party.name);
-    setIconInput(party.icon ?? "");
+    setIconKey((party.icon as PersonaIconKey | null) ?? null);
+    setColorKey((party.color as AccentColorKey | null) ?? null);
     setSelectedMembers(party.memberUserIds);
     setNameError("");
     setMembersError("");
@@ -142,7 +152,8 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
     setMembersError("");
     if (!validate(isGroup)) return;
 
-    const icon = iconInput.trim() || null;
+    const icon = iconKey;
+    const color = colorKey;
     const name = nameInput.trim();
 
     startTransition(async () => {
@@ -151,6 +162,7 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
           partyId: editTarget.id,
           name,
           icon,
+          color,
           ...(editTarget.kind === "group" ? { memberUserIds: selectedMembers } : {}),
         });
         if (!result.ok) {
@@ -164,6 +176,7 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
                   ...p,
                   name,
                   icon,
+                  color,
                   memberUserIds: p.kind === "group" ? selectedMembers : p.memberUserIds,
                 }
               : p,
@@ -172,8 +185,8 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
         enqueueSnackbar(rp.updated, { variant: "success" });
       } else {
         const input = isGroup
-          ? { kind: "group" as const, name, icon, memberUserIds: selectedMembers }
-          : { kind: "external" as const, name, icon };
+          ? { kind: "group" as const, name, icon, color, memberUserIds: selectedMembers }
+          : { kind: "external" as const, name, icon, color };
         const result = await createResponsiblePartyAction(accountId, input);
         if (!result.ok) {
           enqueueSnackbar(result.error.message, { variant: "error" });
@@ -186,8 +199,11 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
             name,
             kind: isGroup ? "group" : "external",
             icon,
+            color,
             isArchived: false,
             memberUserIds: isGroup ? selectedMembers : [],
+            transactionCount: 0,
+            imageUrl: null,
           },
         ]);
         enqueueSnackbar(rp.created, { variant: "success" });
@@ -267,9 +283,14 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
           {managed.map((party) => (
             <Paper key={party.id} variant="outlined" sx={{ px: 2, py: 1.5 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Box component="span" sx={{ fontSize: 20, width: 28, textAlign: "center" }}>
-                  {party.icon ?? (party.kind === "group" ? "👥" : "🙋")}
-                </Box>
+                <PartyAvatar
+                  kind={party.kind}
+                  icon={party.icon}
+                  color={party.color}
+                  imageUrl={party.imageUrl}
+                  name={party.name}
+                  size={28}
+                />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography variant="body2" fontWeight="medium" noWrap>
                     {party.name}
@@ -325,9 +346,14 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
                 variant="outlined"
                 sx={{ px: 2, py: 1, display: "flex", alignItems: "center", gap: 1 }}
               >
-                <Box component="span" sx={{ fontSize: 18, width: 28, textAlign: "center" }}>
-                  {party.icon ?? "🧑"}
-                </Box>
+                <PartyAvatar
+                  kind={party.kind}
+                  icon={party.icon}
+                  color={party.color}
+                  imageUrl={party.imageUrl}
+                  name={party.name}
+                  size={28}
+                />
                 <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
                   {party.name}
                 </Typography>
@@ -382,13 +408,11 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
             autoFocus
             disabled={editTarget?.kind === "personal"}
           />
-          <TextField
-            label={rp.emojiLabel}
-            value={iconInput}
-            onChange={(e) => setIconInput(e.target.value)}
-            helperText={rp.emojiHint}
-            fullWidth
-            slotProps={{ htmlInput: { maxLength: 8 } }}
+          <PersonaStyleFields
+            icon={iconKey}
+            color={colorKey}
+            onIconChange={setIconKey}
+            onColorChange={setColorKey}
           />
           {isGroupForm && editTarget?.kind !== "personal" && (
             <Box>
@@ -429,7 +453,11 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
         onClose={() => setDeleteTarget(null)}
         maxWidth="xs"
         title={rp.deleteTitle}
-        description={rp.deleteConfirm}
+        description={
+          deleteTarget && deleteTarget.transactionCount > 0
+            ? `${rp.deleteWarnCount(deleteTarget.transactionCount)} ${rp.deleteConfirm}`
+            : rp.deleteConfirm
+        }
         actions={
           <>
             <Button size="small" onClick={() => setDeleteTarget(null)}>

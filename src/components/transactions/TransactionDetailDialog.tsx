@@ -23,6 +23,7 @@ import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { TagDetailEditor } from "@/components/tags/TagDetailEditor";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
+import { PartyAvatar } from "./PartyAvatar";
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
 import { formatCentsToBrl } from "@/lib/money";
@@ -89,19 +90,18 @@ function MemberInline({ member }: { member: MemberOption | null }) {
   );
 }
 
-/** Emoji/avatar + nome de uma party responsável (Spec 60). */
+/** Avatar (foto/ícone colorido) + nome de uma party responsável (Spec 60). */
 function PartyInline({ party }: { party: ResponsiblePartyOption }) {
   return (
     <Stack direction="row" spacing={layout.inline} alignItems="center">
-      {party.icon ? (
-        <Box component="span" sx={{ fontSize: 20, lineHeight: 1 }}>
-          {party.icon}
-        </Box>
-      ) : (
-        <Avatar sx={{ width: 24, height: 24, fontSize: 11 }}>
-          {party.name.charAt(0).toUpperCase()}
-        </Avatar>
-      )}
+      <PartyAvatar
+        kind={party.kind}
+        icon={party.icon}
+        color={party.color}
+        imageUrl={party.imageUrl}
+        name={party.name}
+        size={24}
+      />
       <Typography variant="body2">{party.name}</Typography>
     </Stack>
   );

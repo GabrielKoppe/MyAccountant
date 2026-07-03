@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import ListSubheader from "@mui/material/ListSubheader";
 import MenuItem from "@mui/material/MenuItem";
@@ -9,6 +8,7 @@ import Select, { type SelectProps } from "@mui/material/Select";
 import Typography from "@mui/material/Typography";
 
 import type { ResponsiblePartyKind, ResponsiblePartyOption } from "./types";
+import { PartyAvatar } from "./PartyAvatar";
 import { m } from "@/lib/messages";
 
 const rp = m.settings.responsibleParties;
@@ -20,33 +20,17 @@ const KIND_ORDER: { kind: ResponsiblePartyKind; label: string }[] = [
   { kind: "external", label: rp.kindExternal },
 ];
 
-// Emoji-fallback por kind quando a party não tem ícone escolhido.
-function fallbackGlyph(kind: ResponsiblePartyKind): string {
-  if (kind === "group") return "👥";
-  if (kind === "external") return "🙋";
-  return "🧑";
-}
-
-/** Glifo (emoji escolhido ou avatar-inicial) de uma party, para item e valor selecionado. */
+/** Avatar (foto / ícone colorido / default) de uma party, para item e valor selecionado. */
 function PartyGlyph({ party }: { party: ResponsiblePartyOption }) {
-  if (party.icon) {
-    return (
-      <Box component="span" sx={{ fontSize: 16, width: 20, textAlign: "center", flexShrink: 0 }}>
-        {party.icon}
-      </Box>
-    );
-  }
-  if (party.kind === "personal") {
-    return (
-      <Avatar sx={{ width: 20, height: 20, fontSize: 11, flexShrink: 0 }}>
-        {party.name.charAt(0).toUpperCase()}
-      </Avatar>
-    );
-  }
   return (
-    <Box component="span" sx={{ fontSize: 16, width: 20, textAlign: "center", flexShrink: 0 }}>
-      {fallbackGlyph(party.kind)}
-    </Box>
+    <PartyAvatar
+      kind={party.kind}
+      icon={party.icon}
+      color={party.color}
+      imageUrl={party.imageUrl}
+      name={party.name}
+      size={20}
+    />
   );
 }
 
@@ -56,6 +40,8 @@ type Props = {
   parties: ResponsiblePartyOption[];
   /** Estilo do controle (repassa o sx do Select). */
   sx?: SelectProps["sx"];
+  /** Variante do controle. Nas linhas de transação use "standard" para casar com as demais colunas. */
+  variant?: SelectProps["variant"];
   autoFocus?: boolean;
   ariaLabel?: string;
 };
@@ -70,6 +56,7 @@ export function ResponsiblePartySelect({
   onChange,
   parties,
   sx,
+  variant,
   autoFocus,
   ariaLabel,
 }: Props) {
@@ -99,6 +86,7 @@ export function ResponsiblePartySelect({
   return (
     <Select
       size="small"
+      variant={variant}
       value={value ?? ""}
       onChange={(e) => onChange((e.target.value as string) || null)}
       autoFocus={autoFocus}

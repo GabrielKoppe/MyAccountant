@@ -287,6 +287,7 @@ export function TransactionRowEditor({
                 setEditValues((prev) => ({ ...prev, responsiblePartyId: partyId }))
               }
               parties={parties}
+              variant="standard"
               sx={{ minWidth: 90 }}
               autoFocus={focusField === "responsibleUserId"}
             />

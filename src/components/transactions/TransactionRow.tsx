@@ -2,7 +2,6 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import type { SectionCountType } from "@prisma/client";
-import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
@@ -30,6 +29,7 @@ import type {
   ResponsiblePartyOption,
   TransactionRow as TxRow,
 } from "./types";
+import { PartyAvatar } from "./PartyAvatar";
 import { TransactionRowEditor } from "./TransactionRowEditor";
 import { TransactionRowActions } from "./TransactionRowActions";
 import { TagPopover } from "@/components/tags/TagPopover";
@@ -410,15 +410,16 @@ export function TransactionRowBase({
             }
             return (
               <Tooltip title={party.name}>
-                {party.icon ? (
-                  <Box component="span" sx={{ fontSize: 18, lineHeight: 1 }}>
-                    {party.icon}
-                  </Box>
-                ) : (
-                  <Avatar sx={{ width: 24, height: 24, fontSize: 11 }}>
-                    {party.name.charAt(0).toUpperCase()}
-                  </Avatar>
-                )}
+                <Box component="span" sx={{ display: "inline-flex" }}>
+                  <PartyAvatar
+                    kind={party.kind}
+                    icon={party.icon}
+                    color={party.color}
+                    imageUrl={party.imageUrl}
+                    name={party.name}
+                    size={24}
+                  />
+                </Box>
               </Tooltip>
             );
           })()}

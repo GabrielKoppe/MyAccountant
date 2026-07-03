@@ -6,6 +6,7 @@ import Box from "@mui/material/Box";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { MONTH_NAMES } from "@/lib/dates";
+import { toResponsiblePartyOption } from "@/lib/party-display";
 import { MonthHeader } from "@/components/months/MonthHeader";
 import { MonthTabs } from "@/components/months/MonthTabs";
 import { MonthFilterProvider, type MonthFilterState } from "@/components/months/MonthFilterContext";
@@ -129,16 +130,9 @@ export default async function MonthPage({ params, searchParams }: Props) {
       }),
     ]);
 
-  // Resolve nome de exibição das parties (Spec 60 §2.4).
+  // Resolve exibição das parties (Spec 60 §2.4).
   const currentMemberIds = new Set(membersRaw.map((mm) => mm.user.id));
-  const filterParties = partiesRaw.map((p) => {
-    let name = p.name;
-    if (p.kind === "personal" && p.members.length === 1) {
-      const link = p.members[0];
-      if (currentMemberIds.has(link.userId)) name = link.user.name ?? link.user.email;
-    }
-    return { id: p.id, name, kind: p.kind, icon: p.icon };
-  });
+  const filterParties = partiesRaw.map((p) => toResponsiblePartyOption(p, currentMemberIds));
 
   const filterOptions = {
     categories,

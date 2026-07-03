@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
+import { toResponsiblePartyOption } from "@/lib/party-display";
 import { GeneralSettingsForm } from "./GeneralSettingsForm";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 import { Divider } from "@mui/material";
@@ -39,21 +40,17 @@ export default async function GeneralSettingsPage({ params }: Props) {
         name: true,
         kind: true,
         icon: true,
-        members: { select: { userId: true, user: { select: { name: true, email: true } } } },
+        color: true,
+        members: {
+          select: { userId: true, user: { select: { name: true, email: true, image: true } } },
+        },
       },
     }),
   ]);
 
-  // Resolve nome de exibição (Spec 60 §2.4): personal atual → nome ao vivo do User.
+  // Resolve exibição (Spec 60 §2.4): personal atual → nome/foto ao vivo do User.
   const currentMemberIds = new Set(members.map((mm) => mm.userId));
-  const parties = partiesRaw.map((p) => {
-    let name = p.name;
-    if (p.kind === "personal" && p.members.length === 1) {
-      const link = p.members[0];
-      if (currentMemberIds.has(link.userId)) name = link.user.name ?? link.user.email;
-    }
-    return { id: p.id, name, kind: p.kind, icon: p.icon };
-  });
+  const parties = partiesRaw.map((p) => toResponsiblePartyOption(p, currentMemberIds));
 
   if (!account || !settings) redirect("/home");
 

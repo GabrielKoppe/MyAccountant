@@ -63,4 +63,7 @@ export type ResponsiblePartyOption = {
   name: string;
   kind: ResponsiblePartyKind;
   icon: string | null;
+  color: string | null;
+  /** Foto do membro (só `personal` com login e imagem). */
+  imageUrl: string | null;
 };

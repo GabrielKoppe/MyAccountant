@@ -13,6 +13,7 @@ import {
   getSourceTables,
 } from "@/server/queries/month-page";
 import type { ResponsiblePartyOption } from "@/components/transactions/types";
+import { toResponsiblePartyOption } from "@/lib/party-display";
 import { getSectionTotals } from "@/server/services/month-service";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
@@ -64,19 +65,12 @@ export async function SectionTab({ accountId, monthId, sectionId, canEdit }: Pro
     image: m.user.image,
   }));
 
-  // Resolve nome de exibição da party (Spec 60 §2.4): personal com membro atual →
-  // nome ao vivo do User; group/external → snapshot party.name.
+  // Resolve exibição da party (Spec 60 §2.4): personal com membro atual → nome/foto
+  // ao vivo do User; group/external → snapshot party.name.
   const currentMemberIds = new Set(membersRaw.map((mm) => mm.user.id));
-  const parties: ResponsiblePartyOption[] = partiesRaw.map((p) => {
-    let name = p.name;
-    if (p.kind === "personal" && p.members.length === 1) {
-      const link = p.members[0];
-      if (currentMemberIds.has(link.userId)) {
-        name = link.user.name ?? link.user.email;
-      }
-    }
-    return { id: p.id, name, kind: p.kind, icon: p.icon };
-  });
+  const parties: ResponsiblePartyOption[] = partiesRaw.map((p) =>
+    toResponsiblePartyOption(p, currentMemberIds),
+  );
 
   const allSections = await prisma.section.findMany({
     where: { accountId, isActive: true },

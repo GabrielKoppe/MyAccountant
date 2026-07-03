@@ -379,8 +379,11 @@ export const messages = {
       createExternal: "Nova pessoa externa",
       addButton: "Novo responsável",
       nameLabel: "Nome",
-      emojiLabel: "Ícone (emoji)",
-      emojiHint: "Opcional — um único emoji para representar visualmente.",
+      iconLabel: "Ícone",
+      iconHint: "Opcional — escolha um ícone para representar visualmente.",
+      colorLabel: "Cor",
+      colorHint: "Opcional — dá um destaque de cor à persona.",
+      noneOption: "Nenhum",
       membersLabel: "Membros do grupo",
       membersHint: "Selecione ao menos 2 membros.",
       kindPersonal: "Pessoal",
@@ -397,6 +400,8 @@ export const messages = {
       deleteTitle: "Excluir responsável",
       deleteConfirm:
         "Tem certeza? As transações associadas mantêm o histórico (ficam sem responsável).",
+      deleteWarnCount: (n: number) =>
+        `Atenção: ${n} transação(ões) usam este responsável e ficarão sem responsável. Considere arquivar para preservar o rótulo no histórico.`,
       empty: "Nenhum grupo ou pessoa externa cadastrado.",
       personalHint: "(membro da conta)",
     },

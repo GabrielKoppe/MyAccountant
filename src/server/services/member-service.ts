@@ -20,6 +20,10 @@ import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
 import type { ActionContext } from "@/server/api/define-action";
 import * as notificationService from "@/server/services/notification-service";
+import {
+  archivePersonalPartyForUser,
+  ensurePersonalParty,
+} from "@/server/services/responsible-party-service";
 
 const log = logger.child({ module: "member-service" });
 
@@ -159,7 +163,7 @@ export async function getPendingInviteForEmail(email: string) {
 export async function acceptInvite(token: string, userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true },
+    select: { name: true, email: true },
   });
   if (!user) throw new UnauthorizedError();
 
@@ -183,20 +187,22 @@ export async function acceptInvite(token: string, userId: string) {
   });
   if (alreadyMember) throw new ConflictError(m.account.acceptInvite.alreadyMember);
 
-  await prisma.$transaction([
-    prisma.accountMember.create({
+  await prisma.$transaction(async (tx) => {
+    await tx.accountMember.create({
       data: {
         accountId: invite.accountId,
         userId,
         role: invite.role,
         addedById: invite.invitedById,
       },
-    }),
-    prisma.accountInvite.update({
+    });
+    await tx.accountInvite.update({
       where: { id: invite.id },
       data: { status: "accepted", acceptedAt: new Date() },
-    }),
-  ]);
+    });
+    // Personal party do novo membro (Spec 60 §2) — auto-criada/reativada no aceite.
+    await ensurePersonalParty(tx, invite.accountId, userId, user.name ?? user.email);
+  });
 
   void notificationService.notifyInviteAccepted({
     accountId: invite.accountId,
@@ -249,8 +255,12 @@ export async function removeMember(input: RemoveMemberInput, ctx: ActionContext)
     if (ownerCount <= 1) throw new ForbiddenError(m.account.members.lastOwnerError);
   }
 
-  await prisma.accountMember.delete({
-    where: { accountId_userId: { accountId: ctx.accountId, userId: input.targetUserId } },
+  await prisma.$transaction(async (tx) => {
+    await tx.accountMember.delete({
+      where: { accountId_userId: { accountId: ctx.accountId, userId: input.targetUserId } },
+    });
+    // Arquiva a personal party (histórico preservado, some dos seletores).
+    await archivePersonalPartyForUser(tx, ctx.accountId, input.targetUserId);
   });
 
   log.info({ targetUserId: input.targetUserId, accountId: ctx.accountId }, "Member removed");
@@ -303,8 +313,11 @@ export async function leaveAccount(ctx: ActionContext) {
     }
   }
 
-  await prisma.accountMember.delete({
-    where: { accountId_userId: { accountId: ctx.accountId, userId: ctx.userId } },
+  await prisma.$transaction(async (tx) => {
+    await tx.accountMember.delete({
+      where: { accountId_userId: { accountId: ctx.accountId, userId: ctx.userId } },
+    });
+    await archivePersonalPartyForUser(tx, ctx.accountId, ctx.userId);
   });
 
   log.info({ accountId: ctx.accountId, userId: ctx.userId }, "Member left account");

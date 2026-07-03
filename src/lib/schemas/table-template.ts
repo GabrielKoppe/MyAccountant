@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { investmentTypeSchema } from "./transaction";
+import { partyIdSchema } from "./responsible-party";
 
 // Campos de um item de modelo (equivale a uma transação sem data completa)
 const templateItemFields = z.object({
@@ -12,7 +13,7 @@ const templateItemFields = z.object({
   categoryId: z.string().cuid().nullable().optional(),
   subcategoryId: z.string().cuid().nullable().optional(),
   institutionId: z.string().cuid().nullable().optional(),
-  responsiblePartyId: z.string().cuid().nullable().optional(),
+  responsiblePartyId: partyIdSchema.nullable().optional(),
   cardInstallment: z
     .string()
     .regex(/^\d+\/\d+$/, "Formato: 3/12")

@@ -61,7 +61,10 @@ export const getMonthResponsibleParties = cache(async (accountId: string) =>
       name: true,
       kind: true,
       icon: true,
-      members: { select: { userId: true, user: { select: { name: true, email: true } } } },
+      color: true,
+      members: {
+        select: { userId: true, user: { select: { name: true, email: true, image: true } } },
+      },
     },
   }),
 );

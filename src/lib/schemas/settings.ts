@@ -1,12 +1,14 @@
 import { z } from "zod";
 
+import { partyIdSchema } from "./responsible-party";
+
 // ─── Account General ──────────────────────────────────────────────
 
 export const updateAccountSettingsSchema = z.object({
   accountName: z.string().min(1, "Nome obrigatório").max(80).trim(),
   currency: z.enum(["BRL"]),
   monthStartDay: z.number().int().min(1).max(28),
-  defaultResponsiblePartyId: z.string().cuid("ID inválido").nullable().optional(),
+  defaultResponsiblePartyId: partyIdSchema.nullable().optional(),
   // Default de inversão de sinal ao mover transações entre seções (spec 59)
   invertSignOnMoveByDefault: z.boolean(),
 });

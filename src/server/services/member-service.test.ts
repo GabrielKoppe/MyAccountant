@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { buildAccountInvite } from "@/../tests/fixtures/account";
@@ -22,6 +22,16 @@ vi.mock("@/server/email/email-service", () => ({
 vi.mock("@/emails", () => ({
   inviteEmailTemplate: {},
 }));
+
+beforeEach(() => {
+  // $transaction: executa callback (form callback) ou resolve o array (form array).
+  prismaMock.$transaction.mockImplementation(async (arg: any) =>
+    typeof arg === "function" ? arg(prismaMock) : Promise.all(arg),
+  );
+  // Default para os helpers de personal party (ensure/archive).
+  prismaMock.responsibleParty.findFirst.mockResolvedValue(null);
+  prismaMock.responsibleParty.create.mockResolvedValue({ id: "party-personal" } as never);
+});
 
 describe("inviteMember", () => {
   it("deve criar convite e disparar email", async () => {
@@ -113,11 +123,20 @@ describe("acceptInvite", () => {
     prismaMock.accountMember.findUnique.mockResolvedValue(null);
     prismaMock.accountMember.create.mockResolvedValue({} as any);
     prismaMock.accountInvite.update.mockResolvedValue({} as any);
-    prismaMock.$transaction.mockResolvedValue([{}, {}]);
 
     const result = await acceptInvite("token-valido", "user-novo");
 
     expect(result.accountId).toBe("acc-test-1");
+    // Personal party auto-criada no aceite (Spec 60 §2).
+    expect(prismaMock.responsibleParty.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          accountId: "acc-test-1",
+          kind: "personal",
+          members: { create: { userId: "user-novo" } },
+        }),
+      }),
+    );
   });
 
   it("deve lançar ForbiddenError se convite expirou", async () => {
@@ -270,6 +289,17 @@ describe("removeMember", () => {
     await removeMember({ targetUserId: "user-alvo" }, TEST_CTX);
 
     expect(prismaMock.accountMember.delete).toHaveBeenCalled();
+    // Personal party do membro removido é arquivada (histórico preservado).
+    expect(prismaMock.responsibleParty.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: "acc-test-1",
+          kind: "personal",
+          members: { some: { userId: "user-alvo" } },
+        }),
+        data: expect.objectContaining({ archivedAt: expect.any(Date) }),
+      }),
+    );
   });
 
   it("deve lançar ForbiddenError ao tentar remover a si mesmo", async () => {
