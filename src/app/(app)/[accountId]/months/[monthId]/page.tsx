@@ -18,6 +18,7 @@ import {
   getMonthCategories,
   getMonthInstitutions,
   getMonthMembers,
+  getMonthResponsibleParties,
 } from "@/server/queries/month-page";
 
 type Props = {
@@ -96,7 +97,16 @@ export default async function MonthPage({ params, searchParams }: Props) {
   const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
   const canEdit = member.role === "owner" || member.role === "editor";
 
-  const [currentMonth, allMonths, sections, categories, institutions, membersRaw, accountTags] =
+  const [
+    currentMonth,
+    allMonths,
+    sections,
+    categories,
+    institutions,
+    membersRaw,
+    partiesRaw,
+    accountTags,
+  ] =
     await Promise.all([
       prisma.month.findUnique({
         where: { id: monthId },
@@ -111,6 +121,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
       getMonthCategories(accountId),
       getMonthInstitutions(accountId),
       getMonthMembers(accountId),
+      getMonthResponsibleParties(accountId),
       prisma.tag.findMany({
         where: { accountId },
         orderBy: { name: "asc" },
@@ -118,15 +129,21 @@ export default async function MonthPage({ params, searchParams }: Props) {
       }),
     ]);
 
+  // Resolve nome de exibição das parties (Spec 60 §2.4).
+  const currentMemberIds = new Set(membersRaw.map((mm) => mm.user.id));
+  const filterParties = partiesRaw.map((p) => {
+    let name = p.name;
+    if (p.kind === "personal" && p.members.length === 1) {
+      const link = p.members[0];
+      if (currentMemberIds.has(link.userId)) name = link.user.name ?? link.user.email;
+    }
+    return { id: p.id, name, kind: p.kind, icon: p.icon };
+  });
+
   const filterOptions = {
     categories,
     institutions,
-    members: membersRaw.map((m) => ({
-      id: m.user.id,
-      name: m.user.name,
-      email: m.user.email,
-      image: m.user.image,
-    })),
+    parties: filterParties,
     tags: accountTags,
   };
 
