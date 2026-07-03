@@ -13,6 +13,7 @@ const templateItemFields = z.object({
   subcategoryId: z.string().cuid().nullable().optional(),
   institutionId: z.string().cuid().nullable().optional(),
   responsibleUserId: z.string().cuid().nullable().optional(),
+  responsiblePartyId: z.string().cuid().nullable().optional(),
   cardInstallment: z
     .string()
     .regex(/^\d+\/\d+$/, "Formato: 3/12")
