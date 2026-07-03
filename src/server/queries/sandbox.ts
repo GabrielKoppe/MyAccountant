@@ -3,6 +3,7 @@ import type { Prisma, SectionCountType } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel } from "@/lib/dates";
 import type { SandboxConfig, SandboxMetric } from "@/lib/schemas/sandbox";
+import { personalPartyIdsForUsers, partyDisplayMap } from "./responsible-party-filter";
 
 // ─── Public types ──────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ type RawGroupRow = {
   monthId?: string | null;
   sectionId?: string | null;
   categoryId?: string | null;
-  responsibleUserId?: string | null;
+  responsiblePartyId?: string | null;
   institutionId?: string | null;
   tableId?: string | null;
   _sum: { amountCents: bigint | null };
@@ -113,7 +114,7 @@ export async function getSandboxData(
   const needsInstitution = config.groupBy === "institution" || config.seriesBy === "institution";
   const needsTableType = config.groupBy === "table_type" || config.seriesBy === "table_type";
 
-  const [sections, categories, members, months, institutionsRaw, financeTablesRaw] =
+  const [sections, categories, partyMap, months, institutionsRaw, financeTablesRaw] =
     await Promise.all([
       prisma.section.findMany({
         where: { accountId },
@@ -125,10 +126,7 @@ export async function getSandboxData(
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       }),
-      prisma.accountMember.findMany({
-        where: { accountId },
-        select: { userId: true, user: { select: { name: true, email: true } } },
-      }),
+      partyDisplayMap(accountId),
       prisma.month.findMany({
         where: { accountId, id: { in: monthIds } },
         select: { id: true, year: true, month: true },
@@ -156,9 +154,6 @@ export async function getSandboxData(
   // Lookup maps
   const sectionMap = new Map(sections.map((s) => [s.id, s]));
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
-  const memberMap = new Map(
-    members.map((m) => [m.userId, m.user.name ?? m.user.email ?? "Membro"]),
-  );
   const monthMap = new Map(months.map((m) => [m.id, m]));
   const institutionMap = new Map(institutionsRaw.map((i) => [i.id, i.name]));
 
@@ -198,7 +193,7 @@ export async function getSandboxData(
 
   if (config.seriesBy === "section") bySet.add("sectionId");
   else if (config.seriesBy === "category") bySet.add("categoryId");
-  else if (config.seriesBy === "member") bySet.add("responsibleUserId");
+  else if (config.seriesBy === "member") bySet.add("responsiblePartyId");
   else if (config.seriesBy === "institution") bySet.add("institutionId");
   else if (config.seriesBy === "table_type") bySet.add("tableId");
 
@@ -210,15 +205,18 @@ export async function getSandboxData(
 
   const byFields = [...bySet] as Prisma.TransactionScalarFieldEnum[];
 
+  // filterMemberIds guarda userIds de membros → traduz p/ suas parties personais.
+  const filterPartyIds = config.filterMemberIds?.length
+    ? await personalPartyIdsForUsers(accountId, config.filterMemberIds)
+    : [];
+
   const where: Prisma.TransactionWhereInput = {
     accountId,
     monthId: { in: monthIds },
     table: { countInMonth: true },
     sectionId: { in: sectionIdFilter },
     ...(config.filterCategoryIds?.length ? { categoryId: { in: config.filterCategoryIds } } : {}),
-    ...(config.filterMemberIds?.length
-      ? { responsibleUserId: { in: config.filterMemberIds } }
-      : {}),
+    ...(filterPartyIds.length ? { responsiblePartyId: { in: filterPartyIds } } : {}),
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -254,7 +252,7 @@ export async function getSandboxData(
       case "category":
         return row.categoryId ?? "sem-categoria";
       case "member":
-        return row.responsibleUserId ?? "nao-atribuido";
+        return row.responsiblePartyId ?? "nao-atribuido";
       case "institution":
         return row.institutionId ?? "sem-instituicao";
       case "table_type":
@@ -310,7 +308,8 @@ export async function getSandboxData(
               label = key === "sem-categoria" ? "Sem categoria" : (categoryMap.get(key) ?? key);
               break;
             case "member":
-              label = key === "nao-atribuido" ? "Não atribuído" : (memberMap.get(key) ?? "Membro");
+              label =
+                key === "nao-atribuido" ? "Não atribuído" : (partyMap.get(key) ?? "Responsável");
               break;
             case "institution":
               label =

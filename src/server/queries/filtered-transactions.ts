@@ -8,6 +8,7 @@ import {
 } from "@/lib/schemas/widget-config";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
+import { personalPartyIdsForUsers } from "./responsible-party-filter";
 
 // Transações de um mês filtradas pelo config do widget filtered-transactions,
 // ordenadas da mais recente para a mais antiga e limitadas por `limit`.
@@ -17,13 +18,18 @@ export const getFilteredTransactions = cache(
     monthId: string,
     config: FilteredTransactionsConfig,
   ): Promise<TxRow[]> => {
+    // config.responsible guarda userIds de membros → traduz p/ suas parties personais.
+    const responsiblePartyIds = config.responsible.length
+      ? await personalPartyIdsForUsers(accountId, config.responsible)
+      : [];
+
     const where: Prisma.TransactionWhereInput = {
       accountId,
       monthId,
       table: { countInMonth: true },
       ...(config.categories.length ? { categoryId: { in: config.categories } } : {}),
       ...(config.institutions.length ? { institutionId: { in: config.institutions } } : {}),
-      ...(config.responsible.length ? { responsibleUserId: { in: config.responsible } } : {}),
+      ...(responsiblePartyIds.length ? { responsiblePartyId: { in: responsiblePartyIds } } : {}),
       ...(config.pending ? { isPending: true } : {}),
       ...(config.favorite ? { isFavorite: true } : {}),
     };
