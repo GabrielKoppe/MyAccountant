@@ -49,6 +49,64 @@ describe("createTransaction", () => {
     );
   });
 
+  it("deriva responsibleUserId do membro quando a party é personal (Spec 60 DD-08)", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.responsibleParty.findFirst.mockResolvedValue({
+      kind: "personal",
+      members: [{ userId: "user-test-1" }],
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-p" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 10000n,
+        isPending: false,
+        isFavorite: false,
+        responsiblePartyId: "party-personal-1",
+      },
+      TEST_CTX,
+    );
+
+    const data = (prismaMock.transaction.create.mock.calls[0][0] as any).data;
+    expect(data.responsiblePartyId).toBe("party-personal-1");
+    expect(data.responsibleUserId).toBe("user-test-1");
+  });
+
+  it("mantém responsibleUserId nulo quando a party é group (não é um único membro)", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.responsibleParty.findFirst.mockResolvedValue({
+      kind: "group",
+      members: [{ userId: "u1" }, { userId: "u2" }],
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-g" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 10000n,
+        isPending: false,
+        isFavorite: false,
+        responsiblePartyId: "party-group-1",
+      },
+      TEST_CTX,
+    );
+
+    const data = (prismaMock.transaction.create.mock.calls[0][0] as any).data;
+    expect(data.responsiblePartyId).toBe("party-group-1");
+    expect(data.responsibleUserId).toBeNull();
+  });
+
   it("deve lançar NotFoundError se tabela pertence a outra account (segurança multi-tenancy)", async () => {
     prismaMock.financeTable.findUnique.mockResolvedValue({
       accountId: "acc-OUTRA",

@@ -38,8 +38,32 @@ async function getTransactionOrThrow(transactionId: string, accountId: string) {
   return tx;
 }
 
+// Deriva o `responsibleUserId` (membro) a partir da party responsável, durante o
+// período de convivência das duas colunas (Spec 60 DD-08). Party `personal` → seu
+// membro; `group`/`external` → null (não são um único membro). Mantém os filtros/
+// orçamentos por membro (dashboards, Budget) funcionando enquanto a coluna existir.
+async function deriveResponsibleUserId(
+  accountId: string,
+  responsiblePartyId: string | null | undefined,
+): Promise<string | null> {
+  if (!responsiblePartyId) return null;
+  const party = await prisma.responsibleParty.findFirst({
+    where: { id: responsiblePartyId, accountId },
+    select: { kind: true, members: { select: { userId: true } } },
+  });
+  if (party?.kind === "personal" && party.members.length === 1) {
+    return party.members[0].userId;
+  }
+  return null;
+}
+
 export async function createTransaction(input: CreateTransactionInput, ctx: ActionContext) {
   const table = await getTableOrThrow(input.tableId, ctx.accountId);
+
+  const responsiblePartyId = input.responsiblePartyId ?? null;
+  const responsibleUserId = responsiblePartyId
+    ? await deriveResponsibleUserId(ctx.accountId, responsiblePartyId)
+    : (input.responsibleUserId ?? null);
 
   const transaction = await prisma.transaction.create({
     data: {
@@ -57,8 +81,8 @@ export async function createTransaction(input: CreateTransactionInput, ctx: Acti
       subcategoryId: input.subcategoryId ?? null,
       institutionId: input.institutionId ?? null,
       institutionText: input.institutionText ?? null,
-      responsibleUserId: input.responsibleUserId ?? null,
-      responsiblePartyId: input.responsiblePartyId ?? null,
+      responsibleUserId,
+      responsiblePartyId,
       cardInstallment: input.cardInstallment ?? null,
       investmentType: input.investmentType ?? null,
       expenseType: input.expenseType ?? null,
@@ -99,10 +123,16 @@ export async function updateTransaction(
   if (input.subcategoryId !== undefined) data.subcategoryId = input.subcategoryId ?? null;
   if (input.institutionId !== undefined) data.institutionId = input.institutionId ?? null;
   if (input.institutionText !== undefined) data.institutionText = input.institutionText ?? null;
-  if (input.responsibleUserId !== undefined)
-    data.responsibleUserId = input.responsibleUserId ?? null;
-  if (input.responsiblePartyId !== undefined)
+  if (input.responsiblePartyId !== undefined) {
+    // Party é a fonte de verdade da UI; deriva o membro para manter filtros por membro.
     data.responsiblePartyId = input.responsiblePartyId ?? null;
+    data.responsibleUserId = await deriveResponsibleUserId(
+      ctx.accountId,
+      input.responsiblePartyId ?? null,
+    );
+  } else if (input.responsibleUserId !== undefined) {
+    data.responsibleUserId = input.responsibleUserId ?? null;
+  }
   if (input.cardInstallment !== undefined) data.cardInstallment = input.cardInstallment ?? null;
   if (input.investmentType !== undefined) data.investmentType = input.investmentType ?? null;
   if (input.expenseType !== undefined) data.expenseType = input.expenseType ?? null;
