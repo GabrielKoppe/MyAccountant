@@ -387,6 +387,8 @@ export function TransactionTable({
             accountId={accountId}
             tableId={tableId}
             monthId={monthId}
+            sourceCountType={sectionCountType}
+            sampleAmountCents={String(rows.find((r) => r.id === selectedIds[0])?.amountCents ?? "")}
             selectedIds={selectedIds}
             allSelectedPending={allSelectedPending}
             categories={categories}

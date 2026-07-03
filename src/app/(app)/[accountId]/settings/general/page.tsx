@@ -51,6 +51,7 @@ export default async function GeneralSettingsPage({ params }: Props) {
           currency: settings.currency as "BRL",
           monthStartDay: settings.monthStartDay,
           defaultResponsibleUserId: settings.defaultResponsibleUserId ?? null,
+          invertSignOnMoveByDefault: settings.invertSignOnMoveByDefault,
         }}
         members={membersList}
       />

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import type { SectionCountType } from "@prisma/client";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
@@ -8,45 +10,61 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import FormLabel from "@mui/material/FormLabel";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
+import SwapVertIcon from "@mui/icons-material/SwapVert";
 import { useSnackbar } from "notistack";
 
 import { listTablesForMoveAction, moveTransactionsAction } from "@/actions/transactions";
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
 import { DialogShell } from "@/components/ui/DialogShell";
+import { displaySignInverts, formatCentsToBrl, moveInvertsConvention } from "@/lib/money";
 
 const NEW_TABLE = "__new__";
 
 type DestData = {
   months: { id: string; year: number; month: number; label: string }[];
-  sections: { id: string; name: string }[];
+  sections: { id: string; name: string; countType: SectionCountType }[];
   tables: { id: string; name: string; monthId: string; sectionId: string }[];
   tableTypes: { id: string; name: string; isDefault: boolean }[];
+  invertSignOnMoveByDefault: boolean;
 };
 
 type Props = {
   accountId: string;
   sourceTableId: string;
   sourceMonthId: string;
+  sourceCountType: SectionCountType;
+  /** Valor (centavos, serializado) de uma transação da seleção para preview. */
+  sampleAmountCents?: string;
   selectedIds: string[];
   open: boolean;
   onClose: () => void;
   onMoved: (ids: string[]) => void;
 };
 
+/** Centavos com o sinal de exibição da seção (subtract inverte). */
+function displayedCents(cents: bigint, countType: SectionCountType): bigint {
+  return displaySignInverts(countType) ? -cents : cents;
+}
+
 export function MoveTransactionsDialog({
   accountId,
   sourceTableId,
   sourceMonthId,
+  sourceCountType,
+  sampleAmountCents,
   selectedIds,
   open,
   onClose,
@@ -64,6 +82,7 @@ export function MoveTransactionsDialog({
   const [newName, setNewName] = useState("");
   const [newTypeId, setNewTypeId] = useState("");
   const [newCountInMonth, setNewCountInMonth] = useState(true);
+  const [invertSign, setInvertSign] = useState(true);
 
   // Load destination data once
   useEffect(() => {
@@ -72,7 +91,8 @@ export function MoveTransactionsDialog({
     listTablesForMoveAction(accountId, {}).then((res) => {
       if (res.ok) {
         setDestData(res.data);
-        const def = res.data.tableTypes.find((t: any) => t.isDefault) ?? res.data.tableTypes[0];
+        setInvertSign(res.data.invertSignOnMoveByDefault);
+        const def = res.data.tableTypes.find((t) => t.isDefault) ?? res.data.tableTypes[0];
         if (def) setNewTypeId(def.id);
       }
       setLoading(false);
@@ -86,8 +106,9 @@ export function MoveTransactionsDialog({
       setSectionId("");
       setTableId("");
       setNewName("");
+      if (destData) setInvertSign(destData.invertSignOnMoveByDefault);
     }
-  }, [open]);
+  }, [open, destData]);
 
   function handleMonthChange(id: string) {
     setMonthId(id);
@@ -106,6 +127,21 @@ export function MoveTransactionsDialog({
     ) ?? [];
 
   const isNew = tableId === NEW_TABLE;
+
+  // Convenção de sinal do destino (seção selecionada) vs origem
+  const destCountType = destData?.sections.find((s) => s.id === sectionId)?.countType;
+  const conventionsDiffer =
+    !!destCountType && moveInvertsConvention(sourceCountType, destCountType);
+
+  // Preview de sinal usando uma transação da seleção. Verde/vermelho reforça o
+  // significado financeiro (cor é informação): negativo = saída, positivo = entrada.
+  const sample = sampleAmountCents ? BigInt(sampleAmountCents) : null;
+  const signColor = (cents: bigint) => (cents < 0n ? "danger.main" : "success.main");
+  const sourceCents = sample != null ? displayedCents(sample, sourceCountType) : null;
+  const invertCents =
+    sample != null && destCountType ? displayedCents(-sample, destCountType) : null;
+  const preserveCents =
+    sample != null && destCountType ? displayedCents(sample, destCountType) : null;
 
   const canSubmit =
     !!monthId &&
@@ -130,6 +166,7 @@ export function MoveTransactionsDialog({
       const result = await moveTransactionsAction(accountId, {
         ids: selectedIds,
         sourceMonthId,
+        invertSign,
         destination,
       });
 
@@ -298,6 +335,72 @@ export function MoveTransactionsDialog({
                 />
               </Stack>
             </Paper>
+          )}
+
+          {/* Sinal do valor — só quando origem e destino têm convenção oposta */}
+          {conventionsDiffer && (
+            <Alert severity="warning" icon={<SwapVertIcon fontSize="small" />}>
+              <FormControl component="fieldset" sx={{ width: "100%" }}>
+                <FormLabel id="move-sign-label" sx={{ typography: "subtitle2" }}>
+                  {m.financeTables.moveSignHeading}
+                </FormLabel>
+                <Typography variant="body2" color="text.secondary" mt={0.5}>
+                  {m.financeTables.moveSignExplanation}
+                </Typography>
+                {sourceCents != null && (
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {(selectedIds.length > 1
+                      ? m.financeTables.moveSignSampleMulti
+                      : m.financeTables.moveSignSample)(
+                      formatCentsToBrl(sourceCents, { sign: true }),
+                    )}
+                  </Typography>
+                )}
+                <RadioGroup
+                  aria-labelledby="move-sign-label"
+                  value={invertSign ? "invert" : "preserve"}
+                  onChange={(e) => setInvertSign(e.target.value === "invert")}
+                  sx={{ mt: layout.inline }}
+                >
+                  <FormControlLabel
+                    value="invert"
+                    control={<Radio size="small" />}
+                    label={
+                      <Box>
+                        <Typography variant="body2">
+                          {m.financeTables.moveSignInvertLabel}
+                        </Typography>
+                        {invertCents != null && (
+                          <Typography variant="caption" color={signColor(invertCents)}>
+                            {m.financeTables.moveSignResult(
+                              formatCentsToBrl(invertCents, { sign: true }),
+                            )}
+                          </Typography>
+                        )}
+                      </Box>
+                    }
+                  />
+                  <FormControlLabel
+                    value="preserve"
+                    control={<Radio size="small" />}
+                    label={
+                      <Box>
+                        <Typography variant="body2">
+                          {m.financeTables.moveSignPreserveLabel}
+                        </Typography>
+                        {preserveCents != null && (
+                          <Typography variant="caption" color={signColor(preserveCents)}>
+                            {m.financeTables.moveSignResult(
+                              formatCentsToBrl(preserveCents, { sign: true }),
+                            )}
+                          </Typography>
+                        )}
+                      </Box>
+                    }
+                  />
+                </RadioGroup>
+              </FormControl>
+            </Alert>
           )}
         </Stack>
       )}

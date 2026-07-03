@@ -6,7 +6,13 @@ import type { UpdateAccountSettingsInput } from "@/lib/schemas/settings";
 const log = logger.child({ module: "account-settings-service" });
 
 export async function updateAccountSettings(input: UpdateAccountSettingsInput, ctx: ActionContext) {
-  const { accountName, currency, monthStartDay, defaultResponsibleUserId } = input;
+  const {
+    accountName,
+    currency,
+    monthStartDay,
+    defaultResponsibleUserId,
+    invertSignOnMoveByDefault,
+  } = input;
 
   await prisma.$transaction([
     prisma.account.update({
@@ -15,7 +21,12 @@ export async function updateAccountSettings(input: UpdateAccountSettingsInput, c
     }),
     prisma.accountSettings.update({
       where: { accountId: ctx.accountId },
-      data: { currency, monthStartDay, defaultResponsibleUserId: defaultResponsibleUserId ?? null },
+      data: {
+        currency,
+        monthStartDay,
+        defaultResponsibleUserId: defaultResponsibleUserId ?? null,
+        invertSignOnMoveByDefault,
+      },
     }),
   ]);
 

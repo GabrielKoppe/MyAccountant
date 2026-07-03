@@ -7,6 +7,8 @@ export const updateAccountSettingsSchema = z.object({
   currency: z.enum(["BRL"]),
   monthStartDay: z.number().int().min(1).max(28),
   defaultResponsibleUserId: z.string().cuid("ID inválido").nullable().optional(),
+  // Default de inversão de sinal ao mover transações entre seções (spec 59)
+  invertSignOnMoveByDefault: z.boolean(),
 });
 
 export type UpdateAccountSettingsInput = z.infer<typeof updateAccountSettingsSchema>;

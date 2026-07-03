@@ -42,6 +42,7 @@ Define a página de configurações da Account, onde owner/editor configuram a e
 - `currency` (select com BRL/USD/EUR — MVP só BRL).
 - `monthStartDay` (slider/input 1-31).
 - `defaultResponsibleUserId` (select de membros).
+- `invertSignOnMoveByDefault` (switch, default `true`) — controla se o modal de mover transações pré-seleciona "inverter sinal" quando origem e destino têm convenção de `countType` oposta. Ver **spec 59**.
 
 > `monthStartDay` é crítico: define quando uma transação cai em um mês vs outro. Ver `skills/date-timezone/SKILL.md`.
 

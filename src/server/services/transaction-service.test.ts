@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SectionCountType } from "@prisma/client";
 
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { buildTransaction } from "@/../tests/fixtures/transaction";
@@ -11,6 +12,7 @@ import {
   createTransaction,
   deleteTransaction,
   duplicateTransaction,
+  moveTransactions,
   updateTransaction,
 } from "./transaction-service";
 
@@ -451,5 +453,119 @@ describe("source — TRN-03", () => {
         data: expect.objectContaining({ source: "duplicate" }),
       }),
     );
+  });
+});
+
+describe("moveTransactions — sinal ao mover (spec 59)", () => {
+  // getTableOrThrow e o fetch de nome usam o mesmo mock de financeTable.findUnique
+  function mockExistingTarget(destCountType: SectionCountType) {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-dest",
+      monthId: "month-dest",
+      name: "Tabela Destino",
+    } as any);
+    prismaMock.section.findUnique.mockResolvedValue({ countType: destCountType } as any);
+    // applyMove roda dentro de prisma.$transaction — executa o callback com o mock
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(prismaMock));
+  }
+
+  const dataOf = (call: any) => call[0].data as Record<string, unknown>;
+
+  it("deve inverter amountCents (× -1) ao mover de convenção diferente com invertSign", async () => {
+    mockExistingTarget("add");
+    prismaMock.transaction.findMany.mockResolvedValue([
+      { id: "tx-1", section: { countType: "subtract" } }, // origem subtract, destino add → difere
+    ] as any);
+
+    await moveTransactions(
+      {
+        ids: ["tx-1"],
+        sourceMonthId: "month-src",
+        invertSign: true,
+        destination: { type: "existing", tableId: "table-dest" },
+      },
+      TEST_CTX,
+    );
+
+    const flipCall = prismaMock.transaction.updateMany.mock.calls.find(
+      (c) => dataOf(c).amountCents,
+    );
+    expect(flipCall).toBeTruthy();
+    expect(dataOf(flipCall).amountCents).toEqual({ multiply: -1 });
+    expect(flipCall![0].where).toMatchObject({ id: { in: ["tx-1"] }, accountId: "acc-test-1" });
+  });
+
+  it("não deve inverter quando invertSign é false", async () => {
+    mockExistingTarget("add");
+
+    await moveTransactions(
+      {
+        ids: ["tx-1"],
+        sourceMonthId: "month-src",
+        invertSign: false,
+        destination: { type: "existing", tableId: "table-dest" },
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.findMany).not.toHaveBeenCalled();
+    const calls = prismaMock.transaction.updateMany.mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(dataOf(calls[0]).amountCents).toBeUndefined();
+    expect(calls[0][0].where).toMatchObject({ accountId: "acc-test-1" });
+  });
+
+  it("não deve inverter quando convenções coincidem, mesmo com invertSign", async () => {
+    mockExistingTarget("subtract");
+    prismaMock.transaction.findMany.mockResolvedValue([
+      { id: "tx-1", section: { countType: "subtract" } }, // ambos subtract → não difere
+    ] as any);
+
+    await moveTransactions(
+      {
+        ids: ["tx-1"],
+        sourceMonthId: "month-src",
+        invertSign: true,
+        destination: { type: "existing", tableId: "table-dest" },
+      },
+      TEST_CTX,
+    );
+
+    const calls = prismaMock.transaction.updateMany.mock.calls;
+    expect(calls.every((c) => dataOf(c).amountCents === undefined)).toBe(true);
+  });
+
+  it("deve particionar flip/keep e restringir todo update por accountId (multi-tenancy)", async () => {
+    mockExistingTarget("add");
+    // tx de outra conta é excluído pelo filtro accountId do findMany
+    prismaMock.transaction.findMany.mockResolvedValue([
+      { id: "tx-1", section: { countType: "subtract" } }, // flip
+      { id: "tx-3", section: { countType: "add" } }, // keep
+    ] as any);
+
+    await moveTransactions(
+      {
+        ids: ["tx-1", "tx-2-outra-conta", "tx-3"],
+        sourceMonthId: "month-src",
+        invertSign: true,
+        destination: { type: "existing", tableId: "table-dest" },
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ accountId: "acc-test-1" }) }),
+    );
+
+    const calls = prismaMock.transaction.updateMany.mock.calls;
+    const flipCall = calls.find((c) => dataOf(c).amountCents);
+    const keepCall = calls.find((c) => !dataOf(c).amountCents);
+    expect(flipCall![0].where).toMatchObject({ id: { in: ["tx-1"] } });
+    expect(keepCall![0].where).toMatchObject({ id: { in: ["tx-3"] } });
+    for (const c of calls) {
+      expect((c[0].where as any).accountId).toBe("acc-test-1");
+      expect((c[0].where as any).id.in).not.toContain("tx-2-outra-conta");
+    }
   });
 });

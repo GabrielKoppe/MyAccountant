@@ -9,8 +9,11 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { useSnackbar } from "notistack";
 
 import { updateAccountSettingsAction } from "@/actions/account-settings";
@@ -121,6 +124,34 @@ export function GeneralSettingsForm({ accountId, defaultValues, members }: Props
                 ))}
               </Select>
               {fieldState.error && <FormHelperText>{fieldState.error.message}</FormHelperText>}
+            </FormControl>
+          )}
+        />
+
+        <Controller
+          name="invertSignOnMoveByDefault"
+          control={form.control}
+          render={({ field }) => (
+            <FormControl fullWidth>
+              <FormControlLabel
+                sx={{ ml: 0, mr: 0, justifyContent: "space-between" }}
+                labelPlacement="start"
+                control={
+                  <Switch
+                    checked={field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    {m.settings.general.invertSignOnMoveLabel}
+                  </Typography>
+                }
+              />
+              <FormHelperText sx={{ ml: 0 }}>
+                {m.settings.general.invertSignOnMoveHelper}
+              </FormHelperText>
             </FormControl>
           )}
         />

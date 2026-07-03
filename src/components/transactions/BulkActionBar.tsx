@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { TransactionExpenseType } from "@prisma/client";
+import type { SectionCountType, TransactionExpenseType } from "@prisma/client";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
@@ -29,6 +29,8 @@ type Props = {
   accountId: string;
   tableId: string;
   monthId: string;
+  sourceCountType: SectionCountType;
+  sampleAmountCents?: string;
   selectedIds: string[];
   allSelectedPending: boolean;
   categories: CategoryOption[];
@@ -42,6 +44,8 @@ export function BulkActionBar({
   accountId,
   tableId,
   monthId,
+  sourceCountType,
+  sampleAmountCents,
   selectedIds,
   allSelectedPending,
   categories,
@@ -231,6 +235,8 @@ export function BulkActionBar({
         accountId={accountId}
         sourceTableId={tableId}
         sourceMonthId={monthId}
+        sourceCountType={sourceCountType}
+        sampleAmountCents={sampleAmountCents}
         selectedIds={selectedIds}
         open={moveOpen}
         onClose={() => setMoveOpen(false)}

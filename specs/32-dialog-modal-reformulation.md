@@ -356,6 +356,8 @@ Mapeamento de todos os 27 dialogs/modais do projeto com problemas de design iden
 | D26 | `InviteForm` | `src/components/members/InviteForm.tsx` | Form com RHF | `xs` |
 | D27 | `MonthHeader` → delete | `src/components/months/MonthHeader.tsx` | Confirmação destrutiva + campo | `sm` |
 
+> **Atualização (spec 59)**: `MoveTransactionsDialog` (D04) ganhou uma seção condicional **"Sinal do valor"** — um `<Alert severity="warning">` (variante do tema, não `sx` manual) com `<FormLabel>` + `<RadioGroup aria-labelledby>` (inverter/preservar) e preview colorido por sinal (`success.main`/`danger.main`) via `formatCentsToBrl` — exibida apenas quando origem e destino têm convenção de `countType` oposta. Segue os padrões deste spec (DialogShell, tokens semânticos, mensagens em `messages/pt-BR.ts`).
+
 ---
 
 ### 8.2 Problemas de design por categoria

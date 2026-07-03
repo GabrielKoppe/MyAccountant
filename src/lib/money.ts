@@ -1,4 +1,36 @@
 import "@/lib/json";
+import type { SectionCountType } from "@prisma/client";
+
+/**
+ * Convenção de exibição de sinal por tipo de seção. Apenas `subtract` inverte o
+ * sinal armazenado na exibição (ver `applyFinancialSign`, `TransactionRow`,
+ * `FinanceTableCard`). `add`, `neutral` e `ignore` exibem o sinal cru.
+ */
+export function displaySignInverts(countType: SectionCountType): boolean {
+  return countType === "subtract";
+}
+
+/** True quando origem e destino exibem o sinal de forma oposta. */
+export function moveInvertsConvention(
+  source: SectionCountType,
+  destination: SectionCountType,
+): boolean {
+  return displaySignInverts(source) !== displaySignInverts(destination);
+}
+
+/**
+ * Normaliza `amountCents` ao mover uma transação entre seções. Quando `invert`
+ * está ativo e as convenções de exibição diferem, nega o valor (em BigInt
+ * centavos) para preservar o significado exibido ao usuário.
+ */
+export function normalizeAmountOnMove(
+  amountCents: bigint,
+  source: SectionCountType,
+  destination: SectionCountType,
+  invert: boolean,
+): bigint {
+  return invert && moveInvertsConvention(source, destination) ? -amountCents : amountCents;
+}
 
 export function centsToReais(cents: bigint): number {
   return Number(cents) / 100;

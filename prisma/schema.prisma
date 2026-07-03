@@ -95,24 +95,24 @@ model User {
   sessions      Session[]
 
   // App relations
-  settings          UserSettings?
-  accountsCreated   Account[]       @relation("AccountCreatedBy")
-  memberships       AccountMember[]
-  invitesSent       AccountInvite[] @relation("InviteSentBy")
-  tablesCreated     FinanceTable[]  @relation("TableCreatedBy")
-  tablesUpdated     FinanceTable[]  @relation("TableUpdatedBy")
-  transCreated      Transaction[]   @relation("TransactionCreatedBy")
-  transUpdated      Transaction[]   @relation("TransactionUpdatedBy")
-  transResponsible  Transaction[]   @relation("TransactionResponsible")
-  membersAdded      AccountMember[] @relation("MemberAddedBy")
-  catsCreated       Category[]      @relation("CategoryCreatedBy")
-  instCreated       Institution[]   @relation("InstitutionCreatedBy")
-  templatesCreated      CsvTemplate[]     @relation("TemplateCreatedBy")
-  tableModelsCreated    TableTemplate[]   @relation("TableTemplateCreatedBy")
-  monthsCreated         Month[]           @relation("MonthCreatedBy")
-  budgetsAsMember       Budget[]          @relation("BudgetMember")
-  notificationsReceived Notification[]    @relation("NotificationRecipient")
-  notificationsSent     Notification[]    @relation("NotificationActor")
+  settings              UserSettings?
+  accountsCreated       Account[]       @relation("AccountCreatedBy")
+  memberships           AccountMember[]
+  invitesSent           AccountInvite[] @relation("InviteSentBy")
+  tablesCreated         FinanceTable[]  @relation("TableCreatedBy")
+  tablesUpdated         FinanceTable[]  @relation("TableUpdatedBy")
+  transCreated          Transaction[]   @relation("TransactionCreatedBy")
+  transUpdated          Transaction[]   @relation("TransactionUpdatedBy")
+  transResponsible      Transaction[]   @relation("TransactionResponsible")
+  membersAdded          AccountMember[] @relation("MemberAddedBy")
+  catsCreated           Category[]      @relation("CategoryCreatedBy")
+  instCreated           Institution[]   @relation("InstitutionCreatedBy")
+  templatesCreated      CsvTemplate[]   @relation("TemplateCreatedBy")
+  tableModelsCreated    TableTemplate[] @relation("TableTemplateCreatedBy")
+  monthsCreated         Month[]         @relation("MonthCreatedBy")
+  budgetsAsMember       Budget[]        @relation("BudgetMember")
+  notificationsReceived Notification[]  @relation("NotificationRecipient")
+  notificationsSent     Notification[]  @relation("NotificationActor")
 
   @@map("users")
 }
@@ -166,28 +166,28 @@ model Account {
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  creator       User            @relation("AccountCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  members       AccountMember[]
-  invites       AccountInvite[]
-  months        Month[]
-  sections      Section[]
-  tableTypes    TableType[]
-  tables        FinanceTable[]
-  transactions  Transaction[]
-  categories    Category[]
-  subcategories Subcategory[]
-  institutions  Institution[]
-  templates          CsvTemplate[]
-  tableModels        TableTemplate[]
-  tableModelItems    TableTemplateItem[]
-  settings           AccountSettings?
-  budgets            Budget[]
-  notifications      Notification[]
-  tags               Tag[]
-  dashboardLayouts   DashboardLayout[]
-  installmentGroups    InstallmentGroup[]
-  pendingInstallments  PendingInstallment[]
-  transactionLinks     TransactionLink[]
+  creator             User                 @relation("AccountCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  members             AccountMember[]
+  invites             AccountInvite[]
+  months              Month[]
+  sections            Section[]
+  tableTypes          TableType[]
+  tables              FinanceTable[]
+  transactions        Transaction[]
+  categories          Category[]
+  subcategories       Subcategory[]
+  institutions        Institution[]
+  templates           CsvTemplate[]
+  tableModels         TableTemplate[]
+  tableModelItems     TableTemplateItem[]
+  settings            AccountSettings?
+  budgets             Budget[]
+  notifications       Notification[]
+  tags                Tag[]
+  dashboardLayouts    DashboardLayout[]
+  installmentGroups   InstallmentGroup[]
+  pendingInstallments PendingInstallment[]
+  transactionLinks    TransactionLink[]
 
   @@map("accounts")
 }
@@ -254,10 +254,10 @@ model TableType {
   hiddenColumns Json     @default("{}") @map("hidden_columns")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  account        Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  financeTables  FinanceTable[]
-  tableTemplates TableTemplate[]
-  budgets        Budget[]
+  account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  financeTables     FinanceTable[]
+  tableTemplates    TableTemplate[]
+  budgets           Budget[]
   installmentGroups InstallmentGroup[]
 
   @@unique([accountId, name])
@@ -290,9 +290,9 @@ model Month {
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  account   Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdBy User           @relation("MonthCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  tables    FinanceTable[]
+  account      Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy    User           @relation("MonthCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  tables       FinanceTable[]
   transactions Transaction[]
 
   @@unique([accountId, year, month])
@@ -309,10 +309,10 @@ model Section {
   isActive  Boolean          @default(true) @map("is_active")
   createdAt DateTime         @default(now()) @map("created_at")
 
-  account      Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  tables       FinanceTable[]
-  transactions Transaction[]
-  budgets      Budget[]
+  account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tables            FinanceTable[]
+  transactions      Transaction[]
+  budgets           Budget[]
   installmentGroups InstallmentGroup[]
 
   @@unique([accountId, name])
@@ -352,51 +352,52 @@ model FinanceTable {
 }
 
 model Transaction {
-  id                String   @id @default(cuid())
-  accountId         String   @map("account_id")
-  monthId           String   @map("month_id")
-  tableId           String   @map("table_id")
-  sectionId         String   @map("section_id")
-  occurredOn        DateTime @map("occurred_on") @db.Date
-  amountCents       BigInt   @map("amount_cents")
-  description       String?
-  notes             String?
-  isPending         Boolean  @default(false) @map("is_pending")
-  isFavorite        Boolean  @default(false) @map("is_favorite")
-  categoryId        String?  @map("category_id")
-  subcategoryId     String?  @map("subcategory_id")
-  institutionId     String?  @map("institution_id")
-  institutionText   String?  @map("institution_text")
-  responsibleUserId String?  @map("responsible_user_id")
-  cardInstallment   String?  @map("card_installment")
-  investmentType    String?  @map("investment_type")
-  expenseType       TransactionExpenseType? @map("expense_type")
-  source            TransactionSource @default(manual) @map("source")
-  installmentGroupId   String? @map("installment_group_id")
-  installmentNumber    Int?    @map("installment_number")
-  originalAmountCents  BigInt?  @map("original_amount_cents")
-  originalCurrency     String?  @map("original_currency")
-  exchangeRate         Decimal? @map("exchange_rate") @db.Decimal(18, 6)
-  metadata          Json     @default("{}")
-  createdById       String   @map("created_by_id")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedById       String?  @map("updated_by_id")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  id                  String                  @id @default(cuid())
+  accountId           String                  @map("account_id")
+  monthId             String                  @map("month_id")
+  tableId             String                  @map("table_id")
+  sectionId           String                  @map("section_id")
+  occurredOn          DateTime                @map("occurred_on") @db.Date
+  amountCents         BigInt                  @map("amount_cents")
+  description         String?
+  notes               String?
+  isPending           Boolean                 @default(false) @map("is_pending")
+  isFavorite          Boolean                 @default(false) @map("is_favorite")
+  categoryId          String?                 @map("category_id")
+  subcategoryId       String?                 @map("subcategory_id")
+  institutionId       String?                 @map("institution_id")
+  institutionText     String?                 @map("institution_text")
+  responsibleUserId   String?                 @map("responsible_user_id")
+  cardInstallment     String?                 @map("card_installment")
+  investmentType      String?                 @map("investment_type")
+  expenseType         TransactionExpenseType? @map("expense_type")
+  source              TransactionSource       @default(manual) @map("source")
+  installmentGroupId  String?                 @map("installment_group_id")
+  installmentNumber   Int?                    @map("installment_number")
+  originalAmountCents BigInt?                 @map("original_amount_cents")
+  originalCurrency    String?                 @map("original_currency")
+  exchangeRate        Decimal?                @map("exchange_rate") @db.Decimal(18, 6)
+  metadata            Json                    @default("{}")
+  createdById         String                  @map("created_by_id")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedById         String?                 @map("updated_by_id")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
 
-  account         Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  month           Month        @relation(fields: [monthId], references: [id], onDelete: Cascade)
-  table           FinanceTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  section         Section      @relation(fields: [sectionId], references: [id], onDelete: Restrict)
-  category        Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  subcategory     Subcategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
-  institution     Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
-  responsibleUser User?        @relation("TransactionResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
-  createdBy       User         @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedBy       User?        @relation("TransactionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  tags            TransactionTag[]
+  account          Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  month            Month             @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  table            FinanceTable      @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  section          Section           @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  category         Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subcategory      Subcategory?      @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  institution      Institution?      @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  responsibleUser  User?             @relation("TransactionResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  createdBy        User              @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy        User?             @relation("TransactionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  tags             TransactionTag[]
   installmentGroup InstallmentGroup? @relation(fields: [installmentGroupId], references: [id], onDelete: SetNull)
-  linksAsSource   TransactionLink[] @relation("LinkSource")
-  linksAsTarget   TransactionLink[] @relation("LinkTarget")
+  linksAsSource    TransactionLink[] @relation("LinkSource")
+  linksAsTarget    TransactionLink[] @relation("LinkTarget")
+
   @@index([tableId])
   @@index([accountId, monthId])
   @@index([accountId, occurredOn])
@@ -497,26 +498,26 @@ model TableTemplate {
 }
 
 model TableTemplateItem {
-  id                String   @id @default(cuid())
-  templateId        String   @map("template_id")
-  accountId         String   @map("account_id")
+  id                String                  @id @default(cuid())
+  templateId        String                  @map("template_id")
+  accountId         String                  @map("account_id")
   day               Int
-  amountCents       BigInt   @map("amount_cents")
+  amountCents       BigInt                  @map("amount_cents")
   description       String?
   notes             String?
-  isPending         Boolean  @default(false) @map("is_pending")
-  categoryId        String?  @map("category_id")
-  subcategoryId     String?  @map("subcategory_id")
-  institutionId     String?  @map("institution_id")
-  responsibleUserId String?  @map("responsible_user_id")
-  cardInstallment   String?  @map("card_installment")
-  investmentType    String?  @map("investment_type")
+  isPending         Boolean                 @default(false) @map("is_pending")
+  categoryId        String?                 @map("category_id")
+  subcategoryId     String?                 @map("subcategory_id")
+  institutionId     String?                 @map("institution_id")
+  responsibleUserId String?                 @map("responsible_user_id")
+  cardInstallment   String?                 @map("card_installment")
+  investmentType    String?                 @map("investment_type")
   expenseType       TransactionExpenseType? @map("expense_type")
-  displayOrder      Int      @default(0) @map("display_order")
-  createdAt         DateTime @default(now()) @map("created_at")
+  displayOrder      Int                     @default(0) @map("display_order")
+  createdAt         DateTime                @default(now()) @map("created_at")
 
-  template  TableTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  account   Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  template TableTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  account  Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([templateId])
   @@map("table_template_items")
@@ -572,7 +573,7 @@ model DashboardLayout {
   id        String                 @id @default(cuid())
   accountId String                 @map("account_id")
   context   DashboardLayoutContext
-  widgets   Json                   // StoredWidget[] (spec 36) — instâncias configuráveis em grade 2D
+  widgets   Json // StoredWidget[] (spec 36) — instâncias configuráveis em grade 2D
   createdAt DateTime               @default(now()) @map("created_at")
   updatedAt DateTime               @updatedAt @map("updated_at")
 

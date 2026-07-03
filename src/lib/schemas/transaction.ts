@@ -79,6 +79,11 @@ export const bulkUpdateSchema = z.object({
 export const moveTransactionsSchema = z.object({
   ids: z.array(z.string().cuid("ID inválido")).min(1),
   sourceMonthId: z.string().cuid("ID inválido"),
+  // Inverte o sinal de amountCents quando as convenções de exibição de origem e
+  // destino diferem (exatamente um lado é `subtract`). Ver spec 59. O default de
+  // UX (true) vive em AccountSettings.invertSignOnMoveByDefault e na pré-seleção
+  // do modal; aqui o valor é sempre explícito.
+  invertSign: z.boolean(),
   destination: z.discriminatedUnion("type", [
     // Mover para tabela já existente
     z.object({ type: z.literal("existing"), tableId: z.string().cuid("ID inválido") }),

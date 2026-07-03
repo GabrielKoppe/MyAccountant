@@ -303,6 +303,9 @@ export const messages = {
       monthStartDayHelper: "Transações a partir deste dia são contadas no mês seguinte.",
       defaultResponsibleLabel: "Responsável padrão",
       defaultResponsibleNone: "Nenhum",
+      invertSignOnMoveLabel: "Inverter sinal ao mover entre convenções diferentes",
+      invertSignOnMoveHelper:
+        "Ao mover transações entre uma seção que subtrai e uma que soma (ou vice-versa), inverte o sinal do valor por padrão para preservar o significado exibido. Você ainda pode ajustar a cada movimentação.",
       saved: "Configurações salvas.",
     },
     sections: {
@@ -559,6 +562,15 @@ export const messages = {
     moveTitle: (n: number) => `Mover ${n} transação(ões)`,
     moveNewTableSection: "Configurar nova tabela",
     moveSuccess: (n: number, name: string) => `${n} transação(ões) movida(s) para "${name}".`,
+    moveSignHeading: "Sinal do valor",
+    moveSignExplanation:
+      "As seções de origem e destino tratam o sinal de formas opostas. Escolha o que fazer com o valor:",
+    moveSignSample: (v: string) => `Exemplo — hoje lê ${v} na seção atual.`,
+    moveSignSampleMulti: (v: string) =>
+      `Exemplo (1ª transação selecionada) — hoje lê ${v} na seção atual.`,
+    moveSignInvertLabel: "Inverter sinal (preserva o valor exibido)",
+    moveSignPreserveLabel: "Preservar valor armazenado",
+    moveSignResult: (v: string) => `No destino lerá ${v}`,
   },
   transactions: {
     title: "Transações",

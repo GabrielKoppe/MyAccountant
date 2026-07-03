@@ -75,6 +75,15 @@ Soma os valores **com o sinal cadastrado**.
 > Útil para: "Investimentos" onde aportes são positivos (saída do caixa) e resgates são negativos (entrada).
 > Exemplo: aporte de `+R$ 1.000` e resgate de `-R$ 500`. Soma: `+500`. Contribuição ao mês: `+500` (que conceitualmente significa "fluxo líquido para investimentos no mês").
 
+### 4.5 Convenção de sinal na exibição
+
+O `countType` também governa como o **sinal exibido** de uma transação é derivado do `amountCents` armazenado (o sinal não é persistido explicitamente):
+
+- Em `subtract`, o sinal armazenado é **invertido** na exibição (`applyFinancialSign`, `TransactionRow`, `FinanceTableCard`): um `amountCents` positivo é lido como despesa.
+- Em `add`, `neutral` e `ignore`, o valor é exibido **com o sinal armazenado**.
+
+Logo, mover uma transação entre uma seção `subtract` e uma seção `add`/`neutral`/`ignore` (ou vice-versa) reinterpreta a mesma magnitude sob outra convenção. O tratamento explícito do sinal ao mover — inversão opcional de `amountCents` e default configurável — está definido na **spec 59** (`specs/59-sinal-valor-mover-transacoes.md`).
+
 ## 5. Section Active vs Inactive
 
 ### 5.1 Section Active

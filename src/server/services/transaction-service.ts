@@ -1,7 +1,10 @@
+import type { Prisma, SectionCountType } from "@prisma/client";
+
 import { NotFoundError } from "@/server/api/errors";
 import type { ActionContext } from "@/server/api/define-action";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
+import { moveInvertsConvention } from "@/lib/money";
 import * as installmentService from "./installment-service";
 import type {
   BulkDeleteInput,
@@ -248,6 +251,54 @@ export async function bulkUpdate(input: BulkUpdateInput, ctx: ActionContext) {
   log.info({ count: input.ids.length, accountId: ctx.accountId }, "Bulk transactions updated");
 }
 
+/**
+ * Aplica a movimentação (troca de tabela/seção/mês) e, quando `invertSign`
+ * está ativo, nega `amountCents` das transações cuja convenção de exibição de
+ * origem difere da do destino (ver spec 59). Toda a matemática é BigInt e todos
+ * os updates são restritos por `accountId` (multi-tenancy).
+ */
+async function applyMove(
+  client: Prisma.TransactionClient,
+  params: {
+    ids: string[];
+    accountId: string;
+    userId: string;
+    moveData: { tableId: string; sectionId: string; monthId: string };
+    destCountType: SectionCountType;
+    invertSign: boolean;
+  },
+): Promise<void> {
+  const { ids, accountId, userId, moveData, destCountType, invertSign } = params;
+  const data = { ...moveData, updatedById: userId };
+
+  if (!invertSign) {
+    await client.transaction.updateMany({ where: { id: { in: ids }, accountId }, data });
+    return;
+  }
+
+  const txs = await client.transaction.findMany({
+    where: { id: { in: ids }, accountId },
+    select: { id: true, section: { select: { countType: true } } },
+  });
+
+  const flipIds: string[] = [];
+  const keepIds: string[] = [];
+  for (const tx of txs) {
+    if (moveInvertsConvention(tx.section.countType, destCountType)) flipIds.push(tx.id);
+    else keepIds.push(tx.id);
+  }
+
+  if (keepIds.length > 0) {
+    await client.transaction.updateMany({ where: { id: { in: keepIds }, accountId }, data });
+  }
+  if (flipIds.length > 0) {
+    await client.transaction.updateMany({
+      where: { id: { in: flipIds }, accountId },
+      data: { ...data, amountCents: { multiply: -1 } },
+    });
+  }
+}
+
 export async function moveTransactions(
   input: MoveTransactionsInput,
   ctx: ActionContext,
@@ -256,15 +307,28 @@ export async function moveTransactions(
 
   if (destination.type === "existing") {
     const targetTable = await getTableOrThrow(destination.tableId, ctx.accountId);
-    await prisma.transaction.updateMany({
-      where: { id: { in: input.ids }, accountId: ctx.accountId },
-      data: {
-        tableId: destination.tableId,
-        sectionId: targetTable.sectionId,
-        monthId: targetTable.monthId,
-        updatedById: ctx.userId,
-      },
+    const targetSection = await prisma.section.findUnique({
+      where: { id: targetTable.sectionId },
+      select: { countType: true },
     });
+    if (!targetSection) throw new NotFoundError("Seção");
+
+    // Atômico: findMany + updateMany(s) de keep/flip devem ser tudo-ou-nada
+    await prisma.$transaction((tx) =>
+      applyMove(tx, {
+        ids: input.ids,
+        accountId: ctx.accountId,
+        userId: ctx.userId,
+        moveData: {
+          tableId: destination.tableId,
+          sectionId: targetTable.sectionId,
+          monthId: targetTable.monthId,
+        },
+        destCountType: targetSection.countType,
+        invertSign: input.invertSign,
+      }),
+    );
+
     const full = await prisma.financeTable.findUnique({
       where: { id: destination.tableId },
       select: { name: true },
@@ -311,14 +375,17 @@ export async function moveTransactions(
         createdById: ctx.userId,
       },
     });
-    await tx.transaction.updateMany({
-      where: { id: { in: input.ids }, accountId: ctx.accountId },
-      data: {
+    await applyMove(tx, {
+      ids: input.ids,
+      accountId: ctx.accountId,
+      userId: ctx.userId,
+      moveData: {
         tableId: newTable.id,
         sectionId: destination.sectionId,
         monthId: destination.monthId,
-        updatedById: ctx.userId,
       },
+      destCountType: section.countType,
+      invertSign: input.invertSign,
     });
     return newTable;
   });
@@ -332,7 +399,7 @@ export async function moveTransactions(
 }
 
 export async function listTablesForMove(accountId: string) {
-  const [months, sections, tables, tableTypes] = await Promise.all([
+  const [months, sections, tables, tableTypes, settings] = await Promise.all([
     prisma.month.findMany({
       where: { accountId },
       orderBy: [{ year: "desc" }, { month: "desc" }],
@@ -341,7 +408,7 @@ export async function listTablesForMove(accountId: string) {
     prisma.section.findMany({
       where: { accountId, isActive: true },
       orderBy: { order: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, countType: true },
     }),
     prisma.financeTable.findMany({
       where: { accountId },
@@ -352,6 +419,10 @@ export async function listTablesForMove(accountId: string) {
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
       select: { id: true, name: true, isDefault: true },
     }),
+    prisma.accountSettings.findUnique({
+      where: { accountId },
+      select: { invertSignOnMoveByDefault: true },
+    }),
   ]);
 
   return {
@@ -359,5 +430,6 @@ export async function listTablesForMove(accountId: string) {
     sections,
     tables,
     tableTypes,
+    invertSignOnMoveByDefault: settings?.invertSignOnMoveByDefault ?? true,
   };
 }

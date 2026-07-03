@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { centsToReais, formatCentsToBrl, parseBrlMaskToCents, reaisToCents } from "./money";
+import {
+  centsToReais,
+  displaySignInverts,
+  formatCentsToBrl,
+  moveInvertsConvention,
+  normalizeAmountOnMove,
+  parseBrlMaskToCents,
+  reaisToCents,
+} from "./money";
 
 describe("centsToReais", () => {
   it("deve converter centavos para reais", () => {
@@ -66,6 +74,55 @@ describe("formatCentsToBrl", () => {
   it("deve formatar zero como R$ 0,00", () => {
     const result = formatCentsToBrl(0n);
     expect(result).toContain("0");
+  });
+});
+
+describe("displaySignInverts", () => {
+  it("deve inverter apenas para subtract", () => {
+    expect(displaySignInverts("subtract")).toBe(true);
+    expect(displaySignInverts("add")).toBe(false);
+    expect(displaySignInverts("neutral")).toBe(false);
+    expect(displaySignInverts("ignore")).toBe(false);
+  });
+});
+
+describe("moveInvertsConvention", () => {
+  it("deve ser true quando exatamente um lado é subtract", () => {
+    expect(moveInvertsConvention("subtract", "add")).toBe(true);
+    expect(moveInvertsConvention("add", "subtract")).toBe(true);
+    expect(moveInvertsConvention("subtract", "neutral")).toBe(true);
+    expect(moveInvertsConvention("ignore", "subtract")).toBe(true);
+  });
+
+  it("deve ser false quando ambos subtract ou nenhum subtract", () => {
+    expect(moveInvertsConvention("subtract", "subtract")).toBe(false);
+    expect(moveInvertsConvention("add", "neutral")).toBe(false);
+    expect(moveInvertsConvention("add", "ignore")).toBe(false);
+    expect(moveInvertsConvention("neutral", "ignore")).toBe(false);
+    expect(moveInvertsConvention("add", "add")).toBe(false);
+  });
+});
+
+describe("normalizeAmountOnMove", () => {
+  it("deve negar o valor quando invert e convenções diferem", () => {
+    expect(normalizeAmountOnMove(10000n, "add", "subtract", true)).toBe(-10000n);
+    expect(normalizeAmountOnMove(-10000n, "subtract", "add", true)).toBe(10000n);
+  });
+
+  it("não deve alterar quando convenções coincidem, mesmo com invert", () => {
+    expect(normalizeAmountOnMove(10000n, "add", "neutral", true)).toBe(10000n);
+    expect(normalizeAmountOnMove(-5000n, "subtract", "subtract", true)).toBe(-5000n);
+  });
+
+  it("não deve alterar quando invert desativado, mesmo com convenções diferentes", () => {
+    expect(normalizeAmountOnMove(10000n, "add", "subtract", false)).toBe(10000n);
+    expect(normalizeAmountOnMove(-10000n, "subtract", "ignore", false)).toBe(-10000n);
+  });
+
+  it("deve preservar magnitude BigInt em valores grandes", () => {
+    expect(normalizeAmountOnMove(9007199254740993n, "add", "subtract", true)).toBe(
+      -9007199254740993n,
+    );
   });
 });
 

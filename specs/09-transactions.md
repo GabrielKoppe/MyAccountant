@@ -95,7 +95,8 @@ Ações disponíveis:
 - **Não** pode criar uma nova Section nem um novo Month — ambos devem preexistir.
 - Não pode mover para a própria tabela de origem (validação no client).
 - `occurredOn` das transações **não muda** — preserva a data original do lançamento.
-- Todos os outros campos (categoria, valor, notas, etc.) são preservados.
+- Todos os outros campos (categoria, notas, etc.) são preservados.
+- **Sinal do valor**: quando origem e destino têm convenção de `countType` oposta (exatamente um lado é `subtract`), o `amountCents` pode ser **invertido** para preservar o significado exibido. O modal expõe essa escolha e um preview; o service normaliza em BigInt. Comportamento completo e default configurável na **spec 59** (`specs/59-sinal-valor-mover-transacoes.md`).
 
 **Dialog (`MoveTransactionsDialog`)**:
 
