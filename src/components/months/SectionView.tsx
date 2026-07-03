@@ -19,6 +19,7 @@ import type {
   HiddenColumns,
   InstitutionOption,
   MemberOption,
+  ResponsiblePartyOption,
   TransactionRow,
 } from "@/components/transactions/types";
 
@@ -69,7 +70,9 @@ type Props = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
+  parties: ResponsiblePartyOption[];
   defaultResponsibleUserId: string | null;
+  defaultResponsiblePartyId: string | null;
 };
 
 export function SectionView({
@@ -88,7 +91,9 @@ export function SectionView({
   categories,
   institutions,
   members,
+  parties,
   defaultResponsibleUserId,
+  defaultResponsiblePartyId,
 }: Props) {
   const [duplicateFrom, setDuplicateFrom] = useState<string | null>(null);
   const { filters, isActive: hasGlobalFilters } = useMonthFilters();
@@ -295,7 +300,9 @@ export function SectionView({
           categories={categories}
           institutions={institutions}
           members={members}
+          parties={parties}
           defaultResponsibleUserId={defaultResponsibleUserId}
+          defaultResponsiblePartyId={defaultResponsiblePartyId}
           onDuplicate={() => setDuplicateFrom(table.id)}
         />
       ))}

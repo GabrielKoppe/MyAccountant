@@ -10,6 +10,7 @@ export const messages = {
     success: "Operação realizada com sucesso.",
     confirm: "Confirmar",
     close: "Fechar",
+    none: "Nenhum",
   },
   auth: {
     login: "Entrar",

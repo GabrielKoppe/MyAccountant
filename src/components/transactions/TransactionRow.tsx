@@ -27,6 +27,7 @@ import type {
   HiddenColumns,
   InstitutionOption,
   MemberOption,
+  ResponsiblePartyOption,
   TransactionRow as TxRow,
 } from "./types";
 import { TransactionRowEditor } from "./TransactionRowEditor";
@@ -45,6 +46,7 @@ type Props = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
+  parties: ResponsiblePartyOption[];
   autoEdit: boolean;
   onSelect: (id: string, checked: boolean) => void;
   onOptimisticUpdate: (id: string, patch: Partial<TxRow>) => void;
@@ -65,6 +67,7 @@ export function TransactionRowBase({
   categories,
   institutions,
   members,
+  parties,
   autoEdit,
   onSelect,
   onOptimisticUpdate,
@@ -153,8 +156,8 @@ export function TransactionRowBase({
       ...(editValues.institutionId !== tx.institutionId && {
         institutionId: editValues.institutionId,
       }),
-      ...(editValues.responsibleUserId !== tx.responsibleUserId && {
-        responsibleUserId: editValues.responsibleUserId,
+      ...(editValues.responsiblePartyId !== tx.responsiblePartyId && {
+        responsiblePartyId: editValues.responsiblePartyId,
       }),
       ...(editValues.isPending !== tx.isPending && { isPending: editValues.isPending }),
       ...(editValues.isFavorite !== tx.isFavorite && { isFavorite: editValues.isFavorite }),
@@ -262,6 +265,7 @@ export function TransactionRowBase({
         categories={categories}
         institutions={institutions}
         members={members}
+        parties={parties}
         accountId={accountId}
         onSelect={onSelect}
         onSave={saveEdit}
@@ -393,20 +397,31 @@ export function TransactionRowBase({
           sx={{ cursor: isReadOnly ? "default" : "pointer" }}
           onClick={() => !isReadOnly && startEdit("responsibleUserId")}
         >
-          {tx.responsibleUserId ? (
-            <Tooltip title={members.find((mem) => mem.id === tx.responsibleUserId)?.name ?? ""}>
-              <Avatar
-                src={members.find((mem) => mem.id === tx.responsibleUserId)?.image ?? undefined}
-                sx={{ width: 24, height: 24, fontSize: 11 }}
-              >
-                {members.find((mem) => mem.id === tx.responsibleUserId)?.name?.charAt(0)}
-              </Avatar>
-            </Tooltip>
-          ) : (
-            <Typography variant="caption" color="text.disabled">
-              —
-            </Typography>
-          )}
+          {(() => {
+            const party = tx.responsiblePartyId
+              ? parties.find((p) => p.id === tx.responsiblePartyId)
+              : null;
+            if (!party) {
+              return (
+                <Typography variant="caption" color="text.disabled">
+                  —
+                </Typography>
+              );
+            }
+            return (
+              <Tooltip title={party.name}>
+                {party.icon ? (
+                  <Box component="span" sx={{ fontSize: 18, lineHeight: 1 }}>
+                    {party.icon}
+                  </Box>
+                ) : (
+                  <Avatar sx={{ width: 24, height: 24, fontSize: 11 }}>
+                    {party.name.charAt(0).toUpperCase()}
+                  </Avatar>
+                )}
+              </Tooltip>
+            );
+          })()}
         </TableCell>
       )}
 

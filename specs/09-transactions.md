@@ -199,6 +199,8 @@ moveTransactionsSchema = z.object({
 - Default: `AccountSettings.defaultResponsibleUserId` ou user corrente.
 - Display: avatar pequeno.
 
+> **Delta pendente (Spec 60, ready):** `responsibleUserId` → `responsiblePartyId`. O select deixa de ser "membros" e passa a listar **parties** (pessoal/grupo/externo), agrupadas, com emoji/avatar e ação "+ Criar responsável". Default vem de `defaultResponsiblePartyId`. Zod `:248` muda para `responsiblePartyId`. O edge "responsável não mais membro" (`:327`) é resolvido pela party (carrega nome próprio). Ver `specs/60-...md`.
+
 ### 4.7 `isPending`
 - Boolean.
 - UI: checkbox ou toggle.

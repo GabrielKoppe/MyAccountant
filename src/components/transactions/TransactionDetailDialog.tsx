@@ -37,6 +37,7 @@ import type {
   HiddenColumns,
   InstitutionOption,
   MemberOption,
+  ResponsiblePartyOption,
   TransactionRow as TxRow,
 } from "./types";
 
@@ -50,6 +51,7 @@ type Props = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
+  parties: ResponsiblePartyOption[];
   timezone: string;
   canEdit: boolean;
   onEdit: () => void;
@@ -87,6 +89,24 @@ function MemberInline({ member }: { member: MemberOption | null }) {
   );
 }
 
+/** Emoji/avatar + nome de uma party responsável (Spec 60). */
+function PartyInline({ party }: { party: ResponsiblePartyOption }) {
+  return (
+    <Stack direction="row" spacing={layout.inline} alignItems="center">
+      {party.icon ? (
+        <Box component="span" sx={{ fontSize: 20, lineHeight: 1 }}>
+          {party.icon}
+        </Box>
+      ) : (
+        <Avatar sx={{ width: 24, height: 24, fontSize: 11 }}>
+          {party.name.charAt(0).toUpperCase()}
+        </Avatar>
+      )}
+      <Typography variant="body2">{party.name}</Typography>
+    </Stack>
+  );
+}
+
 export function TransactionDetailDialog({
   open,
   onClose,
@@ -97,6 +117,7 @@ export function TransactionDetailDialog({
   categories,
   institutions,
   members,
+  parties,
   timezone,
   canEdit,
   onEdit,
@@ -150,7 +171,9 @@ export function TransactionDetailDialog({
   const subcategory = category?.subcategories.find((s) => s.id === tx.subcategoryId);
   const institutionName =
     institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText;
-  const responsible = findMember(tx.responsibleUserId);
+  const responsibleParty = tx.responsiblePartyId
+    ? (parties.find((p) => p.id === tx.responsiblePartyId) ?? null)
+    : null;
 
   const createdBy = findMember(tx.createdById);
   const updatedBy = tx.updatedById ? findMember(tx.updatedById) : null;
@@ -293,9 +316,9 @@ export function TransactionDetailDialog({
           </DetailField>
         )}
 
-        {show("responsibleUser") && responsible && (
+        {show("responsibleUser") && responsibleParty && (
           <DetailField label={m.transactions.fields.responsibleUser}>
-            <MemberInline member={responsible} />
+            <PartyInline party={responsibleParty} />
           </DetailField>
         )}
 

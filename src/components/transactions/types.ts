@@ -21,6 +21,7 @@ export type TransactionRow = {
   institutionId: string | null;
   institutionText: string | null;
   responsibleUserId: string | null;
+  responsiblePartyId: string | null;
   cardInstallment: string | null;
   investmentType: InvestmentType | null;
   expenseType: TransactionExpenseType | null;
@@ -52,4 +53,15 @@ export type MemberOption = {
   name: string | null;
   email: string;
   image: string | null;
+};
+
+export type ResponsiblePartyKind = "personal" | "group" | "external";
+
+// Opção de responsável (persona) para o seletor de transação. `name` já vem
+// resolvido (nome ao vivo do membro para `personal` atual; snapshot para os demais).
+export type ResponsiblePartyOption = {
+  id: string;
+  name: string;
+  kind: ResponsiblePartyKind;
+  icon: string | null;
 };

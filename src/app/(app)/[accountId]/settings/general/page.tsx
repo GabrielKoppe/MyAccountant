@@ -24,21 +24,36 @@ export default async function GeneralSettingsPage({ params }: Props) {
   const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
   if (member.role === "viewer") redirect(`/${accountId}`);
 
-  const [account, settings, members] = await Promise.all([
+  const [account, settings, members, partiesRaw] = await Promise.all([
     prisma.account.findUnique({ where: { id: accountId }, select: { name: true } }),
     prisma.accountSettings.findUnique({ where: { accountId } }),
     prisma.accountMember.findMany({
       where: { accountId },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      select: { userId: true },
+    }),
+    prisma.responsibleParty.findMany({
+      where: { accountId, archivedAt: null },
+      orderBy: [{ kind: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        icon: true,
+        members: { select: { userId: true, user: { select: { name: true, email: true } } } },
+      },
     }),
   ]);
 
-  const membersList = members.map(
-    (m: { user: { id: string; name: string | null; email: string } }) => ({
-      id: m.user.id,
-      label: m.user.name ?? m.user.email,
-    }),
-  );
+  // Resolve nome de exibição (Spec 60 §2.4): personal atual → nome ao vivo do User.
+  const currentMemberIds = new Set(members.map((mm) => mm.userId));
+  const parties = partiesRaw.map((p) => {
+    let name = p.name;
+    if (p.kind === "personal" && p.members.length === 1) {
+      const link = p.members[0];
+      if (currentMemberIds.has(link.userId)) name = link.user.name ?? link.user.email;
+    }
+    return { id: p.id, name, kind: p.kind, icon: p.icon };
+  });
 
   if (!account || !settings) redirect("/home");
 
@@ -50,10 +65,10 @@ export default async function GeneralSettingsPage({ params }: Props) {
           accountName: account.name,
           currency: settings.currency as "BRL",
           monthStartDay: settings.monthStartDay,
-          defaultResponsibleUserId: settings.defaultResponsibleUserId ?? null,
+          defaultResponsiblePartyId: settings.defaultResponsiblePartyId ?? null,
           invertSignOnMoveByDefault: settings.invertSignOnMoveByDefault,
         }}
-        members={membersList}
+        parties={parties}
       />
 
       <Divider sx={{ my: 3 }} />

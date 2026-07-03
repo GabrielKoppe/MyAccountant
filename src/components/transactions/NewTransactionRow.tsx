@@ -36,8 +36,10 @@ import type {
   HiddenColumns,
   InstitutionOption,
   MemberOption,
+  ResponsiblePartyOption,
   TransactionRow,
 } from "./types";
+import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
 
 type Props = {
   tableId: string;
@@ -48,7 +50,9 @@ type Props = {
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
+  parties: ResponsiblePartyOption[];
   defaultResponsibleUserId: string | null;
+  defaultResponsiblePartyId: string | null;
   onCreated: (tx: TransactionRow) => void;
   onCancel: () => void;
 };
@@ -65,8 +69,8 @@ export function NewTransactionRow({
   hiddenColumns,
   categories,
   institutions,
-  members,
-  defaultResponsibleUserId,
+  parties,
+  defaultResponsiblePartyId,
   onCreated,
   onCancel,
 }: Props) {
@@ -78,8 +82,8 @@ export function NewTransactionRow({
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
   const [institutionId, setInstitutionId] = useState<string | null>(null);
-  const [responsibleUserId, setResponsibleUserId] = useState<string | null>(
-    defaultResponsibleUserId,
+  const [responsiblePartyId, setResponsiblePartyId] = useState<string | null>(
+    defaultResponsiblePartyId,
   );
   const [isPending, _setIsPending] = useState(false);
   const [investmentType, setInvestmentType] = useState<InvestmentType | null>(null);
@@ -122,7 +126,7 @@ export function NewTransactionRow({
       categoryId,
       subcategoryId,
       institutionId,
-      responsibleUserId,
+      responsiblePartyId,
       investmentType,
       originalCurrency,
       exchangeRate,
@@ -150,7 +154,8 @@ export function NewTransactionRow({
       subcategoryId,
       institutionId,
       institutionText: null,
-      responsibleUserId,
+      responsibleUserId: null,
+      responsiblePartyId,
       cardInstallment: null,
       investmentType,
       expenseType: expenseType ?? null,
@@ -288,21 +293,12 @@ export function NewTransactionRow({
 
         {!hiddenColumns.responsibleUser && (
           <TableCell>
-            <Select
-              {...sharedInputProps}
-              value={responsibleUserId ?? ""}
-              onChange={(e) => setResponsibleUserId(e.target.value || null)}
-              sx={{ minWidth: 90, fontSize: 13 }}
-            >
-              <MenuItem value="">
-                <em>Nenhum</em>
-              </MenuItem>
-              {members.map((m) => (
-                <MenuItem key={m.id} value={m.id} sx={{ fontSize: 13 }}>
-                  {m.name ?? m.email}
-                </MenuItem>
-              ))}
-            </Select>
+            <ResponsiblePartySelect
+              value={responsiblePartyId}
+              onChange={setResponsiblePartyId}
+              parties={parties}
+              sx={{ minWidth: 90 }}
+            />
           </TableCell>
         )}
 

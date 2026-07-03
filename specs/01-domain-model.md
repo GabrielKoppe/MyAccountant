@@ -8,6 +8,8 @@ Define todas as entidades do domínio, seus campos, relacionamentos e regras de 
 
 > Quando algo aqui mudar, **o `02-database-prisma.md` precisa ser atualizado em seguida**.
 
+> **Delta pendente (Spec 60 — Atribuição por Persona, ready):** novo agregado `ResponsibleParty` (`personal | group | external`, campo `icon`) + join `ResponsiblePartyMember`. `Transaction.responsibleUserId` → `responsiblePartyId`; `AccountSettings.defaultResponsibleUserId` → `defaultResponsiblePartyId`; `TableTemplateItem.responsibleUserId` → `responsiblePartyId`. Cardinalidade transação→responsável permanece 1. Aplicar aqui ao implementar a Spec 60. Ver `specs/60-atribuicao-responsavel-persona.md`.
+
 ## 2. Visão geral das entidades
 
 ```

@@ -7,10 +7,12 @@ import {
   getMonthCategories,
   getMonthInstitutions,
   getMonthMembers,
+  getMonthResponsibleParties,
   getMonthAccountSettings,
   getMonthTableTypes,
   getSourceTables,
 } from "@/server/queries/month-page";
+import type { ResponsiblePartyOption } from "@/components/transactions/types";
 import { getSectionTotals } from "@/server/services/month-service";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
@@ -31,6 +33,7 @@ export async function SectionTab({ accountId, monthId, sectionId, canEdit }: Pro
     categories,
     institutions,
     membersRaw,
+    partiesRaw,
     accountSettings,
     tableTypes,
     sourceTables,
@@ -41,6 +44,7 @@ export async function SectionTab({ accountId, monthId, sectionId, canEdit }: Pro
     getMonthCategories(accountId),
     getMonthInstitutions(accountId),
     getMonthMembers(accountId),
+    getMonthResponsibleParties(accountId),
     getMonthAccountSettings(accountId),
     getMonthTableTypes(accountId),
     getSourceTables(accountId),
@@ -59,6 +63,20 @@ export async function SectionTab({ accountId, monthId, sectionId, canEdit }: Pro
     email: m.user.email,
     image: m.user.image,
   }));
+
+  // Resolve nome de exibição da party (Spec 60 §2.4): personal com membro atual →
+  // nome ao vivo do User; group/external → snapshot party.name.
+  const currentMemberIds = new Set(membersRaw.map((mm) => mm.user.id));
+  const parties: ResponsiblePartyOption[] = partiesRaw.map((p) => {
+    let name = p.name;
+    if (p.kind === "personal" && p.members.length === 1) {
+      const link = p.members[0];
+      if (currentMemberIds.has(link.userId)) {
+        name = link.user.name ?? link.user.email;
+      }
+    }
+    return { id: p.id, name, kind: p.kind, icon: p.icon };
+  });
 
   const allSections = await prisma.section.findMany({
     where: { accountId, isActive: true },
@@ -88,7 +106,9 @@ export async function SectionTab({ accountId, monthId, sectionId, canEdit }: Pro
       categories={categories}
       institutions={institutions}
       members={members}
+      parties={parties}
       defaultResponsibleUserId={accountSettings?.defaultResponsibleUserId ?? null}
+      defaultResponsiblePartyId={accountSettings?.defaultResponsiblePartyId ?? null}
     />
   );
 }

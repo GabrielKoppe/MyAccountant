@@ -80,6 +80,8 @@ ownerUserId  String?         @map("owner_user_id")      // membro dono quando ow
 - Ownership a nível de `FinanceTable` ou `Month` — granularidade fica em Section (herança) + Transaction (override).
 - Migração automática de `responsibleUserId` para `ownerUserId` — são dimensões distintas; backfill default `shared`.
 
+> **Nota de fronteira (Spec 60 — Atribuição por Persona, ready).** `responsible` (agora `responsiblePartyId`, party) e `ownership` (`ownerUserId` + `personal|shared`) permanecem **eixos distintos**: responsável = quem cuida/analisa; ownership = de quem é o dado / perspectiva. A party `group` da Spec 60 ("Casal") é **bucket de análise**, NÃO equivale a `ownership = shared` (household) nem substitui a perspectiva. Após Spec 60 + 42 + 43, uma transação terá três eixos de pessoa: `responsiblePartyId` (atribuição), `ownerUserId`/`ownership` (perspectiva), `ExpenseSplit.debtorUserId` (dívida). Ver `specs/60-...md`.
+
 ## 6. Referências Técnicas
 
 | Item | Arquivo(s) a tocar |

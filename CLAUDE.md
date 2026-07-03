@@ -297,3 +297,48 @@ docker compose exec app pnpm prisma migrate dev
 2. Verifique se há um skill em `skills/` para o padrão.
 3. Se ainda houver dúvida, **pergunte ao desenvolvedor com opções claras** (use multiple choice quando possível).
 4. **Não chute**: implementação errada custa mais que uma pergunta extra.
+
+---
+
+## 10. Auto-aprendizado
+
+**Objetivo**: transformar fricção recorrente em melhoria permanente do projeto — não repetir o mesmo erro em sessões futuras.
+
+**Ao iniciar uma sessão**: se `DESAFIOS.md` existir na raiz, leia-o antes de começar a task.
+
+**Ao encontrar fricção, erro repetível ou padrão não óbvio durante a sessão**, roteie o aprendizado — nesta ordem de prioridade (pare no primeiro que se aplicar):
+
+1. **É corrigível agora?** → Corrija na fonte (código, config, doc) nesta sessão.
+2. **É sobre um padrão de código?** → Atualize o `skills/<nome>/SKILL.md` correspondente (ou crie um novo skill).
+3. **É sobre o comportamento de uma feature?** → Atualize o `specs/NN-*.md` correspondente.
+4. **Nenhum acima?** → Registre em `DESAFIOS.md` na raiz, com: **sintoma** (o que travou), **causa** (por quê), **como evitar** (o que fazer da próxima vez).
+
+**Regra de ouro**: prefira corrigir a fonte (código/skill/spec) a acumular notas em `DESAFIOS.md`. O `DESAFIOS.md` é o último recurso — só para o que ainda não cabe em skill nem spec.
+
+---
+
+## 11. Gestão de contexto
+
+**Tarefa multi-step**: antes de começar, registre plano e progresso num arquivo `.md` (o quê já foi feito, o quê falta, decisões tomadas). Atualize a cada passo concluído — assim eu posso compactar ou abrir nova sessão sem perder contexto.
+
+**Quando o contexto atual não for mais necessário** (fim de uma sub-tarefa, mudança de assunto): sugira `/compact` ou nova sessão, para economizar tokens. Não espere eu pedir.
+
+**Ao terminar um passo**, diga qual modelo o próximo passo precisa e por quê:
+
+| Modelo | Quando |
+|---|---|
+| **Opus** | Decisão de design, arquitetura, ou plano ainda ambíguo. |
+| **Sonnet** | Plano claro, implementação de complexidade média. |
+| **Haiku** | Tarefa puramente mecânica (rename, format, boilerplate repetitivo). |
+
+---
+
+## 12. Decisões técnicas
+
+**Quando surgir uma decisão técnica** (escolha de stack, biblioteca, padrão de código, segurança, manutenibilidade), NÃO escolha silenciosamente. Apresente, nesta ordem:
+
+1. **Opções** — as alternativas viáveis, com prós e contras de cada uma.
+2. **Trade-offs** — impacto concreto em complexidade, manutenção, performance e lock-in.
+3. **Recomendação** — sua escolha, justificada por critérios técnicos, `DRY` e código limpo.
+
+Use múltipla escolha (`AskUserQuestion`) quando as opções forem discretas e comparáveis.

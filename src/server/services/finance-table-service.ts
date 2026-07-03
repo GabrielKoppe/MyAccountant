@@ -90,6 +90,7 @@ export async function createFinanceTable(input: CreateFinanceTableInput, ctx: Ac
             institutionId: true,
             institutionText: true,
             responsibleUserId: true,
+            responsiblePartyId: true,
             cardInstallment: true,
             investmentType: true,
             metadata: true,

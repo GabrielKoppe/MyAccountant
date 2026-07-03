@@ -22,6 +22,7 @@ type PrismaTransaction = {
   institutionId: string | null;
   institutionText: string | null;
   responsibleUserId: string | null;
+  responsiblePartyId: string | null;
   cardInstallment: string | null;
   investmentType: string | null;
   expenseType: TransactionExpenseType | null;
@@ -59,6 +60,7 @@ export function serializeTransaction(
     institutionId: tx.institutionId,
     institutionText: tx.institutionText,
     responsibleUserId: tx.responsibleUserId,
+    responsiblePartyId: tx.responsiblePartyId,
     cardInstallment: tx.cardInstallment,
     investmentType: tx.investmentType as InvestmentType | null,
     expenseType: tx.expenseType,
