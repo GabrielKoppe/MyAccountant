@@ -1,6 +1,6 @@
 # Spec 41 — Aprimoramentos do Objeto Transação
 
-> Status: implemented (Fases 1–14 entregues em 2026-06; Fase 15 / TRN-05 adiada — ver §10)
+> Status: implemented (Fases 1–14 entregues em 2026-06; Fase 15 / TRN-05 adiada — ver §10). **Lote pós-Fase-15 entregue em 2026-07** (Fases 16–18): colunas `expenseType`/`tags`/`paymentMethod` expostas no picker de Tipo de Tabela, Método de pagamento (TRN-11) e entrada rápida no lançamento manual (TRN-12) — ver §10.
 > Insumo: refinamento da Spec 38 (FEAT-05 extraído); conversa de produto (2026-06-21) sobre gastos fixos/variáveis, parcelamento vinculado e enriquecimento do objeto Transaction; benchmark de mercado (2026-06-23); entrevista de refinamento (2026-06-23).
 > Relacionado: [`spec 09`](09-transactions.md) (CRUD base) · [`spec 10`](10-csv-xlsx-import.md) (import CSV/XLSX) · [`spec 24`](24-recurring-transactions.md) (templates automáticos) · [`spec 27`](27-transaction-detail-panel.md) (painel de detalhes) · [`spec 38`](38-novos-widgets-dashboard.md) (widget `recurring-vs-variable` aguardando esta spec) · [`spec 19`](19-transaction-search-filter-sort.md) (filtros)
 > Skills: [`money-handling`](../skills/money-handling/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`testing`](../skills/testing/SKILL.md) · [`ui-feedback`](../skills/ui-feedback/SKILL.md)
@@ -524,6 +524,52 @@ exchangeRate         Decimal? @map("exchange_rate")          // taxa aplicada (6
 
 ---
 
+### TRN-11 — Método de pagamento (`paymentMethod`) — Prioridade: 🟡 Média
+
+**Problema**: não havia forma de registrar *como* a transação foi paga (PIX, dinheiro, cartão, boleto…), informação relevante para conciliação e análise de meios de pagamento.
+
+**Solução**: novo campo `paymentMethod` na `Transaction`, baseado num **enum fixo** (igual a `expenseType`, **não** é um model gerenciável — sem tela de settings, CRUD ou seeding).
+
+```prisma
+enum TransactionPaymentMethod {
+  pix
+  cash
+  credit_card
+  debit_card
+  bank_transfer
+  boleto
+  other
+
+  @@map("transaction_payment_method")
+}
+```
+
+`Transaction` ganha `paymentMethod TransactionPaymentMethod? @map("payment_method")` — **nullable**, posicionado ao lado de `expenseType`. **Não** foi adicionado a `TableTemplateItem` (fora de escopo).
+
+**Regras de negócio:**
+- Propagado em create/update/duplicate/bulkUpdate do `transaction-service`; incluído no Zod `baseTransactionSchema` e em `bulkUpdateSchema.patch`; no serializer; no tipo `TransactionRow`; e no `select` da query da month-page.
+- Labels em pt-BR: PIX (`pix`), Dinheiro (`cash`), Cartão de crédito (`credit_card`), Cartão de débito (`debit_card`), Transferência (`bank_transfer`), Boleto (`boleto`), Outro (`other`).
+
+**UX na tabela:**
+- Renderizado como **coluna nova** (label curto "Método", label completo "Método de pagamento"), posicionada **após** a coluna "Instituição" e **antes** de "Valor".
+- Célula editável com `<Select>` MUI simples (opção "Nenhum" + os 7 valores) na linha de nova transação e no editor de linha existente; exibição read-only na linha e no painel de detalhes.
+- A coluna é configurável via `TableType.hiddenColumns` (chave `paymentMethod`) — ver TRN-12 e spec 05 §4.5.
+
+**Exposição de colunas no picker de Tipo de Tabela:** junto desta entrega, `TableType.hiddenColumns` passou a permitir ocultar também `expenseType` (label "Tipo de transação"), `tags` (label "Tags") e `paymentMethod` (label "Método de pagamento"). Essas colunas já eram renderizadas mas não eram configuráveis; agora aparecem no picker de settings → Tipos de Tabela. Colunas core sempre visíveis (não toggleáveis): `occurredOn` (Data), `amount` (Valor), `description` (Descrição). O tipo de tabela **default** continua ignorando `hiddenColumns` (sempre exibe tudo).
+
+---
+
+### TRN-12 — Entrada rápida no lançamento manual — Prioridade: 🟡 Média (UX polish)
+
+**Problema**: o fluxo de lançamento manual em série era lento e tinha bugs: (1) o `expenseType` escolhido na nova linha era descartado (nunca enviado no payload de create); (2) o mesmo acontecia no editor de linha existente, onde `expenseType` (e depois `paymentMethod`) eram omitidos do payload de update em `saveEdit`; (3) após salvar, a linha fechava, forçando reabrir para o próximo lançamento.
+
+**Solução:**
+- **Default `one_time`**: o tipo (`expenseType`) da nova linha vem pré-selecionado como `one_time` ("Evento único") por default — **apenas no fluxo manual da nova linha**; **não** foi adicionado `.default()` ao Zod compartilhado.
+- **Correção de persistência**: o `expenseType` da nova linha agora persiste no create; e no editor de linha existente, `expenseType` e `paymentMethod` passam a ser incluídos no payload de update de `saveEdit` (persistem ao editar uma transação existente).
+- **Linha-aberta após salvar** (fluxo de entrada rápida): ao salvar pela nova linha, a linha **permanece aberta**. Os campos editáveis são limpos (descrição, valor, categoria, subcategoria, instituição, tipo de investimento, método de pagamento, notas, moeda estrangeira); preserva-se a **data** (`occurredOn`); o tipo volta ao default `one_time`; e o foco vai para o campo de **descrição** para o próximo lançamento. Fechar a linha é explícito: **ESC** ou o botão cancelar.
+
+---
+
 ## 4. Decisões de Design
 
 | ID | Decisão | Escolha | Motivo |
@@ -542,6 +588,8 @@ exchangeRate         Decimal? @map("exchange_rate")          // taxa aplicada (6
 | DD-12 | Taxa de câmbio | Modo simples (currency + rate) + modo avançado (calcula automaticamente) | Flexível para diferentes níveis de detalhe |
 | DD-13 | Agrupamento por data | `groupByDate Boolean` em `FinanceTable`, shared entre membros | Preferência da tabela, não individual |
 | DD-14 | Tags inline vs detalhes | Inline: popover simples; painel de detalhes: edição completa | Velocidade no contexto da tabela; poder no painel |
+| DD-15 | Método de pagamento | **Enum fixo** (`TransactionPaymentMethod`), não model gerenciável | Conjunto de meios de pagamento é estável e universal — sem CRUD/seeding, coerente com `expenseType` |
+| DD-16 | Entrada rápida (lançamento manual) | Default `one_time` + linha permanece aberta após salvar (reset + refoco na descrição) em vez de fechar | Lançamento em série rápido; fechar continua explícito (ESC/cancelar) |
 
 ---
 
@@ -559,6 +607,8 @@ exchangeRate         Decimal? @map("exchange_rate")          // taxa aplicada (6
 | TRN-05 | Split de transação (JSON) | 🟠 v3 | Baixa (1 campo Json) | Média (accordion inline) | — |
 | TRN-06 | TransactionLink | 🟢 Baixa | Média (novo modelo) | Média (dialog de busca) | — |
 | TRN-07 | Moeda estrangeira | 🟢 Baixa | Baixa (3 campos) | Baixa (2 modos no form) | — |
+| TRN-11 | Método de pagamento (`paymentMethod`) | 🟡 Média | Baixa (1 enum fixo + campo) | Baixa (Select + coluna configurável) | — |
+| TRN-12 | Entrada rápida (lançamento manual) | 🟡 Média | Nenhuma | Baixa (default + linha-aberta + refoco) | TRN-01, TRN-11 |
 
 ---
 
@@ -627,7 +677,7 @@ exchangeRate         Decimal? @map("exchange_rate")          // taxa aplicada (6
 > - Rodar `docker compose exec app pnpm test` ao final de cada fase.
 > - Rodar `docker compose exec app pnpm typecheck` e `pnpm lint` para garantir sem erros.
 
-> **Estado de implementação (atualizado em 2026-06-29):**
+> **Estado de implementação (atualizado em 2026-07):**
 >
 > | Fase | TRN | Status |
 > |---|---|---|
@@ -646,6 +696,9 @@ exchangeRate         Decimal? @map("exchange_rate")          // taxa aplicada (6
 > | 13 | TRN-06 (`TransactionLink`) | ✅ Implementada |
 > | 14 | §8 (impacto em widgets) | ✅ Implementada |
 > | 15 | TRN-05 (split de transação) | 🟠 **Adiada** — mantida como ideia futura (v3). Ver nota no início da Fase 15. |
+> | 16 | Colunas expostas no picker (`expenseType`, `tags`, `paymentMethod`) | ✅ Implementada (2026-07) |
+> | 17 | TRN-11 (`paymentMethod` — enum fixo + coluna) | ✅ Implementada (2026-07) |
+> | 18 | TRN-12 (entrada rápida no lançamento manual) | ✅ Implementada (2026-07) |
 
 ---
 
@@ -1350,4 +1403,89 @@ splits: z.array(splitItemSchema).max(20).optional()
 - Expandir linha → accordion com 3 sub-itens listados.
 - Salvar com soma incorreta → erro de validação exibido.
 - Totais de seção/mês não alterados (o pai ainda conta com R$200 inteiros).
+- `pnpm test` passa.
+
+---
+
+### Fase 16 — Colunas expostas no picker de Tipo de Tabela (`expenseType`, `tags`, `paymentMethod`)
+
+> ✅ **Implementada (2026-07).**
+
+**Objetivo:** Expor no picker de settings → Tipos de Tabela três colunas que já eram renderizadas mas não eram configuráveis: `expenseType` (label "Tipo de transação"), `tags` (label "Tags") e `paymentMethod` (label "Método de pagamento"). Sem alteração de schema (`hiddenColumns` já é `Json`).
+
+**Pré-requisitos:** Fase 2 (`expenseType`), Fase 6 (tags) e Fase 17 (`paymentMethod`) para que a chave exista.
+
+**Regras:**
+- Colunas core sempre visíveis (não toggleáveis): `occurredOn` (Data), `amount` (Valor), `description` (Descrição).
+- O tipo de tabela **default** continua ignorando `hiddenColumns` (sempre exibe tudo) — comportamento inalterado.
+
+**Critérios de conclusão:**
+- No picker de Tipo de Tabela aparecem os switches de "Tipo de transação", "Tags" e "Método de pagamento".
+- Ocultar cada coluna reflete na renderização da tabela financeira do tipo correspondente.
+- `pnpm test` passa.
+
+---
+
+### Fase 17 — TRN-11: Método de pagamento (`paymentMethod`)
+
+> ✅ **Implementada (2026-07).**
+
+**Objetivo:** Adicionar o campo `paymentMethod` à `Transaction`, baseado no **enum fixo** `TransactionPaymentMethod` (não é model gerenciável — sem settings, CRUD ou seeding). Renderizar como coluna nova e célula editável. Ver TRN-11.
+
+**Pré-requisitos:** Nenhum (independente das demais fases).
+
+**Skills a consultar:** [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md)
+
+**Schema — alterações:**
+```prisma
+enum TransactionPaymentMethod {
+  pix
+  cash
+  credit_card
+  debit_card
+  bank_transfer
+  boleto
+  other
+
+  @@map("transaction_payment_method")
+}
+
+// Em Transaction:
+paymentMethod TransactionPaymentMethod? @map("payment_method") // ao lado de expenseType
+```
+
+**Tarefas:**
+1. Schema + migration (enum + campo nullable). **Não** adicionar a `TableTemplateItem`.
+2. Propagar em create/update/duplicate/bulkUpdate do `transaction-service`; incluir no `baseTransactionSchema` e em `bulkUpdateSchema.patch`; no serializer; no tipo `TransactionRow`; e no `select` da query da month-page.
+3. Renderizar coluna nova (label curto "Método", completo "Método de pagamento") **após** "Instituição" e **antes** de "Valor".
+4. Célula editável com `<Select>` MUI simples ("Nenhum" + 7 valores) na linha nova e no editor de linha existente; read-only na linha e no painel de detalhes. Labels pt-BR conforme TRN-11.
+5. Tornar a coluna configurável via `TableType.hiddenColumns` (chave `paymentMethod`) — ver Fase 16.
+
+**Critérios de conclusão:**
+- Selecionar um método na nova linha → persiste ao salvar.
+- Editar o método numa linha existente → persiste.
+- Bulk update de método em N transações → aplica a todas.
+- `pnpm test` passa.
+
+---
+
+### Fase 18 — TRN-12: Entrada rápida no lançamento manual
+
+> ✅ **Implementada (2026-07).**
+
+**Objetivo:** Tornar o lançamento manual em série rápido e correto. Ver TRN-12.
+
+**Pré-requisitos:** Fase 2 (`expenseType`) e Fase 17 (`paymentMethod`).
+
+**Skills a consultar:** [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`ui-feedback`](../skills/ui-feedback/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md)
+
+**Tarefas:**
+1. Pré-selecionar `expenseType = one_time` na nova linha — apenas no fluxo manual; **sem** `.default()` no Zod compartilhado.
+2. Corrigir persistência: incluir o `expenseType` escolhido no payload de create da nova linha; incluir `expenseType` e `paymentMethod` no payload de update de `saveEdit` (linha existente).
+3. Fluxo linha-aberta: após salvar pela nova linha, manter a linha aberta, limpar campos editáveis (descrição, valor, categoria, subcategoria, instituição, tipo de investimento, método de pagamento, notas, moeda estrangeira), preservar `occurredOn`, resetar tipo para `one_time` e focar a descrição. Fechar continua explícito (ESC/cancelar).
+
+**Critérios de conclusão:**
+- Salvar pela nova linha → linha permanece aberta, data preservada, tipo volta a `one_time`, foco na descrição.
+- `expenseType`/`paymentMethod` escolhidos na nova linha e na edição inline persistem.
+- ESC/cancelar fecham a linha.
 - `pnpm test` passa.

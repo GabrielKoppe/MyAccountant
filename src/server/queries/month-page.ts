@@ -390,6 +390,7 @@ export const getSectionTabData = cache(
         cardInstallment: true,
         investmentType: true,
         expenseType: true,
+        paymentMethod: true,
         source: true,
         installmentGroupId: true,
         installmentNumber: true,

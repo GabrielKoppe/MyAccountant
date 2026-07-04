@@ -23,6 +23,7 @@ Transactions são **linhas** dentro de uma FinanceTable. Visualizadas como tabel
 - `Categoria` — `category.name` (clicável para mudar)
 - `Sub.` — `subcategory.name` (depende de category)
 - `Inst.` — `institution.name` ou `institutionText`
+- `Método` — `paymentMethod` (Método de pagamento): enum **fixo** nullable (`pix`, `cash`, `credit_card`, `debit_card`, `bank_transfer`, `boleto`, `other`; labels pt-BR: PIX, Dinheiro, Cartão de crédito, Cartão de débito, Transferência, Boleto, Outro). Renderizada **após** `Inst.` e **antes** de `Valor`; editável com `<Select>` MUI simples ("Nenhum" + 7 valores). Coluna configurável via `TableType.hiddenColumns` (chave `paymentMethod`). Ver spec 41 TRN-11.
 - `Valor` — formatado com sinal e cor (verde positivo, vermelho negativo, neutro = cinza)
 - `Resp.` — avatar do `responsibleUser`
 - `⚐` — toggle `isFavorite`
@@ -54,11 +55,19 @@ Transactions são **linhas** dentro de uma FinanceTable. Visualizadas como tabel
 - `responsibleUserId`: `AccountSettings.defaultResponsibleUserId` ou usuário corrente
 - `isPending`: false
 - `isFavorite`: false
+- `expenseType`: `one_time` ("Evento único") — pré-selecionado **apenas no fluxo manual da nova linha**. Não há `.default()` no Zod compartilhado; o default vive só na UI da nova linha. Ver spec 41 TRN-12.
+
+**Entrada rápida (linha-aberta)** — ver spec 41 TRN-12:
+- Ao salvar pela nova linha, a linha **permanece aberta** para o próximo lançamento (não fecha).
+- Os campos editáveis são limpos (descrição, valor, categoria, subcategoria, instituição, tipo de investimento, método de pagamento, notas, moeda estrangeira).
+- A **data** (`occurredOn`) é preservada e o tipo volta ao default `one_time`; o foco vai para o campo de **descrição**.
+- Fechar a linha é explícito: **ESC** ou o botão cancelar.
 
 ### 3.2 Editar
 - Click em qualquer célula entra em edição inline.
 - Salva ao sair do foco (debounce 300ms).
 - Mudanças em `categoryId` resetam `subcategoryId` se a sub não pertencer à nova category.
+- A edição inline de `expenseType` e `paymentMethod` na linha existente **persiste** (correção de bug: antes eram omitidos do payload de update em `saveEdit`). Ver spec 41 TRN-12.
 
 ### 3.3 Duplicar
 **Trigger**: menu `⋮` → "Duplicar".

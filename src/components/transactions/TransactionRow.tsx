@@ -164,6 +164,12 @@ export function TransactionRowBase({
       ...(editValues.investmentType !== tx.investmentType && {
         investmentType: editValues.investmentType,
       }),
+      ...(editValues.expenseType !== tx.expenseType && {
+        expenseType: editValues.expenseType,
+      }),
+      ...(editValues.paymentMethod !== tx.paymentMethod && {
+        paymentMethod: editValues.paymentMethod,
+      }),
       ...(editValues.notes !== tx.notes && { notes: editValues.notes }),
       ...(editValues.originalCurrency !== tx.originalCurrency && {
         originalCurrency: editValues.originalCurrency,
@@ -354,6 +360,21 @@ export function TransactionRowBase({
           onClick={() => !isReadOnly && startEdit("institutionId")}
         >
           {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? (
+            <Typography variant="caption" color="text.disabled">
+              —
+            </Typography>
+          )}
+        </TableCell>
+      )}
+
+      {!hiddenColumns.paymentMethod && (
+        <TableCell
+          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("paymentMethod")}
+        >
+          {tx.paymentMethod ? (
+            m.transactions.paymentMethods[tx.paymentMethod]
+          ) : (
             <Typography variant="caption" color="text.disabled">
               —
             </Typography>

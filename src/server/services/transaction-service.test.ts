@@ -437,6 +437,168 @@ describe("expenseType — TRN-01", () => {
   });
 });
 
+describe("paymentMethod — TRN-11", () => {
+  it("deve criar transação com paymentMethod = pix", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-pix-1" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 10000n,
+        isPending: false,
+        isFavorite: false,
+        paymentMethod: "pix",
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ paymentMethod: "pix" }),
+      }),
+    );
+  });
+
+  it("deve criar transação com paymentMethod = null quando ausente", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-pm-null" } as any);
+
+    await createTransaction(
+      {
+        tableId: "table-test-1",
+        occurredOn: new Date("2026-01-15"),
+        amountCents: 10000n,
+        isPending: false,
+        isFavorite: false,
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ paymentMethod: null }),
+      }),
+    );
+  });
+
+  it("não deve criar com paymentMethod se a tabela é de outra account (multi-tenancy)", async () => {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-OUTRA",
+      sectionId: "sec-1",
+      monthId: "month-1",
+    } as any);
+
+    await expect(
+      createTransaction(
+        {
+          tableId: "table-test-1",
+          occurredOn: new Date("2026-01-15"),
+          amountCents: 10000n,
+          isPending: false,
+          isFavorite: false,
+          paymentMethod: "credit_card",
+        },
+        TEST_CTX,
+      ),
+    ).rejects.toThrow(NotFoundError);
+    expect(prismaMock.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("deve atualizar paymentMethod e restringir por accountId (multi-tenancy)", async () => {
+    prismaMock.transaction.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      tableId: "table-1",
+      sectionId: "sec-1",
+      monthId: "month-1",
+    } as any);
+    prismaMock.transaction.update.mockResolvedValue({} as any);
+
+    await updateTransaction({ transactionId: "tx-1", paymentMethod: "boleto" }, TEST_CTX);
+
+    expect(prismaMock.transaction.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "tx-1" },
+        data: expect.objectContaining({ paymentMethod: "boleto", updatedById: "user-test-1" }),
+      }),
+    );
+  });
+
+  it("não deve atualizar paymentMethod de transação de outra account (multi-tenancy)", async () => {
+    prismaMock.transaction.findUnique.mockResolvedValue({ accountId: "acc-OUTRA" } as any);
+
+    await expect(
+      updateTransaction({ transactionId: "tx-1", paymentMethod: "pix" }, TEST_CTX),
+    ).rejects.toThrow(NotFoundError);
+    expect(prismaMock.transaction.update).not.toHaveBeenCalled();
+  });
+
+  it("deve definir paymentMethod = null explicitamente no update", async () => {
+    prismaMock.transaction.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      tableId: "table-1",
+      sectionId: "sec-1",
+      monthId: "month-1",
+    } as any);
+    prismaMock.transaction.update.mockResolvedValue({} as any);
+
+    await updateTransaction({ transactionId: "tx-1", paymentMethod: null }, TEST_CTX);
+
+    expect(prismaMock.transaction.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ paymentMethod: null }),
+      }),
+    );
+  });
+
+  it("deve duplicar transação preservando paymentMethod original", async () => {
+    const source = buildTransaction({
+      id: "tx-src-pm",
+      accountId: "acc-test-1",
+      paymentMethod: "debit_card",
+    });
+    prismaMock.transaction.findUnique.mockResolvedValue(source as any);
+    prismaMock.transaction.create.mockResolvedValue({ id: "tx-dup-pm" } as any);
+
+    await duplicateTransaction({ transactionId: "tx-src-pm" }, TEST_CTX);
+
+    expect(prismaMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ paymentMethod: "debit_card" }),
+      }),
+    );
+  });
+
+  it("deve atualizar paymentMethod via bulkUpdate restringindo por accountId", async () => {
+    prismaMock.transaction.updateMany.mockResolvedValue({ count: 2 });
+
+    await bulkUpdate(
+      {
+        ids: ["tx-1", "tx-2"],
+        monthId: "month-1",
+        patch: { paymentMethod: "bank_transfer" },
+      },
+      TEST_CTX,
+    );
+
+    expect(prismaMock.transaction.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ accountId: "acc-test-1" }),
+        data: expect.objectContaining({ paymentMethod: "bank_transfer" }),
+      }),
+    );
+  });
+});
+
 describe("source — TRN-03", () => {
   it("deve criar transação com source = manual por padrão", async () => {
     prismaMock.financeTable.findUnique.mockResolvedValue({

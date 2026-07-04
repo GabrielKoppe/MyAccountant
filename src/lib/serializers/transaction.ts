@@ -2,7 +2,11 @@
 // Usar em todos os RSC que passam transações para Client Components.
 // Nunca converter amountCents ou datas de transação inline — use este helper.
 
-import type { TransactionExpenseType, TransactionSource } from "@prisma/client";
+import type {
+  TransactionExpenseType,
+  TransactionPaymentMethod,
+  TransactionSource,
+} from "@prisma/client";
 import type { InvestmentType } from "@/lib/schemas/transaction";
 import type { TransactionRow } from "@/components/transactions/types";
 
@@ -25,6 +29,7 @@ type PrismaTransaction = {
   cardInstallment: string | null;
   investmentType: string | null;
   expenseType: TransactionExpenseType | null;
+  paymentMethod: TransactionPaymentMethod | null;
   source: TransactionSource;
   installmentGroupId: string | null;
   installmentNumber: number | null;
@@ -62,6 +67,7 @@ export function serializeTransaction(
     cardInstallment: tx.cardInstallment,
     investmentType: tx.investmentType as InvestmentType | null,
     expenseType: tx.expenseType,
+    paymentMethod: tx.paymentMethod,
     source: tx.source,
     installmentGroupId: tx.installmentGroupId,
     installmentNumber: tx.installmentNumber,

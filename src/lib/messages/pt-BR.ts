@@ -612,6 +612,7 @@ export const messages = {
   transactions: {
     title: "Transações",
     newTransaction: "Nova transação",
+    created: "Transação adicionada",
     confirmDelete: "Deletar esta transação?",
     deleted: "Transação deletada",
     deletedMultiple: "transações deletadas",
@@ -646,6 +647,18 @@ export const messages = {
       fixed: "Transação fixa — se repete todo mês (aluguel, salário, assinatura)",
       variable: "Transação variável — valor muda mês a mês (mercado, transporte)",
       one_time: "Evento único — acontecimento pontual (viagem, presente, IPTU)",
+    } as Record<string, string>,
+    paymentMethodLabel: "Método de pagamento",
+    paymentMethodColumn: "Método",
+    paymentMethodNone: "Nenhum",
+    paymentMethods: {
+      pix: "PIX",
+      cash: "Dinheiro",
+      credit_card: "Cartão de crédito",
+      debit_card: "Cartão de débito",
+      bank_transfer: "Transferência",
+      boleto: "Boleto",
+      other: "Outro",
     } as Record<string, string>,
     sourceLabel: "Origem do lançamento",
     tags: {
@@ -689,6 +702,8 @@ export const messages = {
       cardInstallment: "Parcela do cartão",
       investmentType: "Tipo de investimento",
       expenseType: "Tipo de transação",
+      paymentMethod: "Método de pagamento",
+      tags: "Tags",
       source: "Origem",
     },
     installments: {

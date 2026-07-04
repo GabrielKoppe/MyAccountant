@@ -139,11 +139,16 @@ Gerencia os **tipos de tabela** da Account. Cada tipo define quais colunas ficam
 - `notes` — Notas
 - `cardInstallment` — Parcela do cartão
 - `investmentType` — Tipo de investimento
+- `expenseType` — Tipo de transação
+- `tags` — Tags
+- `paymentMethod` — Método de pagamento
 
 **Colunas sempre visíveis** (não configuráveis):
 - `occurredOn` — Data
 - `amount` — Valor
 - `description` — Descrição
+
+> O tipo **padrão** (Manual, `isDefault=true`) ignora `hiddenColumns` e sempre exibe todas as colunas. Ver spec 41 TRN-11.
 
 **Tipos pré-criados com a Account**:
 | Nome | Colunas ocultas |

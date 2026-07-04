@@ -179,6 +179,7 @@ Tipo de tabela financeira — define o nome, visibilidade de colunas e se é o t
 - Tipos não-default podem ser criados/editados/deletados pelo owner ou editor.
 - Não pode deletar um tipo que tenha `FinanceTable`s associadas.
 - Ao criar uma Account, são pré-criados 3 tipos: "Manual" (padrão, tudo visível), "Cartão de crédito" (oculta `investmentType`), "Investimentos" (oculta `cardInstallment`).
+- **Colunas toggleáveis** (chaves válidas em `hiddenColumns`): `category`, `subcategory`, `institution`, `responsibleUser`, `isPending`, `notes`, `cardInstallment`, `investmentType`, `expenseType`, `tags`, `paymentMethod`. Colunas core sempre visíveis (não toggleáveis): `occurredOn`, `amount`, `description`. Lista canônica de labels em spec 05 §4.5.
 
 ### 3.8 `FinanceTable`
 
@@ -235,6 +236,7 @@ Linha de dado financeiro.
 | `responsibleUserId` | `String?` | FK → User |
 | `cardInstallment` | `String?` | ex: "3/12" |
 | `investmentType` | `String?` | |
+| `paymentMethod` | `TransactionPaymentMethod?` | enum **fixo** nullable — método de pagamento. Ver spec 41 TRN-11 |
 | `metadata` | `Json` | default `{}` |
 | `createdById` | `String` | FK → User |
 | `createdAt` | `DateTime` | |
@@ -248,6 +250,9 @@ Linha de dado financeiro.
 - Se `institutionId` está preenchido, `institutionText` é ignorado (institutionId tem prioridade).
 - `responsibleUserId` precisa ser membro da Account.
 - `metadata` aceita JSON arbitrário para extensões futuras (validado por Zod schemas específicos por `tableTypeId`).
+- `paymentMethod` é um **enum fixo** (não é model gerenciável — sem settings/CRUD/seeding), análogo a `expenseType`.
+
+**Enum `TransactionPaymentMethod`**: `pix` | `cash` | `credit_card` | `debit_card` | `bank_transfer` | `boleto` | `other` (`@@map("transaction_payment_method")`).
 
 ### 3.10 `Category` e `Subcategory`
 

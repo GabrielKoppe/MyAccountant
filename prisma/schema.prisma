@@ -57,6 +57,18 @@ enum TransactionExpenseType {
   @@map("transaction_expense_type")
 }
 
+enum TransactionPaymentMethod {
+  pix
+  cash
+  credit_card
+  debit_card
+  bank_transfer
+  boleto
+  other
+
+  @@map("transaction_payment_method")
+}
+
 enum TransactionSource {
   manual
   csv_import
@@ -262,8 +274,8 @@ model ResponsibleParty {
   accountId  String               @map("account_id")
   name       String
   kind       ResponsiblePartyKind
-  icon       String?              // chave do set curado (src/lib/persona-icons.ts)
-  color      String?              // chave de cor accent (src/lib/accent-colors.ts)
+  icon       String? // chave do set curado (src/lib/persona-icons.ts)
+  color      String? // chave de cor accent (src/lib/accent-colors.ts)
   archivedAt DateTime?            @map("archived_at")
   createdAt  DateTime             @default(now()) @map("created_at")
   updatedAt  DateTime             @updatedAt @map("updated_at")
@@ -397,36 +409,37 @@ model FinanceTable {
 }
 
 model Transaction {
-  id                  String                  @id @default(cuid())
-  accountId           String                  @map("account_id")
-  monthId             String                  @map("month_id")
-  tableId             String                  @map("table_id")
-  sectionId           String                  @map("section_id")
-  occurredOn          DateTime                @map("occurred_on") @db.Date
-  amountCents         BigInt                  @map("amount_cents")
+  id                  String                    @id @default(cuid())
+  accountId           String                    @map("account_id")
+  monthId             String                    @map("month_id")
+  tableId             String                    @map("table_id")
+  sectionId           String                    @map("section_id")
+  occurredOn          DateTime                  @map("occurred_on") @db.Date
+  amountCents         BigInt                    @map("amount_cents")
   description         String?
   notes               String?
-  isPending           Boolean                 @default(false) @map("is_pending")
-  isFavorite          Boolean                 @default(false) @map("is_favorite")
-  categoryId          String?                 @map("category_id")
-  subcategoryId       String?                 @map("subcategory_id")
-  institutionId       String?                 @map("institution_id")
-  institutionText     String?                 @map("institution_text")
-  responsiblePartyId  String?                 @map("responsible_party_id")
-  cardInstallment     String?                 @map("card_installment")
-  investmentType      String?                 @map("investment_type")
-  expenseType         TransactionExpenseType? @map("expense_type")
-  source              TransactionSource       @default(manual) @map("source")
-  installmentGroupId  String?                 @map("installment_group_id")
-  installmentNumber   Int?                    @map("installment_number")
-  originalAmountCents BigInt?                 @map("original_amount_cents")
-  originalCurrency    String?                 @map("original_currency")
-  exchangeRate        Decimal?                @map("exchange_rate") @db.Decimal(18, 6)
-  metadata            Json                    @default("{}")
-  createdById         String                  @map("created_by_id")
-  createdAt           DateTime                @default(now()) @map("created_at")
-  updatedById         String?                 @map("updated_by_id")
-  updatedAt           DateTime                @updatedAt @map("updated_at")
+  isPending           Boolean                   @default(false) @map("is_pending")
+  isFavorite          Boolean                   @default(false) @map("is_favorite")
+  categoryId          String?                   @map("category_id")
+  subcategoryId       String?                   @map("subcategory_id")
+  institutionId       String?                   @map("institution_id")
+  institutionText     String?                   @map("institution_text")
+  responsiblePartyId  String?                   @map("responsible_party_id")
+  cardInstallment     String?                   @map("card_installment")
+  investmentType      String?                   @map("investment_type")
+  expenseType         TransactionExpenseType?   @map("expense_type")
+  paymentMethod       TransactionPaymentMethod? @map("payment_method")
+  source              TransactionSource         @default(manual) @map("source")
+  installmentGroupId  String?                   @map("installment_group_id")
+  installmentNumber   Int?                      @map("installment_number")
+  originalAmountCents BigInt?                   @map("original_amount_cents")
+  originalCurrency    String?                   @map("original_currency")
+  exchangeRate        Decimal?                  @map("exchange_rate") @db.Decimal(18, 6)
+  metadata            Json                      @default("{}")
+  createdById         String                    @map("created_by_id")
+  createdAt           DateTime                  @default(now()) @map("created_at")
+  updatedById         String?                   @map("updated_by_id")
+  updatedAt           DateTime                  @updatedAt @map("updated_at")
 
   account          Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
   month            Month             @relation(fields: [monthId], references: [id], onDelete: Cascade)

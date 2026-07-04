@@ -19,6 +19,7 @@ import { useSnackbar } from "notistack";
 import { bulkDeleteAction, bulkUpdateAction } from "@/actions/transactions";
 import { bulkAddTagAction, bulkRemoveTagAction, listTagsAction } from "@/actions/tags";
 import type { BulkUpdateInput } from "@/lib/schemas/transaction";
+import { TransactionPaymentMethod } from "@/lib/schemas/transaction";
 import { m } from "@/lib/messages";
 import type { CategoryOption, InstitutionOption, TransactionRow } from "./types";
 import { MoveTransactionsDialog } from "./MoveTransactionsDialog";
@@ -141,6 +142,25 @@ export function BulkActionBar({
           <MenuItem value="fixed">{m.transactions.expenseTypes.fixed}</MenuItem>
           <MenuItem value="variable">{m.transactions.expenseTypes.variable}</MenuItem>
           <MenuItem value="one_time">{m.transactions.expenseTypes.one_time}</MenuItem>
+        </Select>
+      </FormControl>
+
+      {/* Método de pagamento */}
+      <FormControl size="small" sx={{ minWidth: 130 }}>
+        <InputLabel>{m.transactions.paymentMethodLabel}</InputLabel>
+        <Select
+          label={m.transactions.paymentMethodLabel}
+          value=""
+          onChange={(e) =>
+            run({ paymentMethod: (e.target.value || null) as TransactionPaymentMethod | null })
+          }
+        >
+          <MenuItem value="">{m.transactions.paymentMethodNone}</MenuItem>
+          {Object.values(TransactionPaymentMethod).map((pm) => (
+            <MenuItem key={pm} value={pm}>
+              {m.transactions.paymentMethods[pm]}
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
 

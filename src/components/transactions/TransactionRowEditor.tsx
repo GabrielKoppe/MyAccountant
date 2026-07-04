@@ -37,7 +37,7 @@ import type { TransactionExpenseType } from "@prisma/client";
 
 import { m } from "@/lib/messages";
 import { centsToReais, reaisToCents, formatCentsToBrl } from "@/lib/money";
-import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
+import { INVESTMENT_TYPES, TransactionPaymentMethod } from "@/lib/schemas/transaction";
 import type { InvestmentType } from "@/lib/schemas/transaction";
 import { TagPopover } from "@/components/tags/TagPopover";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
@@ -247,6 +247,35 @@ export function TransactionRowEditor({
               sx={{ minWidth: 110 }}
               autoFocus={focusField === "institutionId"}
             />
+          </TableCell>
+        )}
+
+        {/* Método de pagamento */}
+        {!hiddenColumns.paymentMethod && (
+          <TableCell>
+            <Select
+              {...sharedInputProps}
+              displayEmpty
+              value={editValues.paymentMethod ?? ""}
+              onChange={(e) =>
+                setEditValues((prev) => ({
+                  ...prev,
+                  paymentMethod: (e.target.value || null) as TransactionPaymentMethod | null,
+                }))
+              }
+              aria-label={m.transactions.paymentMethodLabel}
+              sx={{ minWidth: 120, fontSize: 13 }}
+              autoFocus={focusField === "paymentMethod"}
+            >
+              <MenuItem value="">
+                <em>{m.transactions.paymentMethodNone}</em>
+              </MenuItem>
+              {Object.values(TransactionPaymentMethod).map((pm) => (
+                <MenuItem key={pm} value={pm} sx={{ fontSize: 13 }}>
+                  {m.transactions.paymentMethods[pm]}
+                </MenuItem>
+              ))}
+            </Select>
           </TableCell>
         )}
 

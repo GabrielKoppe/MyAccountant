@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { TransactionExpenseType } from "@prisma/client";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NumericFormat } from "react-number-format";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
@@ -27,9 +26,13 @@ import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import { useSnackbar } from "notistack";
 
 import { createTransactionAction } from "@/actions/transactions";
-import { reaisToCents } from "@/lib/money";
+import { centsToReais, reaisToCents } from "@/lib/money";
 import { m } from "@/lib/messages";
-import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
+import {
+  INVESTMENT_TYPES,
+  TransactionExpenseType,
+  TransactionPaymentMethod,
+} from "@/lib/schemas/transaction";
 import type { InvestmentType } from "@/lib/schemas/transaction";
 import type {
   CategoryOption,
@@ -79,6 +82,8 @@ export function NewTransactionRow({
   const { onCreateCategory, onCreateSubcategory, onCreateInstitution, canManageOptions } =
     useOptions();
   const [saving, setSaving] = useState(false);
+  // Foco reposicionado na descrição após cada salvamento (fluxo de entrada rápida).
+  const descriptionRef = useRef<HTMLInputElement>(null);
   const [occurredOn, setOccurredOn] = useState(todayISO());
   const [amountCents, setAmountCents] = useState("0");
   const [description, setDescription] = useState("");
@@ -90,7 +95,11 @@ export function NewTransactionRow({
   );
   const [isPending, _setIsPending] = useState(false);
   const [investmentType, setInvestmentType] = useState<InvestmentType | null>(null);
-  const [expenseType, setExpenseType] = useState<TransactionExpenseType | null>(null);
+  // Default "Evento único" pré-selecionado para reduzir fricção no lançamento manual (Spec 41).
+  const [expenseType, setExpenseType] = useState<TransactionExpenseType | null>(
+    TransactionExpenseType.one_time,
+  );
+  const [paymentMethod, setPaymentMethod] = useState<TransactionPaymentMethod | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [originalCurrency, setOriginalCurrency] = useState<string | null>(null);
@@ -116,6 +125,10 @@ export function NewTransactionRow({
 
   async function handleSave() {
     if (saving) return;
+    // A linha permanece aberta após salvar (entrada rápida): um Enter perdido ou
+    // duplo na linha ainda intocada não deve criar um lançamento fantasma
+    // (sem descrição e com valor zero). Ignora o save nesse estado pristino.
+    if (!description.trim() && amountCents === "0") return;
     setSaving(true);
 
     const result = await createTransactionAction(accountId, {
@@ -131,6 +144,8 @@ export function NewTransactionRow({
       institutionId,
       responsiblePartyId,
       investmentType,
+      expenseType,
+      paymentMethod,
       originalCurrency,
       exchangeRate,
       originalAmountCents: originalAmountCents !== null ? BigInt(originalAmountCents) : null,
@@ -142,6 +157,10 @@ export function NewTransactionRow({
       enqueueSnackbar(result.error.message, { variant: "error" });
       return;
     }
+
+    // A linha continua aberta, então o toast é o sinal de que o lançamento foi
+    // salvo. Curto para não empilhar durante lançamentos em sequência.
+    enqueueSnackbar(m.transactions.created, { variant: "success", autoHideDuration: 1500 });
 
     const now = new Date().toISOString();
     onCreated({
@@ -161,6 +180,7 @@ export function NewTransactionRow({
       cardInstallment: null,
       investmentType,
       expenseType: expenseType ?? null,
+      paymentMethod: paymentMethod ?? null,
       source: "manual" as const,
       installmentGroupId: null,
       installmentNumber: null,
@@ -175,6 +195,27 @@ export function NewTransactionRow({
       updatedById: null,
       updatedAt: now,
     });
+
+    // Entrada rápida: a linha permanece aberta. Limpa os campos editáveis,
+    // preserva a data e volta o tipo ao default (one_time); a descrição recebe
+    // o foco para o próximo lançamento. ESC/cancelar continua fechando a linha.
+    setDescription("");
+    setAmountCents("0");
+    setCategoryId(null);
+    setSubcategoryId(null);
+    setInstitutionId(null);
+    setResponsiblePartyId(defaultResponsiblePartyId);
+    setInvestmentType(null);
+    setExpenseType(TransactionExpenseType.one_time);
+    setPaymentMethod(null);
+    setNotes(null);
+    setNotesOpen(false);
+    setOriginalCurrency(null);
+    setExchangeRate(null);
+    setOriginalAmountCents(null);
+    setForeignCurrencyOpen(false);
+    setAdvancedFxMode(false);
+    descriptionRef.current?.focus();
   }
 
   return (
@@ -205,6 +246,7 @@ export function NewTransactionRow({
         <TableCell>
           <TextField
             {...sharedInputProps}
+            inputRef={descriptionRef}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Descrição"
@@ -267,11 +309,35 @@ export function NewTransactionRow({
           </TableCell>
         )}
 
+        {!hiddenColumns.paymentMethod && (
+          <TableCell>
+            <Select
+              {...sharedInputProps}
+              displayEmpty
+              value={paymentMethod ?? ""}
+              onChange={(e) =>
+                setPaymentMethod((e.target.value || null) as TransactionPaymentMethod | null)
+              }
+              aria-label={m.transactions.paymentMethodLabel}
+              sx={{ minWidth: 120, fontSize: 13 }}
+            >
+              <MenuItem value="">
+                <em>{m.transactions.paymentMethodNone}</em>
+              </MenuItem>
+              {Object.values(TransactionPaymentMethod).map((pm) => (
+                <MenuItem key={pm} value={pm} sx={{ fontSize: 13 }}>
+                  {m.transactions.paymentMethods[pm]}
+                </MenuItem>
+              ))}
+            </Select>
+          </TableCell>
+        )}
+
         <TableCell align="right">
           <NumericFormat
             customInput={TextField}
             {...sharedInputProps}
-            value={0}
+            value={centsToReais(BigInt(amountCents))}
             thousandSeparator="."
             decimalSeparator=","
             decimalScale={2}

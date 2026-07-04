@@ -21,6 +21,7 @@ export function buildTransaction(overrides: Partial<Transaction> = {}): Transact
     cardInstallment: null,
     investmentType: null,
     expenseType: null,
+    paymentMethod: null,
     source: "manual" as const,
     installmentGroupId: null,
     installmentNumber: null,

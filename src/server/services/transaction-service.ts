@@ -61,6 +61,7 @@ export async function createTransaction(input: CreateTransactionInput, ctx: Acti
       cardInstallment: input.cardInstallment ?? null,
       investmentType: input.investmentType ?? null,
       expenseType: input.expenseType ?? null,
+      paymentMethod: input.paymentMethod ?? null,
       originalAmountCents: input.originalAmountCents ?? null,
       originalCurrency: input.originalCurrency ?? null,
       exchangeRate: input.exchangeRate ?? null,
@@ -103,6 +104,7 @@ export async function updateTransaction(
   if (input.cardInstallment !== undefined) data.cardInstallment = input.cardInstallment ?? null;
   if (input.investmentType !== undefined) data.investmentType = input.investmentType ?? null;
   if (input.expenseType !== undefined) data.expenseType = input.expenseType ?? null;
+  if (input.paymentMethod !== undefined) data.paymentMethod = input.paymentMethod ?? null;
   if (input.originalAmountCents !== undefined)
     data.originalAmountCents = input.originalAmountCents ?? null;
   if (input.originalCurrency !== undefined) data.originalCurrency = input.originalCurrency ?? null;
@@ -190,6 +192,7 @@ export async function duplicateTransaction(input: DuplicateTransactionInput, ctx
       cardInstallment: source.cardInstallment,
       investmentType: source.investmentType,
       expenseType: source.expenseType,
+      paymentMethod: source.paymentMethod,
       source: "duplicate",
       metadata: source.metadata ?? {},
       createdById: ctx.userId,
@@ -243,6 +246,8 @@ export async function bulkUpdate(input: BulkUpdateInput, ctx: ActionContext) {
   if (input.patch.institutionId !== undefined)
     data.institutionId = input.patch.institutionId ?? null;
   if (input.patch.expenseType !== undefined) data.expenseType = input.patch.expenseType ?? null;
+  if (input.patch.paymentMethod !== undefined)
+    data.paymentMethod = input.patch.paymentMethod ?? null;
 
   await prisma.transaction.updateMany({
     where: { id: { in: input.ids }, accountId: ctx.accountId },

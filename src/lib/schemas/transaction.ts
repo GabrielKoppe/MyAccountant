@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { TransactionExpenseType } from "@prisma/client";
+import { TransactionExpenseType, TransactionPaymentMethod } from "@prisma/client";
 
 import { partyIdSchema } from "./responsible-party";
 
-export { TransactionExpenseType };
+export { TransactionExpenseType, TransactionPaymentMethod };
 
 export const INVESTMENT_TYPES = [
   "Ações",
@@ -41,6 +41,7 @@ export const baseTransactionSchema = z.object({
     .nullable(),
   investmentType: investmentTypeSchema,
   expenseType: z.nativeEnum(TransactionExpenseType).nullable().optional(),
+  paymentMethod: z.nativeEnum(TransactionPaymentMethod).nullable().optional(),
   originalCurrency: z.string().max(3).optional().nullable(),
   exchangeRate: z.coerce.number().positive().optional().nullable(),
   originalAmountCents: z.coerce.bigint().optional().nullable(),
@@ -75,6 +76,7 @@ export const bulkUpdateSchema = z.object({
     categoryId: z.string().cuid().nullable().optional(),
     institutionId: z.string().cuid().nullable().optional(),
     expenseType: z.nativeEnum(TransactionExpenseType).nullable().optional(),
+    paymentMethod: z.nativeEnum(TransactionPaymentMethod).nullable().optional(),
   }),
 });
 

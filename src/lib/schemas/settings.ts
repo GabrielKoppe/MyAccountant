@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { m } from "@/lib/messages";
 import { partyIdSchema } from "./responsible-party";
 
 // ─── Account General ──────────────────────────────────────────────
@@ -101,14 +102,17 @@ export type DeleteInstitutionInput = z.infer<typeof deleteInstitutionSchema>;
 // ─── Table Types ──────────────────────────────────────────────────
 
 export const TOGGLEABLE_COLUMNS = [
-  { key: "category", label: "Categoria" },
-  { key: "subcategory", label: "Subcategoria" },
-  { key: "institution", label: "Instituição" },
-  { key: "responsibleUser", label: "Responsável" },
-  { key: "isPending", label: "Pendente" },
-  { key: "notes", label: "Notas" },
-  { key: "cardInstallment", label: "Parcela do cartão" },
-  { key: "investmentType", label: "Tipo de investimento" },
+  { key: "category", label: m.transactions.fields.category },
+  { key: "subcategory", label: m.transactions.fields.subcategory },
+  { key: "institution", label: m.transactions.fields.institution },
+  { key: "paymentMethod", label: m.transactions.fields.paymentMethod },
+  { key: "responsibleUser", label: m.transactions.fields.responsibleUser },
+  { key: "isPending", label: m.transactions.fields.isPending },
+  { key: "notes", label: m.transactions.fields.notes },
+  { key: "cardInstallment", label: m.transactions.fields.cardInstallment },
+  { key: "investmentType", label: m.transactions.fields.investmentType },
+  { key: "expenseType", label: m.transactions.fields.expenseType },
+  { key: "tags", label: m.transactions.fields.tags },
 ] as const;
 
 // Schema derivado das colunas configuráveis — strips chaves desconhecidas em inputs
@@ -116,11 +120,14 @@ const hiddenColumnsBaseSchema = z.object({
   category: z.boolean().optional(),
   subcategory: z.boolean().optional(),
   institution: z.boolean().optional(),
+  paymentMethod: z.boolean().optional(),
   responsibleUser: z.boolean().optional(),
   isPending: z.boolean().optional(),
   notes: z.boolean().optional(),
   cardInstallment: z.boolean().optional(),
   investmentType: z.boolean().optional(),
+  expenseType: z.boolean().optional(),
+  tags: z.boolean().optional(),
 });
 
 // Para leituras do banco: fallback para {} se o JSON estiver corrompido ou com chaves desconhecidas

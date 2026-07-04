@@ -316,6 +316,14 @@ export function TransactionDetailDialog({
           </DetailField>
         )}
 
+        {show("paymentMethod") && tx.paymentMethod && (
+          <DetailField label={m.transactions.fields.paymentMethod}>
+            <Typography variant="body2">
+              {m.transactions.paymentMethods[tx.paymentMethod]}
+            </Typography>
+          </DetailField>
+        )}
+
         {show("responsibleUser") && responsibleParty && (
           <DetailField label={m.transactions.fields.responsibleUser}>
             <PartyInline party={responsibleParty} />

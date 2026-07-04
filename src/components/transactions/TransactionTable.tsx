@@ -301,8 +301,10 @@ export function TransactionTable({
   }, []);
 
   function onNewCreated(newTx: TxRow) {
+    // Entrada rápida (Spec 41): a linha de nova transação permanece aberta após
+    // salvar — o próprio NewTransactionRow limpa os campos e refoca a descrição.
+    // Fechar é explícito, via ESC ou botão cancelar (onNewRowClose).
     setRows((prev) => [newTx, ...prev]);
-    onNewRowClose();
   }
 
   function onBulkMoved(movedIds: string[]) {
@@ -608,6 +610,11 @@ export function TransactionTable({
                   )}
                   {show("institution") && (
                     <SortableHeaderCell field="institutionId" label="Instituição" />
+                  )}
+                  {show("paymentMethod") && (
+                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
+                      {m.transactions.paymentMethodColumn}
+                    </TableCell>
                   )}
                   <SortableHeaderCell field="amountCents" label="Valor" align="right" />
                   {show("responsibleUser") && (

@@ -1,6 +1,10 @@
 // Tipos compartilhados entre os componentes de transação
 
-import type { TransactionExpenseType, TransactionSource } from "@prisma/client";
+import type {
+  TransactionExpenseType,
+  TransactionPaymentMethod,
+  TransactionSource,
+} from "@prisma/client";
 
 import type { InvestmentType } from "@/lib/schemas/transaction";
 import type { HiddenColumns } from "@/lib/schemas/settings";
@@ -24,6 +28,7 @@ export type TransactionRow = {
   cardInstallment: string | null;
   investmentType: InvestmentType | null;
   expenseType: TransactionExpenseType | null;
+  paymentMethod: TransactionPaymentMethod | null;
   source: TransactionSource;
   installmentGroupId: string | null;
   installmentNumber: number | null;

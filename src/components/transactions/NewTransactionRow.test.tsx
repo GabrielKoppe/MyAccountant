@@ -1,0 +1,111 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { SnackbarProvider } from "notistack";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NewTransactionRow } from "./NewTransactionRow";
+import { OptionsProvider } from "./OptionsContext";
+
+// Mock da Server Action de criação — capturamos o payload enviado ao servidor.
+const createTransactionAction = vi.fn();
+vi.mock("@/actions/transactions", () => ({
+  createTransactionAction: (...args: unknown[]) => createTransactionAction(...args),
+}));
+
+function renderRow(props: Partial<Parameters<typeof NewTransactionRow>[0]> = {}) {
+  const onCreated = vi.fn();
+  const onCancel = vi.fn();
+  render(
+    <SnackbarProvider>
+      <OptionsProvider
+        value={{
+          onCreateCategory: vi.fn(),
+          onCreateSubcategory: vi.fn(),
+          onCreateInstitution: vi.fn(),
+          canManageOptions: true,
+        }}
+      >
+        <table>
+          <tbody>
+            <NewTransactionRow
+              tableId="table-1"
+              monthId="month-1"
+              accountId="acc-1"
+              currentUserId="user-1"
+              hiddenColumns={{}}
+              categories={[]}
+              institutions={[]}
+              members={[]}
+              parties={[]}
+              defaultResponsiblePartyId={null}
+              onCreated={onCreated}
+              onCancel={onCancel}
+              {...props}
+            />
+          </tbody>
+        </table>
+      </OptionsProvider>
+    </SnackbarProvider>,
+  );
+  return { onCreated, onCancel };
+}
+
+describe("NewTransactionRow", () => {
+  beforeEach(() => {
+    createTransactionAction.mockReset();
+    createTransactionAction.mockResolvedValue({ ok: true, data: { transactionId: "tx-new" } });
+  });
+
+  it('vem com o tipo "Evento único" (one_time) pré-selecionado', () => {
+    renderRow();
+    expect(screen.getByRole("button", { name: "Evento único" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("envia expenseType ao service no create (regressão do bug que descartava o tipo)", async () => {
+    const { onCreated } = renderRow();
+
+    await userEvent.type(screen.getByPlaceholderText("Descrição"), "Café{Enter}");
+
+    await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(1));
+    const [accountId, payload] = createTransactionAction.mock.calls[0];
+    expect(accountId).toBe("acc-1");
+    expect(payload.expenseType).toBe("one_time");
+    expect(payload.paymentMethod).toBeNull();
+    expect(payload.description).toBe("Café");
+    expect(onCreated).toHaveBeenCalledTimes(1);
+  });
+
+  it("mantém a linha aberta e limpa a descrição após salvar (entrada rápida)", async () => {
+    const { onCancel } = renderRow();
+
+    await userEvent.type(screen.getByPlaceholderText("Descrição"), "Mercado{Enter}");
+
+    await waitFor(() => expect(createTransactionAction).toHaveBeenCalled());
+    // A linha permanece montada e o campo de descrição é limpo para o próximo lançamento.
+    await waitFor(() => expect(screen.getByPlaceholderText("Descrição")).toHaveValue(""));
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("não cria lançamento fantasma ao dar Enter numa linha intocada (guard pristino)", async () => {
+    renderRow();
+
+    // Linha aberta e vazia: um Enter perdido não deve disparar o create.
+    screen.getByPlaceholderText("Descrição").focus();
+    await userEvent.keyboard("{Enter}");
+
+    expect(createTransactionAction).not.toHaveBeenCalled();
+  });
+
+  it("propaga o expenseType escolhido pelo usuário", async () => {
+    renderRow();
+
+    await userEvent.click(screen.getByRole("button", { name: "Transação fixa" }));
+    await userEvent.type(screen.getByPlaceholderText("Descrição"), "Aluguel{Enter}");
+
+    await waitFor(() => expect(createTransactionAction).toHaveBeenCalled());
+    expect(createTransactionAction.mock.calls[0][1].expenseType).toBe("fixed");
+  });
+});
