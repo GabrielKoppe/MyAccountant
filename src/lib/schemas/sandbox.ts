@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  EXPENSE_TYPE_VALUES,
+  SOURCE_VALUES,
+  PAYMENT_METHOD_VALUES,
+} from "@/lib/transaction-filters/fields";
+
 export const SANDBOX_PERIOD_TYPES = [
   "year",
   "months",
@@ -7,12 +13,20 @@ export const SANDBOX_PERIOD_TYPES = [
   "last_6_months",
   "current_month",
 ] as const;
+// Dimensões escalares — adicionadas em paridade de filtros (Parte A / A2). `tags` é N:N
+// (Transaction↔Tag via TransactionTag) e NÃO entra como dimensão de group/series por ora:
+// exigiria lógica de pivot diferente (uma transação pode contribuir para várias tags ao
+// mesmo tempo, distorcendo somas/contagens se tratada como dimensão escalar simples).
+// Fica de fora aqui; como FILTRO (filterTagIds) segue suportado normalmente.
 export const SANDBOX_GROUP_BY = [
   "month",
   "section",
   "category",
   "institution",
   "table_type",
+  "expense_type",
+  "source",
+  "payment_method",
 ] as const;
 export const SANDBOX_SERIES_BY = [
   "section",
@@ -20,6 +34,9 @@ export const SANDBOX_SERIES_BY = [
   "member",
   "institution",
   "table_type",
+  "expense_type",
+  "source",
+  "payment_method",
   "none",
 ] as const;
 export const SANDBOX_METRICS = ["total", "income", "expense", "count", "avg"] as const;
@@ -51,7 +68,17 @@ export const sandboxConfigSchema = z
     chartType: z.enum(SANDBOX_CHART_TYPES),
     filterSectionIds: z.array(z.string()).optional(),
     filterCategoryIds: z.array(z.string()).optional(),
+    // Guarda partyIds (A1 — todas as kinds de persona), com fallback de legado para userId.
+    // Nome do campo mantido por compatibilidade com configs salvas.
     filterMemberIds: z.array(z.string()).optional(),
+    // Paridade de filtros (Parte A / A2) — nivelando o sandbox aos 9 campos-alvo.
+    filterInstitutionIds: z.array(z.string()).optional(),
+    filterTagIds: z.array(z.string()).optional(),
+    filterExpenseTypes: z.array(z.enum(EXPENSE_TYPE_VALUES)).optional(),
+    filterSources: z.array(z.enum(SOURCE_VALUES)).optional(),
+    filterPaymentMethods: z.array(z.enum(PAYMENT_METHOD_VALUES)).optional(),
+    filterPending: z.boolean().optional(),
+    filterFavorite: z.boolean().optional(),
   })
   .refine(
     (c) => {
@@ -79,6 +106,9 @@ export function getValidSeriesBy(groupBy: SandboxGroupBy): SandboxSeriesBy[] {
     "member",
     "institution",
     "table_type",
+    "expense_type",
+    "source",
+    "payment_method",
     "none",
   ];
   return all.filter((s) => s !== (groupBy as string));

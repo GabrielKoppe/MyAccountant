@@ -18,6 +18,9 @@ const GROUPBY_LABEL: Record<SandboxConfig["groupBy"], string> = {
   category: "Categoria",
   institution: "Instituição",
   table_type: "Tipo de Tabela",
+  expense_type: "Tipo de Transação",
+  source: "Origem",
+  payment_method: "Método de Pagamento",
 };
 
 type Props = {

@@ -1,22 +1,25 @@
-import type { SectionCountType } from "@prisma/client";
+import DashboardIcon from "@mui/icons-material/Dashboard";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
-import DashboardIcon from "@mui/icons-material/Dashboard";
+import type { SectionCountType } from "@prisma/client";
+import type { ReactNode } from "react";
 
-import { AppLink } from "@/components/ui/AppLink";
-import { KpiCard } from "@/components/dashboards/charts/lazy";
 import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
-import { SectionCards } from "../panels/SectionCards";
-import {
-  PendingTransactionsWidget,
-  FavoriteTransactionsWidget,
-  RecentTransactionsWidget,
-  type ActivityTx,
-} from "../panels/ActivityWidget";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
+import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
+import { KpiCard } from "@/components/dashboards/charts/lazy";
+import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
+import {
+  FilteredTransactionsWidget,
+  type FilteredTransactionsWidgetOptions,
+} from "@/components/dashboards/panels/FilteredTransactionsWidget";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
+import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
+import { AppLink } from "@/components/ui/AppLink";
 import { formatCentsToBrl } from "@/lib/money";
+
+import { SectionCards } from "../panels/SectionCards";
 import { m } from "@/lib/messages";
 import type { BudgetProgress } from "@/server/queries/budgets";
 import type { Insight } from "@/server/services/insights-service";
@@ -26,14 +29,12 @@ import {
   filteredTransactionsConfigSchema,
 } from "@/lib/schemas/widget-config";
 import type { KpiCustomResult } from "@/server/queries/kpi-custom";
-import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 import {
-  FilteredTransactionsWidget,
-  type FilterOption,
-} from "@/components/dashboards/panels/FilteredTransactionsWidget";
-import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
-import type { ReactNode } from "react";
-import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
+  PendingTransactionsWidget,
+  FavoriteTransactionsWidget,
+  RecentTransactionsWidget,
+  type ActivityTx,
+} from "../panels/ActivityWidget";
 type SectionItem = {
   id: string;
   name: string;
@@ -68,11 +69,7 @@ type Props = {
   kpiCustomData: Record<string, KpiCustomResult>;
   filteredTransactionsData: Record<string, TxRow[]>;
   // Opções para resolver IDs de filtros em nomes legíveis no subtitle do filtered-transactions
-  filterOptions?: {
-    categories?: FilterOption[];
-    institutions?: FilterOption[];
-    members?: FilterOption[];
-  };
+  filterOptions?: FilteredTransactionsWidgetOptions;
   // Spec 38
   transactionCount?: number;
 };

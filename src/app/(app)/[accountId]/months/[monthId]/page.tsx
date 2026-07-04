@@ -1,26 +1,31 @@
-import { Suspense } from "react";
+import Box from "@mui/material/Box";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import Box from "@mui/material/Box";
+import { Suspense } from "react";
 
-import { requireAccountAccess } from "@/server/auth/session";
-import { prisma } from "@/server/prisma";
-import { MONTH_NAMES } from "@/lib/dates";
-import { toResponsiblePartyOption } from "@/lib/party-display";
-import { MonthHeader } from "@/components/months/MonthHeader";
-import { MonthTabs } from "@/components/months/MonthTabs";
 import { MonthFilterProvider, type MonthFilterState } from "@/components/months/MonthFilterContext";
-import { ActiveFilterChips } from "@/components/transactions/ActiveFilterChips";
+import { MonthHeader } from "@/components/months/MonthHeader";
 import { MonthSummaryTab } from "@/components/months/MonthSummaryTab";
+import { MonthTabs } from "@/components/months/MonthTabs";
 import { SectionTab } from "@/components/months/SectionTab";
 import { TabContentSkeleton } from "@/components/months/TabContentSkeleton";
-import { getMonthSections } from "@/server/services/month-service";
+import { ActiveFilterChips } from "@/components/transactions/ActiveFilterChips";
+import { MONTH_NAMES } from "@/lib/dates";
+import { toResponsiblePartyOption } from "@/lib/party-display";
+import {
+  EXPENSE_TYPE_VALUES,
+  PAYMENT_METHOD_VALUES,
+  SOURCE_VALUES,
+} from "@/lib/transaction-filters/fields";
+import { requireAccountAccess } from "@/server/auth/session";
+import { prisma } from "@/server/prisma";
 import {
   getMonthCategories,
   getMonthInstitutions,
   getMonthMembers,
   getMonthResponsibleParties,
 } from "@/server/queries/month-page";
+import { getMonthSections } from "@/server/services/month-service";
 
 type Props = {
   params: Promise<{ accountId: string; monthId: string }>;
@@ -34,6 +39,7 @@ type Props = {
     expenseTypes?: string;
     sources?: string;
     tagIds?: string;
+    paymentMethods?: string;
   }>;
 };
 
@@ -60,17 +66,8 @@ export default async function MonthPage({ params, searchParams }: Props) {
     expenseTypes: expenseTypesParam,
     sources: sourcesParam,
     tagIds: tagIdsParam,
+    paymentMethods: paymentMethodsParam,
   } = await searchParams;
-
-  const VALID_EXPENSE_TYPES = ["fixed", "variable", "one_time"] as const;
-  const VALID_SOURCES = [
-    "manual",
-    "csv_import",
-    "xlsx_import",
-    "template",
-    "auto_template",
-    "duplicate",
-  ] as const;
 
   const initialFilters: MonthFilterState = {
     categories: categoriesParam ? categoriesParam.split(",").filter(Boolean) : [],
@@ -82,17 +79,24 @@ export default async function MonthPage({ params, searchParams }: Props) {
       ? (expenseTypesParam
           .split(",")
           .filter((v) =>
-            VALID_EXPENSE_TYPES.includes(v as (typeof VALID_EXPENSE_TYPES)[number]),
-          ) as (typeof VALID_EXPENSE_TYPES)[number][])
+            EXPENSE_TYPE_VALUES.includes(v as (typeof EXPENSE_TYPE_VALUES)[number]),
+          ) as (typeof EXPENSE_TYPE_VALUES)[number][])
       : [],
     sources: sourcesParam
       ? (sourcesParam
           .split(",")
           .filter((v) =>
-            VALID_SOURCES.includes(v as (typeof VALID_SOURCES)[number]),
-          ) as (typeof VALID_SOURCES)[number][])
+            SOURCE_VALUES.includes(v as (typeof SOURCE_VALUES)[number]),
+          ) as (typeof SOURCE_VALUES)[number][])
       : [],
     tagIds: tagIdsParam ? tagIdsParam.split(",").filter(Boolean) : [],
+    paymentMethods: paymentMethodsParam
+      ? (paymentMethodsParam
+          .split(",")
+          .filter((v) =>
+            PAYMENT_METHOD_VALUES.includes(v as (typeof PAYMENT_METHOD_VALUES)[number]),
+          ) as (typeof PAYMENT_METHOD_VALUES)[number][])
+      : [],
   };
 
   const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
@@ -107,28 +111,27 @@ export default async function MonthPage({ params, searchParams }: Props) {
     membersRaw,
     partiesRaw,
     accountTags,
-  ] =
-    await Promise.all([
-      prisma.month.findUnique({
-        where: { id: monthId },
-        select: { id: true, year: true, month: true, accountId: true },
-      }),
-      prisma.month.findMany({
-        where: { accountId },
-        orderBy: [{ year: "asc" }, { month: "asc" }],
-        select: { id: true, year: true, month: true },
-      }),
-      getMonthSections(accountId, monthId),
-      getMonthCategories(accountId),
-      getMonthInstitutions(accountId),
-      getMonthMembers(accountId),
-      getMonthResponsibleParties(accountId),
-      prisma.tag.findMany({
-        where: { accountId },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, color: true },
-      }),
-    ]);
+  ] = await Promise.all([
+    prisma.month.findUnique({
+      where: { id: monthId },
+      select: { id: true, year: true, month: true, accountId: true },
+    }),
+    prisma.month.findMany({
+      where: { accountId },
+      orderBy: [{ year: "asc" }, { month: "asc" }],
+      select: { id: true, year: true, month: true },
+    }),
+    getMonthSections(accountId, monthId),
+    getMonthCategories(accountId),
+    getMonthInstitutions(accountId),
+    getMonthMembers(accountId),
+    getMonthResponsibleParties(accountId),
+    prisma.tag.findMany({
+      where: { accountId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, color: true },
+    }),
+  ]);
 
   // Resolve exibição das parties (Spec 60 §2.4).
   const currentMemberIds = new Set(membersRaw.map((mm) => mm.user.id));

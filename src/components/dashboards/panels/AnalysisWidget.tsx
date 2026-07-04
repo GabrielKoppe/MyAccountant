@@ -3,15 +3,15 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
+import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
+import { WIDGET_REGISTRY } from "@/components/dashboards/_core/widget-registry";
+import { SandboxChart } from "@/components/dashboards/sandbox/SandboxChart";
+import { WidgetContainer } from "@/components/ui/WidgetContainer";
+import { m } from "@/lib/messages";
 import type { SandboxConfig } from "@/lib/schemas/sandbox";
 import { sandboxConfigSchema } from "@/lib/schemas/sandbox";
 import type { SerializedSandboxResult } from "@/server/queries/sandbox";
 import { deserializeSandboxResult } from "@/server/queries/sandbox";
-import { WIDGET_REGISTRY } from "@/components/dashboards/_core/widget-registry";
-import { SandboxChart } from "@/components/dashboards/sandbox/SandboxChart";
-import { WidgetContainer } from "@/components/ui/WidgetContainer";
-import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
-import { m } from "@/lib/messages";
 
 // Resolve o renderMode a partir do sizeVariantId usando as variantes do registry.
 function resolveRenderMode(sizeVariantId: string): "compact" | "default" | "expanded" {
@@ -38,13 +38,19 @@ function buildSubtitle(config: SandboxConfig): string {
     category: "por categoria",
     institution: "por instituição",
     table_type: "por tipo de tabela",
+    expense_type: "por tipo de transação",
+    source: "por origem",
+    payment_method: "por método de pagamento",
   };
   const seriesLabels: Record<string, string> = {
     section: "por seção",
     category: "por categoria",
-    member: "por membro",
+    member: "por responsável",
     institution: "por instituição",
     table_type: "por tipo de tabela",
+    expense_type: "por tipo de transação",
+    source: "por origem",
+    payment_method: "por método de pagamento",
   };
   const chartLabels: Record<string, string> = {
     bar_grouped: "em barras",
@@ -75,7 +81,14 @@ function buildSubtitle(config: SandboxConfig): string {
   const filterCount =
     (config.filterSectionIds?.length ?? 0) +
     (config.filterCategoryIds?.length ?? 0) +
-    (config.filterMemberIds?.length ?? 0);
+    (config.filterMemberIds?.length ?? 0) +
+    (config.filterInstitutionIds?.length ?? 0) +
+    (config.filterTagIds?.length ?? 0) +
+    (config.filterExpenseTypes?.length ?? 0) +
+    (config.filterSources?.length ?? 0) +
+    (config.filterPaymentMethods?.length ?? 0) +
+    (config.filterPending ? 1 : 0) +
+    (config.filterFavorite ? 1 : 0);
   const filterPart = filterCount > 0 ? ` · ${filterCount} filtro${filterCount > 1 ? "s" : ""}` : "";
 
   // Ex: "Despesas por categoria por membro em barras (mês atual) · 2 filtros"

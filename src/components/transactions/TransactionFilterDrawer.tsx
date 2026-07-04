@@ -1,9 +1,12 @@
 "use client";
 
+import CheckIcon from "@mui/icons-material/Check";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -11,14 +14,20 @@ import FormGroup from "@mui/material/FormGroup";
 import Paper from "@mui/material/Paper";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import CheckIcon from "@mui/icons-material/Check";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import type {
+  TransactionExpenseType,
+  TransactionPaymentMethod,
+  TransactionSource,
+} from "@prisma/client";
 import { useState } from "react";
-import type { TransactionExpenseType, TransactionSource } from "@prisma/client";
 
-import { m } from "@/lib/messages";
 import { useMonthFilters } from "@/components/months/MonthFilterContext";
+import { m } from "@/lib/messages";
+import {
+  EXPENSE_TYPE_VALUES,
+  PAYMENT_METHOD_VALUES,
+  SOURCE_VALUES,
+} from "@/lib/transaction-filters/fields";
 
 type Props = {
   anchorEl: HTMLElement | null;
@@ -56,6 +65,7 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
     status: filters.pending || filters.favorite,
     expenseType: filters.expenseTypes.length > 0,
     sources: filters.sources.length > 0,
+    paymentMethods: filters.paymentMethods.length > 0,
     tags: filters.tagIds.length > 0,
     categories: filters.categories.length > 0,
     institutions: filters.institutions.length > 0,
@@ -74,7 +84,8 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
     filters.favorite ||
     filters.expenseTypes.length > 0 ||
     filters.sources.length > 0 ||
-    filters.tagIds.length > 0;
+    filters.tagIds.length > 0 ||
+    filters.paymentMethods.length > 0;
 
   function toggleTag(id: string) {
     const next = filters.tagIds.includes(id)
@@ -95,6 +106,13 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
       ? filters.expenseTypes.filter((t) => t !== type)
       : [...filters.expenseTypes, type];
     setFilters({ ...filters, expenseTypes: next });
+  }
+
+  function togglePaymentMethod(method: TransactionPaymentMethod) {
+    const next = filters.paymentMethods.includes(method)
+      ? filters.paymentMethods.filter((pm) => pm !== method)
+      : [...filters.paymentMethods, method];
+    setFilters({ ...filters, paymentMethods: next });
   }
 
   function toggleCategory(id: string) {
@@ -218,7 +236,7 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
             </AccordionSummary>
             <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>
               <FormGroup>
-                {(["fixed", "variable", "one_time"] as TransactionExpenseType[]).map((type) => (
+                {EXPENSE_TYPE_VALUES.map((type) => (
                   <FormControlLabel
                     key={type}
                     sx={checkboxLabelSx}
@@ -256,16 +274,7 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
             </AccordionSummary>
             <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>
               <FormGroup>
-                {(
-                  [
-                    "manual",
-                    "csv_import",
-                    "xlsx_import",
-                    "template",
-                    "auto_template",
-                    "duplicate",
-                  ] as TransactionSource[]
-                ).map((src) => (
+                {SOURCE_VALUES.map((src) => (
                   <FormControlLabel
                     key={src}
                     sx={checkboxLabelSx}
@@ -279,6 +288,44 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
                       />
                     }
                     label={m.transactions.sources[src]}
+                  />
+                ))}
+              </FormGroup>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Método de pagamento (paymentMethod) */}
+          <Accordion
+            disableGutters
+            expanded={open.paymentMethods}
+            onChange={() => toggle("paymentMethods")}
+            sx={accordionSx}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}
+              sx={{ px: 2, minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}
+            >
+              <Typography sx={summaryLabelSx}>
+                {m.transactions.paymentMethodLabel}
+                {badgeLabel(filters.paymentMethods.length)}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ px: 2, pt: 0, pb: 1 }}>
+              <FormGroup>
+                {PAYMENT_METHOD_VALUES.map((method) => (
+                  <FormControlLabel
+                    key={method}
+                    sx={checkboxLabelSx}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={filters.paymentMethods.includes(method)}
+                        onChange={() => togglePaymentMethod(method)}
+                        icon={emptyIcon}
+                        checkedIcon={checkIcon}
+                      />
+                    }
+                    label={m.transactions.paymentMethods[method]}
                   />
                 ))}
               </FormGroup>
@@ -438,7 +485,10 @@ export function TransactionFilterDrawer({ anchorEl, onClose }: Props) {
                         />
                       }
                       label={
-                        <Box component="span" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <Box
+                          component="span"
+                          sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
+                        >
                           {party.icon && (
                             <Box component="span" sx={{ fontSize: 15 }}>
                               {party.icon}

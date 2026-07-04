@@ -1,14 +1,15 @@
-import { cache } from "react";
 import type { Prisma } from "@prisma/client";
+import { cache } from "react";
 
-import { prisma } from "@/server/prisma";
+import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
+import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   filteredTransactionsConfigSchema,
   type FilteredTransactionsConfig,
 } from "@/lib/schemas/widget-config";
-import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
-import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
-import { personalPartyIdsForUsers } from "./responsible-party-filter";
+import { prisma } from "@/server/prisma";
+
+import { responsiblePartyIdsForFilter } from "./responsible-party-filter";
 
 // Transações de um mês filtradas pelo config do widget filtered-transactions,
 // ordenadas da mais recente para a mais antiga e limitadas por `limit`.
@@ -18,10 +19,9 @@ export const getFilteredTransactions = cache(
     monthId: string,
     config: FilteredTransactionsConfig,
   ): Promise<TxRow[]> => {
-    // config.responsible guarda userIds de membros → traduz p/ suas parties personais.
-    const responsiblePartyIds = config.responsible.length
-      ? await personalPartyIdsForUsers(accountId, config.responsible)
-      : [];
+    // config.responsible guarda partyIds (A1 — todas as kinds de persona), com fallback
+    // de legado para configs antigas que guardavam userId. Ver responsiblePartyIdsForFilter.
+    const responsiblePartyIds = await responsiblePartyIdsForFilter(accountId, config.responsible);
 
     const where: Prisma.TransactionWhereInput = {
       accountId,
@@ -32,6 +32,12 @@ export const getFilteredTransactions = cache(
       ...(responsiblePartyIds.length ? { responsiblePartyId: { in: responsiblePartyIds } } : {}),
       ...(config.pending ? { isPending: true } : {}),
       ...(config.favorite ? { isFavorite: true } : {}),
+      ...(config.expenseTypes.length ? { expenseType: { in: config.expenseTypes } } : {}),
+      ...(config.sources.length ? { source: { in: config.sources } } : {}),
+      ...(config.paymentMethods.length ? { paymentMethod: { in: config.paymentMethods } } : {}),
+      // Tags: OR — transação com QUALQUER uma das tags selecionadas (paridade com o
+      // predicado client-side do drawer do mês, `row.tags.some(...)`).
+      ...(config.tags.length ? { tags: { some: { tagId: { in: config.tags } } } } : {}),
     };
 
     const txs = await prisma.transaction.findMany({

@@ -1,18 +1,15 @@
 "use client";
 
-import { Controller, useForm, type DefaultValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { z } from "zod";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import { useState } from "react";
 import Collapse from "@mui/material/Collapse";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import FilterListIcon from "@mui/icons-material/FilterList";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Radio from "@mui/material/Radio";
@@ -22,8 +19,13 @@ import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import { useState } from "react";
+import { Controller, useForm, type DefaultValues } from "react-hook-form";
+import type { z } from "zod";
 
+import type { DashboardContext, WidgetDef } from "@/components/dashboards/_core/widget-registry";
 import { m } from "@/lib/messages";
+import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   sandboxConfigSchema,
   SANDBOX_METRICS,
@@ -49,8 +51,11 @@ import {
   treemapConfigSchema,
   weekChartConfigSchema,
 } from "@/lib/schemas/widget-config";
-import type { DashboardContext, WidgetDef } from "@/components/dashboards/_core/widget-registry";
-import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import {
+  EXPENSE_TYPE_VALUES,
+  SOURCE_VALUES,
+  PAYMENT_METHOD_VALUES,
+} from "@/lib/transaction-filters/fields";
 import type { ConfigFormOption, WidgetConfigOptions } from "@/server/queries/widget-config-options";
 
 type Props = {
@@ -117,6 +122,22 @@ const METRIC_LABELS: Record<(typeof SANDBOX_METRICS)[number], string> = {
   count: m.dashboards.sandbox.controls.metricCount,
   avg: m.dashboards.sandbox.controls.metricAvg,
 };
+
+// ─── Opções de enum reutilizadas pelos filtros multi-select de expenseType/source/
+// paymentMethod (paridade de filtros — Parte A). Reaproveita os mapas de label já
+// centralizados em m.transactions.* (fonte única, ver skills/transaction-filters).
+const EXPENSE_TYPE_OPTIONS: ConfigFormOption[] = EXPENSE_TYPE_VALUES.map((v) => ({
+  id: v,
+  name: m.transactions.expenseTypes[v] ?? v,
+}));
+const SOURCE_OPTIONS: ConfigFormOption[] = SOURCE_VALUES.map((v) => ({
+  id: v,
+  name: m.transactions.sources[v] ?? v,
+}));
+const PAYMENT_METHOD_OPTIONS: ConfigFormOption[] = PAYMENT_METHOD_VALUES.map((v) => ({
+  id: v,
+  name: m.transactions.paymentMethods[v] ?? v,
+}));
 
 // ─── money-flow ──────────────────────────────────────────────────────────────
 
@@ -836,76 +857,40 @@ function FilteredTransactionsForm({
   options: WidgetConfigOptions;
   onSave: (c: unknown) => void;
 }) {
-  const { control, handleSubmit } = useForm<z.infer<typeof filteredTransactionsConfigSchema>>({
+  const { control, handleSubmit, watch } = useForm<
+    z.infer<typeof filteredTransactionsConfigSchema>
+  >({
     resolver: zodResolver(filteredTransactionsConfigSchema),
     defaultValues: resolveDefaults(
       filteredTransactionsConfigSchema,
       widget.config,
     ) as DefaultValues<z.infer<typeof filteredTransactionsConfigSchema>>,
   });
+
+  const categories = watch("categories");
+  const institutions = watch("institutions");
+  const responsible = watch("responsible");
+  const tags = watch("tags");
+  const expenseTypes = watch("expenseTypes");
+  const sources = watch("sources");
+  const paymentMethods = watch("paymentMethods");
+  const pending = watch("pending");
+  const favorite = watch("favorite");
+
+  const activeFilterCount =
+    (categories?.length ?? 0) +
+    (institutions?.length ?? 0) +
+    (responsible?.length ?? 0) +
+    (tags?.length ?? 0) +
+    (expenseTypes?.length ?? 0) +
+    (sources?.length ?? 0) +
+    (paymentMethods?.length ?? 0) +
+    (pending ? 1 : 0) +
+    (favorite ? 1 : 0);
+
   return (
     <form onSubmit={handleSubmit(onSave)}>
       <Stack spacing={1.25}>
-        <Controller
-          control={control}
-          name="categories"
-          render={({ field }) => (
-            <OptionsAutocomplete
-              label={m.settings.dashboards.config.categoriesLabel}
-              options={options.categories}
-              value={field.value ?? []}
-              onChange={field.onChange}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="institutions"
-          render={({ field }) => (
-            <OptionsAutocomplete
-              label={m.settings.dashboards.config.institutionsLabel}
-              options={options.institutions}
-              value={field.value ?? []}
-              onChange={field.onChange}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="responsible"
-          render={({ field }) => (
-            <OptionsAutocomplete
-              label={m.settings.dashboards.config.responsibleLabel}
-              options={options.members}
-              value={field.value ?? []}
-              onChange={field.onChange}
-            />
-          )}
-        />
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-          <Controller
-            control={control}
-            name="pending"
-            render={({ field }) => (
-              <FormControlLabel
-                control={<Switch size="small" checked={field.value} onChange={field.onChange} />}
-                label={m.settings.dashboards.config.pendingLabel}
-                sx={switchLabelSx}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="favorite"
-            render={({ field }) => (
-              <FormControlLabel
-                control={<Switch size="small" checked={field.value} onChange={field.onChange} />}
-                label={m.settings.dashboards.config.favoriteLabel}
-                sx={switchLabelSx}
-              />
-            )}
-          />
-        </Box>
         <Box>
           <FieldLabel>{m.settings.dashboards.config.limitLabel}</FieldLabel>
           <Controller
@@ -931,6 +916,161 @@ function FilteredTransactionsForm({
             )}
           />
         </Box>
+
+        {/* Filtros — accordion sem contraste, integrado ao form */}
+        <Accordion
+          disableGutters
+          elevation={0}
+          sx={{
+            background: "transparent",
+            "&:before": { display: "none" },
+            borderTop: 1,
+            borderColor: "divider",
+            mt: 0.5,
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon sx={{ fontSize: 14, color: "text.disabled" }} />}
+            sx={{
+              minHeight: 32,
+              px: 0,
+              py: 0,
+              "& .MuiAccordionSummary-content": { my: 0.75, alignItems: "center", gap: 0.75 },
+            }}
+          >
+            <FilterListIcon sx={{ fontSize: 13, color: "text.disabled" }} />
+            <Typography sx={{ fontSize: "0.75rem", color: "text.tertiary" }}>Filtros</Typography>
+            {activeFilterCount > 0 && (
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: "0.65rem",
+                  color: "primary.main",
+                  fontWeight: 600,
+                }}
+              >
+                {activeFilterCount}
+              </Typography>
+            )}
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: 0, pb: 1, pt: 0 }}>
+            <Stack spacing={1.25}>
+              <Controller
+                control={control}
+                name="categories"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.categoriesLabel}
+                    options={options.categories}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="institutions"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.institutionsLabel}
+                    options={options.institutions}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="responsible"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.responsibleLabel}
+                    options={options.parties}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="tags"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.tagFilterLabel}
+                    options={options.tags}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="expenseTypes"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.expenseTypeFilterLabel}
+                    options={EXPENSE_TYPE_OPTIONS}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="sources"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.sourceFilterLabel}
+                    options={SOURCE_OPTIONS}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="paymentMethods"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.paymentMethodFilterLabel}
+                    options={PAYMENT_METHOD_OPTIONS}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                <Controller
+                  control={control}
+                  name="pending"
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Switch size="small" checked={field.value} onChange={field.onChange} />
+                      }
+                      label={m.settings.dashboards.config.pendingLabel}
+                      sx={switchLabelSx}
+                    />
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="favorite"
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Switch size="small" checked={field.value} onChange={field.onChange} />
+                      }
+                      label={m.settings.dashboards.config.favoriteLabel}
+                      sx={switchLabelSx}
+                    />
+                  )}
+                />
+              </Box>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
         <SaveButton />
       </Stack>
     </form>
@@ -951,6 +1091,9 @@ const GROUP_BY_LABELS: Record<string, string> = {
   category: m.dashboards.sandbox.controls.groupByCategory,
   institution: m.dashboards.sandbox.controls.groupByInstitution,
   table_type: m.dashboards.sandbox.controls.groupByTableType,
+  expense_type: m.dashboards.sandbox.controls.groupByExpenseType,
+  source: m.dashboards.sandbox.controls.groupBySource,
+  payment_method: m.dashboards.sandbox.controls.groupByPaymentMethod,
 };
 
 const SERIES_BY_LABELS: Record<string, string> = {
@@ -959,6 +1102,9 @@ const SERIES_BY_LABELS: Record<string, string> = {
   member: m.dashboards.sandbox.controls.seriesByMember,
   institution: m.dashboards.sandbox.controls.seriesByInstitution,
   table_type: m.dashboards.sandbox.controls.seriesByTableType,
+  expense_type: m.dashboards.sandbox.controls.seriesByExpenseType,
+  source: m.dashboards.sandbox.controls.seriesBySource,
+  payment_method: m.dashboards.sandbox.controls.seriesByPaymentMethod,
   none: m.dashboards.sandbox.controls.seriesByNone,
 };
 
@@ -1024,6 +1170,13 @@ function AnalysisForm({
   const filterSectionIds = watch("filterSectionIds");
   const filterCategoryIds = watch("filterCategoryIds");
   const filterMemberIds = watch("filterMemberIds");
+  const filterInstitutionIds = watch("filterInstitutionIds");
+  const filterTagIds = watch("filterTagIds");
+  const filterExpenseTypes = watch("filterExpenseTypes");
+  const filterSources = watch("filterSources");
+  const filterPaymentMethods = watch("filterPaymentMethods");
+  const filterPending = watch("filterPending");
+  const filterFavorite = watch("filterFavorite");
 
   const validSeriesBy = getValidSeriesBy(groupBy);
   const validChartTypes = getValidChartTypes(seriesBy);
@@ -1051,6 +1204,9 @@ function AnalysisForm({
     category: "por categoria",
     institution: "por instituição",
     table_type: "por tipo de tabela",
+    expense_type: "por tipo de transação",
+    source: "por origem",
+    payment_method: "por método de pagamento",
   };
   const _seriesLabels: Record<string, string> = {
     section: "por seção",
@@ -1058,6 +1214,9 @@ function AnalysisForm({
     member: "por membro",
     institution: "por instituição",
     table_type: "por tipo de tabela",
+    expense_type: "por tipo de transação",
+    source: "por origem",
+    payment_method: "por método de pagamento",
   };
   const _chartLabels: Record<string, string> = {
     bar_grouped: "em barras",
@@ -1074,6 +1233,9 @@ function AnalysisForm({
     category: "Categorias",
     institution: "Instituições",
     table_type: "Tipos de tabela",
+    expense_type: "Tipos de transação",
+    source: "Origens",
+    payment_method: "Métodos de pagamento",
   };
   const _seriesDetail: Record<string, string> = {
     section: "Seções",
@@ -1081,6 +1243,9 @@ function AnalysisForm({
     member: "Membros",
     institution: "Instituições",
     table_type: "Tipos de tabela",
+    expense_type: "Tipos de transação",
+    source: "Origens",
+    payment_method: "Métodos de pagamento",
   };
   const _chartDetail: Record<string, string> = {
     bar_grouped: "Barras agrupadas",
@@ -1108,9 +1273,16 @@ function AnalysisForm({
     ...(filterCategoryIds ?? []).map(
       (id) => options.categories.find((c) => c.id === id)?.name ?? id,
     ),
-    ...(filterMemberIds ?? []).map(
-      (id) => options.members.find((mem) => mem.id === id)?.name ?? id,
+    ...(filterMemberIds ?? []).map((id) => options.parties.find((p) => p.id === id)?.name ?? id),
+    ...(filterInstitutionIds ?? []).map(
+      (id) => options.institutions.find((i) => i.id === id)?.name ?? id,
     ),
+    ...(filterTagIds ?? []).map((id) => options.tags.find((t) => t.id === id)?.name ?? id),
+    ...(filterExpenseTypes ?? []).map((t) => m.transactions.expenseTypes[t] ?? t),
+    ...(filterSources ?? []).map((s) => m.transactions.sources[s] ?? s),
+    ...(filterPaymentMethods ?? []).map((p) => m.transactions.paymentMethods[p] ?? p),
+    ...(filterPending ? [m.settings.dashboards.config.pendingLabel] : []),
+    ...(filterFavorite ? [m.settings.dashboards.config.favoriteLabel] : []),
   ];
 
   const seriesPart =
@@ -1121,7 +1293,14 @@ function AnalysisForm({
   const activeFilterCount =
     (filterSectionIds?.length ?? 0) +
     (filterCategoryIds?.length ?? 0) +
-    (filterMemberIds?.length ?? 0);
+    (filterMemberIds?.length ?? 0) +
+    (filterInstitutionIds?.length ?? 0) +
+    (filterTagIds?.length ?? 0) +
+    (filterExpenseTypes?.length ?? 0) +
+    (filterSources?.length ?? 0) +
+    (filterPaymentMethods?.length ?? 0) +
+    (filterPending ? 1 : 0) +
+    (filterFavorite ? 1 : 0);
 
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -1379,12 +1558,108 @@ function AnalysisForm({
                 render={({ field }) => (
                   <OptionsAutocomplete
                     label={m.dashboards.sandbox.controls.filterMembers}
-                    options={options.members}
+                    options={options.parties}
                     value={field.value ?? []}
                     onChange={field.onChange}
                   />
                 )}
               />
+              <Controller
+                control={control}
+                name="filterInstitutionIds"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.institutionsLabel}
+                    options={options.institutions}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="filterTagIds"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.tagFilterLabel}
+                    options={options.tags}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="filterExpenseTypes"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.expenseTypeFilterLabel}
+                    options={EXPENSE_TYPE_OPTIONS}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="filterSources"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.sourceFilterLabel}
+                    options={SOURCE_OPTIONS}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="filterPaymentMethods"
+                render={({ field }) => (
+                  <OptionsAutocomplete
+                    label={m.settings.dashboards.config.paymentMethodFilterLabel}
+                    options={PAYMENT_METHOD_OPTIONS}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                <Controller
+                  control={control}
+                  name="filterPending"
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          size="small"
+                          checked={field.value ?? false}
+                          onChange={field.onChange}
+                        />
+                      }
+                      label={m.settings.dashboards.config.pendingLabel}
+                      sx={switchLabelSx}
+                    />
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="filterFavorite"
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          size="small"
+                          checked={field.value ?? false}
+                          onChange={field.onChange}
+                        />
+                      }
+                      label={m.settings.dashboards.config.favoriteLabel}
+                      sx={switchLabelSx}
+                    />
+                  )}
+                />
+              </Box>
             </Stack>
           </AccordionDetails>
         </Accordion>

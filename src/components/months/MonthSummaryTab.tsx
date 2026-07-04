@@ -3,13 +3,14 @@
 // Envolvido em <Suspense> pelo page.tsx.
 
 import { MonthSummary } from "@/components/dashboards/monthly/MonthSummary";
+import { requireAccountAccess } from "@/server/auth/session";
+import { prisma } from "@/server/prisma";
 import {
   getMonthSummaryData,
   getMonthCategories,
   getMonthInstitutions,
-  getMonthMembers,
 } from "@/server/queries/month-page";
-import { requireAccountAccess } from "@/server/auth/session";
+import { partyDisplayMap } from "@/server/queries/responsible-party-filter";
 
 type Props = {
   accountId: string;
@@ -32,7 +33,7 @@ export async function MonthSummaryTab({
 }: Props) {
   const { user } = await requireAccountAccess(accountId);
 
-  const [data, categories, institutions, membersRaw] = await Promise.all([
+  const [data, categories, institutions, partyNames, accountTags] = await Promise.all([
     getMonthSummaryData(
       accountId,
       monthId,
@@ -44,15 +45,16 @@ export async function MonthSummaryTab({
     ),
     getMonthCategories(accountId),
     getMonthInstitutions(accountId),
-    getMonthMembers(accountId),
+    // Parte A / A1: opções de "responsável" por partyId (todas as kinds de persona).
+    partyDisplayMap(accountId),
+    prisma.tag.findMany({
+      where: { accountId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
-  const members = membersRaw.map((m) => ({
-    id: m.user.id,
-    name: m.user.name,
-    email: m.user.email,
-    image: m.user.image,
-  }));
+  const parties = [...partyNames.entries()].map(([id, name]) => ({ id, name }));
 
   return (
     <MonthSummary
@@ -75,7 +77,8 @@ export async function MonthSummaryTab({
       filterOptions={{
         categories: categories.map((c) => ({ id: c.id, name: c.name })),
         institutions: institutions.map((i) => ({ id: i.id, name: i.name })),
-        members: members.map((m) => ({ id: m.id, name: m.name ?? m.email })),
+        parties,
+        tags: accountTags,
       }}
     />
   );

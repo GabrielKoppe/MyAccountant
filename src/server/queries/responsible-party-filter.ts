@@ -21,12 +21,41 @@ export async function personalPartyIdsForUsers(
 }
 
 /**
+ * Resolve os valores do filtro "responsible" para `responsiblePartyId`s da Account.
+ *
+ * Semântica canônica (Parte A / A1): os valores são `partyId`s — cobrindo TODAS as kinds
+ * de persona (personal/group/external), igual ao drawer do mês. Fallback de legado: valores
+ * que forem `userId` de membro são traduzidos para a sua party `personal` (configs de widget
+ * salvas antes da unificação guardavam userIds). Assim configs antigas continuam funcionando
+ * sem migração e configs novas usam partyId direto.
+ * Multi-tenancy: só resolve parties/links da própria Account.
+ */
+export async function responsiblePartyIdsForFilter(
+  accountId: string,
+  values: string[] | undefined | null,
+): Promise<string[]> {
+  if (!values || values.length === 0) return [];
+  const [parties, legacyLinks] = await Promise.all([
+    prisma.responsibleParty.findMany({
+      where: { accountId, id: { in: values } },
+      select: { id: true },
+    }),
+    prisma.responsiblePartyMember.findMany({
+      where: { userId: { in: values }, party: { accountId, kind: "personal" } },
+      select: { partyId: true },
+    }),
+  ]);
+  const ids = new Set<string>();
+  parties.forEach((p) => ids.add(p.id));
+  legacyLinks.forEach((l) => ids.add(l.partyId));
+  return [...ids];
+}
+
+/**
  * Mapa userId (membro) → id da sua party `personal` na Account. Usado na importação CSV,
  * que mapeia células de texto para membros (userIds) e precisa gravar `responsiblePartyId`.
  */
-export async function personalPartyMapForAccount(
-  accountId: string,
-): Promise<Map<string, string>> {
+export async function personalPartyMapForAccount(accountId: string): Promise<Map<string, string>> {
   const links = await prisma.responsiblePartyMember.findMany({
     where: { party: { accountId, kind: "personal" } },
     select: { userId: true, partyId: true },
