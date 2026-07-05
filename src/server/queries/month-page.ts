@@ -18,6 +18,7 @@ import { getBudgetsWithProgress } from "@/server/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
 import { getKpiCustomDataMap } from "@/server/queries/kpi-custom";
 import { getFilteredTransactionsMap } from "@/server/queries/filtered-transactions";
+import { listChecklistForMonth } from "@/server/services/checklist-service";
 import { generateInsights } from "@/server/services/insights-service";
 import { serializeTransaction } from "@/lib/serializers/transaction";
 import type { TransactionRow } from "@/components/transactions/types";
@@ -137,6 +138,7 @@ export type MonthSummaryTabData = {
   summaryWidgets: Awaited<ReturnType<typeof getLayout>>;
   kpiCustomDataMap: Awaited<ReturnType<typeof getKpiCustomDataMap>>;
   filteredTransactionsMap: Awaited<ReturnType<typeof getFilteredTransactionsMap>>;
+  checklistItems: Awaited<ReturnType<typeof listChecklistForMonth>>;
   insights: Awaited<ReturnType<typeof generateInsights>> | null;
   isCurrentMonth: boolean;
 };
@@ -189,10 +191,14 @@ export const getMonthSummaryData = cache(
       }),
     ]);
 
-    // Dados de widgets que dependem do layout já resolvido
-    const [kpiCustomDataMap, filteredTransactionsMap] = await Promise.all([
+    // Dados de widgets que dependem do layout já resolvido.
+    // Checklist é GATED: só consulta se o widget estiver visível no layout
+    // (defaultVisible:false → maioria das accounts não o tem). Ver §3.9 item 5.
+    const hasChecklist = summaryWidgets.some((w) => w.widgetId === "checklist" && w.visible);
+    const [kpiCustomDataMap, filteredTransactionsMap, checklistItems] = await Promise.all([
       getKpiCustomDataMap(accountId, summaryWidgets, [monthId]),
       getFilteredTransactionsMap(accountId, summaryWidgets, monthId),
+      hasChecklist ? listChecklistForMonth(accountId, monthId) : Promise.resolve([]),
     ]);
 
     const monthTotalRaw = calculateMonthTotal(sections, sectionTotalsRaw);
@@ -290,6 +296,7 @@ export const getMonthSummaryData = cache(
       summaryWidgets,
       kpiCustomDataMap,
       filteredTransactionsMap,
+      checklistItems,
       insights,
       isCurrentMonth,
     };

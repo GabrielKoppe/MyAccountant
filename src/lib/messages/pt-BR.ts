@@ -142,6 +142,7 @@ export const messages = {
       analyses: "Análises Salvas",
       members: "Membros",
       responsibles: "Responsáveis",
+      checklist: "Checklist mensal",
       account: "Conta",
       visualization: "Visualização",
       dashboards: {
@@ -371,6 +372,24 @@ export const messages = {
       deleteConfirm:
         "Tem certeza que deseja deletar esta instituição? Transações associadas mantêm o histórico.",
       noInstitutions: "Nenhuma instituição cadastrada.",
+    },
+    checklist: {
+      title: "Checklist mensal",
+      subtitle:
+        "Tarefas recorrentes que se repetem todo mês (ex.: pagar aluguel, conferir fatura). O estado de conclusão zera a cada mês.",
+      createButton: "Nova tarefa",
+      addPlaceholder: "Adicionar tarefa…",
+      labelLabel: "Descrição",
+      labelRequired: "Descrição obrigatória",
+      deleteTitle: "Excluir tarefa",
+      deleteConfirm:
+        "Tem certeza que deseja excluir esta tarefa? Ela some de todos os meses (o histórico de conclusão é perdido).",
+      created: "Tarefa criada.",
+      updated: "Tarefa atualizada.",
+      deleted: "Tarefa excluída.",
+      empty: "Nenhuma tarefa cadastrada.",
+      moveUp: "Mover para cima",
+      moveDown: "Mover para baixo",
     },
     responsibleParties: {
       title: "Responsáveis",
@@ -1006,6 +1025,7 @@ export const messages = {
         insights: "Insights",
         "kpi-custom": "Indicador Personalizado",
         "filtered-transactions": "Transações Filtradas",
+        checklist: "Checklist do Mês",
         // Spec 38
         "kpi-pending": "Transações Pendentes",
         "kpi-transaction-count": "Volume de Transações",
@@ -1069,11 +1089,35 @@ export const messages = {
           insights: "Destaques automáticos: picos, metas em risco e categorias novas",
           "kpi-custom": "Indicador de uma métrica à sua escolha",
           "filtered-transactions": "Lista de transações de um recorte filtrado",
+          checklist: "Tarefas recorrentes a concluir no mês",
           // Spec 38
           "kpi-pending": "Transações aguardando confirmação no mês",
           "kpi-transaction-count": "Quantidade de transações no período",
         },
       },
+    },
+    checklistWidget: {
+      addPlaceholder: "Adicionar tarefa…",
+      addAria: "Adicionar tarefa",
+      empty: "Nenhuma tarefa configurada.",
+      emptyEditor: "Nenhuma tarefa ainda. Adicione a primeira abaixo.",
+      completedBy: (name: string) => `Concluída por ${name}`,
+      completedByUnknown: "Concluída",
+      addError: "Não foi possível adicionar a tarefa.",
+      toggleError: "Não foi possível atualizar a tarefa.",
+      // Vínculo de transação
+      linkAction: "Vincular transação",
+      unlinkAction: "Desvincular transação",
+      linkDialogTitle: "Vincular transação",
+      linkSearchPlaceholder: "Buscar transação do mês…",
+      linkNoResults: "Nenhuma transação neste mês.",
+      linkConfirm: "Vincular",
+      linkHint: "Vincular marca a tarefa como concluída.",
+      linked: "Transação vinculada.",
+      unlinked: "Vínculo removido.",
+      linkError: "Não foi possível vincular a transação.",
+      unlinkError: "Não foi possível remover o vínculo.",
+      linkedNoDescription: "Sem descrição",
     },
     sandbox: {
       title: "Sandbox de Análise",

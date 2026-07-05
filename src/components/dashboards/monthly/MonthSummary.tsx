@@ -32,6 +32,8 @@ import {
   type FilterOption,
 } from "@/components/dashboards/panels/FilteredTransactionsWidget";
 import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
+import { ChecklistWidget } from "@/components/dashboards/panels/ChecklistWidget";
+import type { ChecklistMonthItem } from "@/server/services/checklist-service";
 import type { ReactNode } from "react";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 type SectionItem = {
@@ -67,6 +69,8 @@ type Props = {
   widgets: StoredWidget[];
   kpiCustomData: Record<string, KpiCustomResult>;
   filteredTransactionsData: Record<string, TxRow[]>;
+  checklistItems: ChecklistMonthItem[];
+  canEdit: boolean;
   // Opções para resolver IDs de filtros em nomes legíveis no subtitle do filtered-transactions
   filterOptions?: {
     categories?: FilterOption[];
@@ -93,6 +97,8 @@ export function MonthSummary({
   widgets,
   kpiCustomData,
   filteredTransactionsData,
+  checklistItems,
+  canEdit,
   filterOptions,
   // Spec 38
   transactionCount,
@@ -228,6 +234,17 @@ export function MonthSummary({
         insights={insights}
         renderMode={
           getRenderMode(widgets, "month_summary", "insights") as "compact" | "default" | "full"
+        }
+      />
+    ),
+    checklist: (
+      <ChecklistWidget
+        accountId={accountId}
+        monthId={monthId}
+        items={checklistItems}
+        canEdit={canEdit}
+        renderMode={
+          getRenderMode(widgets, "month_summary", "checklist") as "compact" | "default" | "full"
         }
       />
     ),

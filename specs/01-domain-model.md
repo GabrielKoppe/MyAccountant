@@ -22,6 +22,7 @@ User ─┬─< AccountMember >─┬─ Account ──┬──< Month ──< 
                                        ├──< CsvTemplate
                                        ├──< TableTemplate ──< TableTemplateItem
                                        ├──< SavedAnalysis             (sandbox)
+                                       ├──< ChecklistItem ──< ChecklistCompletion >── Month
                                        └──── AccountSettings (1:1)
 
 User ──── UserSettings (1:1)
@@ -426,6 +427,44 @@ Item (transação recorrente) pertencente a um `TableTemplate`.
 - Deletar o `TableTemplate` pai deleta os itens em cascata.
 - `accountId` desnormalizado para facilitar queries multi-tenant.
 
+### 3.18 `ChecklistItem`
+
+Tarefa recorrente do checklist mensal, compartilhada pela Account (template). Aparece em qualquer mês; ver widget `checklist` no spec 36.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | `String` (cuid) | PK |
+| `accountId` | `String` | FK → Account |
+| `label` | `String` | único por Account (`@@unique([accountId, label])`) |
+| `position` | `Int` | ordem de exibição |
+| `createdById` | `String` | FK → User |
+| `createdAt` | `DateTime` | |
+| `updatedAt` | `DateTime` | |
+
+**Regras**:
+- Deletar o item remove suas `ChecklistCompletion` em cascata (some de todos os meses).
+- Add/rename/reorder/delete é papel **owner/editor** (viewer read-only).
+
+### 3.19 `ChecklistCompletion`
+
+Estado de conclusão de um `ChecklistItem` num `Month` específico. **Linha presente = concluído; ausência = pendente** — o toggle é create/delete, e o reset por mês é grátis (não há coluna de âncora de mês).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | `String` (cuid) | PK |
+| `accountId` | `String` | FK → Account (desnormalizado p/ filtro tenant) |
+| `itemId` | `String` | FK → ChecklistItem (cascade) |
+| `monthId` | `String` | FK → Month (cascade) |
+| `completedById` | `String` | FK → User |
+| `transactionId` | `String?` | FK → Transaction, **`onDelete: SetNull`** — vínculo unilateral opcional (a transação que cumpriu a tarefa no mês) |
+| `createdAt` | `DateTime` | |
+
+**Regras**:
+- `@@unique([itemId, monthId])` — no máximo uma linha por item por mês. Toggle on = `upsert`; off = `deleteMany` (idempotente, evita P2002).
+- Guarda tenant **write-time**: `toggleCompletion` verifica `item.accountId === ctx.accountId` **E** `month.accountId === ctx.accountId` antes de inserir (itemId/monthId forjado não pode criar completion cross-tenant).
+- Cascade em delete de item/month/account.
+- **Vínculo de transação (unilateral)**: o vínculo mora só neste lado (o FK está em `checklist_completions`; a tabela `transactions` não ganha coluna). `linkTransaction` verifica item, mês **e** transação ∈ account, exige `tx.monthId === monthId`, e faz `upsert` da conclusão com `transactionId` → **vincular marca concluído**. `unlinkTransaction` zera `transactionId` mantendo a conclusão. Deletar a transação (`onDelete: SetNull`) apenas limpa o vínculo.
+
 ## 4. Diagrama (referência visual)
 
 > Vou manter a versão consolidada aqui. Quando ferramentas como `mermaid` forem usadas, este bloco é a referência.
@@ -482,3 +521,5 @@ Para histórico, decisões tomadas em relação aos rascunhos anteriores (`sql_m
 | 2026-06-02 | `SavedAnalysis` recebeu campos `isPinned`, `pinnedOrder` e `dashboardContext` — suporte a fixar análises no dashboard mensal/anual. |
 | 2026-06-02 | Novas entidades `TableTemplate` + `TableTemplateItem` — modelos de tabela com transações recorrentes. Novo valor `template` em `TableSourceMethod`. |
 | 2026-06-02 | `UserSettings.accentColor` — preferência de cor de destaque por usuário (10 presets). |
+| 2026-07-04 | Novas entidades `ChecklistItem` (template recorrente por Account) + `ChecklistCompletion` (estado por mês, linha-presente = concluído). Suportam o widget `checklist` exclusivo do Resumo do Mês (spec 36). Migração `add_monthly_checklist`. |
+| 2026-07-05 | `ChecklistCompletion.transactionId` (FK opcional → Transaction, `onDelete: SetNull`) — vínculo unilateral de uma transação a um item do checklist (vincular marca concluído). Migração `checklist_completion_transaction_link`. |

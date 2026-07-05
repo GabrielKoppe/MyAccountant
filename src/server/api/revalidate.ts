@@ -40,6 +40,11 @@ export function revalidateTableTypes(accountId: string) {
   revalidatePath(`/${accountId}/settings/table-types`);
 }
 
+/** Revalida o template do checklist mensal (settings). */
+export function revalidateChecklist(accountId: string) {
+  revalidatePath(`/${accountId}/settings/checklist`);
+}
+
 /** Revalida configurações gerais da account. */
 export function revalidateGeneralSettings(accountId: string) {
   revalidatePath(`/${accountId}/settings/general`);

@@ -449,6 +449,7 @@ O `configSchema` não pode ser embutido no Zod do layout (depende do `widgetId` 
 | `analysis` | ✅ | ✅ | ❌ | false | **true** |
 | `kpi-custom` | ✅ | ✅ | ✅ | false | **true** |
 | `filtered-transactions` | ❌ | ❌ | ✅ | false | **true** |
+| `checklist` | ❌ | ❌ | ✅ | false | false |
 
 ### 7.5 Renderização em CSS Grid
 
@@ -519,6 +520,25 @@ export function InsightsWidget({ data, renderMode }: InsightsWidgetProps) {
 // ❌ Anti-padrão — variante maior que só infla espaçamento sem adicionar conteúdo
 // sx={{ p: renderMode === 'expanded' ? 6 : 2 }}  // não acrescenta informação
 ```
+
+### 7.7 Widget `checklist` — singleton exclusivo do `month_summary`
+
+Lista de tarefas recorrentes do mês. **Singleton** (`instantiable: false`, sem `configSchema`), `defaultVisible: false`, registrado **apenas** em `month_summary` — o enforcement é end-to-end via `resolveLayout`/`upsertLayout` (widgetId ausente do catálogo de um contexto é descartado). Dados vêm de `ChecklistItem`/`ChecklistCompletion` (spec 01 §3.18–3.19).
+
+- **Variantes** — reutiliza `ACTIVITY_ITEM_VARIANTS` (mesmo padrão visual de lista compacta das listas Pendentes/Favoritas): `compact` 1×2, `default` 2×3, `large` (`renderMode: "full"`) 3×3. Progresso vira **badge `X/N`** no header (verde quando 100%), não barra. Linhas densas (`caption`), hover sutil.
+- **`full`** adiciona a data de conclusão (`dd/MM`) à direita da linha concluída, com o nome de quem concluiu no tooltip.
+- **Add-inline** (`default`/`full`, owner/editor): grava no template recorrente (B1); não-otimista (o item aparece após `revalidateMonth`). **Exclusão de item NÃO fica no widget** — é ação de escopo-conta (afeta todos os meses), então mora só em Configurações com dialog de confirmação.
+- **Vínculo de transação (unilateral)**: cada item pode apontar para uma transação do mês (a que cumpriu a tarefa). Botão de vincular (hover) abre um picker simples das transações do próprio mês; **vincular marca o item como concluído** (o vínculo vive em `ChecklistCompletion.transactionId`). A transação vinculada aparece na linha por densidade: nos tamanhos compact/default, um chip enxuto com o valor (descrição no tooltip) e remover (`onDelete`); no tamanho grande (full), a linha ganha estrutura em dois níveis — linha 1 com valor (monospace, colorido por sinal) e desvincular no hover; subtítulo com `descrição · DD/MM · quem concluiu`. Itens concluídos sem vínculo também usam o subtítulo (`concluída por · data`) no full, densificando a lista sem inflar tipografia/espaçamento. Desvincular mantém concluído. Só no lado do checklist — a transação não guarda nada (`onDelete: SetNull`).
+- **Papel**: owner/editor togglam/adicionam/vinculam; viewer é read-only (checkboxes desabilitados, sem vincular/desvincular — `canEdit` propagado do RSC).
+
+### 7.8 Precedente: widgets que MUTAM dados
+
+O `checklist` é o **primeiro widget bem-formado que grava dados** (o `ActivityWidget` já mutava, mas com anti-padrão: `useState(props)` sem revalidate → drift; marcá-lo como legado a migrar). O padrão canônico a seguir (detalhado no skill `dashboard-widgets`):
+
+1. **Dados via RSC, carregamento GATED** — a query (`listChecklistForMonth`) só roda quando o widget está **visível** no layout resolvido, dentro do `Promise.all` de `getMonthSummaryData` (espelha `getFilteredTransactionsMap`). Widget `defaultVisible: false` ⇒ a maioria das accounts não paga o custo.
+2. **Fluxo de mutação**: componente cliente → Server Action (`defineAction`, `requireRoles: [owner, editor]`) → service → **`revalidateMonth` na ACTION, nunca no service**.
+3. **Feedback otimista com `useOptimistic(props)`** (base = prop do RSC; `revalidateMonth` reconcilia) — **proibido `useState(props)`**. Erro da action (`{ ok: false }`, sem lançar) ocorre antes do revalidate ⇒ servidor intacto ⇒ otimista reverte ao fechar a transition.
+4. **Toggle idempotente** (`upsert`/`deleteMany` no `@@unique([itemId, monthId])`) + **guarda tenant write-time** (item **E** month ∈ account) — coberto por teste de multi-tenancy.
 
 ---
 

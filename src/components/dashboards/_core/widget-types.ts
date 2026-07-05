@@ -43,6 +43,7 @@ export const WIDGET_TYPE: Record<string, WidgetTypeKey> = {
   insights: "panel",
   "month-card-grid": "panel",
   "section-cards": "panel",
+  checklist: "panel",
 
   // Spec 38
   "kpi-budget-health": "kpi",

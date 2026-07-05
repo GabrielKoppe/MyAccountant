@@ -34,6 +34,7 @@ import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import PendingActionsIcon from "@mui/icons-material/PendingActions";
 import { default as StarOutlinedIcon } from "@mui/icons-material/Star";
 import ScheduleIcon from "@mui/icons-material/Schedule";
+import ChecklistIcon from "@mui/icons-material/Checklist";
 
 /**
  * Mapa centralizado: widget ID → componente de ícone MUI.
@@ -80,6 +81,7 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "pending-transactions": PendingActionsIcon,
   "favorite-transactions": StarOutlinedIcon,
   "recent-transactions": ScheduleIcon,
+  checklist: ChecklistIcon,
 
   // instanciáveis (spec 36 §2.3)
   analysis: AutoGraphIcon,

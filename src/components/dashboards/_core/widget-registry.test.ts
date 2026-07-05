@@ -67,6 +67,12 @@ describe("binPack — casos de borda", () => {
     });
   });
 
+  it("checklist é exclusivo do month_summary (regressão — spec 36)", () => {
+    expect(WIDGET_REGISTRY.month_summary.find((w) => w.id === "checklist")).toBeDefined();
+    expect(WIDGET_REGISTRY.monthly.find((w) => w.id === "checklist")).toBeUndefined();
+    expect(WIDGET_REGISTRY.yearly.find((w) => w.id === "checklist")).toBeUndefined();
+  });
+
   it("todos os widgets do layout inicial têm visible: true", () => {
     const result = resolveLayout("monthly", null);
     result.forEach((w) => {

@@ -125,6 +125,8 @@ model User {
   budgetsAsMember             Budget[]                 @relation("BudgetMember")
   notificationsReceived       Notification[]           @relation("NotificationRecipient")
   notificationsSent           Notification[]           @relation("NotificationActor")
+  checklistItemsCreated       ChecklistItem[]          @relation("ChecklistItemCreatedBy")
+  checklistCompletions        ChecklistCompletion[]    @relation("ChecklistCompletedBy")
 
   @@map("users")
 }
@@ -178,29 +180,31 @@ model Account {
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  creator             User                 @relation("AccountCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  members             AccountMember[]
-  invites             AccountInvite[]
-  months              Month[]
-  sections            Section[]
-  tableTypes          TableType[]
-  tables              FinanceTable[]
-  transactions        Transaction[]
-  categories          Category[]
-  subcategories       Subcategory[]
-  institutions        Institution[]
-  templates           CsvTemplate[]
-  tableModels         TableTemplate[]
-  tableModelItems     TableTemplateItem[]
-  settings            AccountSettings?
-  budgets             Budget[]
-  notifications       Notification[]
-  tags                Tag[]
-  dashboardLayouts    DashboardLayout[]
-  installmentGroups   InstallmentGroup[]
-  pendingInstallments PendingInstallment[]
-  transactionLinks    TransactionLink[]
-  responsibleParties  ResponsibleParty[]
+  creator              User                  @relation("AccountCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  members              AccountMember[]
+  invites              AccountInvite[]
+  months               Month[]
+  sections             Section[]
+  tableTypes           TableType[]
+  tables               FinanceTable[]
+  transactions         Transaction[]
+  categories           Category[]
+  subcategories        Subcategory[]
+  institutions         Institution[]
+  templates            CsvTemplate[]
+  tableModels          TableTemplate[]
+  tableModelItems      TableTemplateItem[]
+  settings             AccountSettings?
+  budgets              Budget[]
+  notifications        Notification[]
+  tags                 Tag[]
+  dashboardLayouts     DashboardLayout[]
+  installmentGroups    InstallmentGroup[]
+  pendingInstallments  PendingInstallment[]
+  transactionLinks     TransactionLink[]
+  responsibleParties   ResponsibleParty[]
+  checklistItems       ChecklistItem[]
+  checklistCompletions ChecklistCompletion[]
 
   @@map("accounts")
 }
@@ -347,10 +351,11 @@ model Month {
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  account      Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdBy    User           @relation("MonthCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  tables       FinanceTable[]
-  transactions Transaction[]
+  account              Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy            User                  @relation("MonthCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  tables               FinanceTable[]
+  transactions         Transaction[]
+  checklistCompletions ChecklistCompletion[]
 
   @@unique([accountId, year, month])
   @@index([accountId, year, month])
@@ -441,20 +446,23 @@ model Transaction {
   updatedById         String?                   @map("updated_by_id")
   updatedAt           DateTime                  @updatedAt @map("updated_at")
 
-  account          Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  month            Month             @relation(fields: [monthId], references: [id], onDelete: Cascade)
-  table            FinanceTable      @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  section          Section           @relation(fields: [sectionId], references: [id], onDelete: Restrict)
-  category         Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  subcategory      Subcategory?      @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
-  institution      Institution?      @relation(fields: [institutionId], references: [id], onDelete: SetNull)
-  responsibleParty ResponsibleParty? @relation("TransactionResponsibleParty", fields: [responsiblePartyId], references: [id], onDelete: SetNull)
-  createdBy        User              @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedBy        User?             @relation("TransactionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  tags             TransactionTag[]
-  installmentGroup InstallmentGroup? @relation(fields: [installmentGroupId], references: [id], onDelete: SetNull)
-  linksAsSource    TransactionLink[] @relation("LinkSource")
-  linksAsTarget    TransactionLink[] @relation("LinkTarget")
+  account              Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  month                Month                 @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  table                FinanceTable          @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  section              Section               @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  category             Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subcategory          Subcategory?          @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  institution          Institution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  responsibleParty     ResponsibleParty?     @relation("TransactionResponsibleParty", fields: [responsiblePartyId], references: [id], onDelete: SetNull)
+  createdBy            User                  @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy            User?                 @relation("TransactionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  tags                 TransactionTag[]
+  installmentGroup     InstallmentGroup?     @relation(fields: [installmentGroupId], references: [id], onDelete: SetNull)
+  linksAsSource        TransactionLink[]     @relation("LinkSource")
+  linksAsTarget        TransactionLink[]     @relation("LinkTarget")
+  // Back-relation do vínculo unilateral do checklist (FK vive em checklist_completions;
+  // nenhuma coluna é adicionada em transactions). onDelete: SetNull limpa o vínculo.
+  checklistCompletions ChecklistCompletion[]
 
   @@index([tableId])
   @@index([accountId, monthId])
@@ -769,4 +777,52 @@ model TransactionLink {
   @@index([targetId])
   @@index([accountId])
   @@map("transaction_links")
+}
+
+// =========================================
+// Domain — Monthly Checklist (Spec 36 — widget month_summary)
+// =========================================
+
+// Template recorrente compartilhado pela Account. Aparece em qualquer mês.
+model ChecklistItem {
+  id          String   @id @default(cuid())
+  accountId   String   @map("account_id")
+  label       String
+  position    Int
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  account     Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy   User                  @relation("ChecklistItemCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  completions ChecklistCompletion[]
+
+  @@unique([accountId, label])
+  @@index([accountId])
+  @@map("checklist_items")
+}
+
+// Estado de conclusão por mês. Linha presente = concluído; ausência = pendente.
+model ChecklistCompletion {
+  id            String   @id @default(cuid())
+  accountId     String   @map("account_id")
+  itemId        String   @map("item_id")
+  monthId       String   @map("month_id")
+  completedById String   @map("completed_by_id")
+  // Vínculo unilateral opcional a uma transação (a que cumpriu a tarefa no mês).
+  // onDelete SetNull: deletar a transação limpa o vínculo, não a conclusão.
+  transactionId String?  @map("transaction_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  account     Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  item        ChecklistItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  month       Month         @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  completedBy User          @relation("ChecklistCompletedBy", fields: [completedById], references: [id], onDelete: Restrict)
+  transaction Transaction?  @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([itemId, monthId])
+  @@index([accountId])
+  @@index([monthId])
+  @@index([transactionId])
+  @@map("checklist_completions")
 }
