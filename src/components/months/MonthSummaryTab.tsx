@@ -28,7 +28,7 @@ export async function MonthSummaryTab({
   monthMonth,
   prevMonthId,
   allMonthIds,
-  canEdit: _canEdit,
+  canEdit,
 }: Props) {
   const { user } = await requireAccountAccess(accountId);
 
@@ -71,6 +71,8 @@ export async function MonthSummaryTab({
       widgets={data.summaryWidgets}
       kpiCustomData={data.kpiCustomDataMap}
       filteredTransactionsData={data.filteredTransactionsMap}
+      checklistItems={data.checklistItems}
+      canEdit={canEdit}
       insights={data.insights ?? []}
       filterOptions={{
         categories: categories.map((c) => ({ id: c.id, name: c.name })),

@@ -654,6 +654,69 @@ const tooltipStyle = {
 
 ---
 
+## Widgets que MUTAM dados
+
+A maioria dos widgets é read-only. Quando um widget precisa **gravar** (ex.: `checklist` — spec 36 §7.7/7.8, o primeiro widget bem-formado que muta), siga este padrão. **Não** copie o `ActivityWidget` — ele muta com anti-padrão (`useState(props)` sem revalidate → drift; é legado a migrar).
+
+**1. Dados via RSC, carregamento GATED.** A query só roda quando o widget está **visível** no layout resolvido, dentro do `Promise.all` da query da página (espelha `getFilteredTransactionsMap`). Widget novo é `defaultVisible: false` ⇒ a maioria das accounts não deve pagar o custo da query.
+
+```ts
+const hasChecklist = summaryWidgets.some((w) => w.widgetId === "checklist" && w.visible);
+const [/* ... */, checklistItems] = await Promise.all([
+  /* ... */,
+  hasChecklist ? listChecklistForMonth(accountId, monthId) : Promise.resolve([]),
+]);
+```
+
+**2. Revalidação na ACTION, nunca no service.** Sem isso o widget mostra estado velho por Router Cache. Use os helpers de `@/server/api/revalidate.ts` (modo "page", nunca "layout"). Não use `revalidateTag` (o repo não usa tag-cache) nem misture `router.refresh()` com `revalidatePath`.
+
+```ts
+export const toggleChecklistCompletionAction = defineAction({
+  schema: toggleChecklistCompletionSchema,
+  requireRoles: ["owner", "editor"],   // viewer read-only
+  handler: async (input, ctx) => {
+    await checklistService.toggleChecklistCompletion(input, ctx);
+    revalidateMonth(ctx.accountId, input.monthId);   // ← na action
+  },
+});
+```
+
+**3. Feedback com `useOptimistic(props)` + `startTransition`.** PROIBIDO `useState(props)` (não re-hidrata, drifta). A base do otimista é a prop vinda do RSC; `revalidateMonth` reconcilia sozinho (sem `useEffect`/`key` remount). Em erro, `defineAction` retorna `{ ok: false }` (não lança) **antes** do revalidate ⇒ servidor intacto ⇒ o otimista reverte ao fechar a transition. Snackbar via notistack/`useActionFeedback`.
+
+```tsx
+const [optimisticItems, applyToggle] = useOptimistic(items, (state, u) =>
+  state.map((it) => (it.id === u.itemId ? { ...it, done: u.done } : it)),
+);
+function toggle(item, done) {
+  startTransition(async () => {
+    applyToggle({ itemId: item.id, done });
+    const res = await toggleAction(accountId, { itemId: item.id, monthId, done });
+    if (!res.ok) enqueueSnackbar(msg.error, { variant: "error" });
+  });
+}
+```
+
+**4. Toggle idempotente + guarda tenant write-time.** `on = upsert` no `@@unique`; `off = deleteMany` (evita P2002 em double-click). O service verifica que **todas** as FKs do input (ex.: item **E** month) pertencem a `ctx.accountId` **antes** de gravar — senão um id forjado cria linha cross-tenant. Cobrir com teste de multi-tenancy (mutation sempre tem teste).
+
+**5. Gating de papel.** Mutações com `requireRoles: ["owner", "editor"]`; propague `canEdit` do RSC ao componente para desabilitar controles do viewer (checkbox `disabled`, esconder add/delete).
+
+**Contexto → helper de revalidação** (`@/server/api/revalidate.ts`):
+
+| Escopo da mutação | Helper |
+|---|---|
+| Estado de um mês (toggle, transação) | `revalidateMonth(accountId, monthId)` |
+| Template/config account-scoped (settings) | `revalidate<Entidade>(accountId)` (ex.: `revalidateChecklist`) |
+| Mutação inline no widget que afeta ambos | chamar os dois (ex.: create com `monthId` opcional → `revalidateChecklist` + `revalidateMonth`) |
+
+**Custos e trade-offs (leia antes de copiar o padrão):**
+
+- **Cada mutação custa um recomputo full-page.** `revalidateMonth` re-executa **todo** o `getMonthSummaryData` (seções, totais, budgets, varredura de transações, insights). Uma marcação de checkbox paga o recomputo mais caro da aba. É o preço aceito do `revalidatePath` page-level (tag-cache foi rejeitado). Widgets-que-mutam de **alta frequência** são o gatilho para reavaliar revalidação por tag — até lá, é overengineering.
+- **`isPending` compartilhado serializa toda a interação do widget.** Um único `useTransition` governa o `disabled` de todos os controles → marcar um item bloqueia o widget inteiro até o round-trip. Intencional (fecha corrida de double-toggle), mas em listas grandes considere pending por-item.
+- **Otimismo só onde compensa.** No checklist, só o *toggle* é otimista (frequente, alto valor de feedback); *add/delete* são round-trip puro (insert otimista exigiria id temporário — complexidade sem ganho proporcional). Deixe explícito no componente para o próximo não achar que foi esquecimento.
+- **Ação destrutiva de escopo-conta não vai no widget.** Deletar um template recorrente (afeta todos os meses) fica na página de configurações, atrás de `<DialogShell>` de confirmação — não como delete-on-hover no tile do dashboard (footgun).
+
+---
+
 ## Referência de arquivos
 
 | Arquivo | Papel |

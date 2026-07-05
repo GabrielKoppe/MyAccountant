@@ -163,6 +163,18 @@ Gerencia os **tipos de tabela** da Account. Cada tipo define quais colunas ficam
 
 **Criar/Editar template**: ver `10-csv-xlsx-import.md`.
 
+### 4.7 Checklist mensal (`/settings/checklist`)
+
+Gerencia o **template de tarefas recorrentes** (`ChecklistItem`) compartilhado pela Account. Alimenta o widget `checklist` do Resumo do Mês (spec 36); o estado de conclusão zera a cada mês.
+
+**Listagem**: itens ordenados por `position`, com setas mover-para-cima/baixo (mesmo padrão de Seções).
+
+**Criar/Editar**: descrição (`label`, única por Account, máx. 120 chars).
+
+**Deletar**: confirmação simples. Remove o item e suas conclusões de **todos os meses** em cascata.
+
+**Acesso**: owner/editor (viewer não vê o link). O add/toggle/delete inline do próprio widget também é gated a owner/editor.
+
 ## 5. Defaults ao criar Account
 
 Quando uma Account é criada (ver `04-accounts-and-members.md` §4.1), o sistema pré-popula:

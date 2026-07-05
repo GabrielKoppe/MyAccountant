@@ -595,6 +595,16 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       defaultVisible: false,
     },
     {
+      // Singleton exclusivo do Resumo do Mês (Spec 36). Sem configSchema.
+      // Mesmas variantes das listas de atividade (pendentes/favoritas) — mesmo
+      // padrão visual de lista compacta: compact 1×2, default 2×3, large 3×3.
+      id: "checklist",
+      labelKey: "checklist",
+      kind: "panel",
+      sizeVariants: ACTIVITY_ITEM_VARIANTS,
+      defaultVisible: false,
+    },
+    {
       id: "kpi-custom",
       labelKey: "kpiCustom",
       kind: "kpi",
