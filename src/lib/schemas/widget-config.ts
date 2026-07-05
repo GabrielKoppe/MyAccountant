@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+import {
+  EXPENSE_TYPE_VALUES,
+  SOURCE_VALUES,
+  PAYMENT_METHOD_VALUES,
+  idArrayField,
+  enumArrayField,
+  boolFilterField,
+} from "@/lib/transaction-filters/fields";
+
 import { SANDBOX_METRICS } from "./sandbox";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,13 +59,19 @@ export const kpiCustomConfigSchema = z.object({
 export type KpiCustomConfig = z.infer<typeof kpiCustomConfigSchema>;
 
 // filtered-transactions: reutiliza a estrutura de filtros do mês
-// (MonthFilterState: categorias, instituições, responsáveis, pendente, favorita) + limite.
+// (MonthFilterState: categorias, instituições, responsáveis, pendente, favorita, tipos de
+// transação, origens, tags, método de pagamento) + limite. Paridade de filtros (Parte A).
+// `responsible` guarda partyIds (todas as kinds de persona) — ver responsiblePartyIdsForFilter.
 export const filteredTransactionsConfigSchema = z.object({
-  categories: z.array(z.string()).default([]),
-  institutions: z.array(z.string()).default([]),
-  responsible: z.array(z.string()).default([]),
-  pending: z.boolean().default(false),
-  favorite: z.boolean().default(false),
+  categories: idArrayField(),
+  institutions: idArrayField(),
+  responsible: idArrayField(),
+  pending: boolFilterField(),
+  favorite: boolFilterField(),
+  expenseTypes: enumArrayField(EXPENSE_TYPE_VALUES),
+  sources: enumArrayField(SOURCE_VALUES),
+  paymentMethods: enumArrayField(PAYMENT_METHOD_VALUES),
+  tags: idArrayField(),
   // 0 = sem limite (busca todas)
   limit: z.union([z.literal(0), z.literal(5), z.literal(10), z.literal(20)]).default(10),
 });

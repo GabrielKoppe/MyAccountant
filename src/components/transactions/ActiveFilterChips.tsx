@@ -1,12 +1,12 @@
 "use client";
 
+import ClearIcon from "@mui/icons-material/Clear";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import ClearIcon from "@mui/icons-material/Clear";
 
-import { m } from "@/lib/messages";
 import { useMonthFilters } from "@/components/months/MonthFilterContext";
 import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
+import { m } from "@/lib/messages";
 
 export function ActiveFilterChips() {
   const { filters, setFilters, clearFilters, options, isActive } = useMonthFilters();
@@ -141,6 +141,21 @@ export function ActiveFilterChips() {
           size="small"
           onDelete={() =>
             setFilters({ ...filters, sources: filters.sources.filter((s) => s !== src) })
+          }
+          sx={chipSx}
+        />
+      ))}
+
+      {filters.paymentMethods.map((method) => (
+        <Chip
+          key={method}
+          label={label("Método", m.transactions.paymentMethods[method])}
+          size="small"
+          onDelete={() =>
+            setFilters({
+              ...filters,
+              paymentMethods: filters.paymentMethods.filter((pm) => pm !== method),
+            })
           }
           sx={chipSx}
         />

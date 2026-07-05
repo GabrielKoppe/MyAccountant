@@ -306,16 +306,18 @@ Toda Server Action:
 
 ## 7. Filtros e busca
 
-**Dentro da FinanceTable** (UI top da tabela):
-- Search por descrição (case insensitive, contains).
-- Filtro por categoria.
-- Filtro por instituição.
-- Filtro por status (pendente / favorita).
-- Filtro por range de datas.
+**Search por descrição** (case insensitive, contains) — por tabela, efêmero. Ver [spec 19](19-transaction-search-filter-sort.md).
 
-**Implementação MVP**: client-side filtering (transactions já estão carregadas).
+**Filtros globais por página** — conjunto nivelado (V2) de **9 campos filtráveis**, com paridade entre as
+três superfícies de filtro (drawer do mês, widget `filtered-transactions`, widget `analysis`):
+`categorias, instituições, responsável (por `responsiblePartyId`), pendentes, favoritas, tipo de
+transação (expenseType), origem (source), tags, método de pagamento (paymentMethod)`.
 
-> Se tabela tiver > 500 transações, mover para server-side. Improvável no MVP.
+- Fonte única dos campos: `src/lib/transaction-filters/fields.ts`. Contrato + semântica + assimetria
+  de execução (drawer client-side vs widgets server-side) documentados em [spec 19](19-transaction-search-filter-sort.md).
+- **Implementação drawer**: client-side filtering (transactions já carregadas). Widgets: `where` Prisma.
+
+> Se tabela tiver > 500 transações, mover para server-side. Ver spec 56 (paginação).
 
 ## 8. Importação como criação em massa
 

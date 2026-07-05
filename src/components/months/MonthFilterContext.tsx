@@ -1,8 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import type {
+  TransactionExpenseType,
+  TransactionPaymentMethod,
+  TransactionSource,
+} from "@prisma/client";
 import { useRouter } from "next/navigation";
-import type { TransactionExpenseType, TransactionSource } from "@prisma/client";
+import { createContext, useCallback, useContext, useState } from "react";
+
 import type {
   CategoryOption,
   InstitutionOption,
@@ -19,6 +24,7 @@ export type MonthFilterState = {
   expenseTypes: TransactionExpenseType[];
   sources: TransactionSource[];
   tagIds: string[];
+  paymentMethods: TransactionPaymentMethod[];
 };
 
 export const EMPTY_FILTERS: MonthFilterState = {
@@ -30,6 +36,7 @@ export const EMPTY_FILTERS: MonthFilterState = {
   expenseTypes: [],
   sources: [],
   tagIds: [],
+  paymentMethods: [],
 };
 
 export function hasActiveFilters(filters: MonthFilterState): boolean {
@@ -41,7 +48,8 @@ export function hasActiveFilters(filters: MonthFilterState): boolean {
     filters.favorite ||
     filters.expenseTypes.length > 0 ||
     filters.sources.length > 0 ||
-    filters.tagIds.length > 0
+    filters.tagIds.length > 0 ||
+    filters.paymentMethods.length > 0
   );
 }
 
@@ -54,7 +62,8 @@ export function countActiveFilters(filters: MonthFilterState): number {
     (filters.favorite ? 1 : 0) +
     (filters.expenseTypes.length > 0 ? 1 : 0) +
     (filters.sources.length > 0 ? 1 : 0) +
-    (filters.tagIds.length > 0 ? 1 : 0)
+    (filters.tagIds.length > 0 ? 1 : 0) +
+    (filters.paymentMethods.length > 0 ? 1 : 0)
   );
 }
 
@@ -83,6 +92,11 @@ export function applyGlobalFilters(
     if (filters.sources.length > 0 && !filters.sources.includes(row.source as TransactionSource))
       return false;
     if (filters.tagIds.length > 0 && !row.tags.some((t) => filters.tagIds.includes(t.id)))
+      return false;
+    if (
+      filters.paymentMethods.length > 0 &&
+      !filters.paymentMethods.includes(row.paymentMethod as TransactionPaymentMethod)
+    )
       return false;
     return true;
   });
@@ -183,6 +197,12 @@ export function MonthFilterProvider({
         params.set("tagIds", newFilters.tagIds.join(","));
       } else {
         params.delete("tagIds");
+      }
+
+      if (newFilters.paymentMethods.length > 0) {
+        params.set("paymentMethods", newFilters.paymentMethods.join(","));
+      } else {
+        params.delete("paymentMethods");
       }
 
       const qs = params.toString();

@@ -1,9 +1,23 @@
-import type { Prisma, SectionCountType } from "@prisma/client";
+import type {
+  Prisma,
+  SectionCountType,
+  TransactionExpenseType,
+  TransactionSource,
+  TransactionPaymentMethod,
+} from "@prisma/client";
 
-import { prisma } from "@/server/prisma";
 import { formatMonthLabel } from "@/lib/dates";
+import { m } from "@/lib/messages";
 import type { SandboxConfig, SandboxMetric } from "@/lib/schemas/sandbox";
-import { personalPartyIdsForUsers, partyDisplayMap } from "./responsible-party-filter";
+import { prisma } from "@/server/prisma";
+
+import { responsiblePartyIdsForFilter, partyDisplayMap } from "./responsible-party-filter";
+
+// Sentinelas p/ transações sem classificação nas dimensões novas (Parte A / A2).
+// Distintas das sentinelas já usadas por outras dimensões (ex.: "sem-tipo" de table_type)
+// para não colidir caso apareçam juntas em nenhuma chave composta.
+const NO_EXPENSE_TYPE_KEY = "sem-tipo-transacao";
+const NO_PAYMENT_METHOD_KEY = "sem-metodo-pagamento";
 
 // ─── Public types ──────────────────────────────────────────────────────────
 
@@ -33,6 +47,9 @@ type RawGroupRow = {
   responsiblePartyId?: string | null;
   institutionId?: string | null;
   tableId?: string | null;
+  expenseType?: TransactionExpenseType | null;
+  source?: TransactionSource | null;
+  paymentMethod?: TransactionPaymentMethod | null;
   _sum: { amountCents: bigint | null };
   _count: { _all: number };
 };
@@ -190,12 +207,18 @@ export async function getSandboxData(
   else if (config.groupBy === "category") bySet.add("categoryId");
   else if (config.groupBy === "institution") bySet.add("institutionId");
   else if (config.groupBy === "table_type") bySet.add("tableId");
+  else if (config.groupBy === "expense_type") bySet.add("expenseType");
+  else if (config.groupBy === "source") bySet.add("source");
+  else if (config.groupBy === "payment_method") bySet.add("paymentMethod");
 
   if (config.seriesBy === "section") bySet.add("sectionId");
   else if (config.seriesBy === "category") bySet.add("categoryId");
   else if (config.seriesBy === "member") bySet.add("responsiblePartyId");
   else if (config.seriesBy === "institution") bySet.add("institutionId");
   else if (config.seriesBy === "table_type") bySet.add("tableId");
+  else if (config.seriesBy === "expense_type") bySet.add("expenseType");
+  else if (config.seriesBy === "source") bySet.add("source");
+  else if (config.seriesBy === "payment_method") bySet.add("paymentMethod");
 
   // Always include sectionId when metric needs countType (total/avg)
   // so we can correctly apply the subtract sign per section
@@ -205,10 +228,9 @@ export async function getSandboxData(
 
   const byFields = [...bySet] as Prisma.TransactionScalarFieldEnum[];
 
-  // filterMemberIds guarda userIds de membros → traduz p/ suas parties personais.
-  const filterPartyIds = config.filterMemberIds?.length
-    ? await personalPartyIdsForUsers(accountId, config.filterMemberIds)
-    : [];
+  // filterMemberIds guarda partyIds (A1 — todas as kinds de persona), com fallback de
+  // legado p/ userId. Ver responsiblePartyIdsForFilter.
+  const filterPartyIds = await responsiblePartyIdsForFilter(accountId, config.filterMemberIds);
 
   const where: Prisma.TransactionWhereInput = {
     accountId,
@@ -217,6 +239,23 @@ export async function getSandboxData(
     sectionId: { in: sectionIdFilter },
     ...(config.filterCategoryIds?.length ? { categoryId: { in: config.filterCategoryIds } } : {}),
     ...(filterPartyIds.length ? { responsiblePartyId: { in: filterPartyIds } } : {}),
+    ...(config.filterInstitutionIds?.length
+      ? { institutionId: { in: config.filterInstitutionIds } }
+      : {}),
+    ...(config.filterExpenseTypes?.length
+      ? { expenseType: { in: config.filterExpenseTypes } }
+      : {}),
+    ...(config.filterSources?.length ? { source: { in: config.filterSources } } : {}),
+    ...(config.filterPaymentMethods?.length
+      ? { paymentMethod: { in: config.filterPaymentMethods } }
+      : {}),
+    // Tags: OR — transação com QUALQUER uma das tags selecionadas (paridade com o
+    // predicado client-side do drawer do mês).
+    ...(config.filterTagIds?.length
+      ? { tags: { some: { tagId: { in: config.filterTagIds } } } }
+      : {}),
+    ...(config.filterPending ? { isPending: true } : {}),
+    ...(config.filterFavorite ? { isFavorite: true } : {}),
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -242,6 +281,12 @@ export async function getSandboxData(
         return row.institutionId ?? "sem-instituicao";
       case "table_type":
         return tableIdToType.get(row.tableId ?? "")?.typeId ?? "sem-tipo";
+      case "expense_type":
+        return row.expenseType ?? NO_EXPENSE_TYPE_KEY;
+      case "source":
+        return row.source ?? "manual";
+      case "payment_method":
+        return row.paymentMethod ?? NO_PAYMENT_METHOD_KEY;
     }
   };
 
@@ -257,6 +302,12 @@ export async function getSandboxData(
         return row.institutionId ?? "sem-instituicao";
       case "table_type":
         return tableIdToType.get(row.tableId ?? "")?.typeId ?? "sem-tipo";
+      case "expense_type":
+        return row.expenseType ?? NO_EXPENSE_TYPE_KEY;
+      case "source":
+        return row.source ?? "manual";
+      case "payment_method":
+        return row.paymentMethod ?? NO_PAYMENT_METHOD_KEY;
       default:
         return "total";
     }
@@ -292,7 +343,8 @@ export async function getSandboxData(
   } else if (config.groupBy === "section") {
     xKeyOrder.sort((a, b) => (sectionMap.get(a)?.order ?? 0) - (sectionMap.get(b)?.order ?? 0));
   }
-  // category / institution / table_type — sorted by total descending after pivot (see below)
+  // category / institution / table_type / expense_type / source / payment_method —
+  // sorted by total descending after pivot (see below)
 
   // Build series list
   const series: SandboxSeries[] =
@@ -317,6 +369,21 @@ export async function getSandboxData(
               break;
             case "table_type":
               label = key === "sem-tipo" ? "Manual" : (typeIdToName.get(key) ?? key);
+              break;
+            case "expense_type":
+              label =
+                key === NO_EXPENSE_TYPE_KEY
+                  ? m.transactions.expenseTypeNone
+                  : (m.transactions.expenseTypes[key] ?? key);
+              break;
+            case "source":
+              label = m.transactions.sources[key] ?? key;
+              break;
+            case "payment_method":
+              label =
+                key === NO_PAYMENT_METHOD_KEY
+                  ? m.transactions.paymentMethodNone
+                  : (m.transactions.paymentMethods[key] ?? key);
               break;
           }
           return { key, label };
@@ -373,15 +440,33 @@ export async function getSandboxData(
       case "table_type":
         xLabel = xKey === "sem-tipo" ? "Manual" : (typeIdToName.get(xKey) ?? xKey);
         break;
+      case "expense_type":
+        xLabel =
+          xKey === NO_EXPENSE_TYPE_KEY
+            ? m.transactions.expenseTypeNone
+            : (m.transactions.expenseTypes[xKey] ?? xKey);
+        break;
+      case "source":
+        xLabel = m.transactions.sources[xKey] ?? xKey;
+        break;
+      case "payment_method":
+        xLabel =
+          xKey === NO_PAYMENT_METHOD_KEY
+            ? m.transactions.paymentMethodNone
+            : (m.transactions.paymentMethods[xKey] ?? xKey);
+        break;
     }
     return { xKey, xLabel, ...(pivot.get(xKey) ?? {}) };
   });
 
-  // Sort by total descending for category/institution/table_type
+  // Sort by total descending for category/institution/table_type/expense_type/source/payment_method
   if (
     config.groupBy === "category" ||
     config.groupBy === "institution" ||
-    config.groupBy === "table_type"
+    config.groupBy === "table_type" ||
+    config.groupBy === "expense_type" ||
+    config.groupBy === "source" ||
+    config.groupBy === "payment_method"
   ) {
     rows.sort((a, b) => {
       const aAbs = seriesKeys.reduce((s, k) => s + Math.abs((a[k] as number) ?? 0), 0);

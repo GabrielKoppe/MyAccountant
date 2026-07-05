@@ -2,6 +2,8 @@ import { cache } from "react";
 
 import { prisma } from "@/server/prisma";
 
+import { partyDisplayMap } from "./responsible-party-filter";
+
 // Opções para os formulários de config dos widgets (kpi-custom, filtered-transactions).
 // Listas simples {id, name} por Account — usadas nos multi-selects de filtro.
 export type ConfigFormOption = { id: string; name: string };
@@ -11,12 +13,13 @@ export type WidgetConfigOptions = {
   categories: ConfigFormOption[];
   institutions: ConfigFormOption[];
   members: ConfigFormOption[];
+  parties: ConfigFormOption[]; // Parte A / A1: responsáveis (todas as kinds de persona)
   tags: ConfigFormOption[]; // Spec 41 Fase 14
 };
 
 export const getWidgetConfigOptions = cache(
   async (accountId: string): Promise<WidgetConfigOptions> => {
-    const [sections, categories, institutions, members, tags] = await Promise.all([
+    const [sections, categories, institutions, members, tags, partyNames] = await Promise.all([
       prisma.section.findMany({
         where: { accountId },
         orderBy: { order: "asc" },
@@ -41,6 +44,7 @@ export const getWidgetConfigOptions = cache(
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
+      partyDisplayMap(accountId),
     ]);
 
     return {
@@ -51,6 +55,9 @@ export const getWidgetConfigOptions = cache(
         id: m.userId,
         name: m.user.name ?? m.user.email ?? "Membro",
       })),
+      parties: [...partyNames.entries()]
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
       tags,
     };
   },

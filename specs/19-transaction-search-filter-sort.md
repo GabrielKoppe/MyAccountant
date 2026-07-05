@@ -22,9 +22,18 @@ Há dois níveis de controle, com escopos distintos:
 
 | Controle | Escopo | Persistência |
 |---|---|---|
-| Filtros categóricos (categoria, instituição, responsável, pendentes, favoritas) | Página inteira (todas as tabelas do mês) | URL via `searchParams` |
+| Filtros categóricos (ver conjunto-alvo abaixo) | Página inteira (todas as tabelas do mês) | URL via `searchParams` |
 | Busca textual por descrição | Por tabela financeira individual | Efêmero (estado local) |
 | Ordenação por coluna | Por tabela financeira individual | Efêmero (estado local) |
+
+> **Atualização V2 (paridade de filtros).** O conjunto de campos filtráveis foi nivelado entre as
+> três superfícies de filtro (drawer do mês, widget `filtered-transactions`, widget `analysis`).
+> **Conjunto-alvo (9 campos)**: `categorias, instituições, responsável, pendentes, favoritas,
+> tipo de transação (expenseType), origem (source), tags, método de pagamento (paymentMethod)`.
+> A fonte única desses campos (valores de enum + contrato) vive em
+> `src/lib/transaction-filters/fields.ts` (`TRANSACTION_FILTER_FIELDS` + arrays de enum). Um teste
+> de paridade (`src/lib/transaction-filters/parity.test.ts`) quebra a compilação se um campo novo
+> não for mapeado nas três superfícies — é o mecanismo que impede a assimetria histórica de voltar.
 
 ### 2.2 Filtros globais (por página)
 
@@ -33,6 +42,8 @@ Um botão **"Filtros"** é adicionado no cabeçalho da página do mês, ao lado 
 - Multi-select de categorias
 - Multi-select de instituições
 - Multi-select de responsáveis
+- Multi-select de tags
+- Accordions de enum (seleção múltipla): tipo de transação, origem, **método de pagamento**
 - Chips toggle para "Pendentes" e "Favoritas" (ativáveis simultaneamente)
 - Botão "Limpar tudo" no rodapé do drawer
 
@@ -94,7 +105,12 @@ A ordenação é por tabela e efêmera (não vai para a URL).
 ## 5. Fora de Escopo
 
 - Busca global cross-month (buscar em todos os meses) — planejada para spec futura (F-02).
-- Filtros server-side com queries ao banco.
+- Filtros server-side com queries ao banco **para o drawer do mês**. O drawer filtra **client-side**
+  (predicado `applyGlobalFilters` sobre as linhas já carregadas) — decisão consciente. **Assimetria de
+  execução deliberada**: os widgets `filtered-transactions` e `analysis` filtram os MESMOS 9 campos, mas
+  **server-side** (`where` Prisma), porque operam sobre queries próprias. Os dois caminhos compartilham só
+  os valores/contrato de `fields.ts`, não o builder — não unificar até a spec 56 (paginação) decidir o
+  futuro do carregamento do mês (que pode colapsar o predicado client-side em `where`).
 - Paginação — o usuário não quer paginação, a lista deve permanecer rolável.
 - Salvar combinações de filtros como "visualizações" nomeadas.
 - Filtro por valor (range de amount) — pode ser adicionado em iteração futura desta spec.
@@ -120,6 +136,10 @@ A ordenação é por tabela e efêmera (não vai para a URL).
 | Estado vazio | Ilustração + mensagem + botão "Limpar filtros" inline |
 | Total da tabela filtrado | `warning.main` + caption "X de Y" (sem mudar layout) |
 | Total da seção com filtro ativo | Valor real sempre visível + filtrado + percentual ao lado |
+| **Conjunto-alvo de filtros (V2)** | 9 campos nivelados nas 3 superfícies; fonte única em `fields.ts` |
+| **Semântica canônica de "responsável" (V2 / A1)** | `responsiblePartyId` (todas as kinds de persona: personal/group/external), igual nas 3 superfícies. Widgets resolvem via `responsiblePartyIdsForFilter` (partyId + fallback legado userId→party pessoal). Aposenta a ponte `personalPartyIdsForUsers` nos 3 surfaces-alvo. |
+| **Filtro de relação que resolve para vazio (V2)** | Degrada para "sem filtro" (mostra tudo), consistente com todos os filtros de relação quando o id selecionado some (ex.: party/categoria removida). Não é 0-resultados. |
+| **Escopo A1** | Apenas os 3 surfaces-alvo. `kpi-custom` e `budgets` seguem na semântica legada (userId via `personalPartyIdsForUsers`) — consistentes internamente, fora do conjunto-alvo. |
 
 ---
 
@@ -134,8 +154,9 @@ A ordenação é por tabela e efêmera (não vai para a URL).
 | Total da tabela filtrado | componente de total dentro de `TransactionTable.tsx` |
 | Total da seção filtrado | componente de total na seção |
 
-- `isFavorite` e `responsibleUserId` (responsável) já existem no schema do Prisma.
+- `isFavorite`, `responsiblePartyId` (responsável — **não** mais `responsibleUserId`, removido na Spec 60 Fase 5), `expenseType`, `source`, `paymentMethod` e a relação `tags` já existem no schema do Prisma.
 - Colunas ordenáveis: `occurredOn`, `amountCents`, `description`, `categoryId` (exibe nome), `institutionId` (exibe nome).
-- A filtragem e ordenação são puramente client-side sobre o array `rows` em `TransactionTable`.
-- Skill de forms/zod não se aplica aqui (sem mutação, apenas estado local de UI).
-- Filtros globais persistidos em URL como `searchParams` — nomes de params a definir na implementação (ex: `categories`, `institutions`, `responsible`, `pending`, `favorite`).
+- A filtragem e ordenação do **drawer** são puramente client-side sobre o array `rows` em `MonthFilterContext.applyGlobalFilters` (os widgets fazem `where` Prisma — ver §5).
+- Fonte única dos campos filtráveis: `src/lib/transaction-filters/fields.ts`. Resolver canônico de "responsável": `responsiblePartyIdsForFilter` em `src/server/queries/responsible-party-filter.ts`.
+- Skill de forms/zod não se aplica ao drawer (sem mutação, apenas estado local de UI); aplica-se aos forms de config dos widgets.
+- Filtros globais persistidos em URL como `searchParams`: `categories`, `institutions`, `responsible`, `pending`, `favorite`, `expenseTypes`, `sources`, `tags`, `paymentMethods`.
