@@ -143,6 +143,7 @@ export const messages = {
       members: "Membros",
       responsibles: "Responsáveis",
       checklist: "Checklist mensal",
+      aliases: "Apelidos",
       account: "Conta",
       visualization: "Visualização",
       dashboards: {
@@ -448,6 +449,61 @@ export const messages = {
       cannotDeleteDefault: "O tipo padrão não pode ser deletado.",
       noTableTypes: "Nenhum tipo de tabela cadastrado.",
     },
+    transactionAliases: {
+      title: "Apelidos de Transação",
+      subtitle:
+        "Um gatilho de texto associado a valores para preencher automaticamente lançamentos recorrentes, na entrada manual e na importação.",
+      createButton: "Novo apelido",
+      createTitle: "Novo apelido",
+      editTitle: "Editar apelido",
+      empty: "Nenhum apelido cadastrado.",
+      emptyHint:
+        "Crie um apelido para preencher categoria, responsável, tags e outros campos automaticamente quando o gatilho aparecer na descrição.",
+      triggerLabel: "Gatilho",
+      triggerHint: "Texto que, ao aparecer na descrição, sugere este apelido.",
+      triggerShortWarning: "Gatilho curto pode casar demais.",
+      descriptionLabel: "Descrição a aplicar",
+      descriptionHint:
+        "Substitui a descrição do lançamento ao aplicar. Deixe em branco para não alterar.",
+      amountLabel: "Valor a aplicar",
+      amountHint: "Deixe em branco para não definir um valor.",
+      formIntro:
+        "Um apelido guarda um conjunto de campos e os preenche automaticamente quando o gatilho aparece na descrição de um lançamento — na entrada manual e na importação.",
+      classificationSectionLabel: "Classificação",
+      classificationHint: "Categoria, instituição, responsável e como o lançamento é classificado.",
+      behaviorSectionLabel: "Valor e status",
+      behaviorHint:
+        "Valor sugerido e marcadores de status. O valor não é aplicado na importação — o do extrato sempre prevalece.",
+      foreignCurrencySectionLabel: "Moeda estrangeira",
+      foreignCurrencyHint:
+        "Preenchida na importação apenas quando o extrato não traz moeda estrangeira.",
+      tagsNotesSectionLabel: "Tags e anotações",
+      tagsNotesHint: "Tags e uma anotação livre aplicadas junto com o apelido.",
+      tagsLabel: "Tags a aplicar",
+      isPendingUnset: "Não definir",
+      isPendingTrue: "Pendente",
+      isPendingFalse: "Confirmado",
+      isFavoriteUnset: "Não definir",
+      isFavoriteTrue: "Favorito",
+      isFavoriteFalse: "Não favorito",
+      expenseTypeClearHint: "Clique novamente no ícone selecionado para limpar.",
+      created: "Apelido criado.",
+      updated: "Apelido atualizado.",
+      archived: "Apelido arquivado.",
+      unarchived: "Apelido reativado.",
+      deleted: "Apelido excluído.",
+      archive: "Arquivar",
+      unarchive: "Reativar",
+      archivedBadge: "Arquivado",
+      deleteTitle: "Excluir apelido",
+      deleteConfirm: "Tem certeza? Esta ação não pode ser desfeita.",
+      detailsToggle: (n: number) => `${n} ${n === 1 ? "detalhe" : "detalhes"}`,
+      showDetailsAria: "Ver detalhes do apelido",
+      hideDetailsAria: "Ocultar detalhes do apelido",
+      keepsDescription: "mantém a descrição",
+      transformAria: (trigger: string, description: string) =>
+        `Ao casar "${trigger}", a descrição vira "${description}"`,
+    },
   },
   setup: {
     steps: {
@@ -698,6 +754,7 @@ export const messages = {
       added: "Tag adicionada.",
       removed: "Tag removida.",
       filterLabel: "Tags",
+      loadError: "Erro ao carregar tags.",
     },
     sources: {
       manual: "Lançado manualmente",
@@ -779,6 +836,7 @@ export const messages = {
       viewDetails: "Ver detalhes",
       edit: "Editar",
       duplicate: "Duplicar",
+      createAlias: "Criar apelido a partir desta transação",
       delete: "Deletar",
       addNote: "Adicionar nota",
       hideNotes: "Ocultar notas",
@@ -791,6 +849,17 @@ export const messages = {
       quickDuplicate: "Duplicar",
       addToFavorites: "Adicionar aos favoritos",
       removeFromFavorites: "Remover dos favoritos",
+    },
+    aliasSuggestion: {
+      header: "Apelido",
+      tooltip: (trigger: string) => `Aplicar apelido "${trigger}"`,
+      applyButton: "Aplicar",
+      cancelButton: "Cancelar",
+      applied: (trigger: string, count: number) =>
+        `Apelido "${trigger}" aplicado — ${count} campo${count !== 1 ? "s" : ""} atualizado${count !== 1 ? "s" : ""}.`,
+      undo: "Desfazer",
+      noApplicableFields:
+        "Nenhum campo aplicável aqui — os valores já coincidem ou usam campos não suportados nesta tela (ex.: tags).",
     },
     detail: {
       title: "Detalhes da transação",
@@ -1347,6 +1416,14 @@ export const messages = {
       toggleToImport: "Ignorada por você — clique para importar",
       statusManualIgnored: "Ignorada (sua escolha)",
       toggleHint: "Clique no status de uma linha válida para ignorá-la (ex: duplicada).",
+      aliasChip: (n: number) => `${n} linha${n !== 1 ? "s" : ""} com apelido`,
+      aliasOnHeader: (trigger: string) => `Apelido "${trigger}" aplicado nesta linha`,
+      aliasOffHeader: (trigger: string) =>
+        `Apelido "${trigger}" desativado nesta linha — valores originais do extrato`,
+      aliasAlsoDefines: "Também define:",
+      aliasClickToIgnore: "Clique para não aplicar nesta linha",
+      aliasClickToApply: "Clique para aplicar nesta linha",
+      aliasToggleAria: (trigger: string) => `Alternar aplicação do apelido "${trigger}"`,
     },
     config: {
       tableNameLabel: "Nome da tabela",

@@ -195,6 +195,10 @@ Toggles:
 **Resumo**:
 - "X linhas serão importadas, Y serão ignoradas, Z têm erros." (reflete as ignoradas manualmente)
 
+**Apelidos de transação (spec 61, Fase 5)**: cada linha `OK` é casada contra os apelidos ativos da Account (`matchAlias`, por `description`). Se houver match, as colunas Descrição/Categoria mostram o valor **já aplicado** (WYSIWYG — o que será salvo, não o valor bruto do extrato); um ícone (`AutoFixHighOutlinedIcon`) ao lado da Descrição abre um tooltip com o restante dos campos que o apelido define (notas, subcategoria, instituição, responsável, tags, etc.) e é clicável para desativar/reativar o apelido **naquela linha** (opt-out por linha, mesmo padrão do toggle "ignorar manualmente"). A coluna Valor **nunca** reflete o `amountCents` do apelido — import não aplica valor monetário de apelido. Chip no resumo: "N linhas com apelido".
+
+Linhas marcadas como "ignorada manualmente" suprimem o ícone/preview de apelido (a linha não será importada de qualquer forma).
+
 ### 5.6 Step 5 — Configurações finais
 
 Layout centralizado (coluna estreita, `mx: auto`), com um `<Alert>` de resumo no topo e dois cards `FieldGroup`:
@@ -323,6 +327,8 @@ export const executeImportAction   // (accountId, ExecuteImportInput) → Import
 ```
 
 **Nota**: não há action de "previewImport" — o preview é feito 100% no client usando `applyMappingToRows` de `src/lib/csv-parser.ts`. O servidor só recebe as linhas já parseadas + o mapping, e re-aplica o parsing para a criação autoritativa das transações.
+
+**Apelidos de transação (spec 61, Fase 5)**: `applyMappingToRows` recebe a lista de apelidos ativos (`AliasCandidate[]`) e marca `parsed.appliedAliasId` por linha — roda igual no client (preview) e no server (`executeImportAction`). O servidor **recarrega os apelidos direto do banco** (não reusa o cache de request da query RSC) para ser autoritativo mesmo se o usuário editou apelidos com o wizard aberto. `ExecuteImportInput` ganha `aliasIgnoreRows: number[]` (opt-out por linha, paralelo ao `manualIgnoreRows`). Quando um apelido é aplicado, o payload dele sobrescreve os campos que define (exceto `amountCents`); a transação criada grava `{ appliedAliasId, aliasTrigger }` em `metadata` (spec 09 §4.12) e as tags do apelido são vinculadas via `transaction_tags`.
 
 **`ImportResult`**:
 ```ts

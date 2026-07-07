@@ -66,3 +66,9 @@ export function revalidateResponsibleParties(accountId: string) {
 export function revalidateDashboards(accountId: string) {
   revalidatePath(`/${accountId}/dashboards`, "layout");
 }
+
+/** Revalida a gestão de apelidos de transação. */
+export function revalidateTransactionAliases(accountId: string) {
+  revalidatePath(`/${accountId}/settings/aliases`);
+  revalidatePath(`/${accountId}`);
+}

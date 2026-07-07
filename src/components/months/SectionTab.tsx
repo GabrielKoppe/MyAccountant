@@ -2,6 +2,10 @@
 // Busca dados com getSectionTabData e renderiza SectionView.
 // Envolvido em <Suspense> pelo page.tsx.
 
+import type { ResponsiblePartyOption } from "@/components/transactions/types";
+import { toResponsiblePartyOption } from "@/lib/party-display";
+import { requireAccountAccess } from "@/server/auth/session";
+import { prisma } from "@/server/prisma";
 import {
   getSectionTabData,
   getMonthCategories,
@@ -12,11 +16,9 @@ import {
   getMonthTableTypes,
   getSourceTables,
 } from "@/server/queries/month-page";
-import type { ResponsiblePartyOption } from "@/components/transactions/types";
-import { toResponsiblePartyOption } from "@/lib/party-display";
+import { getActiveTransactionAliases } from "@/server/queries/transaction-aliases";
 import { getSectionTotals } from "@/server/services/month-service";
-import { requireAccountAccess } from "@/server/auth/session";
-import { prisma } from "@/server/prisma";
+
 import { SectionView } from "./SectionView";
 
 type Props = {
@@ -40,6 +42,7 @@ export async function SectionTab({ accountId, monthId, sectionId, canEdit }: Pro
     sourceTables,
     sectionTotalsRaw,
     userSettings,
+    aliases,
   ] = await Promise.all([
     getSectionTabData(accountId, monthId, sectionId),
     getMonthCategories(accountId),
@@ -54,6 +57,7 @@ export async function SectionTab({ accountId, monthId, sectionId, canEdit }: Pro
       where: { userId: user.id },
       select: { timezone: true },
     }),
+    getActiveTransactionAliases(accountId), // DD-10: uma vez por Account, via prop até a linha manual
   ]);
 
   if (!data.section) return null;
@@ -101,6 +105,7 @@ export async function SectionTab({ accountId, monthId, sectionId, canEdit }: Pro
       institutions={institutions}
       members={members}
       parties={parties}
+      aliases={aliases}
       defaultResponsiblePartyId={accountSettings?.defaultResponsiblePartyId ?? null}
     />
   );

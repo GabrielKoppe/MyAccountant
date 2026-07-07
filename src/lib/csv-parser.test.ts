@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { AliasCandidate } from "./aliases/match";
 import {
   parseDateString,
   parseAmountToCents,
@@ -525,5 +526,62 @@ describe("detectAmountFormat", () => {
 
   it("retorna null para lista vazia", () => {
     expect(detectAmountFormat([])).toBeNull();
+  });
+});
+
+describe("applyMappingToRows — apelidos (spec 61 Fase 5)", () => {
+  function mkAlias(overrides: Partial<AliasCandidate> = {}): AliasCandidate {
+    return {
+      id: "alias-1",
+      trigger: "CEG",
+      triggerNormalized: "ceg",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  it("marca appliedAliasId quando a descrição casa um apelido", () => {
+    const rows = [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }];
+    const mapping = mkMapping({ columns: { date: "Data", amount: "Valor", description: "Desc" } });
+    const result = applyMappingToRows(rows, mapping, [mkAlias()]);
+
+    expect(result[0].parsed?.appliedAliasId).toBe("alias-1");
+  });
+
+  it("appliedAliasId é null quando nenhum apelido casa", () => {
+    const rows = [{ Data: "03/01/2026", Valor: "100,00", Desc: "Mercado" }];
+    const mapping = mkMapping({ columns: { date: "Data", amount: "Valor", description: "Desc" } });
+    const result = applyMappingToRows(rows, mapping, [mkAlias()]);
+
+    expect(result[0].parsed?.appliedAliasId).toBeNull();
+  });
+
+  it("appliedAliasId é null (default) sem o parâmetro aliases — retrocompatível", () => {
+    const rows = [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }];
+    const mapping = mkMapping({ columns: { date: "Data", amount: "Valor", description: "Desc" } });
+    const result = applyMappingToRows(rows, mapping);
+
+    expect(result[0].parsed?.appliedAliasId).toBeNull();
+  });
+
+  it("linha de erro (sem parsed) não é marcada", () => {
+    const rows = [{ Data: "não-é-data", Valor: "100,00", Desc: "pagamento CEG" }];
+    const mapping = mkMapping({ columns: { date: "Data", amount: "Valor", description: "Desc" } });
+    const result = applyMappingToRows(rows, mapping, [mkAlias()]);
+
+    expect(result[0].status).toBe("error");
+    expect(result[0].parsed).toBeUndefined();
+  });
+
+  it("desempate por gatilho mais longo entre dois apelidos casados", () => {
+    const rows = [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG SA" }];
+    const mapping = mkMapping({ columns: { date: "Data", amount: "Valor", description: "Desc" } });
+    const aliases = [
+      mkAlias({ id: "short", trigger: "CEG", triggerNormalized: "ceg" }),
+      mkAlias({ id: "long", trigger: "CEG SA", triggerNormalized: "ceg sa" }),
+    ];
+    const result = applyMappingToRows(rows, mapping, aliases);
+
+    expect(result[0].parsed?.appliedAliasId).toBe("long");
   });
 });

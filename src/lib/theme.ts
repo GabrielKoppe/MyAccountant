@@ -313,6 +313,27 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
             fontFamily: t.fontFamily.sans,
             WebkitFontSmoothing: "antialiased",
             MozOsxFontSmoothing: "grayscale",
+            // Scrollbar acompanha o tema (Firefox via scrollbar-color; demais via
+            // pseudo-elementos WebKit) — sem isso a barra fica cinza do SO, quebrando
+            // a paridade light/dark em qualquer container com overflow.
+            scrollbarColor: `${c.border.strong} ${c.background.canvas}`,
+          },
+          "*": {
+            scrollbarColor: `${c.border.strong} transparent`,
+          },
+          "*::-webkit-scrollbar": {
+            width: 10,
+            height: 10,
+          },
+          "*::-webkit-scrollbar-track": {
+            backgroundColor: "transparent",
+          },
+          "*::-webkit-scrollbar-thumb": {
+            backgroundColor: c.border.strong,
+            borderRadius: radius.full,
+          },
+          "*::-webkit-scrollbar-thumb:hover": {
+            backgroundColor: c.text.tertiary,
           },
         },
       },

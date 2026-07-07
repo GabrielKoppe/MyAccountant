@@ -1,10 +1,10 @@
+import Box from "@mui/material/Box";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import Box from "@mui/material/Box";
 
-import { requireAccountAccess } from "@/server/auth/session";
-import { m } from "@/lib/messages";
 import { SettingsNav, type CollapsibleNavEntry } from "@/components/settings/SettingsNav";
+import { m } from "@/lib/messages";
+import { requireAccountAccess } from "@/server/auth/session";
 
 type Props = {
   children: ReactNode;
@@ -27,6 +27,7 @@ const editorLinks = [
   { href: "categories", label: m.settings.nav.categories },
   { href: "institutions", label: m.settings.nav.institutions },
   { href: "responsibles", label: m.settings.nav.responsibles },
+  { href: "aliases", label: m.settings.nav.aliases },
   { href: "checklist", label: m.settings.nav.checklist },
   { href: "table-types", label: m.settings.nav.tableTypes },
   { href: "models", label: "Modelos de tabela" },

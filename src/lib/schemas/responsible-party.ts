@@ -22,9 +22,7 @@ export const createResponsiblePartySchema = z.discriminatedUnion("kind", [
     name: nameSchema,
     icon: iconKeySchema.nullable().optional(),
     color: colorKeySchema.nullable().optional(),
-    memberUserIds: z
-      .array(z.string().cuid("ID inválido"))
-      .min(2, "Grupo exige ao menos 2 membros"),
+    memberUserIds: z.array(z.string().cuid("ID inválido")).min(2, "Grupo exige ao menos 2 membros"),
   }),
   z.object({
     kind: z.literal("external"),
@@ -39,7 +37,10 @@ export const updateResponsiblePartySchema = z.object({
   name: nameSchema.optional(),
   icon: iconKeySchema.nullable().optional(),
   color: colorKeySchema.nullable().optional(),
-  memberUserIds: z.array(z.string().cuid("ID inválido")).min(2, "Grupo exige ao menos 2 membros").optional(),
+  memberUserIds: z
+    .array(z.string().cuid("ID inválido"))
+    .min(2, "Grupo exige ao menos 2 membros")
+    .optional(),
 });
 
 export const archiveResponsiblePartySchema = z.object({

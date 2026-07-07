@@ -90,12 +90,7 @@ export async function createAccount(input: CreateAccountInput & { createdById: s
       where: { id: createdById },
       select: { name: true, email: true },
     });
-    await ensurePersonalParty(
-      tx,
-      created.id,
-      createdById,
-      owner?.name ?? owner?.email ?? "Você",
-    );
+    await ensurePersonalParty(tx, created.id, createdById, owner?.name ?? owner?.email ?? "Você");
 
     return created;
   });

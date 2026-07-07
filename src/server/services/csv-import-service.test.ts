@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { prismaMock } from "@/../tests/mocks/prisma";
 import { ConflictError, NotFoundError } from "@/server/api/errors";
+
+import { prismaMock } from "@/../tests/mocks/prisma";
 
 import { csvImportService } from "./csv-import-service";
 
@@ -35,6 +36,7 @@ function setupFoundResources() {
   prismaMock.subcategory.findMany.mockResolvedValue([]);
   prismaMock.institution.findMany.mockResolvedValue([]);
   prismaMock.responsiblePartyMember.findMany.mockResolvedValue([]);
+  prismaMock.transactionAlias.findMany.mockResolvedValue([]);
 }
 
 function setupTxMock() {
@@ -44,6 +46,7 @@ function setupTxMock() {
       create: vi.fn().mockResolvedValue({ id: "table-imported-1" }),
     },
     transaction: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    transactionTag: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
   };
   prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
   return txMock;
@@ -180,6 +183,346 @@ describe("executeImport", () => {
     );
 
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("executeImport — apelidos (spec 61 Fase 5)", () => {
+  const ALIAS_MAPPING = { columns: { date: "Data", amount: "Valor", description: "Desc" } };
+
+  function mkAliasRecord(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "alias-1",
+      trigger: "CEG",
+      triggerNormalized: "ceg",
+      description: null,
+      notes: null,
+      amountCents: 999999n, // DD-09: nunca aplicado no import — deve ser ignorado
+      categoryId: "cat-alias-1",
+      category: { name: "Conta" },
+      subcategoryId: null,
+      subcategory: null,
+      institutionId: null,
+      institution: null,
+      institutionText: null,
+      responsiblePartyId: null,
+      responsibleParty: null,
+      expenseType: null,
+      paymentMethod: null,
+      investmentType: null,
+      cardInstallment: null,
+      isPending: null,
+      isFavorite: null,
+      originalCurrency: null,
+      originalAmountCents: null,
+      exchangeRate: null,
+      archivedAt: null,
+      createdById: "user-test-1",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      tags: [],
+      ...overrides,
+    };
+  }
+
+  function setupFoundResourcesWithAlias(overrides: Record<string, unknown> = {}) {
+    setupFoundResources();
+    prismaMock.transactionAlias.findMany.mockResolvedValue([mkAliasRecord(overrides)] as any);
+  }
+
+  it("recarrega apelidos filtrando pela account (multi-tenancy)", async () => {
+    setupFoundResourcesWithAlias();
+    setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: ALIAS_MAPPING,
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    expect(prismaMock.transactionAlias.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { accountId: "acc-test-1", archivedAt: null } }),
+    );
+  });
+
+  it("apelido casado sobrescreve a categoria resolvida do CSV (DD-17)", async () => {
+    prismaMock.month.findFirst.mockResolvedValue({ id: "month-1" } as any);
+    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
+    prismaMock.category.findMany.mockResolvedValue([{ id: "cat-csv-1", name: "Casa" } as any]);
+    prismaMock.subcategory.findMany.mockResolvedValue([]);
+    prismaMock.institution.findMany.mockResolvedValue([]);
+    prismaMock.responsiblePartyMember.findMany.mockResolvedValue([]);
+    prismaMock.transactionAlias.findMany.mockResolvedValue([mkAliasRecord()] as any);
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: { ...ALIAS_MAPPING, columns: { ...ALIAS_MAPPING.columns, category: "Cat" } },
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG", Cat: "Casa" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    expect(txMock.transaction.createMany.mock.calls[0][0].data[0].categoryId).toBe("cat-alias-1");
+  });
+
+  it("aplica favorito e preenche moeda estrangeira quando o extrato não traz FX (DD-22)", async () => {
+    setupFoundResourcesWithAlias({
+      isFavorite: true,
+      originalCurrency: "USD",
+      originalAmountCents: 1299n,
+      exchangeRate: { toNumber: () => 5.12 },
+    });
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: ALIAS_MAPPING,
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    const created = txMock.transaction.createMany.mock.calls[0][0].data[0];
+    expect(created.isFavorite).toBe(true);
+    expect(created.originalCurrency).toBe("USD");
+    expect(created.originalAmountCents).toBe(1299n);
+    expect(created.exchangeRate).toBe(5.12);
+  });
+
+  it("não sobrescreve a moeda estrangeira do extrato pela do apelido (DD-22 fill-if-empty)", async () => {
+    setupFoundResourcesWithAlias({
+      originalCurrency: "USD",
+      originalAmountCents: 1299n,
+      exchangeRate: { toNumber: () => 5.12 },
+    });
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: {
+          ...ALIAS_MAPPING,
+          columns: { ...ALIAS_MAPPING.columns, fxCurrency: "Moeda", fxAmount: "ValorOrig" },
+        },
+        rows: [
+          {
+            Data: "03/01/2026",
+            Valor: "100,00",
+            Desc: "pagamento CEG",
+            Moeda: "EUR",
+            ValorOrig: "50,00",
+          },
+        ],
+      } as any,
+      EXEC_CTX,
+    );
+
+    // extrato trouxe FX próprio → prevalece; a moeda do apelido (USD) é ignorada.
+    const created = txMock.transaction.createMany.mock.calls[0][0].data[0];
+    expect(created.originalCurrency).toBe("EUR");
+  });
+
+  it("apelido com institutionId sobrescreve a instituição resolvida do CSV, limpando institutionText (DD-17/DD-14)", async () => {
+    prismaMock.month.findFirst.mockResolvedValue({ id: "month-1" } as any);
+    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
+    prismaMock.category.findMany.mockResolvedValue([]);
+    prismaMock.subcategory.findMany.mockResolvedValue([]);
+    prismaMock.institution.findMany.mockResolvedValue([
+      { id: "inst-csv-1", name: "Banco X" } as any,
+    ]);
+    prismaMock.responsiblePartyMember.findMany.mockResolvedValue([]);
+    prismaMock.transactionAlias.findMany.mockResolvedValue([
+      mkAliasRecord({ institutionId: "inst-alias-1", institution: { name: "Corretora Y" } }),
+    ] as any);
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: { ...ALIAS_MAPPING, columns: { ...ALIAS_MAPPING.columns, institution: "Inst" } },
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG", Inst: "Banco X" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    const created = txMock.transaction.createMany.mock.calls[0][0].data[0];
+    expect(created.institutionId).toBe("inst-alias-1");
+    expect(created.institutionText).toBeNull();
+  });
+
+  it("subcategoryId explícito do apelido vence mesmo quando a subcategoria do CSV ainda seria filha da categoria nova (DD-18)", async () => {
+    prismaMock.month.findFirst.mockResolvedValue({ id: "month-1" } as any);
+    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
+    prismaMock.category.findMany.mockResolvedValue([{ id: "cat-alias-1", name: "Conta" } as any]);
+    prismaMock.subcategory.findMany.mockResolvedValue([
+      { id: "sub-csv", name: "Água", categoryId: "cat-alias-1" } as any,
+    ]);
+    prismaMock.institution.findMany.mockResolvedValue([]);
+    prismaMock.responsiblePartyMember.findMany.mockResolvedValue([]);
+    prismaMock.transactionAlias.findMany.mockResolvedValue([
+      mkAliasRecord({ subcategoryId: "sub-alias", subcategory: { name: "Gás" } }),
+    ] as any);
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: {
+          ...ALIAS_MAPPING,
+          columns: { ...ALIAS_MAPPING.columns, category: "Cat", subcategory: "Sub" },
+        },
+        rows: [
+          { Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG", Cat: "Conta", Sub: "Água" },
+        ],
+      } as any,
+      EXEC_CTX,
+    );
+
+    // subcategoryId explícito do apelido tem prioridade sobre o resolvido do CSV,
+    // mesmo "sub-csv" ainda sendo filha válida de "cat-alias-1".
+    expect(txMock.transaction.createMany.mock.calls[0][0].data[0].subcategoryId).toBe("sub-alias");
+  });
+
+  it("amountCents do apelido NUNCA é aplicado no import (DD-09)", async () => {
+    setupFoundResourcesWithAlias();
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: ALIAS_MAPPING,
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    // valor do extrato (100,00 → 10000n), nunca o amountCents do apelido (999999n)
+    expect(txMock.transaction.createMany.mock.calls[0][0].data[0].amountCents).toBe(10000n);
+  });
+
+  it("opt-out por linha via aliasIgnoreRows não aplica o apelido (DD-16)", async () => {
+    setupFoundResourcesWithAlias();
+    const txMock = setupTxMock();
+
+    const result = await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: ALIAS_MAPPING,
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }],
+        aliasIgnoreRows: [0],
+      } as any,
+      EXEC_CTX,
+    );
+
+    expect(result.imported).toBe(1); // linha ainda é importada — só sem o payload do apelido
+    const created = txMock.transaction.createMany.mock.calls[0][0].data[0];
+    expect(created.categoryId).toBeNull();
+    expect(created.metadata).toEqual({});
+  });
+
+  it("limpa subcategoria órfã quando o apelido troca a categoria sem definir subcategoria (DD-18)", async () => {
+    prismaMock.month.findFirst.mockResolvedValue({ id: "month-1" } as any);
+    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
+    prismaMock.category.findMany.mockResolvedValue([{ id: "cat-csv-1", name: "Casa" } as any]);
+    prismaMock.subcategory.findMany.mockResolvedValue([
+      { id: "sub-old", name: "Aluguel", categoryId: "cat-csv-1" } as any,
+    ]);
+    prismaMock.institution.findMany.mockResolvedValue([]);
+    prismaMock.responsiblePartyMember.findMany.mockResolvedValue([]);
+    prismaMock.transactionAlias.findMany.mockResolvedValue([mkAliasRecord()] as any);
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: {
+          ...ALIAS_MAPPING,
+          columns: { ...ALIAS_MAPPING.columns, category: "Cat", subcategory: "Sub" },
+        },
+        rows: [
+          {
+            Data: "03/01/2026",
+            Valor: "100,00",
+            Desc: "pagamento CEG",
+            Cat: "Casa",
+            Sub: "Aluguel",
+          },
+        ],
+      } as any,
+      EXEC_CTX,
+    );
+
+    const created = txMock.transaction.createMany.mock.calls[0][0].data[0];
+    expect(created.categoryId).toBe("cat-alias-1"); // apelido venceu (DD-17)
+    expect(created.subcategoryId).toBeNull(); // órfã da categoria antiga — limpa (DD-18)
+  });
+
+  it("grava metadata com appliedAliasId/aliasTrigger quando o apelido é aplicado", async () => {
+    setupFoundResourcesWithAlias();
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: ALIAS_MAPPING,
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    expect(txMock.transaction.createMany.mock.calls[0][0].data[0].metadata).toEqual({
+      appliedAliasId: "alias-1",
+      aliasTrigger: "CEG",
+    });
+  });
+
+  it("persiste tags do apelido via transactionTag.createMany, vinculadas ao id gerado da transação", async () => {
+    setupFoundResourcesWithAlias({ tags: [{ tag: { id: "tag-1", name: "Casa" } }] });
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: ALIAS_MAPPING,
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    // id gerado pelo próprio service (generateTransactionId) — não é previsível
+    // de antemão, então lemos o id enviado ao transaction.createMany e conferimos
+    // que é exatamente o mesmo usado para vincular a tag (sem depender de índice).
+    const createdId = txMock.transaction.createMany.mock.calls[0][0].data[0].id;
+    expect(createdId).toMatch(/^c[^\s-]{8,}$/i); // formato aceito por z.string().cuid()
+    expect(txMock.transactionTag.createMany).toHaveBeenCalledWith({
+      data: [{ transactionId: createdId, tagId: "tag-1" }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("não chama transactionTag.createMany quando o apelido não define tags", async () => {
+    setupFoundResourcesWithAlias();
+    const txMock = setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: ALIAS_MAPPING,
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    expect(txMock.transactionTag.createMany).not.toHaveBeenCalled();
   });
 });
 

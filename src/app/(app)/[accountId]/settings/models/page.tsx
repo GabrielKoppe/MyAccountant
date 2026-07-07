@@ -24,46 +24,46 @@ export default async function TableModelsPage({ params }: Props) {
 
   const [templates, categories, institutions, members, partiesRaw, tableTypes, sections] =
     await Promise.all([
-    svc.listTemplates(accountId),
-    prisma.category.findMany({
-      where: { accountId },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, subcategories: { select: { id: true, name: true } } },
-    }),
-    prisma.institution.findMany({
-      where: { accountId },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.accountMember.findMany({
-      where: { accountId },
-      include: { user: { select: { id: true, name: true, email: true } } },
-    }),
-    prisma.responsibleParty.findMany({
-      where: { accountId, archivedAt: null },
-      orderBy: [{ kind: "asc" }, { name: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        kind: true,
-        icon: true,
-        color: true,
-        members: {
-          select: { userId: true, user: { select: { name: true, email: true, image: true } } },
+      svc.listTemplates(accountId),
+      prisma.category.findMany({
+        where: { accountId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, subcategories: { select: { id: true, name: true } } },
+      }),
+      prisma.institution.findMany({
+        where: { accountId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+      prisma.accountMember.findMany({
+        where: { accountId },
+        include: { user: { select: { id: true, name: true, email: true } } },
+      }),
+      prisma.responsibleParty.findMany({
+        where: { accountId, archivedAt: null },
+        orderBy: [{ kind: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          kind: true,
+          icon: true,
+          color: true,
+          members: {
+            select: { userId: true, user: { select: { name: true, email: true, image: true } } },
+          },
         },
-      },
-    }),
-    prisma.tableType.findMany({
-      where: { accountId },
-      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-      select: { id: true, name: true, isDefault: true },
-    }),
-    prisma.section.findMany({
-      where: { accountId, isActive: true },
-      orderBy: { order: "asc" },
-      select: { id: true, name: true },
-    }),
-  ]);
+      }),
+      prisma.tableType.findMany({
+        where: { accountId },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+        select: { id: true, name: true, isDefault: true },
+      }),
+      prisma.section.findMany({
+        where: { accountId, isActive: true },
+        orderBy: { order: "asc" },
+        select: { id: true, name: true },
+      }),
+    ]);
 
   // Serialize BigInt; cast investmentType to enum (DB may return string)
   const serializedTemplates = templates.map((t: any) => ({

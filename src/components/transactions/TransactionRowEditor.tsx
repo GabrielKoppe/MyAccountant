@@ -1,13 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-
-import Box from "@mui/material/Box";
+import AddLinkIcon from "@mui/icons-material/AddLink";
+import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
+import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
+import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
+import LabelIcon from "@mui/icons-material/Label";
+import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import NoteIcon from "@mui/icons-material/Note";
+import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
+import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
+import Fade from "@mui/material/Fade";
 import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import TableCell from "@mui/material/TableCell";
@@ -17,35 +29,39 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
-import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
-import LabelIcon from "@mui/icons-material/Label";
-import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import AddLinkIcon from "@mui/icons-material/AddLink";
-import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
-import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
-import { tagChipSx } from "@/components/tags/tagChipSx";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import NoteIcon from "@mui/icons-material/Note";
-import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
-import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
-import { NumericFormat } from "react-number-format";
 import type { TransactionExpenseType } from "@prisma/client";
+import { useRouter } from "next/navigation";
+import { useSnackbar } from "notistack";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { NumericFormat } from "react-number-format";
 
-import { m } from "@/lib/messages";
-import { centsToReais, reaisToCents, formatCentsToBrl } from "@/lib/money";
-import { INVESTMENT_TYPES, TransactionPaymentMethod } from "@/lib/schemas/transaction";
-import type { InvestmentType } from "@/lib/schemas/transaction";
-import { TagPopover } from "@/components/tags/TagPopover";
-import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import {
   listLinksForTransactionAction,
   deleteTransactionLinkAction,
 } from "@/actions/transaction-links";
+import { tagChipSx } from "@/components/tags/tagChipSx";
+
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
+import Box from "@mui/material/Box";
+
+import { TagPopover } from "@/components/tags/TagPopover";
+import { computeAliasApplication } from "@/lib/aliases/apply";
+import { formatDateBr } from "@/lib/dates";
+import { motion } from "@/lib/design-tokens";
+import { m } from "@/lib/messages";
+import { centsToReais, reaisToCents, formatCentsToBrl } from "@/lib/money";
+import { INVESTMENT_TYPES, TransactionPaymentMethod } from "@/lib/schemas/transaction";
+import type { InvestmentType } from "@/lib/schemas/transaction";
+import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 import type { TransactionLinkItem } from "@/server/services/transaction-link-service";
+
+import { AliasSuggestionPopover } from "./aliases/AliasSuggestionPopover";
+import { useAliasMatch } from "./aliases/useAliasMatch";
+import { CreatableEntitySelect } from "./CreatableEntitySelect";
+import { LinkTransactionDialog } from "./LinkTransactionDialog";
+import { useOptions } from "./OptionsContext";
+import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -54,10 +70,6 @@ import type {
   ResponsiblePartyOption,
   TransactionRow as TxRow,
 } from "./types";
-import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
-import { CreatableEntitySelect } from "./CreatableEntitySelect";
-import { useOptions } from "./OptionsContext";
-import { formatDateBr } from "@/lib/dates";
 
 type Props = {
   tx: TxRow;
@@ -75,6 +87,7 @@ type Props = {
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
   accountId: string;
+  aliases: SerializedTransactionAlias[];
   onSelect: (id: string, checked: boolean) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -95,6 +108,7 @@ export function TransactionRowEditor({
   institutions,
   parties,
   accountId,
+  aliases,
   onSelect,
   onSave,
   onCancel,
@@ -104,8 +118,66 @@ export function TransactionRowEditor({
 
   const { onCreateCategory, onCreateSubcategory, onCreateInstitution, canManageOptions } =
     useOptions();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const sharedInputProps = { size: "small" as const, variant: "standard" as const };
+
+  // Aplicação manual de apelido (Fase 4) — só detecta depois que a descrição
+  // for editada NESTA sessão (descriptionDirty), nunca no mount (§2.4).
+  const [descriptionDirty, setDescriptionDirty] = useState(false);
+  const [aliasAnchorEl, setAliasAnchorEl] = useState<HTMLElement | null>(null);
+  const matchedAlias = useAliasMatch(editValues.description ?? "", aliases, descriptionDirty);
+  const aliasApplication = useMemo(
+    () =>
+      matchedAlias
+        ? computeAliasApplication(
+            matchedAlias,
+            {
+              description: editValues.description,
+              notes: editValues.notes,
+              amountCents: editValues.amountCents,
+              categoryId: editValues.categoryId,
+              subcategoryId: editValues.subcategoryId,
+              institutionId: editValues.institutionId,
+              responsiblePartyId: editValues.responsiblePartyId,
+              expenseType: editValues.expenseType,
+              paymentMethod: editValues.paymentMethod,
+              isPending: editValues.isPending,
+            },
+            { categories, institutions, parties },
+          )
+        : null,
+    [matchedAlias, editValues, categories, institutions, parties],
+  );
+  // Ícone acende em qualquer match (mesmo um apelido só-de-tags, que não produz
+  // nenhuma mudança aplicável aqui — tags ficam fora do escopo desta fase); o
+  // popover trata o caso de 0 mudanças com uma mensagem + botão desabilitado.
+  const hasAliasMatch = matchedAlias !== null;
+
+  function handleApplyAlias() {
+    if (!matchedAlias || !aliasApplication || aliasApplication.changes.length === 0) return;
+    const { patch, changes } = aliasApplication;
+    const snapshot = editValues;
+
+    setEditValues((prev) => ({ ...prev, ...patch }));
+    setAliasAnchorEl(null);
+
+    enqueueSnackbar(m.transactions.aliasSuggestion.applied(matchedAlias.trigger, changes.length), {
+      variant: "info",
+      action: (snackKey) => (
+        <Button
+          size="small"
+          color="inherit"
+          onClick={() => {
+            setEditValues(snapshot);
+            closeSnackbar(snackKey);
+          }}
+        >
+          {m.transactions.aliasSuggestion.undo}
+        </Button>
+      ),
+    });
+  }
 
   const [foreignCurrencyOpen, setForeignCurrencyOpen] = useState(
     () => !!editValues.originalCurrency,
@@ -149,6 +221,7 @@ export function TransactionRowEditor({
       <TableRow
         sx={{ bgcolor: "action.selected" }}
         onKeyDown={(e) => {
+          if (aliasAnchorEl) return; // guard: popover de apelido trata seu próprio Enter/Escape
           if (e.key === "Enter") onSave();
           if (e.key === "Escape") onCancel();
         }}
@@ -178,12 +251,50 @@ export function TransactionRowEditor({
           <TextField
             {...sharedInputProps}
             value={editValues.description ?? ""}
-            onChange={(e) => setEditValues((prev) => ({ ...prev, description: e.target.value }))}
+            onChange={(e) => {
+              setEditValues((prev) => ({ ...prev, description: e.target.value }));
+              setDescriptionDirty(true);
+            }}
             placeholder="Descrição"
             fullWidth
             autoFocus={focusField === "description"}
             sx={{ "& input": { fontSize: 13 } }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  {/* Slot de largura fixa: só a opacidade anima (Fade), a largura do
+                      adornment nunca muda — evita "respiro" no campo ao digitar. */}
+                  <Box sx={{ width: 24, display: "flex", justifyContent: "center" }}>
+                    <Fade in={hasAliasMatch} unmountOnExit timeout={motion.duration.normal}>
+                      <Tooltip
+                        title={m.transactions.aliasSuggestion.tooltip(matchedAlias?.trigger ?? "")}
+                      >
+                        <IconButton
+                          size="small"
+                          onClick={(e) => setAliasAnchorEl(e.currentTarget)}
+                          aria-label={m.transactions.aliasSuggestion.tooltip(
+                            matchedAlias?.trigger ?? "",
+                          )}
+                          sx={{ p: 0.25 }}
+                        >
+                          <AutoFixHighOutlinedIcon sx={{ fontSize: 16, color: "accent.primary" }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Fade>
+                  </Box>
+                </InputAdornment>
+              ),
+            }}
           />
+          {matchedAlias && aliasApplication && (
+            <AliasSuggestionPopover
+              anchorEl={aliasAnchorEl}
+              trigger={matchedAlias.trigger}
+              changes={aliasApplication.changes}
+              onApply={handleApplyAlias}
+              onClose={() => setAliasAnchorEl(null)}
+            />
+          )}
         </TableCell>
 
         {/* Categoria */}

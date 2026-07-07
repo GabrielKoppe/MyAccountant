@@ -3,8 +3,45 @@ import userEvent from "@testing-library/user-event";
 import { SnackbarProvider } from "notistack";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+
 import { NewTransactionRow } from "./NewTransactionRow";
 import { OptionsProvider } from "./OptionsContext";
+
+// Apelido "CEG" que define categoria + isPending — usado nos testes da Fase 4
+// (aplicação manual). isPending é o campo do bug de vazamento entre lançamentos
+// consecutivos (entrada rápida) corrigido nesta rodada.
+const CEG_ALIAS: SerializedTransactionAlias = {
+  id: "alias-1",
+  trigger: "CEG",
+  triggerNormalized: "ceg",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  description: null,
+  notes: null,
+  amountCents: null,
+  categoryId: "cat-1",
+  categoryName: "Conta",
+  subcategoryId: null,
+  subcategoryName: null,
+  institutionId: null,
+  institutionName: null,
+  institutionText: null,
+  responsiblePartyId: null,
+  responsiblePartyName: null,
+  expenseType: null,
+  paymentMethod: null,
+  investmentType: null,
+  cardInstallment: null,
+  isPending: true,
+  isFavorite: null,
+  originalCurrency: null,
+  originalAmountCents: null,
+  exchangeRate: null,
+  isArchived: false,
+  createdById: "user-1",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  tags: [],
+};
 
 // Mock da Server Action de criação — capturamos o payload enviado ao servidor.
 const createTransactionAction = vi.fn();
@@ -37,6 +74,7 @@ function renderRow(props: Partial<Parameters<typeof NewTransactionRow>[0]> = {})
               institutions={[]}
               members={[]}
               parties={[]}
+              aliases={[]}
               defaultResponsiblePartyId={null}
               onCreated={onCreated}
               onCancel={onCancel}
@@ -107,5 +145,62 @@ describe("NewTransactionRow", () => {
 
     await waitFor(() => expect(createTransactionAction).toHaveBeenCalled());
     expect(createTransactionAction.mock.calls[0][1].expenseType).toBe("fixed");
+  });
+});
+
+describe("NewTransactionRow — aplicação manual de apelido (Fase 4)", () => {
+  beforeEach(() => {
+    createTransactionAction.mockReset();
+    createTransactionAction.mockResolvedValue({ ok: true, data: { transactionId: "tx-new" } });
+  });
+
+  it("acende o ícone ao casar o gatilho e aplica os campos do apelido ao confirmar no popover", async () => {
+    renderRow({ aliases: [CEG_ALIAS] });
+
+    await userEvent.type(screen.getByPlaceholderText("Descrição"), "pagamento CEG");
+    await userEvent.click(await screen.findByRole("button", { name: 'Aplicar apelido "CEG"' }));
+    await userEvent.click(await screen.findByRole("button", { name: "Aplicar" }));
+
+    await userEvent.click(screen.getByPlaceholderText("Descrição"));
+    await userEvent.keyboard("{Enter}");
+
+    await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(1));
+    const payload = createTransactionAction.mock.calls[0][1];
+    expect(payload.categoryId).toBe("cat-1");
+    expect(payload.isPending).toBe(true);
+  });
+
+  it('"Desfazer" no snackbar restaura os campos — nada persiste até Salvar', async () => {
+    renderRow({ aliases: [CEG_ALIAS] });
+
+    await userEvent.type(screen.getByPlaceholderText("Descrição"), "pagamento CEG");
+    await userEvent.click(await screen.findByRole("button", { name: 'Aplicar apelido "CEG"' }));
+    await userEvent.click(await screen.findByRole("button", { name: "Aplicar" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
+
+    await userEvent.click(screen.getByPlaceholderText("Descrição"));
+    await userEvent.keyboard("{Enter}");
+
+    await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(1));
+    const payload = createTransactionAction.mock.calls[0][1];
+    expect(payload.categoryId).toBeNull();
+    expect(payload.isPending).toBe(false);
+  });
+
+  it("não vaza isPending do apelido para o próximo lançamento na entrada rápida (regressão)", async () => {
+    renderRow({ aliases: [CEG_ALIAS] });
+
+    await userEvent.type(screen.getByPlaceholderText("Descrição"), "pagamento CEG");
+    await userEvent.click(await screen.findByRole("button", { name: 'Aplicar apelido "CEG"' }));
+    await userEvent.click(await screen.findByRole("button", { name: "Aplicar" }));
+    await userEvent.click(screen.getByPlaceholderText("Descrição"));
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(1));
+    expect(createTransactionAction.mock.calls[0][1].isPending).toBe(true);
+
+    // Linha permanece aberta (entrada rápida) — próximo lançamento não deve herdar isPending.
+    await userEvent.type(screen.getByPlaceholderText("Descrição"), "Mercado{Enter}");
+    await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(2));
+    expect(createTransactionAction.mock.calls[1][1].isPending).toBe(false);
   });
 });

@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
+import AutoFixOffOutlinedIcon from "@mui/icons-material/AutoFixOffOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import DoNotDisturbOnOutlinedIcon from "@mui/icons-material/DoNotDisturbOnOutlined";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
 import Switch from "@mui/material/Switch";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -12,16 +18,15 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import DoNotDisturbOnOutlinedIcon from "@mui/icons-material/DoNotDisturbOnOutlined";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import { useMemo, useState } from "react";
 
-import { formatCentsToBrl } from "@/lib/money";
-import { m } from "@/lib/messages";
+import { InstallmentDetectionSection } from "@/components/import/InstallmentDetectionSection";
+import { describeAliasImportApplication } from "@/lib/aliases/import-preview";
 import type { PreviewRow } from "@/lib/csv-parser";
 import type { InstallmentSuggestion } from "@/lib/installment-detector";
-import { InstallmentDetectionSection } from "@/components/import/InstallmentDetectionSection";
+import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
+import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
 type Props = {
   previewRows: PreviewRow[];
@@ -29,6 +34,12 @@ type Props = {
   manualIgnoredRows?: Set<number>;
   /** Alterna uma linha válida entre "será importada" e "ignorada" */
   onToggleRow?: (rowIndex: number) => void;
+  /** Apelidos ativos da Account — resolve o rótulo/preview WYSIWYG das linhas casadas (DD-08) */
+  aliases?: SerializedTransactionAlias[];
+  /** rowIndexes casadas por um apelido que o usuário optou por NÃO aplicar (DD-16) */
+  aliasIgnoredRows?: Set<number>;
+  /** Alterna uma linha casada entre "aplica o apelido" e "mantém os valores crus do extrato" */
+  onToggleAliasRow?: (rowIndex: number) => void;
   installmentSuggestions?: InstallmentSuggestion[];
   acceptedInstallmentIds?: Set<string>;
   onToggleInstallment?: (id: string) => void;
@@ -38,11 +49,15 @@ export function StepPreview({
   previewRows,
   manualIgnoredRows = new Set(),
   onToggleRow = () => {},
+  aliases = [],
+  aliasIgnoredRows = new Set(),
+  onToggleAliasRow = () => {},
   installmentSuggestions = [],
   acceptedInstallmentIds = new Set(),
   onToggleInstallment = () => {},
 }: Props) {
   const [showErrorsOnly, setShowErrorsOnly] = useState(false);
+  const aliasById = useMemo(() => new Map(aliases.map((a) => [a.id, a])), [aliases]);
 
   const isManuallyIgnored = (r: PreviewRow) =>
     r.status === "ok" && manualIgnoredRows.has(r.rowIndex);
@@ -52,6 +67,14 @@ export function StepPreview({
     previewRows.filter((r) => r.status === "ignored").length +
     previewRows.filter((r) => isManuallyIgnored(r)).length;
   const errorCount = previewRows.filter((r) => r.status === "error").length;
+  const aliasAppliedCount = previewRows.filter(
+    (r) =>
+      r.status === "ok" &&
+      !isManuallyIgnored(r) &&
+      r.parsed?.appliedAliasId &&
+      aliasById.has(r.parsed.appliedAliasId) &&
+      !aliasIgnoredRows.has(r.rowIndex),
+  ).length;
 
   const displayed = showErrorsOnly
     ? previewRows.filter((r) => r.status === "error")
@@ -83,6 +106,15 @@ export function StepPreview({
             color="error"
             size="small"
             variant="outlined"
+          />
+        )}
+        {aliasAppliedCount > 0 && (
+          <Chip
+            icon={<AutoFixHighOutlinedIcon />}
+            label={m.csvImport.preview.aliasChip(aliasAppliedCount)}
+            size="small"
+            variant="outlined"
+            sx={{ color: "accent.primary", borderColor: "accent.primary" }}
           />
         )}
         <Box sx={{ flex: 1 }} />
@@ -136,6 +168,24 @@ export function StepPreview({
           <TableBody>
             {displayed.map((row) => {
               const manual = isManuallyIgnored(row);
+              // Linha manualmente ignorada (Status) não é importada — o toggle/preview
+              // de apelido fica irrelevante e some junto (achado ui-critique #3).
+              const alias =
+                !manual && row.parsed?.appliedAliasId
+                  ? aliasById.get(row.parsed.appliedAliasId)
+                  : undefined;
+              const aliasOff = alias ? aliasIgnoredRows.has(row.rowIndex) : false;
+              const aliasApplying = Boolean(alias) && !aliasOff;
+              const aliasPreview =
+                alias && row.parsed ? describeAliasImportApplication(alias, row.parsed) : null;
+              const displayDescription =
+                aliasApplying && alias && alias.description !== null
+                  ? alias.description
+                  : row.parsed?.description;
+              const displayCategoryName =
+                aliasApplying && alias && alias.categoryId !== null
+                  ? alias.categoryName
+                  : row.parsed?.categoryName;
               return (
                 <TableRow
                   key={row.rowIndex}
@@ -204,15 +254,88 @@ export function StepPreview({
                   <TableCell
                     sx={{
                       fontSize: 11,
-                      maxWidth: 200,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      maxWidth: 220,
                     }}
                   >
-                    {row.status === "error" ? row.error : (row.parsed?.description ?? "—")}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
+                      {alias && aliasPreview && (
+                        <Tooltip
+                          title={
+                            <Box sx={{ p: 0.5, maxWidth: 280, maxHeight: 320, overflowY: "auto" }}>
+                              <Typography variant="caption" fontWeight={600} display="block">
+                                {aliasOff
+                                  ? m.csvImport.preview.aliasOffHeader(alias.trigger)
+                                  : m.csvImport.preview.aliasOnHeader(alias.trigger)}
+                              </Typography>
+                              {aliasApplying &&
+                                aliasPreview.visibleChanges.map((c) => (
+                                  <Typography key={c.label} variant="caption" display="block">
+                                    {c.label}: {c.oldDisplay} → {c.newDisplay}
+                                  </Typography>
+                                ))}
+                              {aliasApplying && aliasPreview.hiddenFields.length > 0 && (
+                                <>
+                                  <Typography
+                                    variant="caption"
+                                    display="block"
+                                    sx={{ mt: 0.5, fontWeight: 600 }}
+                                  >
+                                    {m.csvImport.preview.aliasAlsoDefines}
+                                  </Typography>
+                                  {aliasPreview.hiddenFields.map((f) => (
+                                    <Typography key={f.label} variant="caption" display="block">
+                                      {f.label}: {f.display}
+                                    </Typography>
+                                  ))}
+                                </>
+                              )}
+                              {/* Sem color="text.secondary": o Tooltip inverte fundo/texto
+                                  (theme.ts), então um token calibrado pro fundo normal da
+                                  app cai pra ~1.6-1.9:1 de contraste aqui — herda a cor do
+                                  tooltip (igual às outras linhas deste mesmo popup). */}
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                sx={{ mt: 0.5, opacity: 0.75 }}
+                              >
+                                {aliasOff
+                                  ? m.csvImport.preview.aliasClickToApply
+                                  : m.csvImport.preview.aliasClickToIgnore}
+                              </Typography>
+                            </Box>
+                          }
+                        >
+                          <IconButton
+                            size="small"
+                            onClick={() => onToggleAliasRow(row.rowIndex)}
+                            aria-label={m.csvImport.preview.aliasToggleAria(alias.trigger)}
+                            sx={{ flexShrink: 0 }}
+                          >
+                            {aliasOff ? (
+                              <AutoFixOffOutlinedIcon
+                                fontSize="small"
+                                sx={{ color: "text.tertiary" }}
+                              />
+                            ) : (
+                              <AutoFixHighOutlinedIcon
+                                fontSize="small"
+                                sx={{ color: "accent.primary" }}
+                              />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        noWrap
+                        sx={{ overflow: "hidden", textOverflow: "ellipsis" }}
+                      >
+                        {row.status === "error" ? row.error : (displayDescription ?? "—")}
+                      </Typography>
+                    </Box>
                   </TableCell>
-                  <TableCell sx={{ fontSize: 11 }}>{row.parsed?.categoryName ?? "—"}</TableCell>
+                  <TableCell sx={{ fontSize: 11 }}>{displayCategoryName ?? "—"}</TableCell>
                 </TableRow>
               );
             })}

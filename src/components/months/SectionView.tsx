@@ -1,19 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { SectionCountType } from "@prisma/client";
+import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
+import type { SectionCountType } from "@prisma/client";
+import { useMemo, useState } from "react";
 
-import { formatCentsToBrl } from "@/lib/money";
-import { m } from "@/lib/messages";
-import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
+import { ImportWizard } from "@/components/csv-import/ImportWizard";
 import { CreateTableModal } from "@/components/finance-tables/CreateTableModal";
 import { FinanceTableCard } from "@/components/finance-tables/FinanceTableCard";
-import { ImportWizard } from "@/components/csv-import/ImportWizard";
+import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -22,6 +20,9 @@ import type {
   ResponsiblePartyOption,
   TransactionRow,
 } from "@/components/transactions/types";
+import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
+import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
 type Section = {
   id: string;
@@ -71,6 +72,7 @@ type Props = {
   institutions: InstitutionOption[];
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
+  aliases: SerializedTransactionAlias[];
   defaultResponsiblePartyId: string | null;
 };
 
@@ -91,6 +93,7 @@ export function SectionView({
   institutions,
   members,
   parties,
+  aliases,
   defaultResponsiblePartyId,
 }: Props) {
   const [duplicateFrom, setDuplicateFrom] = useState<string | null>(null);
@@ -245,6 +248,7 @@ export function SectionView({
                   sections={allSections}
                   tableTypes={tableTypes}
                   members={members}
+                  aliases={aliases}
                   preSelectedSectionId={section.id}
                 />
               </Box>
@@ -299,6 +303,7 @@ export function SectionView({
           institutions={institutions}
           members={members}
           parties={parties}
+          aliases={aliases}
           defaultResponsiblePartyId={defaultResponsiblePartyId}
           onDuplicate={() => setDuplicateFrom(table.id)}
         />

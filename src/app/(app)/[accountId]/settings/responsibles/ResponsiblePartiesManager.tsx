@@ -297,9 +297,7 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
                   </Typography>
                   {party.kind === "group" && (
                     <Typography variant="caption" color="text.secondary" noWrap component="div">
-                      {party.memberUserIds
-                        .map((id) => memberLabelById.get(id) ?? "—")
-                        .join(", ")}
+                      {party.memberUserIds.map((id) => memberLabelById.get(id) ?? "—").join(", ")}
                     </Typography>
                   )}
                 </Box>
@@ -373,13 +371,7 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
         open={dialogOpen}
         onClose={closeDialog}
         maxWidth="xs"
-        title={
-          editTarget
-            ? m.common.edit
-            : isGroupForm
-              ? rp.createGroup
-              : rp.createExternal
-        }
+        title={editTarget ? m.common.edit : isGroupForm ? rp.createGroup : rp.createExternal}
         loading={isPending}
         actions={
           <>

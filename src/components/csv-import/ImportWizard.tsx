@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -8,26 +8,28 @@ import Fade from "@mui/material/Fade";
 import Step from "@mui/material/Step";
 import StepLabel from "@mui/material/StepLabel";
 import Stepper from "@mui/material/Stepper";
-import { layout } from "@/lib/design-tokens";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
-import { DialogShell } from "@/components/ui/DialogShell";
-import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
 import { useSnackbar } from "notistack";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { executeImportAction, listTemplatesAction } from "@/actions/csv-import";
+import { DialogShell } from "@/components/ui/DialogShell";
+import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
 import { applyMappingToRows, deriveHeadersAndRows } from "@/lib/csv-parser";
+import type { FileMatrix, PreviewRow } from "@/lib/csv-parser";
+import { layout } from "@/lib/design-tokens";
 import { parseFileToMatrix } from "@/lib/import-file";
-import { DEFAULT_MAPPING, importMappingSchema } from "@/lib/schemas/csv-import";
+import { detectInstallments, type InstallmentSuggestion } from "@/lib/installment-detector";
 import { m } from "@/lib/messages";
-import { StepUpload } from "./StepUpload";
+import { DEFAULT_MAPPING, importMappingSchema } from "@/lib/schemas/csv-import";
+import type { ImportMapping } from "@/lib/schemas/csv-import";
+import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+import type { ImportResult } from "@/server/services/csv-import-service";
+
+import { StepConfig, type ImportConfig } from "./StepConfig";
 import { StepMapping } from "./StepMapping";
 import { StepPreview } from "./StepPreview";
-import { StepConfig, type ImportConfig } from "./StepConfig";
 import { StepResult } from "./StepResult";
-import type { FileMatrix, PreviewRow } from "@/lib/csv-parser";
-import type { ImportMapping } from "@/lib/schemas/csv-import";
-import type { ImportResult } from "@/server/services/csv-import-service";
-import { detectInstallments, type InstallmentSuggestion } from "@/lib/installment-detector";
+import { StepUpload } from "./StepUpload";
 
 type SectionOption = { id: string; name: string };
 type TableTypeOption = { id: string; name: string; isDefault: boolean };
@@ -40,6 +42,7 @@ type Props = {
   sections: SectionOption[];
   tableTypes: TableTypeOption[];
   members: MemberOption[];
+  aliases: SerializedTransactionAlias[];
   preSelectedSectionId?: string;
   trigger?: "button";
 };
@@ -60,6 +63,7 @@ export function ImportWizard({
   sections,
   tableTypes,
   members,
+  aliases,
   preSelectedSectionId,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
@@ -90,6 +94,8 @@ export function ImportWizard({
   const [acceptedInstallmentIds, setAcceptedInstallmentIds] = useState<Set<string>>(new Set());
   // rowIndexes que o usuário marcou para ignorar manualmente no preview
   const [manualIgnoredRows, setManualIgnoredRows] = useState<Set<number>>(new Set());
+  // rowIndexes casadas por um apelido que o usuário optou por NÃO aplicar (DD-16)
+  const [aliasIgnoredRows, setAliasIgnoredRows] = useState<Set<number>>(new Set());
 
   // Step 3
   const defaultType = tableTypes.find((t) => t.isDefault) ?? tableTypes[0];
@@ -159,6 +165,7 @@ export function ImportWizard({
     setMapping(DEFAULT_MAPPING);
     setPreviewRows([]);
     setManualIgnoredRows(new Set());
+    setAliasIgnoredRows(new Set());
     setConfig({
       tableName: "",
       sectionId: preSelectedSectionId ?? sections[0]?.id ?? "",
@@ -200,9 +207,10 @@ export function ImportWizard({
         enqueueSnackbar(m.csvImport.wizard.noMapping, { variant: "warning" });
         return;
       }
-      const preview = applyMappingToRows(rows, mapping);
+      const preview = applyMappingToRows(rows, mapping, aliases);
       setPreviewRows(preview);
       setManualIgnoredRows(new Set()); // reinicia escolhas manuais ao recomputar o preview
+      setAliasIgnoredRows(new Set());
       // Detectar sugestões de parcelamento
       const suggestions = detectInstallments(preview);
       setInstallmentSuggestions(suggestions);
@@ -256,6 +264,7 @@ export function ImportWizard({
         rows,
         fileType,
         manualIgnoreRows: [...manualIgnoredRows],
+        aliasIgnoreRows: [...aliasIgnoredRows],
         acceptedInstallments: installmentSuggestions
           .filter((s) => acceptedInstallmentIds.has(s.id))
           .map((s) => ({
@@ -376,6 +385,16 @@ export function ImportWizard({
                       return next;
                     })
                   }
+                  aliases={aliases}
+                  aliasIgnoredRows={aliasIgnoredRows}
+                  onToggleAliasRow={(rowIndex) =>
+                    setAliasIgnoredRows((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(rowIndex)) next.delete(rowIndex);
+                      else next.add(rowIndex);
+                      return next;
+                    })
+                  }
                   installmentSuggestions={installmentSuggestions}
                   acceptedInstallmentIds={acceptedInstallmentIds}
                   onToggleInstallment={(id) =>
@@ -412,6 +431,7 @@ export function ImportWizard({
                     setParseError(null);
                     setPreviewRows([]);
                     setManualIgnoredRows(new Set());
+                    setAliasIgnoredRows(new Set());
                     setResult(null);
                   }}
                 />

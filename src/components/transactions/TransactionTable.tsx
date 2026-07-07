@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SectionCountType } from "@prisma/client";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import CloseIcon from "@mui/icons-material/Close";
+import FilterListOffIcon from "@mui/icons-material/FilterListOff";
+import SearchIcon from "@mui/icons-material/Search";
+import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
@@ -16,29 +20,27 @@ import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import CloseIcon from "@mui/icons-material/Close";
-import FilterListOffIcon from "@mui/icons-material/FilterListOff";
-import SearchIcon from "@mui/icons-material/Search";
-import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import type { SectionCountType } from "@prisma/client";
 import { useSnackbar } from "notistack";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { m } from "@/lib/messages";
-import { formatDateLong } from "@/lib/dates";
-import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
-import { useDeleteUndo } from "@/components/providers/DeleteUndoProvider";
-import { TagUpdateContext } from "@/components/tags/TagUpdateContext";
-import { OptionsProvider } from "./OptionsContext";
 import {
   createCategoryAction,
   createInstitutionAction,
   createSubcategoryAction,
 } from "@/actions/account-settings";
+import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
+import { useDeleteUndo } from "@/components/providers/DeleteUndoProvider";
+import { TagUpdateContext } from "@/components/tags/TagUpdateContext";
+import { formatDateLong } from "@/lib/dates";
+import { m } from "@/lib/messages";
+import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+
 import { BulkActionBar } from "./BulkActionBar";
 import { NewTransactionRow } from "./NewTransactionRow";
-import { TransactionRow } from "./TransactionRow";
+import { OptionsProvider } from "./OptionsContext";
 import { TransactionDetailDialog } from "./TransactionDetailDialog";
+import { TransactionRow } from "./TransactionRow";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -114,6 +116,7 @@ type Props = {
   institutions: InstitutionOption[];
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
+  aliases: SerializedTransactionAlias[];
   defaultResponsiblePartyId: string | null;
   showNewRow: boolean;
   onNewRowClose: () => void;
@@ -139,6 +142,7 @@ export function TransactionTable({
   institutions: propInstitutions,
   members,
   parties,
+  aliases,
   defaultResponsiblePartyId,
   showNewRow,
   onNewRowClose,
@@ -325,7 +329,6 @@ export function TransactionTable({
       optimisticDelete(id);
       requestDelete(id, row, accountId);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows, requestDelete, accountId],
   );
 
@@ -653,6 +656,7 @@ export function TransactionTable({
                     institutions={institutions}
                     members={members}
                     parties={parties}
+                    aliases={aliases}
                     defaultResponsiblePartyId={defaultResponsiblePartyId}
                     onCreated={onNewCreated}
                     onCancel={onNewRowClose}
@@ -714,6 +718,7 @@ export function TransactionTable({
                           institutions={institutions}
                           members={members}
                           parties={parties}
+                          aliases={aliases}
                           autoEdit={editRequestId === tx.id}
                           onSelect={handleSelect}
                           onOptimisticUpdate={optimisticUpdate}
@@ -767,6 +772,7 @@ export function TransactionTable({
                           institutions={institutions}
                           members={members}
                           parties={parties}
+                          aliases={aliases}
                           autoEdit={editRequestId === tx.id}
                           onSelect={handleSelect}
                           onOptimisticUpdate={optimisticUpdate}

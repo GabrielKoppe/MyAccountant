@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { NumericFormat } from "react-number-format";
+import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
+import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
+import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import NoteIcon from "@mui/icons-material/Note";
+import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
+import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Collapse from "@mui/material/Collapse";
+import Fade from "@mui/material/Fade";
 import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import TableCell from "@mui/material/TableCell";
@@ -15,25 +25,28 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
-import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
-import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import NoteIcon from "@mui/icons-material/Note";
-import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
-import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import { useSnackbar } from "notistack";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { NumericFormat } from "react-number-format";
 
 import { createTransactionAction } from "@/actions/transactions";
-import { centsToReais, reaisToCents } from "@/lib/money";
+import { computeAliasApplication } from "@/lib/aliases/apply";
+import { motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
+import { centsToReais, reaisToCents } from "@/lib/money";
 import {
   INVESTMENT_TYPES,
   TransactionExpenseType,
   TransactionPaymentMethod,
 } from "@/lib/schemas/transaction";
 import type { InvestmentType } from "@/lib/schemas/transaction";
+import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+
+import { AliasSuggestionPopover } from "./aliases/AliasSuggestionPopover";
+import { useAliasMatch } from "./aliases/useAliasMatch";
+import { CreatableEntitySelect } from "./CreatableEntitySelect";
+import { useOptions } from "./OptionsContext";
+import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -42,9 +55,6 @@ import type {
   ResponsiblePartyOption,
   TransactionRow,
 } from "./types";
-import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
-import { CreatableEntitySelect } from "./CreatableEntitySelect";
-import { useOptions } from "./OptionsContext";
 
 type Props = {
   tableId: string;
@@ -57,6 +67,7 @@ type Props = {
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
   defaultResponsiblePartyId: string | null;
+  aliases: SerializedTransactionAlias[];
   onCreated: (tx: TransactionRow) => void;
   onCancel: () => void;
 };
@@ -75,10 +86,11 @@ export function NewTransactionRow({
   institutions,
   parties,
   defaultResponsiblePartyId,
+  aliases,
   onCreated,
   onCancel,
 }: Props) {
-  const { enqueueSnackbar } = useSnackbar();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { onCreateCategory, onCreateSubcategory, onCreateInstitution, canManageOptions } =
     useOptions();
   const [saving, setSaving] = useState(false);
@@ -93,7 +105,7 @@ export function NewTransactionRow({
   const [responsiblePartyId, setResponsiblePartyId] = useState<string | null>(
     defaultResponsiblePartyId,
   );
-  const [isPending, _setIsPending] = useState(false);
+  const [isPending, setIsPending] = useState(false);
   const [investmentType, setInvestmentType] = useState<InvestmentType | null>(null);
   // Default "Evento único" pré-selecionado para reduzir fricção no lançamento manual (Spec 41).
   const [expenseType, setExpenseType] = useState<TransactionExpenseType | null>(
@@ -119,6 +131,107 @@ export function NewTransactionRow({
   useEffect(() => {
     if (calculatedExchangeRate !== null) setExchangeRate(calculatedExchangeRate);
   }, [calculatedExchangeRate]);
+
+  // Aplicação manual de apelido (Fase 4) — linha nova sempre habilitada (não há
+  // "mount com descrição preenchida" a evitar, ao contrário do editor).
+  const [aliasAnchorEl, setAliasAnchorEl] = useState<HTMLElement | null>(null);
+  const matchedAlias = useAliasMatch(description, aliases, true);
+  const aliasApplication = useMemo(
+    () =>
+      matchedAlias
+        ? computeAliasApplication(
+            matchedAlias,
+            {
+              description,
+              notes,
+              amountCents,
+              categoryId,
+              subcategoryId,
+              institutionId,
+              responsiblePartyId,
+              expenseType,
+              paymentMethod,
+              isPending,
+            },
+            { categories, institutions, parties },
+          )
+        : null,
+    [
+      matchedAlias,
+      description,
+      notes,
+      amountCents,
+      categoryId,
+      subcategoryId,
+      institutionId,
+      responsiblePartyId,
+      expenseType,
+      paymentMethod,
+      isPending,
+      categories,
+      institutions,
+      parties,
+    ],
+  );
+  // Ícone acende em qualquer match (mesmo um apelido só-de-tags, que não produz
+  // nenhuma mudança aplicável aqui — tags ficam fora do escopo desta fase); o
+  // popover trata o caso de 0 mudanças com uma mensagem + botão desabilitado.
+  const hasAliasMatch = matchedAlias !== null;
+
+  function handleApplyAlias() {
+    if (!matchedAlias || !aliasApplication || aliasApplication.changes.length === 0) return;
+    const { patch, changes } = aliasApplication;
+    const snapshot = {
+      description,
+      notes,
+      amountCents,
+      categoryId,
+      subcategoryId,
+      institutionId,
+      responsiblePartyId,
+      expenseType,
+      paymentMethod,
+      isPending,
+    };
+
+    if (patch.description !== undefined) setDescription(patch.description ?? "");
+    if (patch.notes !== undefined) setNotes(patch.notes ?? null);
+    if (patch.amountCents !== undefined) setAmountCents(patch.amountCents);
+    if (patch.categoryId !== undefined) setCategoryId(patch.categoryId);
+    if (patch.subcategoryId !== undefined) setSubcategoryId(patch.subcategoryId);
+    if (patch.institutionId !== undefined) setInstitutionId(patch.institutionId);
+    if (patch.responsiblePartyId !== undefined) setResponsiblePartyId(patch.responsiblePartyId);
+    if (patch.expenseType !== undefined) setExpenseType(patch.expenseType);
+    if (patch.paymentMethod !== undefined) setPaymentMethod(patch.paymentMethod);
+    if (patch.isPending !== undefined) setIsPending(patch.isPending);
+
+    setAliasAnchorEl(null);
+
+    enqueueSnackbar(m.transactions.aliasSuggestion.applied(matchedAlias.trigger, changes.length), {
+      variant: "info",
+      action: (snackKey) => (
+        <Button
+          size="small"
+          color="inherit"
+          onClick={() => {
+            setDescription(snapshot.description);
+            setNotes(snapshot.notes);
+            setAmountCents(snapshot.amountCents);
+            setCategoryId(snapshot.categoryId);
+            setSubcategoryId(snapshot.subcategoryId);
+            setInstitutionId(snapshot.institutionId);
+            setResponsiblePartyId(snapshot.responsiblePartyId);
+            setExpenseType(snapshot.expenseType);
+            setPaymentMethod(snapshot.paymentMethod);
+            setIsPending(snapshot.isPending);
+            closeSnackbar(snackKey);
+          }}
+        >
+          {m.transactions.aliasSuggestion.undo}
+        </Button>
+      ),
+    });
+  }
 
   const subcatsForCategory = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
   const sharedInputProps = { size: "small" as const, variant: "standard" as const };
@@ -205,6 +318,7 @@ export function NewTransactionRow({
     setSubcategoryId(null);
     setInstitutionId(null);
     setResponsiblePartyId(defaultResponsiblePartyId);
+    setIsPending(false);
     setInvestmentType(null);
     setExpenseType(TransactionExpenseType.one_time);
     setPaymentMethod(null);
@@ -223,6 +337,7 @@ export function NewTransactionRow({
       <TableRow
         sx={{ bgcolor: "action.hover" }}
         onKeyDown={(e) => {
+          if (aliasAnchorEl) return; // guard: popover de apelido trata seu próprio Enter/Escape
           if (e.key === "Enter") handleSave();
           if (e.key === "Escape") onCancel();
         }}
@@ -251,7 +366,42 @@ export function NewTransactionRow({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Descrição"
             fullWidth
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  {/* Slot de largura fixa: só a opacidade anima (Fade), a largura do
+                      adornment nunca muda — evita "respiro" no campo ao digitar. */}
+                  <Box sx={{ width: 24, display: "flex", justifyContent: "center" }}>
+                    <Fade in={hasAliasMatch} unmountOnExit timeout={motion.duration.normal}>
+                      <Tooltip
+                        title={m.transactions.aliasSuggestion.tooltip(matchedAlias?.trigger ?? "")}
+                      >
+                        <IconButton
+                          size="small"
+                          onClick={(e) => setAliasAnchorEl(e.currentTarget)}
+                          aria-label={m.transactions.aliasSuggestion.tooltip(
+                            matchedAlias?.trigger ?? "",
+                          )}
+                          sx={{ p: 0.25 }}
+                        >
+                          <AutoFixHighOutlinedIcon sx={{ fontSize: 16, color: "accent.primary" }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Fade>
+                  </Box>
+                </InputAdornment>
+              ),
+            }}
           />
+          {matchedAlias && aliasApplication && (
+            <AliasSuggestionPopover
+              anchorEl={aliasAnchorEl}
+              trigger={matchedAlias.trigger}
+              changes={aliasApplication.changes}
+              onApply={handleApplyAlias}
+              onClose={() => setAliasAnchorEl(null)}
+            />
+          )}
         </TableCell>
 
         {!hiddenColumns.category && (

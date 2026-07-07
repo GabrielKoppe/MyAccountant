@@ -465,6 +465,59 @@ Estado de conclusão de um `ChecklistItem` num `Month` específico. **Linha pres
 - Cascade em delete de item/month/account.
 - **Vínculo de transação (unilateral)**: o vínculo mora só neste lado (o FK está em `checklist_completions`; a tabela `transactions` não ganha coluna). `linkTransaction` verifica item, mês **e** transação ∈ account, exige `tx.monthId === monthId`, e faz `upsert` da conclusão com `transactionId` → **vincular marca concluído**. `unlinkTransaction` zera `transactionId` mantendo a conclusão. Deletar a transação (`onDelete: SetNull`) apenas limpa o vínculo.
 
+### 3.20 `TransactionAlias`
+
+Apelido reutilizável por Account: um **gatilho** de texto que, ao casar (substring, case-insensitive) com a descrição de uma transação — na entrada/edição manual e na importação —, pré-preenche/sobrescreve um conjunto de campos. Ver `specs/61-transaction-aliases.md`.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | `String` (cuid) | PK |
+| `accountId` | `String` | FK → Account (Cascade) |
+| `trigger` | `String` | texto de exibição (case original); `@map("trigger_text")` |
+| `triggerNormalized` | `String` | lowercase; usado no match e na unicidade |
+| `description` | `String?` | payload — substitui a descrição inteira |
+| `notes` | `String?` | payload |
+| `amountCents` | `BigInt?` | payload (centavos) — aplica na entrada/edição manual; ⚠️ **NUNCA** no import (spec 61 DD-09: valor do extrato sempre prevalece) |
+| `categoryId` | `String?` | payload FK → Category (SetNull) |
+| `subcategoryId` | `String?` | payload FK → Subcategory (SetNull) |
+| `institutionId` | `String?` | payload FK → Institution (SetNull) |
+| `institutionText` | `String?` | payload |
+| `responsiblePartyId` | `String?` | payload FK → ResponsibleParty (SetNull) |
+| `expenseType` | `TransactionExpenseType?` | payload (enum) |
+| `paymentMethod` | `TransactionPaymentMethod?` | payload (enum) |
+| `investmentType` | `String?` | payload |
+| `cardInstallment` | `String?` | payload |
+| `isPending` | `Boolean?` | payload |
+| `isFavorite` | `Boolean?` | payload — aplica no import (spec 61 DD-21) |
+| `originalCurrency` | `String?` | payload (moeda estrangeira) — import fill-if-empty (spec 61 DD-22) |
+| `originalAmountCents` | `BigInt?` | payload (moeda estrangeira) — import fill-if-empty (spec 61 DD-22) |
+| `exchangeRate` | `Decimal?` | payload (câmbio, `@db.Decimal(18,6)`) — import fill-if-empty (spec 61 DD-22) |
+| `archivedAt` | `DateTime?` | soft-delete (arquivar) |
+| `createdById` | `String` | FK → User |
+| `createdAt` | `DateTime` | |
+| `updatedAt` | `DateTime` | auto-update |
+
+**Regras**:
+- Escopado por Account: toda query filtra `accountId`; `@@unique([accountId, triggerNormalized])`, `@@index([accountId])`.
+- **Patch parcial**: só os campos definidos (não-null) são aplicados; apelido nunca "limpa" um campo. Tags são um conjunto via `TransactionAliasTag` — apelido com ≥1 tag **substitui** as tags da transação; com 0 tags não as toca.
+- Cada FK do payload (`categoryId`/`subcategoryId`/`institutionId`/`responsiblePartyId`/tags) precisa pertencer à mesma Account (validar no service).
+- Deletar a Account remove os apelidos em cascata; deletar Category/Subcategory/Institution/ResponsibleParty referenciados → `SetNull` no apelido.
+
+### 3.21 `TransactionAliasTag`
+
+Join many-to-many entre `TransactionAlias` e `Tag` (conjunto de tags que o apelido aplica).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `aliasId` | `String` | FK → TransactionAlias (Cascade) |
+| `tagId` | `String` | FK → Tag (Cascade) |
+
+**Regras**:
+- PK composta `@@id([aliasId, tagId])`; `@@index([tagId])`.
+- Cascade em delete do apelido ou da tag.
+
+> **Delta de domínio pendente (drift Tag/expenseType).** As colunas `Transaction.expenseType`, `Transaction.tags` (relação → `TransactionTag` → `Tag`) e `Transaction.responsiblePartyId` **já existem** em `prisma/schema.prisma`, mas **não estão documentadas** na tabela de `Transaction` em §3.9 — que lista `responsibleUserId`, não `responsiblePartyId` — nem as entidades `Tag`/`TransactionTag` estão descritas aqui (drift pré-existente). Nota: `Transaction.paymentMethod` e `Transaction.isPending` **já estão** documentados em §3.9 (não fazem parte do drift). A Spec 61 depende das colunas em drift (o import passa a gravá-las). Recomenda-se backfill de `Tag`/`TransactionTag` e das três colunas faltantes em §3.9 numa passada dedicada.
+
 ## 4. Diagrama (referência visual)
 
 > Vou manter a versão consolidada aqui. Quando ferramentas como `mermaid` forem usadas, este bloco é a referência.
@@ -494,6 +547,14 @@ erDiagram
     Category ||--o{ Transaction : "categorizes"
     Subcategory ||--o{ Transaction : "subcategorizes"
     Institution ||--o{ Transaction : "provides"
+    Account ||--o{ TransactionAlias : "has"
+    TransactionAlias ||--o{ TransactionAliasTag : "contains"
+    Tag ||--o{ TransactionAliasTag : "applied by"
+    Category ||--o{ TransactionAlias : "payload"
+    Subcategory ||--o{ TransactionAlias : "payload"
+    Institution ||--o{ TransactionAlias : "payload"
+    ResponsibleParty ||--o{ TransactionAlias : "payload"
+    User ||--o{ TransactionAlias : "created"
 ```
 
 ## 5. Resoluções de inconsistências do MVP antigo
@@ -523,3 +584,5 @@ Para histórico, decisões tomadas em relação aos rascunhos anteriores (`sql_m
 | 2026-06-02 | `UserSettings.accentColor` — preferência de cor de destaque por usuário (10 presets). |
 | 2026-07-04 | Novas entidades `ChecklistItem` (template recorrente por Account) + `ChecklistCompletion` (estado por mês, linha-presente = concluído). Suportam o widget `checklist` exclusivo do Resumo do Mês (spec 36). Migração `add_monthly_checklist`. |
 | 2026-07-05 | `ChecklistCompletion.transactionId` (FK opcional → Transaction, `onDelete: SetNull`) — vínculo unilateral de uma transação a um item do checklist (vincular marca concluído). Migração `checklist_completion_transaction_link`. |
+| 2026-07-05 | Novas entidades `TransactionAlias` (apelido reutilizável por Account) + join `TransactionAliasTag`. Gatilho de substring case-insensitive que pré-preenche campos de transação (manual e import). Migração `create_transaction_aliases`. Ver `specs/61-transaction-aliases.md`. |
+| 2026-07-07 | `TransactionAlias` ganha `isFavorite` (DD-21) + moeda estrangeira `originalCurrency`/`originalAmountCents`/`exchangeRate` (DD-22, import fill-if-empty). Migração `alias_favorite_and_foreign_currency`. Ver `specs/61-transaction-aliases.md`. |

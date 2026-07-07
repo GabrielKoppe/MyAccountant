@@ -239,6 +239,7 @@ moveTransactionsSchema = z.object({
 - JSON arbitrário.
 - Não exposto na UI default.
 - Usado por features futuras (ex: dados de import original).
+- **Uso real (spec 61, Fase 5)**: quando um apelido de transação (`TransactionAlias`) é aplicado durante o import CSV/XLSX, `metadata` recebe `{ appliedAliasId, aliasTrigger }`. Não é lido de volta por nenhuma feature hoje — é rastro de auditoria (permite responder "por que essa transação tem essa categoria/descrição?" olhando o registro).
 
 ## 5. Validação (Zod)
 
@@ -325,6 +326,7 @@ Detalhado em `10-csv-xlsx-import.md`. Resumo:
 - Mesmo Zod schema, validado linha a linha.
 - Erros agregados, retorno com {ok: [...], errors: [...]}.
 - User confirma antes de salvar.
+- **Apelidos de transação (spec 61, Fase 5)**: durante o parse, cada linha é casada contra os apelidos ativos da Account (`matchAlias`, por `description`); se houver match, o payload do apelido sobrescreve os campos que ele define (exceto `amountCents`, nunca aplicado no import), com opt-out por linha na preview. Ver `10-csv-xlsx-import.md §5.5/§9` e `61-transaction-aliases.md §9 Fase 5`.
 
 ## 9. Performance
 

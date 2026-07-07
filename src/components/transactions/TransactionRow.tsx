@@ -1,7 +1,9 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
-import type { SectionCountType } from "@prisma/client";
+import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
+import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
@@ -9,18 +11,26 @@ import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
-import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import { tagChipSx } from "@/components/tags/tagChipSx";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
+import type { SectionCountType } from "@prisma/client";
 import { useSnackbar } from "notistack";
+import { memo, useEffect, useRef, useState } from "react";
 
+import { listTagsAction } from "@/actions/tags";
 import { duplicateTransactionAction, updateTransactionAction } from "@/actions/transactions";
-import { formatCentsToBrl } from "@/lib/money";
+import { InstallmentGroupPanel } from "@/components/installments/InstallmentGroupPanel";
+import { tagChipSx } from "@/components/tags/tagChipSx";
+import { TagPopover } from "@/components/tags/TagPopover";
 import { formatDateShort } from "@/lib/dates";
 import { m } from "@/lib/messages";
-import { InstallmentGroupPanel } from "@/components/installments/InstallmentGroupPanel";
+import { formatCentsToBrl } from "@/lib/money";
+import type { CreateTransactionAliasInput } from "@/lib/schemas/transaction-alias";
+import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+
+import { TransactionAliasFormDialog } from "./aliases/TransactionAliasFormDialog";
+import { LinkTransactionDialog } from "./LinkTransactionDialog";
+import { PartyAvatar } from "./PartyAvatar";
+import { TransactionRowActions } from "./TransactionRowActions";
+import { TransactionRowEditor } from "./TransactionRowEditor";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -29,11 +39,6 @@ import type {
   ResponsiblePartyOption,
   TransactionRow as TxRow,
 } from "./types";
-import { PartyAvatar } from "./PartyAvatar";
-import { TransactionRowEditor } from "./TransactionRowEditor";
-import { TransactionRowActions } from "./TransactionRowActions";
-import { TagPopover } from "@/components/tags/TagPopover";
-import { LinkTransactionDialog } from "./LinkTransactionDialog";
 
 type Props = {
   tx: TxRow;
@@ -47,6 +52,7 @@ type Props = {
   institutions: InstitutionOption[];
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
+  aliases: SerializedTransactionAlias[];
   autoEdit: boolean;
   onSelect: (id: string, checked: boolean) => void;
   onOptimisticUpdate: (id: string, patch: Partial<TxRow>) => void;
@@ -68,6 +74,7 @@ export function TransactionRowBase({
   institutions,
   members,
   parties,
+  aliases,
   autoEdit,
   onSelect,
   onOptimisticUpdate,
@@ -87,6 +94,16 @@ export function TransactionRowBase({
   const [localTags, setLocalTags] = useState(tx.tags);
   const [installmentPanelOpen, setInstallmentPanelOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
+  const [aliasPrefill, setAliasPrefill] = useState<Omit<
+    Partial<CreateTransactionAliasInput>,
+    "trigger"
+  > | null>(null);
+  // Inicia com as tags já aplicadas na transação (evita "sumir" chips enquanto
+  // a lista completa da Account carrega) — listTagsAction só complementa depois.
+  const [aliasTags, setAliasTags] = useState<{ id: string; name: string; color: string | null }[]>(
+    tx.tags,
+  );
   const tagCellRef = useRef<HTMLTableCellElement>(null);
 
   const amount = BigInt(tx.amountCents);
@@ -252,6 +269,37 @@ export function TransactionRowBase({
     enqueueSnackbar("Transação duplicada.", { variant: "success" });
   }
 
+  // Gatilho vazio (Fase 3) — o resto do payload vem da transação, exceto
+  // investmentType/cardInstallment: fora do escopo do form (Fase 2), então
+  // não são carregados aqui para não persistir valor invisível ao usuário.
+  function handleCreateAlias() {
+    setAliasPrefill({
+      description: tx.description,
+      notes: tx.notes,
+      amountCents: amount,
+      categoryId: tx.categoryId,
+      subcategoryId: tx.subcategoryId,
+      institutionId: tx.institutionId,
+      institutionText: tx.institutionText,
+      responsiblePartyId: tx.responsiblePartyId,
+      expenseType: tx.expenseType,
+      paymentMethod: tx.paymentMethod,
+      isPending: tx.isPending,
+      tagIds: tx.tags.map((t) => t.id),
+    });
+    setAliasTags(tx.tags);
+    listTagsAction(accountId)
+      .then((allTags) => {
+        setAliasTags((prev) => {
+          const merged = new Map(prev.map((t) => [t.id, t]));
+          allTags.forEach((t) => merged.set(t.id, t));
+          return Array.from(merged.values());
+        });
+      })
+      .catch(() => enqueueSnackbar(m.transactions.tags.loadError, { variant: "error" }));
+    setAliasDialogOpen(true);
+  }
+
   const subcatsForCategory = categories.find((c) => c.id === tx.categoryId)?.subcategories ?? [];
 
   // Modo edição — delega para TransactionRowEditor
@@ -273,6 +321,7 @@ export function TransactionRowBase({
         members={members}
         parties={parties}
         accountId={accountId}
+        aliases={aliases}
         onSelect={onSelect}
         onSave={saveEdit}
         onCancel={cancelEdit}
@@ -586,6 +635,7 @@ export function TransactionRowBase({
         onToggleFavorite={toggleFavorite}
         onViewDetails={handleViewDetails}
         onDuplicate={handleDuplicate}
+        onCreateAlias={handleCreateAlias}
         onDelete={handleDelete}
         onOpenLinkDialog={() => setLinkDialogOpen(true)}
       />
@@ -609,6 +659,21 @@ export function TransactionRowBase({
         transactionId={tx.id}
         onLinked={() => onOptimisticUpdate(tx.id, { linkCount: tx.linkCount + 1 })}
       />
+
+      {aliasDialogOpen && (
+        <TransactionAliasFormDialog
+          open={aliasDialogOpen}
+          onClose={() => setAliasDialogOpen(false)}
+          accountId={accountId}
+          categories={categories}
+          institutions={institutions}
+          parties={parties}
+          tags={aliasTags}
+          prefill={aliasPrefill ?? undefined}
+          // Dialog já mostra o snackbar de sucesso — nada pra sincronizar aqui (não há lista local).
+          onSuccess={() => {}}
+        />
+      )}
     </TableRow>
   );
 }

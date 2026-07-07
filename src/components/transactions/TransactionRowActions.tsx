@@ -1,9 +1,6 @@
 "use client";
 
-import IconButton from "@mui/material/IconButton";
-import TableCell from "@mui/material/TableCell";
-import Tooltip from "@mui/material/Tooltip";
-import Box from "@mui/material/Box";
+import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -15,8 +12,13 @@ import NoteIcon from "@mui/icons-material/Note";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import TableCell from "@mui/material/TableCell";
+import Tooltip from "@mui/material/Tooltip";
 
 import { m } from "@/lib/messages";
+
 import type { TransactionRow as TxRow } from "./types";
 
 type Props = {
@@ -30,6 +32,7 @@ type Props = {
   onToggleFavorite: (e: React.MouseEvent) => void;
   onViewDetails: () => void;
   onDuplicate: () => void;
+  onCreateAlias: () => void;
   onDelete: () => void;
   onOpenLinkDialog: () => void;
 };
@@ -43,6 +46,7 @@ export function TransactionRowActions({
   onToggleFavorite,
   onViewDetails,
   onDuplicate,
+  onCreateAlias,
   onDelete,
   onOpenLinkDialog,
 }: Props) {
@@ -178,6 +182,18 @@ export function TransactionRowActions({
                 sx={{ ...btnSx, color: "text.secondary" }}
               >
                 <ContentCopyIcon sx={iconSx} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title={m.transactions.actions.createAlias}>
+              <IconButton
+                size="small"
+                onClick={onCreateAlias}
+                aria-label={m.transactions.actions.createAlias}
+                className="action-icon"
+                sx={{ ...btnSx, color: "text.secondary" }}
+              >
+                <BookmarkAddOutlinedIcon sx={iconSx} />
               </IconButton>
             </Tooltip>
 

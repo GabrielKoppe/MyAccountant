@@ -42,10 +42,7 @@ describe("createResponsibleParty", () => {
   it("cria party external sem membros", async () => {
     prismaMock.responsibleParty.create.mockResolvedValue({ id: "party2" } as never);
 
-    await createResponsibleParty(
-      { kind: "external", name: "Filho", icon: "child" },
-      TEST_CTX,
-    );
+    await createResponsibleParty({ kind: "external", name: "Filho", icon: "child" }, TEST_CTX);
 
     const arg = prismaMock.responsibleParty.create.mock.calls[0][0] as any;
     expect(arg.data.kind).toBe("external");

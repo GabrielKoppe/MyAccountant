@@ -1,8 +1,9 @@
+import { randomUUID } from "crypto";
+
+import type { TransactionExpenseType, TransactionPaymentMethod } from "@prisma/client";
 import { addMonths } from "date-fns";
-import { prisma } from "@/server/prisma";
-import { NotFoundError, ConflictError } from "@/server/api/errors";
+
 import { applyMappingToRows } from "@/lib/csv-parser";
-import { personalPartyMapForAccount } from "@/server/queries/responsible-party-filter";
 import { calcInstallmentAmounts } from "@/lib/installment-utils";
 import {
   importMappingSchema,
@@ -10,6 +11,24 @@ import {
   type UpdateTemplateInput,
   type ExecuteImportInput,
 } from "@/lib/schemas/csv-import";
+import { serializeTransactionAlias } from "@/lib/serializers/transaction-alias";
+import { NotFoundError, ConflictError } from "@/server/api/errors";
+import { logger } from "@/server/logger";
+import { prisma } from "@/server/prisma";
+import { personalPartyMapForAccount } from "@/server/queries/responsible-party-filter";
+import { ALIAS_INCLUDE } from "@/server/queries/transaction-aliases";
+
+const log = logger.child({ module: "csv-import-service" });
+
+// `createManyAndReturn` não garante a ordem das linhas retornadas (a API não
+// aceita `orderBy`, e um import grande pode ser chunkado pelo Prisma em vários
+// INSERTs) — vincular tags por índice posicional seria arriscado com dados
+// financeiros. Geramos o id nós mesmos e usamos createMany simples. O id não
+// precisa ser um cuid "de verdade": só precisa passar em todo `z.string().cuid()`
+// espalhado pelo app (regex de Zod: `/^c[^\s-]{8,}$/i`) — por isso o prefixo "c".
+function generateTransactionId(): string {
+  return `c${randomUUID().replace(/-/g, "")}`;
+}
 
 export type ImportResult = {
   tableId: string;
@@ -110,11 +129,21 @@ async function executeImport(
   );
   const institutionMap = new Map(institutions.map((i) => [i.name.toLowerCase(), i.id]));
 
+  // Apelidos (spec 61 §2.6) — recarga fresca própria, independente do cache de
+  // request da query RSC (DD-13): o servidor é sempre autoritativo no dual-run.
+  const aliasRecords = await prisma.transactionAlias.findMany({
+    where: { accountId: ctx.accountId, archivedAt: null },
+    include: ALIAS_INCLUDE,
+  });
+  const aliases = aliasRecords.map(serializeTransactionAlias);
+  const aliasById = new Map(aliases.map((a) => [a.id, a]));
+  const aliasIgnoreRows = new Set(input.aliasIgnoreRows ?? []);
+
   // Normalize mapping — fills all .default() values (z.input<> types have optional fields)
   const mapping = importMappingSchema.parse(input.mapping);
 
-  // Re-apply mapping server-side (authoritative parse)
-  const previewRows = applyMappingToRows(input.rows, mapping);
+  // Re-apply mapping server-side (authoritative parse) — mesmo match do client (dual-run, DD-13)
+  const previewRows = applyMappingToRows(input.rows, mapping, aliases);
 
   // Optionally save template
   if (input.saveTemplateAs) {
@@ -136,6 +165,7 @@ async function executeImport(
   const manualIgnore = new Set(input.manualIgnoreRows ?? []);
 
   type TxData = {
+    id: string;
     rowIndex: number;
     occurredOn: Date;
     amountCents: bigint;
@@ -144,9 +174,17 @@ async function executeImport(
     categoryId: string | null;
     subcategoryId: string | null;
     institutionId: string | null;
+    institutionText: string | null;
     cardInstallment: string | null;
     investmentType: string | null;
     responsiblePartyId: string | null;
+    expenseType: TransactionExpenseType | null;
+    paymentMethod: TransactionPaymentMethod | null;
+    isPending: boolean;
+    isFavorite: boolean;
+    tagIds: string[];
+    appliedAliasId: string | null;
+    aliasTrigger: string | null;
     installmentGroupId?: string;
     installmentNumber?: number;
     originalAmountCents: bigint | null;
@@ -252,23 +290,97 @@ async function executeImport(
       }
     }
 
+    // ─── Apelido (spec 61 §2.6) — payload sobrescreve o CSV (DD-17), exceto
+    // amountCents (NUNCA aplicado no import — DD-09). Opt-out por linha via
+    // aliasIgnoreRows (DD-16); só aplica quando a linha não foi opt-out.
+    let description = row.parsed.description;
+    let notes = row.parsed.notes;
+    let institutionText: string | null = null;
+    let cardInstallment = row.parsed.cardInstallment;
+    let investmentType = row.parsed.investmentType;
+    let responsiblePartyId = row.parsed.responsibleUserId
+      ? (personalPartyMap.get(row.parsed.responsibleUserId) ?? null)
+      : null;
+    let expenseType: TransactionExpenseType | null = null;
+    let paymentMethod: TransactionPaymentMethod | null = null;
+    let isPending = false;
+    let isFavorite = false;
+    // FX do extrato: valor sempre prevalece (DD-09). O apelido só preenche
+    // quando o extrato não trouxe moeda estrangeira (fill-if-empty, DD-22).
+    let originalAmountCents = row.parsed.originalAmountCents ?? null;
+    let originalCurrency = row.parsed.originalCurrency ?? null;
+    let exchangeRate = row.parsed.exchangeRate ?? null;
+    let tagIds: string[] = [];
+    let appliedAliasId: string | null = null;
+    let aliasTrigger: string | null = null;
+
+    const alias = row.parsed.appliedAliasId ? aliasById.get(row.parsed.appliedAliasId) : undefined;
+    if (alias && !aliasIgnoreRows.has(row.rowIndex)) {
+      appliedAliasId = alias.id;
+      aliasTrigger = alias.trigger;
+      if (alias.description !== null) description = alias.description;
+      if (alias.notes !== null) notes = alias.notes;
+      if (alias.categoryId !== null) categoryId = alias.categoryId;
+      if (alias.institutionId !== null || alias.institutionText !== null) {
+        institutionId = alias.institutionId;
+        institutionText = alias.institutionText;
+      }
+      if (alias.subcategoryId !== null) {
+        subcategoryId = alias.subcategoryId; // DD-18: subcategoria explícita do apelido tem prioridade
+      } else if (alias.categoryId !== null && subcategoryId) {
+        const stillChild = subcategories.some(
+          (s) => s.id === subcategoryId && s.categoryId === categoryId,
+        );
+        if (!stillChild) subcategoryId = null; // órfã após troca de categoria — limpa (DD-18)
+      }
+      if (alias.responsiblePartyId !== null) responsiblePartyId = alias.responsiblePartyId;
+      if (alias.cardInstallment !== null) cardInstallment = alias.cardInstallment;
+      if (alias.investmentType !== null) investmentType = alias.investmentType;
+      if (alias.expenseType !== null) expenseType = alias.expenseType;
+      if (alias.paymentMethod !== null) paymentMethod = alias.paymentMethod;
+      if (alias.isPending !== null) isPending = alias.isPending;
+      if (alias.isFavorite !== null) isFavorite = alias.isFavorite;
+      // Moeda estrangeira fill-if-empty (DD-22): só preenche quando o extrato
+      // não trouxe FX próprio; se trouxe (moeda OU valor original), o extrato
+      // prevalece (DD-09). Checar os dois porque o extrato pode trazer só o
+      // valor original sem a moeda (mapeamento sem coluna de moeda).
+      if (
+        originalCurrency === null &&
+        originalAmountCents === null &&
+        alias.originalCurrency !== null
+      ) {
+        originalCurrency = alias.originalCurrency;
+        originalAmountCents =
+          alias.originalAmountCents !== null ? BigInt(alias.originalAmountCents) : null;
+        exchangeRate = alias.exchangeRate;
+      }
+      if (alias.tags.length > 0) tagIds = alias.tags.map((t) => t.id);
+    }
+
     transactionData.push({
+      id: generateTransactionId(),
       rowIndex: row.rowIndex,
       occurredOn: new Date(row.parsed.occurredOn),
       amountCents: row.parsed.amountCents,
-      description: row.parsed.description,
-      notes: row.parsed.notes,
+      description,
+      notes,
       categoryId,
       subcategoryId,
       institutionId,
-      cardInstallment: row.parsed.cardInstallment,
-      investmentType: row.parsed.investmentType,
-      responsiblePartyId: row.parsed.responsibleUserId
-        ? (personalPartyMap.get(row.parsed.responsibleUserId) ?? null)
-        : null,
-      originalAmountCents: row.parsed.originalAmountCents ?? null,
-      originalCurrency: row.parsed.originalCurrency ?? null,
-      exchangeRate: row.parsed.exchangeRate ?? null,
+      institutionText,
+      cardInstallment,
+      investmentType,
+      responsiblePartyId,
+      expenseType,
+      paymentMethod,
+      isPending,
+      isFavorite,
+      tagIds,
+      appliedAliasId,
+      aliasTrigger,
+      originalAmountCents,
+      originalCurrency,
+      exchangeRate,
     });
   }
 
@@ -364,8 +476,14 @@ async function executeImport(
 
     if (transactionData.length > 0) {
       const txSource = input.fileType === "xlsx" ? "xlsx_import" : "csv_import";
+      // id gerado por nós (generateTransactionId) — createMany não retorna as
+      // linhas criadas, e createManyAndReturn não garante a ordem de retorno
+      // (sem orderBy; um import grande pode ser chunkado em vários INSERTs).
+      // Conhecer o id de antemão é o que permite vincular as tags do apelido
+      // em transaction_tags logo abaixo sem depender de nenhuma ordem.
       await tx.transaction.createMany({
         data: transactionData.map((t) => ({
+          id: t.id,
           accountId: ctx.accountId,
           monthId: input.monthId,
           tableId: table.id,
@@ -380,6 +498,11 @@ async function executeImport(
           responsiblePartyId: t.responsiblePartyId,
           categoryId: t.categoryId,
           institutionId: t.institutionId,
+          institutionText: t.institutionText,
+          expenseType: t.expenseType,
+          paymentMethod: t.paymentMethod,
+          isPending: t.isPending,
+          isFavorite: t.isFavorite,
           source: txSource,
           installmentGroupId: t.installmentGroupId ?? null,
           installmentNumber: t.installmentNumber ?? null,
@@ -387,13 +510,30 @@ async function executeImport(
           originalCurrency: t.originalCurrency ?? null,
           exchangeRate: t.exchangeRate ?? null,
           createdById: ctx.userId,
-          metadata: {},
+          metadata: t.appliedAliasId
+            ? { appliedAliasId: t.appliedAliasId, aliasTrigger: t.aliasTrigger }
+            : {},
         })),
       });
+
+      // tagIds do apelido substitui o conjunto (não faz união) — cada linha só
+      // entra aqui quando o próprio apelido define ≥1 tag (DD-04).
+      const tagPairs = transactionData.flatMap((t) =>
+        t.tagIds.map((tagId) => ({ transactionId: t.id, tagId })),
+      );
+      if (tagPairs.length > 0) {
+        await tx.transactionTag.createMany({ data: tagPairs, skipDuplicates: true });
+      }
     }
 
     return { table, installmentGroupsCreated };
   });
+
+  const aliasesApplied = transactionData.filter((t) => t.appliedAliasId !== null).length;
+  log.info(
+    { accountId: ctx.accountId, tableId: result.table.id, aliasesApplied },
+    "CSV import concluído",
+  );
 
   return {
     tableId: result.table.id,

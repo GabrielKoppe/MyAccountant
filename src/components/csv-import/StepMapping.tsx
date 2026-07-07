@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
@@ -32,6 +32,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { CSV_ENCODINGS, DATE_FORMATS, DEFAULT_MAPPING } from "@/lib/schemas/csv-import";
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { FieldGroup } from "@/components/ui/FieldGroup";
 import { detectAmountFormat } from "@/lib/csv-parser";
 import type { ImportMapping } from "@/lib/schemas/csv-import";
@@ -146,58 +147,6 @@ function AutoCreateSwitch({
         </Typography>
       }
     />
-  );
-}
-
-/** Seção colapsável com título (overline) + badge opcional à direita. */
-function CollapsibleSection({
-  label,
-  badge,
-  open,
-  onToggle,
-  children,
-}: {
-  label: string;
-  badge?: ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <Box sx={{ border: 1, borderColor: "border.subtle", borderRadius: 2, overflow: "hidden" }}>
-      <Box
-        onClick={onToggle}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: layout.inline,
-          px: layout.stack,
-          py: layout.inline,
-          cursor: "pointer",
-          userSelect: "none",
-          bgcolor: "background.subtle",
-          "&:hover": { bgcolor: "background.muted" },
-          transition: "background-color 0.15s ease",
-        }}
-      >
-        <Typography variant="overline" color="text.secondary" sx={{ flex: 1, lineHeight: 1 }}>
-          {label}
-        </Typography>
-        {badge}
-        <ExpandMoreIcon
-          fontSize="small"
-          sx={{
-            color: "text.disabled",
-            transform: open ? "rotate(180deg)" : "none",
-            transition: "transform 0.2s ease",
-          }}
-        />
-      </Box>
-      <Collapse in={open}>
-        <Divider sx={{ borderColor: "border.subtle" }} />
-        <Box sx={{ p: layout.stack }}>{children}</Box>
-      </Collapse>
-    </Box>
   );
 }
 

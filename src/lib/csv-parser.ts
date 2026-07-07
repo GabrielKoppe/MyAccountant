@@ -1,4 +1,7 @@
 import { parse as dateParse, isValid as dateIsValid, format as dateFormat } from "date-fns";
+
+import type { AliasCandidate } from "./aliases/match";
+import { matchAlias } from "./aliases/match";
 import type { ImportMapping } from "./schemas/csv-import";
 
 export type ParsedRow = Record<string, string>;
@@ -76,6 +79,9 @@ export type PreviewRow = {
     originalAmountCents: bigint | null;
     originalCurrency: string | null;
     exchangeRate: number | null;
+    // Apelido casado nesta descrição (match puro, dual-run — spec 61 §2.6). O
+    // payload é aplicado no service (server) e no render (client), nunca aqui.
+    appliedAliasId: string | null;
   };
   error?: string;
 };
@@ -233,7 +239,11 @@ function buildNotes(row: ParsedRow, noteColumns: string[]): string | null {
   return parts.length > 0 ? parts.join("\n") : null;
 }
 
-export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): PreviewRow[] {
+export function applyMappingToRows(
+  rows: ParsedRow[],
+  mapping: ImportMapping,
+  aliases: readonly AliasCandidate[] = [],
+): PreviewRow[] {
   const results: PreviewRow[] = [];
 
   // `skipRows` já foi aplicado na tokenização (deriveHeadersAndRows): as `rows` aqui
@@ -292,6 +302,10 @@ export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): P
       continue;
     }
 
+    const description = mapping.columns.description
+      ? row[mapping.columns.description] || null
+      : null;
+
     results.push({
       rowIndex: relIdx,
       status: "ok",
@@ -299,7 +313,7 @@ export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): P
       parsed: {
         occurredOn: parsedDate,
         amountCents: parsedAmount,
-        description: mapping.columns.description ? row[mapping.columns.description] || null : null,
+        description,
         notes: buildNotes(row, mapping.columns.notes),
         categoryName: mapping.columns.category ? row[mapping.columns.category] || null : null,
         subcategoryName: mapping.columns.subcategory
@@ -346,6 +360,7 @@ export function applyMappingToRows(rows: ParsedRow[], mapping: ImportMapping): P
           }
           return { originalAmountCents: fxCents, originalCurrency: currency, exchangeRate: rate };
         })(),
+        appliedAliasId: matchAlias(description, aliases)?.id ?? null,
       },
     });
   }

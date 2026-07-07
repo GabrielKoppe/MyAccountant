@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { detectInstallments } from "./installment-detector";
+
 import type { PreviewRow } from "./csv-parser";
+import { detectInstallments } from "./installment-detector";
 
 function makeRow(
   rowIndex: number,
@@ -26,6 +27,7 @@ function makeRow(
       originalAmountCents: null,
       originalCurrency: null,
       exchangeRate: null,
+      appliedAliasId: null,
     },
   };
 }

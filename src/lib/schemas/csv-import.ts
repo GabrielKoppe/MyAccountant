@@ -99,6 +99,8 @@ export const executeImportSchema = z.object({
   fileType: z.enum(["csv", "xlsx"]).default("csv"),
   /** rowIndexes que o usuário marcou manualmente para ignorar na tela de preview */
   manualIgnoreRows: z.array(z.number().int().min(0)).default([]),
+  /** rowIndexes casadas por um apelido que o usuário optou por NÃO aplicar (DD-16) */
+  aliasIgnoreRows: z.array(z.number().int().min(0)).default([]),
   /** Sugestões de parcelamento confirmadas pelo usuário na tela de preview */
   acceptedInstallments: z
     .array(

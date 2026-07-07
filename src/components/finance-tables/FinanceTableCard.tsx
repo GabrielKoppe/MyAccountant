@@ -1,7 +1,13 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import type { SectionCountType } from "@prisma/client";
+import AddIcon from "@mui/icons-material/Add";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+import CallSplitIcon from "@mui/icons-material/CallSplit";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import TableChartIcon from "@mui/icons-material/TableChart";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
@@ -16,40 +22,23 @@ import Paper from "@mui/material/Paper";
 
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import CallSplitIcon from "@mui/icons-material/CallSplit";
-import AddIcon from "@mui/icons-material/Add";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import ViewColumnOutlinedIcon from "@mui/icons-material/ViewColumnOutlined";
-import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import RestoreIcon from "@mui/icons-material/Restore";
+import type { SectionCountType } from "@prisma/client";
+import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
+import { useMemo, useState, useTransition } from "react";
 
 import { deleteFinanceTableAction, updateFinanceTableAction } from "@/actions/finance-tables";
 import { createFromTableAction } from "@/actions/table-templates";
-import { formatCentsToBrl } from "@/lib/money";
-import { m } from "@/lib/messages";
-import { useRouter } from "next/navigation";
 import { CreateInstallmentDialog } from "@/components/installments/CreateInstallmentDialog";
-
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
-import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
-
-import {
-  FinanceTableChangeTypeDialog,
-  FinanceTableDeleteDialog,
-  FinanceTableRenameDialog,
-  FinanceTableSaveModelDialog,
-} from "./FinanceTableCardDialogs";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -58,6 +47,18 @@ import type {
   ResponsiblePartyOption,
   TransactionRow,
 } from "@/components/transactions/types";
+import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
+
+import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
+import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+
+import {
+  FinanceTableChangeTypeDialog,
+  FinanceTableDeleteDialog,
+  FinanceTableRenameDialog,
+  FinanceTableSaveModelDialog,
+} from "./FinanceTableCardDialogs";
 
 type TableData = {
   id: string;
@@ -88,6 +89,7 @@ type Props = {
   institutions: InstitutionOption[];
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
+  aliases: SerializedTransactionAlias[];
   defaultResponsiblePartyId: string | null;
   onDuplicate: () => void;
 };
@@ -107,6 +109,7 @@ export function FinanceTableCard({
   institutions,
   members,
   parties,
+  aliases,
   defaultResponsiblePartyId,
   onDuplicate,
 }: Props) {
@@ -476,6 +479,7 @@ export function FinanceTableCard({
           institutions={institutions}
           members={members}
           parties={parties}
+          aliases={aliases}
           defaultResponsiblePartyId={defaultResponsiblePartyId}
           showNewRow={showNewRow}
           onNewRowClose={() => setShowNewRow(false)}

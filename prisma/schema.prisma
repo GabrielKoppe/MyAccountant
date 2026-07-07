@@ -127,6 +127,7 @@ model User {
   notificationsSent           Notification[]           @relation("NotificationActor")
   checklistItemsCreated       ChecklistItem[]          @relation("ChecklistItemCreatedBy")
   checklistCompletions        ChecklistCompletion[]    @relation("ChecklistCompletedBy")
+  transactionAliasesCreated   TransactionAlias[]       @relation("TransactionAliasCreatedBy")
 
   @@map("users")
 }
@@ -205,6 +206,7 @@ model Account {
   responsibleParties   ResponsibleParty[]
   checklistItems       ChecklistItem[]
   checklistCompletions ChecklistCompletion[]
+  transactionAliases   TransactionAlias[]
 
   @@map("accounts")
 }
@@ -284,11 +286,12 @@ model ResponsibleParty {
   createdAt  DateTime             @default(now()) @map("created_at")
   updatedAt  DateTime             @updatedAt @map("updated_at")
 
-  account           Account                  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  members           ResponsiblePartyMember[]
-  transactions      Transaction[]            @relation("TransactionResponsibleParty")
-  templateItems     TableTemplateItem[]      @relation("TemplateItemResponsibleParty")
-  settingsDefaultOf AccountSettings[]        @relation("SettingsDefaultResponsibleParty")
+  account            Account                  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  members            ResponsiblePartyMember[]
+  transactions       Transaction[]            @relation("TransactionResponsibleParty")
+  templateItems      TableTemplateItem[]      @relation("TemplateItemResponsibleParty")
+  settingsDefaultOf  AccountSettings[]        @relation("SettingsDefaultResponsibleParty")
+  transactionAliases TransactionAlias[]
 
   @@unique([accountId, name])
   @@index([accountId])
@@ -480,11 +483,12 @@ model Category {
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  account       Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdBy     User          @relation("CategoryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  subcategories Subcategory[]
-  transactions  Transaction[]
-  budgets       Budget[]
+  account            Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy          User               @relation("CategoryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  subcategories      Subcategory[]
+  transactions       Transaction[]
+  budgets            Budget[]
+  transactionAliases TransactionAlias[]
 
   @@unique([accountId, name])
   @@map("categories")
@@ -497,9 +501,10 @@ model Subcategory {
   name       String
   createdAt  DateTime @default(now()) @map("created_at")
 
-  category     Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  category           Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  account            Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transactions       Transaction[]
+  transactionAliases TransactionAlias[]
 
   @@unique([categoryId, name])
   @@map("subcategories")
@@ -512,10 +517,11 @@ model Institution {
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdBy    User          @relation("InstitutionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  transactions Transaction[]
-  budgets      Budget[]
+  account            Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy          User               @relation("InstitutionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  transactions       Transaction[]
+  budgets            Budget[]
+  transactionAliases TransactionAlias[]
 
   @@unique([accountId, name])
   @@map("institutions")
@@ -689,8 +695,9 @@ model Tag {
   color     String?
   createdAt DateTime @default(now()) @map("created_at")
 
-  account      Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account      Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   transactions TransactionTag[]
+  aliasTags    TransactionAliasTag[]
 
   @@unique([accountId, name])
   @@index([accountId])
@@ -707,6 +714,65 @@ model TransactionTag {
   @@id([transactionId, tagId])
   @@index([tagId])
   @@map("transaction_tags")
+}
+
+// =========================================
+// Domain — Transaction Aliases (Spec 61)
+// =========================================
+
+model TransactionAlias {
+  id                String @id @default(cuid())
+  accountId         String @map("account_id")
+  trigger           String @map("trigger_text") // display (case original) — evita palavra reservada
+  triggerNormalized String @map("trigger_normalized") // lowercase — match + unicidade
+
+  // payload — todos opcionais (patch parcial; null = "não define")
+  description         String?
+  notes               String?
+  amountCents         BigInt?                   @map("amount_cents") // aplica no manual; NÃO no import (DD-09)
+  categoryId          String?                   @map("category_id")
+  subcategoryId       String?                   @map("subcategory_id")
+  institutionId       String?                   @map("institution_id")
+  institutionText     String?                   @map("institution_text")
+  responsiblePartyId  String?                   @map("responsible_party_id")
+  expenseType         TransactionExpenseType?   @map("expense_type")
+  paymentMethod       TransactionPaymentMethod? @map("payment_method")
+  investmentType      String?                   @map("investment_type")
+  cardInstallment     String?                   @map("card_installment")
+  isPending           Boolean?                  @map("is_pending")
+  isFavorite          Boolean?                  @map("is_favorite")
+  originalCurrency    String?                   @map("original_currency")
+  originalAmountCents BigInt?                   @map("original_amount_cents")
+  exchangeRate        Decimal?                  @map("exchange_rate") @db.Decimal(18, 6)
+
+  archivedAt  DateTime? @map("archived_at")
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  account          Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy        User                  @relation("TransactionAliasCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  category         Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subcategory      Subcategory?          @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  institution      Institution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  responsibleParty ResponsibleParty?     @relation(fields: [responsiblePartyId], references: [id], onDelete: SetNull)
+  tags             TransactionAliasTag[]
+
+  @@unique([accountId, triggerNormalized])
+  @@index([accountId])
+  @@map("transaction_aliases")
+}
+
+model TransactionAliasTag {
+  aliasId String @map("alias_id")
+  tagId   String @map("tag_id")
+
+  alias TransactionAlias @relation(fields: [aliasId], references: [id], onDelete: Cascade)
+  tag   Tag              @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([aliasId, tagId])
+  @@index([tagId])
+  @@map("transaction_alias_tags")
 }
 
 // =========================================
