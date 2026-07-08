@@ -2,6 +2,7 @@
 
 import AddLinkIcon from "@mui/icons-material/AddLink";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
+import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
@@ -91,6 +92,8 @@ type Props = {
   onSelect: (id: string, checked: boolean) => void;
   onSave: () => void;
   onCancel: () => void;
+  /** Cria apelido a partir dos valores em edição (DD-24). */
+  onCreateAlias: () => void;
 };
 
 export function TransactionRowEditor({
@@ -112,6 +115,7 @@ export function TransactionRowEditor({
   onSelect,
   onSave,
   onCancel,
+  onCreateAlias,
 }: Props) {
   const subcatsForCategory =
     categories.find((c) => c.id === editValues.categoryId)?.subcategories ?? [];
@@ -122,11 +126,11 @@ export function TransactionRowEditor({
 
   const sharedInputProps = { size: "small" as const, variant: "standard" as const };
 
-  // Aplicação manual de apelido (Fase 4) — só detecta depois que a descrição
-  // for editada NESTA sessão (descriptionDirty), nunca no mount (§2.4).
-  const [descriptionDirty, setDescriptionDirty] = useState(false);
+  // Aplicação manual de apelido — o ícone acende sempre que há match, inclusive
+  // no mount (DD-23, revê a regra `descriptionDirty` original). Como a aplicação
+  // nunca é automática (exige clique em "Aplicar"), acender no mount é affordance.
   const [aliasAnchorEl, setAliasAnchorEl] = useState<HTMLElement | null>(null);
-  const matchedAlias = useAliasMatch(editValues.description ?? "", aliases, descriptionDirty);
+  const matchedAlias = useAliasMatch(editValues.description ?? "", aliases, true);
   const aliasApplication = useMemo(
     () =>
       matchedAlias
@@ -253,7 +257,6 @@ export function TransactionRowEditor({
             value={editValues.description ?? ""}
             onChange={(e) => {
               setEditValues((prev) => ({ ...prev, description: e.target.value }));
-              setDescriptionDirty(true);
             }}
             placeholder="Descrição"
             fullWidth
@@ -591,6 +594,16 @@ export function TransactionRowEditor({
               </IconButton>
             </Tooltip>
           )}
+          <Tooltip title={m.transactions.actions.createAlias}>
+            <IconButton
+              size="small"
+              sx={{ p: 0.5 }}
+              onClick={onCreateAlias}
+              aria-label={m.transactions.actions.createAlias}
+            >
+              <BookmarkAddOutlinedIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
           <Tooltip title={m.transactions.actions.save}>
             <IconButton size="small" sx={{ p: 0.5 }} onClick={onSave} color="primary">
               <CheckIcon sx={{ fontSize: 16 }} />

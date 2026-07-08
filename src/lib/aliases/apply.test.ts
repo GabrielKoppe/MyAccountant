@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import type { CategoryOption } from "@/components/transactions/types";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
-import { type AliasApplicableFields, computeAliasApplication } from "./apply";
+import {
+  type AliasApplicableFields,
+  type AliasPatch,
+  aliasPatchToUpdateInput,
+  computeAliasApplication,
+} from "./apply";
 
 const CATEGORIES: CategoryOption[] = [
   {
@@ -153,5 +158,48 @@ describe("computeAliasApplication", () => {
     const { patch } = computeAliasApplication(alias, baseCurrent(), SOURCES);
     expect(patch.institutionId).toBe("inst-1");
     expect(patch.responsiblePartyId).toBe("party-1");
+  });
+});
+
+describe("aliasPatchToUpdateInput (aplicação em modo visualização — DD-23)", () => {
+  it("patch vazio → input vazio", () => {
+    expect(aliasPatchToUpdateInput({})).toEqual({});
+  });
+
+  it("amountCents (string no TransactionRow) vira BigInt", () => {
+    const out = aliasPatchToUpdateInput({ amountCents: "12345" });
+    expect(out.amountCents).toBe(12345n);
+    expect(typeof out.amountCents).toBe("bigint");
+  });
+
+  it("passa os demais campos verbatim, incluindo null", () => {
+    const patch: AliasPatch = {
+      description: "Sistema de Gás",
+      notes: null,
+      categoryId: "cat-conta",
+      subcategoryId: null, // limpeza de órfã (DD-18) precisa chegar como null
+      institutionId: "inst-1",
+      responsiblePartyId: "party-1",
+      expenseType: "fixed",
+      paymentMethod: "pix",
+      isPending: true,
+    };
+    expect(aliasPatchToUpdateInput(patch)).toEqual({
+      description: "Sistema de Gás",
+      notes: null,
+      categoryId: "cat-conta",
+      subcategoryId: null,
+      institutionId: "inst-1",
+      responsiblePartyId: "party-1",
+      expenseType: "fixed",
+      paymentMethod: "pix",
+      isPending: true,
+    });
+  });
+
+  it("só inclui as chaves presentes (patch parcial, DD-04)", () => {
+    const out = aliasPatchToUpdateInput({ categoryId: "cat-conta" });
+    expect(Object.keys(out)).toEqual(["categoryId"]);
+    expect("amountCents" in out).toBe(false);
   });
 });

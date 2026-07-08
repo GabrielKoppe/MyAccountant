@@ -1,33 +1,44 @@
 "use client";
 
+import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import type { SectionCountType } from "@prisma/client";
 import { useSnackbar } from "notistack";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { listTagsAction } from "@/actions/tags";
 import { duplicateTransactionAction, updateTransactionAction } from "@/actions/transactions";
 import { InstallmentGroupPanel } from "@/components/installments/InstallmentGroupPanel";
 import { tagChipSx } from "@/components/tags/tagChipSx";
 import { TagPopover } from "@/components/tags/TagPopover";
+import {
+  aliasPatchToUpdateInput,
+  computeAliasApplication,
+  type AliasPatch,
+} from "@/lib/aliases/apply";
+import { matchAlias } from "@/lib/aliases/match";
 import { formatDateShort } from "@/lib/dates";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
 import type { CreateTransactionAliasInput } from "@/lib/schemas/transaction-alias";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
+import { AliasSuggestionPopover } from "./aliases/AliasSuggestionPopover";
 import { TransactionAliasFormDialog } from "./aliases/TransactionAliasFormDialog";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
+import { useOptions } from "./OptionsContext";
 import { PartyAvatar } from "./PartyAvatar";
 import { TransactionRowActions } from "./TransactionRowActions";
 import { TransactionRowEditor } from "./TransactionRowEditor";
@@ -83,7 +94,9 @@ export function TransactionRowBase({
   onViewDetails,
   onAutoEditConsumed,
 }: Props) {
-  const { enqueueSnackbar } = useSnackbar();
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const { onCreateCategory, onCreateSubcategory, onCreateInstitution, canManageOptions } =
+    useOptions();
   const [editing, setEditing] = useState(false);
   const [focusField, setFocusField] = useState("occurredOn");
   const [editValues, setEditValues] = useState<TxRow>(tx);
@@ -104,6 +117,8 @@ export function TransactionRowBase({
   const [aliasTags, setAliasTags] = useState<{ id: string; name: string; color: string | null }[]>(
     tx.tags,
   );
+  // Sugestão de apelido no MODO VISUALIZAÇÃO (DD-23) — anchor do popover na descrição.
+  const [aliasAnchorEl, setAliasAnchorEl] = useState<HTMLElement | null>(null);
   const tagCellRef = useRef<HTMLTableCellElement>(null);
 
   const amount = BigInt(tx.amountCents);
@@ -269,25 +284,25 @@ export function TransactionRowBase({
     enqueueSnackbar("Transação duplicada.", { variant: "success" });
   }
 
-  // Gatilho vazio (Fase 3) — o resto do payload vem da transação, exceto
-  // investmentType/cardInstallment: fora do escopo do form (Fase 2), então
-  // não são carregados aqui para não persistir valor invisível ao usuário.
-  function handleCreateAlias() {
+  // Gatilho vazio (Fase 3/DD-24) — payload vem de `src`: a transação salva (botão
+  // no modo visualização) ou os valores em edição (botão no editor). Exceto
+  // investmentType/cardInstallment: fora do escopo do form (Fase 2).
+  function openCreateAlias(src: TxRow) {
     setAliasPrefill({
-      description: tx.description,
-      notes: tx.notes,
-      amountCents: amount,
-      categoryId: tx.categoryId,
-      subcategoryId: tx.subcategoryId,
-      institutionId: tx.institutionId,
-      institutionText: tx.institutionText,
-      responsiblePartyId: tx.responsiblePartyId,
-      expenseType: tx.expenseType,
-      paymentMethod: tx.paymentMethod,
-      isPending: tx.isPending,
-      tagIds: tx.tags.map((t) => t.id),
+      description: src.description,
+      notes: src.notes,
+      amountCents: BigInt(src.amountCents),
+      categoryId: src.categoryId,
+      subcategoryId: src.subcategoryId,
+      institutionId: src.institutionId,
+      institutionText: src.institutionText,
+      responsiblePartyId: src.responsiblePartyId,
+      expenseType: src.expenseType,
+      paymentMethod: src.paymentMethod,
+      isPending: src.isPending,
+      tagIds: src.tags.map((t) => t.id),
     });
-    setAliasTags(tx.tags);
+    setAliasTags(src.tags);
     listTagsAction(accountId)
       .then((allTags) => {
         setAliasTags((prev) => {
@@ -300,32 +315,132 @@ export function TransactionRowBase({
     setAliasDialogOpen(true);
   }
 
+  // Sugestão de apelido no MODO VISUALIZAÇÃO (DD-23). Match estático sobre a
+  // descrição salva (sem debounce — não há digitação aqui). Só para não-viewers.
+  const matchedAlias = useMemo(
+    () => (isReadOnly ? null : matchAlias(tx.description, aliases)),
+    [isReadOnly, tx.description, aliases],
+  );
+  const aliasApplication = useMemo(
+    () =>
+      matchedAlias
+        ? computeAliasApplication(
+            matchedAlias,
+            {
+              description: tx.description,
+              notes: tx.notes,
+              amountCents: tx.amountCents,
+              categoryId: tx.categoryId,
+              subcategoryId: tx.subcategoryId,
+              institutionId: tx.institutionId,
+              responsiblePartyId: tx.responsiblePartyId,
+              expenseType: tx.expenseType,
+              paymentMethod: tx.paymentMethod,
+              isPending: tx.isPending,
+            },
+            { categories, institutions, parties },
+          )
+        : null,
+    [matchedAlias, tx, categories, institutions, parties],
+  );
+
+  // Aplica um patch de apelido e persiste na hora (não há "Salvar" na visualização);
+  // reverte otimista para `revert` se o server recusar. Retorna sucesso.
+  async function persistAliasPatch(patch: AliasPatch, revert: Partial<TxRow>): Promise<boolean> {
+    onOptimisticUpdate(tx.id, patch as Partial<TxRow>);
+    const result = await updateTransactionAction(accountId, {
+      transactionId: tx.id,
+      ...aliasPatchToUpdateInput(patch),
+    });
+    if (!result.ok) {
+      onOptimisticUpdate(tx.id, revert);
+      enqueueSnackbar(result.error.message, { variant: "error" });
+      return false;
+    }
+    return true;
+  }
+
+  async function handleApplyAliasView() {
+    if (!matchedAlias || !aliasApplication || aliasApplication.changes.length === 0) return;
+    const { patch, changes } = aliasApplication;
+    setAliasAnchorEl(null);
+
+    // Snapshot dos valores antigos só dos campos que mudam (para o undo).
+    const revert: Partial<TxRow> = {};
+    for (const c of changes) {
+      (revert as Record<string, unknown>)[c.field] = tx[c.field];
+    }
+
+    if (!(await persistAliasPatch(patch, revert))) return;
+
+    enqueueSnackbar(m.transactions.aliasSuggestion.applied(matchedAlias.trigger, changes.length), {
+      variant: "info",
+      action: (snackKey) => (
+        <Button
+          size="small"
+          color="inherit"
+          onClick={() => {
+            closeSnackbar(snackKey);
+            void persistAliasPatch(revert as AliasPatch, patch as Partial<TxRow>);
+          }}
+        >
+          {m.transactions.aliasSuggestion.undo}
+        </Button>
+      ),
+    });
+  }
+
   const subcatsForCategory = categories.find((c) => c.id === tx.categoryId)?.subcategories ?? [];
 
-  // Modo edição — delega para TransactionRowEditor
+  const aliasDialog = aliasDialogOpen && (
+    <TransactionAliasFormDialog
+      open={aliasDialogOpen}
+      onClose={() => setAliasDialogOpen(false)}
+      accountId={accountId}
+      categories={categories}
+      institutions={institutions}
+      parties={parties}
+      tags={aliasTags}
+      prefill={aliasPrefill ?? undefined}
+      onCreateCategory={onCreateCategory}
+      onCreateSubcategory={onCreateSubcategory}
+      onCreateInstitution={onCreateInstitution}
+      canCreateOptions={canManageOptions}
+      // Dialog já mostra o snackbar de sucesso — nada pra sincronizar aqui (não há lista local).
+      onSuccess={() => {}}
+    />
+  );
+
+  // Modo edição — delega para TransactionRowEditor. Dialog de apelido renderizado
+  // junto (DD-24): TransactionRow retorna cedo aqui, então o dialog precisa existir
+  // neste branch também para o botão "criar apelido" do editor abrir algo.
   if (editing) {
     return (
-      <TransactionRowEditor
-        tx={tx}
-        editValues={editValues}
-        setEditValues={setEditValues}
-        isSelected={isSelected}
-        notesOpen={notesOpen}
-        setNotesOpen={setNotesOpen}
-        tagsOpen={tagsOpen}
-        setTagsOpen={setTagsOpen}
-        focusField={focusField}
-        hiddenColumns={hiddenColumns}
-        categories={categories}
-        institutions={institutions}
-        members={members}
-        parties={parties}
-        accountId={accountId}
-        aliases={aliases}
-        onSelect={onSelect}
-        onSave={saveEdit}
-        onCancel={cancelEdit}
-      />
+      <>
+        <TransactionRowEditor
+          tx={tx}
+          editValues={editValues}
+          setEditValues={setEditValues}
+          isSelected={isSelected}
+          notesOpen={notesOpen}
+          setNotesOpen={setNotesOpen}
+          tagsOpen={tagsOpen}
+          setTagsOpen={setTagsOpen}
+          focusField={focusField}
+          hiddenColumns={hiddenColumns}
+          categories={categories}
+          institutions={institutions}
+          members={members}
+          parties={parties}
+          accountId={accountId}
+          aliases={aliases}
+          onSelect={onSelect}
+          onSave={saveEdit}
+          onCancel={cancelEdit}
+          onCreateAlias={() => openCreateAlias(editValues)}
+        />
+        {aliasDialog}
+      </>
     );
   }
 
@@ -363,17 +478,50 @@ export function TransactionRowBase({
         sx={{
           fontSize: 13,
           maxWidth: 200,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
           cursor: isReadOnly ? "default" : "pointer",
         }}
         onClick={() => !isReadOnly && startEdit("description")}
       >
-        {tx.description || (
-          <Typography variant="caption" color="text.disabled">
-            —
-          </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+          <Box
+            component="span"
+            sx={{
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {tx.description || (
+              <Typography variant="caption" color="text.disabled">
+                —
+              </Typography>
+            )}
+          </Box>
+          {matchedAlias && aliasApplication && (
+            <Tooltip title={m.transactions.aliasSuggestion.tooltip(matchedAlias.trigger)}>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAliasAnchorEl(e.currentTarget);
+                }}
+                aria-label={m.transactions.aliasSuggestion.tooltip(matchedAlias.trigger)}
+                sx={{ p: 0.25, flexShrink: 0 }}
+              >
+                <AutoFixHighOutlinedIcon sx={{ fontSize: 16, color: "accent.primary" }} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+        {matchedAlias && aliasApplication && (
+          <AliasSuggestionPopover
+            anchorEl={aliasAnchorEl}
+            trigger={matchedAlias.trigger}
+            changes={aliasApplication.changes}
+            onApply={handleApplyAliasView}
+            onClose={() => setAliasAnchorEl(null)}
+          />
         )}
       </TableCell>
 
@@ -635,7 +783,7 @@ export function TransactionRowBase({
         onToggleFavorite={toggleFavorite}
         onViewDetails={handleViewDetails}
         onDuplicate={handleDuplicate}
-        onCreateAlias={handleCreateAlias}
+        onCreateAlias={() => openCreateAlias(tx)}
         onDelete={handleDelete}
         onOpenLinkDialog={() => setLinkDialogOpen(true)}
       />
@@ -660,20 +808,7 @@ export function TransactionRowBase({
         onLinked={() => onOptimisticUpdate(tx.id, { linkCount: tx.linkCount + 1 })}
       />
 
-      {aliasDialogOpen && (
-        <TransactionAliasFormDialog
-          open={aliasDialogOpen}
-          onClose={() => setAliasDialogOpen(false)}
-          accountId={accountId}
-          categories={categories}
-          institutions={institutions}
-          parties={parties}
-          tags={aliasTags}
-          prefill={aliasPrefill ?? undefined}
-          // Dialog já mostra o snackbar de sucesso — nada pra sincronizar aqui (não há lista local).
-          onSuccess={() => {}}
-        />
-      )}
+      {aliasDialog}
     </TableRow>
   );
 }

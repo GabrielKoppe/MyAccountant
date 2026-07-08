@@ -4,18 +4,21 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import SwapVertIcon from "@mui/icons-material/SwapVert";
 import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useSnackbar } from "notistack";
 import type { ReactNode } from "react";
@@ -62,14 +65,23 @@ type Props = {
   alias?: SerializedTransactionAlias;
   /** Valores iniciais para criação a partir de uma transação (Fase 3). Ignorado em modo edição. */
   prefill?: Omit<Partial<CreateTransactionAliasInput>, "trigger">;
+  /**
+   * Criação inline de opções (DD-26). Quando presentes + `canCreateOptions`, os seletores de
+   * categoria/subcategoria/instituição oferecem "＋ Criar 'X'". O dono da lista é o pai: o
+   * callback cria no server e atualiza a lista (`categories`/`institutions`) que volta por prop,
+   * então a opção nova aparece e o display selecionado resolve. Ausentes → sem ＋ Criar.
+   */
+  onCreateCategory?: (name: string) => Promise<string | null>;
+  onCreateSubcategory?: (categoryId: string, name: string) => Promise<string | null>;
+  onCreateInstitution?: (name: string) => Promise<string | null>;
+  canCreateOptions?: boolean;
   onSuccess: (values: CreateTransactionAliasInput, aliasId: string) => void;
 };
 
 const ta = m.settings.transactionAliases;
 
-// Configurações → Apelidos não oferece criação inline de categoria/subcategoria/
-// instituição (o usuário já está em Configurações; criar via Categorias/Instituições).
-// CreatableEntitySelect exige onCreate mesmo com canCreate=false.
+// Fallback quando o pai não injeta callbacks de criação (DD-26): sem ＋ Criar.
+// `CreatableEntitySelect` exige `onCreate` mesmo com `canCreate=false`.
 async function noopCreate(): Promise<string | null> {
   return null;
 }
@@ -178,6 +190,10 @@ export function TransactionAliasFormDialog({
   tags,
   alias,
   prefill,
+  onCreateCategory,
+  onCreateSubcategory,
+  onCreateInstitution,
+  canCreateOptions = false,
   onSuccess,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
@@ -216,6 +232,18 @@ export function TransactionAliasFormDialog({
   const trigger = form.watch("trigger");
   const categoryId = form.watch("categoryId");
   const subcatsForCategory = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
+
+  // Troca gatilho ↔ descrição (DD-25). Descrição pode ser vazia; ao virar gatilho,
+  // um gatilho vazio é barrado no submit (min(1)) — comportamento correto.
+  function handleSwapTriggerDescription() {
+    const t = form.getValues("trigger");
+    const d = form.getValues("description");
+    form.setValue("trigger", d ?? "", { shouldValidate: true, shouldDirty: true });
+    form.setValue("description", t.trim().length > 0 ? t : null, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  }
 
   function applyErrors(error: { message: string; fieldErrors?: Record<string, string> }) {
     if (error.fieldErrors) {
@@ -302,7 +330,8 @@ export function TransactionAliasFormDialog({
             </Typography>
           </Stack>
 
-          {/* Gatilho — o essencial, sempre visível */}
+          {/* Gatilho — o essencial, sempre visível. Botão de trocar gatilho ↔ descrição
+              (DD-25) inline no canto direito, sem quebrar o fluxo do formulário. */}
           <Controller
             name="trigger"
             control={form.control}
@@ -320,6 +349,23 @@ export function TransactionAliasFormDialog({
                 fullWidth
                 autoFocus
                 inputProps={{ maxLength: 80 }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Tooltip title={ta.swapTriggerDescription}>
+                        <IconButton
+                          size="small"
+                          edge="end"
+                          onClick={handleSwapTriggerDescription}
+                          aria-label={ta.swapTriggerDescription}
+                          sx={{ color: "text.secondary" }}
+                        >
+                          <SwapVertIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </InputAdornment>
+                  ),
+                }}
               />
             )}
           />
@@ -357,8 +403,8 @@ export function TransactionAliasFormDialog({
                         form.setValue("subcategoryId", null);
                       }}
                       options={categories}
-                      onCreate={noopCreate}
-                      canCreate={false}
+                      onCreate={onCreateCategory ?? noopCreate}
+                      canCreate={canCreateOptions && !!onCreateCategory}
                       variant="outlined"
                       ariaLabel={m.transactions.fields.category}
                       placeholderNone={m.common.none}
@@ -380,8 +426,12 @@ export function TransactionAliasFormDialog({
                       value={field.value ?? null}
                       onChange={field.onChange}
                       options={subcatsForCategory}
-                      onCreate={noopCreate}
-                      canCreate={false}
+                      onCreate={(name) =>
+                        onCreateSubcategory && categoryId
+                          ? onCreateSubcategory(categoryId, name)
+                          : noopCreate()
+                      }
+                      canCreate={canCreateOptions && !!onCreateSubcategory && !!categoryId}
                       disabled={!categoryId}
                       variant="outlined"
                       ariaLabel={m.transactions.fields.subcategory}
@@ -401,8 +451,8 @@ export function TransactionAliasFormDialog({
                       value={field.value ?? null}
                       onChange={field.onChange}
                       options={institutions}
-                      onCreate={noopCreate}
-                      canCreate={false}
+                      onCreate={onCreateInstitution ?? noopCreate}
+                      canCreate={canCreateOptions && !!onCreateInstitution}
                       variant="outlined"
                       ariaLabel={m.transactions.fields.institution}
                       placeholderNone={m.common.none}

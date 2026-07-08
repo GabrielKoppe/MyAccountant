@@ -58,6 +58,10 @@ export function AliasSuggestionPopover({ anchorEl, trigger, changes, onApply, on
         // Enter/Escape não podem borbulhar até o onKeyDown da TableRow (Salvar/Cancelar).
         if (e.key === "Enter" || e.key === "Escape") e.stopPropagation();
       }}
+      // O popover é filho (na árvore React) da célula de descrição, que no modo
+      // visualização tem onClick={startEdit}. Sem isto, clicar em "Aplicar" borbulha
+      // e abre a edição indevidamente (DD-23). Cliques internos ficam contidos.
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Header — faixa off-white com o gatilho do apelido */}
       <Stack

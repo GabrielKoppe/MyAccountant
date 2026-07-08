@@ -465,6 +465,7 @@ export const messages = {
       descriptionLabel: "Descrição a aplicar",
       descriptionHint:
         "Substitui a descrição do lançamento ao aplicar. Deixe em branco para não alterar.",
+      swapTriggerDescription: "Trocar gatilho e descrição",
       amountLabel: "Valor a aplicar",
       amountHint: "Deixe em branco para não definir um valor.",
       formIntro:

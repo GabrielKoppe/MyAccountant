@@ -18,6 +18,7 @@ import type {
 } from "@/components/transactions/types";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
+import type { UpdateTransactionInput } from "@/lib/schemas/transaction";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
 // Pick de TransactionRow em vez de duplicar os tipos à mão — evita divergir
@@ -257,4 +258,30 @@ export function computeAliasApplication(
   }
 
   return { patch, changes };
+}
+
+/**
+ * Converte o patch de aplicação (AliasPatch) no input parcial de
+ * `updateTransactionAction` — usado pela aplicação em MODO VISUALIZAÇÃO (DD-23),
+ * que persiste na hora (não há passo "Salvar"). `amountCents` (string no
+ * `TransactionRow`) vira `BigInt`; os demais campos passam como estão. Só inclui
+ * as chaves realmente presentes no patch (patch parcial, DD-04). `institutionText`
+ * fica de fora porque `computeAliasApplication` não o cobre na aplicação manual
+ * (mesma lacuna de escopo de tags/investmentType/cardInstallment, §2.4).
+ */
+export function aliasPatchToUpdateInput(patch: AliasPatch): Partial<UpdateTransactionInput> {
+  const input: Partial<UpdateTransactionInput> = {};
+  if ("description" in patch) input.description = patch.description;
+  if ("notes" in patch) input.notes = patch.notes;
+  if ("amountCents" in patch && patch.amountCents !== undefined) {
+    input.amountCents = BigInt(patch.amountCents);
+  }
+  if ("categoryId" in patch) input.categoryId = patch.categoryId;
+  if ("subcategoryId" in patch) input.subcategoryId = patch.subcategoryId;
+  if ("institutionId" in patch) input.institutionId = patch.institutionId;
+  if ("responsiblePartyId" in patch) input.responsiblePartyId = patch.responsiblePartyId;
+  if ("expenseType" in patch) input.expenseType = patch.expenseType;
+  if ("paymentMethod" in patch) input.paymentMethod = patch.paymentMethod;
+  if ("isPending" in patch) input.isPending = patch.isPending;
+  return input;
 }

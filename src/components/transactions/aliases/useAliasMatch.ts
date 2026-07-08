@@ -10,7 +10,9 @@ const DEBOUNCE_MS = 280;
 /**
  * Detecção de apelido 100% client, debounced (§2.4) — sem chamada ao servidor
  * por tecla. `enabled=false` mantém o hook montado (regra dos hooks) mas nunca
- * retorna match — usado pelo editor para não acender no mount (descriptionDirty).
+ * retorna match (gate genérico). Hoje os dois editores passam `true`: o ícone
+ * acende sempre que há match, inclusive no mount (DD-23). O modo visualização
+ * usa `matchAlias` direto (descrição estática, sem debounce).
  */
 export function useAliasMatch(
   description: string,

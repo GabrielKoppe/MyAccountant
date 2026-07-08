@@ -18,8 +18,13 @@ import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useSnackbar } from "notistack";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
+import {
+  createCategoryAction,
+  createInstitutionAction,
+  createSubcategoryAction,
+} from "@/actions/account-settings";
 import {
   archiveTransactionAliasAction,
   deleteTransactionAliasAction,
@@ -178,8 +183,8 @@ export function TransactionAliasesManager({
   accountId,
   currentUserId,
   initialAliases,
-  categories,
-  institutions,
+  categories: initialCategories,
+  institutions: initialInstitutions,
   parties,
   tags,
 }: Props) {
@@ -189,6 +194,73 @@ export function TransactionAliasesManager({
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<SerializedTransactionAlias | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<SerializedTransactionAlias | null>(null);
+
+  // Criação inline de opções no modal (DD-26). O dono da lista é a Manager: o
+  // callback cria no server e injeta no state local, então a opção nova aparece
+  // no seletor e o `toDisplayAlias` resolve o nome após salvar. Mesmo padrão do
+  // TransactionTable. Viewer nunca chega aqui (redirect na page), logo criar é ok.
+  const [categories, setCategories] = useState(initialCategories);
+  const [institutions, setInstitutions] = useState(initialInstitutions);
+
+  // O server continua sendo fonte da verdade — quando a prop mudar (revalidação
+  // após a action de criação, ou navegação), realinha o state local. Mesmo padrão
+  // de TransactionTable.tsx:163-171.
+  useEffect(() => {
+    setCategories(initialCategories);
+  }, [initialCategories]);
+  useEffect(() => {
+    setInstitutions(initialInstitutions);
+  }, [initialInstitutions]);
+
+  async function onCreateCategory(name: string): Promise<string | null> {
+    const res = await createCategoryAction(accountId, { name });
+    if (!res.ok) {
+      enqueueSnackbar(res.error.message || m.transactions.options.createError, { variant: "error" });
+      return null;
+    }
+    setCategories((prev) =>
+      [...prev, { id: res.data.categoryId, name, subcategories: [] }].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    );
+    enqueueSnackbar(m.transactions.options.created, { variant: "success" });
+    return res.data.categoryId;
+  }
+
+  async function onCreateSubcategory(categoryId: string, name: string): Promise<string | null> {
+    const res = await createSubcategoryAction(accountId, { categoryId, name });
+    if (!res.ok) {
+      enqueueSnackbar(res.error.message || m.transactions.options.createError, { variant: "error" });
+      return null;
+    }
+    setCategories((prev) =>
+      prev.map((c) =>
+        c.id === categoryId
+          ? {
+              ...c,
+              subcategories: [...c.subcategories, { id: res.data.subcategoryId, name }].sort(
+                (a, b) => a.name.localeCompare(b.name),
+              ),
+            }
+          : c,
+      ),
+    );
+    enqueueSnackbar(m.transactions.options.created, { variant: "success" });
+    return res.data.subcategoryId;
+  }
+
+  async function onCreateInstitution(name: string): Promise<string | null> {
+    const res = await createInstitutionAction(accountId, { name });
+    if (!res.ok) {
+      enqueueSnackbar(res.error.message || m.transactions.options.createError, { variant: "error" });
+      return null;
+    }
+    setInstitutions((prev) =>
+      [...prev, { id: res.data.institutionId, name }].sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    enqueueSnackbar(m.transactions.options.created, { variant: "success" });
+    return res.data.institutionId;
+  }
 
   const tagColorById = useMemo(() => new Map(tags.map((t) => [t.id, t.color])), [tags]);
 
@@ -297,6 +369,10 @@ export function TransactionAliasesManager({
         parties={parties}
         tags={tags}
         alias={editTarget}
+        onCreateCategory={onCreateCategory}
+        onCreateSubcategory={onCreateSubcategory}
+        onCreateInstitution={onCreateInstitution}
+        canCreateOptions
         onSuccess={handleFormSuccess}
       />
 
