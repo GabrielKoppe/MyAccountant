@@ -261,7 +261,7 @@ const handleOpenRowMenu = useCallback(
             onClick={onTogglePending}
             aria-label={tx.isPending ? m.transactions.actions.markAsDone : m.transactions.actions.markAsPending}
             className={`row-primary${tx.isPending ? " row-primary--active" : ""}`}
-            sx={{ p: 1, color: "text.secondary" }}
+            sx={{ p: 1, minWidth: 40, minHeight: 40, color: "text.secondary" }}
           >
             {tx.isPending ? <HourglassBottomIcon sx={{ fontSize: 18 }} /> : <HourglassEmptyIcon sx={{ fontSize: 18 }} />}
           </IconButton>
@@ -272,7 +272,7 @@ const handleOpenRowMenu = useCallback(
             onClick={onToggleFavorite}
             aria-label={tx.isFavorite ? m.transactions.actions.removeFromFavorites : m.transactions.actions.addToFavorites}
             className={`row-primary${tx.isFavorite ? " row-primary--active" : ""}`}
-            sx={{ p: 1, color: tx.isFavorite ? "warning.main" : "text.secondary" }}
+            sx={{ p: 1, minWidth: 40, minHeight: 40, color: tx.isFavorite ? "warning.main" : "text.secondary" }}
           >
             {tx.isFavorite ? <StarIcon sx={{ fontSize: 18 }} /> : <StarBorderIcon sx={{ fontSize: 18 }} />}
           </IconButton>
@@ -284,7 +284,7 @@ const handleOpenRowMenu = useCallback(
         size="small"
         aria-label={m.transactions.actions.more}
         onClick={(e) => onOpenMenu(e, buildMenuItems())}
-        sx={{ p: 1, color: "text.secondary" }}
+        sx={{ p: 1, minWidth: 40, minHeight: 40, color: "text.secondary" }}
       >
         <MoreVertIcon sx={{ fontSize: 18 }} />
       </IconButton>
