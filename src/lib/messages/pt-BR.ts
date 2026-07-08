@@ -856,6 +856,7 @@ export const messages = {
       quickDuplicate: "Duplicar",
       addToFavorites: "Adicionar aos favoritos",
       removeFromFavorites: "Remover dos favoritos",
+      more: "Mais ações",
     },
     aliasSuggestion: {
       header: "Apelido",
