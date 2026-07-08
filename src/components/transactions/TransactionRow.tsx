@@ -457,6 +457,8 @@ export function TransactionRowBase({
         "& .row-primary": { opacity: 0.55, transition: "opacity 0.15s" },
         "&:hover .row-primary, &:focus-within .row-primary": { opacity: 1 },
         "& .row-primary--active": { opacity: 1 },
+        "& .tag-hint-icon": { opacity: 0, transition: "opacity 0.15s" },
+        "&:hover .tag-hint-icon": { opacity: 1 },
       }}
     >
       <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
@@ -774,7 +776,7 @@ export function TransactionRowBase({
           ) : (
             <Tooltip title={m.transactions.tags.addTooltip}>
               <LabelOutlinedIcon
-                className="action-icon"
+                className="tag-hint-icon"
                 sx={{ fontSize: 14, color: "text.disabled", display: "block" }}
               />
             </Tooltip>
