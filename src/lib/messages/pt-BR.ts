@@ -847,7 +847,6 @@ export const messages = {
       edit: "Editar",
       duplicate: "Duplicar",
       moveTo: "Mover para…",
-      note: "Nota",
       createAlias: "Criar apelido a partir desta transação",
       delete: "Deletar",
       addNote: "Adicionar nota",
