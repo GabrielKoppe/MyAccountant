@@ -1,6 +1,5 @@
 "use client";
 
-import { Fragment } from "react";
 import Divider from "@mui/material/Divider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
@@ -28,23 +27,22 @@ export function RowActionsMenu({ anchorEl, items, onClose }: Props) {
       transformOrigin={{ vertical: "top", horizontal: "right" }}
       slotProps={{ paper: { sx: { minWidth: 180 } } }}
     >
-      {items.map((item, i) => (
-        <Fragment key={i}>
-          {item.dividerBefore && <Divider />}
-          <MenuItem
-            onClick={() => {
-              item.onClick();
-              onClose();
-            }}
-            sx={{ py: 0.75, fontSize: 13, ...(item.danger ? { color: "danger.main" } : {}) }}
-          >
-            <ListItemIcon sx={{ minWidth: 32, ...(item.danger ? { color: "danger.main" } : {}) }}>
-              {item.icon}
-            </ListItemIcon>
-            {item.label}
-          </MenuItem>
-        </Fragment>
-      ))}
+      {items.flatMap((item, i) => [
+        item.dividerBefore ? <Divider key={`d-${i}`} /> : null,
+        <MenuItem
+          key={i}
+          onClick={() => {
+            item.onClick();
+            onClose();
+          }}
+          sx={{ py: 0.75, fontSize: 13, ...(item.danger ? { color: "danger.main" } : {}) }}
+        >
+          <ListItemIcon sx={{ minWidth: 32, ...(item.danger ? { color: "danger.main" } : {}) }}>
+            {item.icon}
+          </ListItemIcon>
+          {item.label}
+        </MenuItem>,
+      ])}
     </Menu>
   );
 }
