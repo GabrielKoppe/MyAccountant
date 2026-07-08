@@ -571,7 +571,7 @@ export function NewTransactionRow({
         {/* Placeholder para coluna de tags — a criação de tags ocorre após salvar */}
         {!hiddenColumns.tags && <TableCell sx={{ px: 1, minWidth: 60 }} />}
 
-        <TableCell align="right" sx={{ width: 200, minWidth: 200, whiteSpace: "nowrap", pr: 1 }}>
+        <TableCell align="right" sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1 }}>
           <Tooltip title={m.transactions.actions.addNote}>
             <IconButton
               size="small"

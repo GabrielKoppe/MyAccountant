@@ -41,6 +41,7 @@ const TX: TxRow = {
 function renderActions(props: Partial<Parameters<typeof TransactionRowActions>[0]> = {}) {
   const spies = {
     onStartEdit: vi.fn(),
+    onStartEditWithNote: vi.fn(),
     onTogglePending: vi.fn(),
     onToggleFavorite: vi.fn(),
     onViewDetails: vi.fn(),
@@ -93,6 +94,7 @@ describe("TransactionRowActions", () => {
       "Editar",
       "Duplicar",
       "Mover para…",
+      "Nota",
       "Ver detalhes",
       "Gerenciar vínculos",
       "Criar apelido a partir desta transação",
@@ -104,5 +106,30 @@ describe("TransactionRowActions", () => {
     renderActions({ tx: { ...TX, isPending: true, isFavorite: true } });
     expect(screen.getByRole("button", { name: "Marcar como concluída" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remover dos favoritos" })).toBeInTheDocument();
+  });
+
+  it("transação limpa: nenhuma marca passiva (nota/câmbio/vínculo) é renderizada", () => {
+    renderActions();
+    expect(screen.queryByTestId("NoteIcon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("CurrencyExchangeOutlinedIcon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("LinkOutlinedIcon")).not.toBeInTheDocument();
+  });
+
+  it("transação com nota, câmbio e vínculos: marcas passivas aparecem (não clicáveis)", () => {
+    renderActions({
+      tx: { ...TX, notes: "algo", originalCurrency: "USD", linkCount: 2 },
+    });
+    expect(screen.getByTestId("NoteIcon")).toBeInTheDocument();
+    expect(screen.getByTestId("CurrencyExchangeOutlinedIcon")).toBeInTheDocument();
+    expect(screen.getByTestId("LinkOutlinedIcon")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("clicar em Nota no ⋮ chama onStartEditWithNote", async () => {
+    const spies = renderActions();
+    await userEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    const items = spies.onOpenMenu.mock.calls[0][1];
+    items.find((i: { label: string }) => i.label === "Nota")!.onClick();
+    expect(spies.onStartEditWithNote).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,12 +1,9 @@
 "use client";
 
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
-import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
 import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import NoteIcon from "@mui/icons-material/Note";
 import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -33,7 +30,6 @@ import {
 } from "@/lib/aliases/apply";
 import { matchAlias } from "@/lib/aliases/match";
 import { formatDateShort } from "@/lib/dates";
-import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
 import type { CreateTransactionAliasInput } from "@/lib/schemas/transaction-alias";
@@ -140,6 +136,13 @@ export function TransactionRowBase({
     setFocusField(field);
     setNotesOpen(false);
     setEditing(true);
+  }
+
+  // Atalho do item "Nota" no menu ⋮ (view): entra em edição já com o painel
+  // de nota aberto, veja ou adicione sem passo intermediário.
+  function startEditWithNote() {
+    startEdit();
+    setNotesOpen(true);
   }
 
   useEffect(() => {
@@ -502,28 +505,6 @@ export function TransactionRowBase({
               </Typography>
             )}
           </Box>
-          <Box
-            component="span"
-            aria-hidden
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: layout.micro,
-              flexShrink: 0,
-              color: "text.tertiary",
-            }}
-          >
-            {tx.notes && <NoteIcon sx={{ fontSize: 14 }} />}
-            {tx.originalCurrency && <CurrencyExchangeOutlinedIcon sx={{ fontSize: 14 }} />}
-            {tx.linkCount > 0 && (
-              <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
-                <LinkOutlinedIcon sx={{ fontSize: 14 }} />
-                <Typography component="span" variant="caption" sx={{ color: "text.secondary" }}>
-                  {tx.linkCount}
-                </Typography>
-              </Box>
-            )}
-          </Box>
           {matchedAlias && aliasApplication && (
             <Tooltip title={m.transactions.aliasSuggestion.tooltip(matchedAlias.trigger)}>
               <IconButton
@@ -802,6 +783,7 @@ export function TransactionRowBase({
         tx={tx}
         isReadOnly={isReadOnly}
         onStartEdit={() => startEdit()}
+        onStartEditWithNote={startEditWithNote}
         onTogglePending={togglePending}
         onToggleFavorite={toggleFavorite}
         onViewDetails={handleViewDetails}

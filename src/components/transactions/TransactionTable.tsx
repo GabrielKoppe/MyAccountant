@@ -655,7 +655,7 @@ export function TransactionTable({
                   {show("tags") && (
                     <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tags</TableCell>
                   )}
-                  <TableCell sx={{ width: 200, minWidth: 200 }} />
+                  <TableCell sx={{ width: 160, minWidth: 160 }} />
                 </TableRow>
               </TableHead>
 

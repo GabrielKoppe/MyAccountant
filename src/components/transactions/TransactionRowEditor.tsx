@@ -551,7 +551,7 @@ export function TransactionRowEditor({
         )}
 
         {/* Ações */}
-        <TableCell align="right" sx={{ width: 200, minWidth: 200, whiteSpace: "nowrap", pr: 1 }}>
+        <TableCell align="right" sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1 }}>
           <Tooltip
             title={notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote}
           >
