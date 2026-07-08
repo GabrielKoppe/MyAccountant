@@ -1,5 +1,7 @@
 // Tipos compartilhados entre os componentes de transação
 
+import type { ReactNode } from "react";
+
 import type {
   TransactionExpenseType,
   TransactionPaymentMethod,
@@ -71,4 +73,14 @@ export type ResponsiblePartyOption = {
   color: string | null;
   /** Foto do membro (só `personal` com login e imagem). */
   imageUrl: string | null;
+};
+
+export type RowMenuItem = {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  /** aplica color: "danger.main" no item e no ícone */
+  danger?: boolean;
+  /** insere um <Divider> antes deste item */
+  dividerBefore?: boolean;
 };

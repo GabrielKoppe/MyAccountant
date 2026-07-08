@@ -833,6 +833,11 @@ export const messages = {
       settleSuccessConsolidated: "Quitação consolidada registrada com sucesso.",
       settleNoTables: "Nenhuma tabela encontrada neste mês.",
     },
+    rowState: {
+      hasNote: "tem nota",
+      foreignCurrency: "moeda estrangeira",
+      links: (n: number) => `${n} ${n === 1 ? "vínculo" : "vínculos"}`,
+    },
     actions: {
       viewDetails: "Ver detalhes",
       edit: "Editar",
