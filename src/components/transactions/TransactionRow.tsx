@@ -9,6 +9,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
@@ -42,6 +43,7 @@ import { useOptions } from "./OptionsContext";
 import { PartyAvatar } from "./PartyAvatar";
 import { describeRowState } from "./row-state";
 import { TransactionRowActions } from "./TransactionRowActions";
+import { TransactionRowDetails } from "./TransactionRowDetails";
 import { TransactionRowEditor } from "./TransactionRowEditor";
 import type {
   CategoryOption,
@@ -113,6 +115,7 @@ export function TransactionRowBase({
   const [localTags, setLocalTags] = useState(tx.tags);
   const [installmentPanelOpen, setInstallmentPanelOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
   const [aliasPrefill, setAliasPrefill] = useState<Omit<
     Partial<CreateTransactionAliasInput>,
@@ -136,13 +139,6 @@ export function TransactionRowBase({
     setFocusField(field);
     setNotesOpen(false);
     setEditing(true);
-  }
-
-  // Atalho do item "Nota" no menu ⋮ (view): entra em edição já com o painel
-  // de nota aberto, veja ou adicione sem passo intermediário.
-  function startEditWithNote() {
-    startEdit();
-    setNotesOpen(true);
   }
 
   useEffect(() => {
@@ -450,373 +446,388 @@ export function TransactionRowBase({
 
   // Modo leitura
   return (
-    <TableRow
-      hover
-      selected={isSelected}
-      sx={{
-        opacity: tx.isPending ? 0.65 : 1,
-        // Primárias (pendente/favorito): visíveis mas discretas em repouso (tappable em touch),
-        // plenas no hover/foco da linha; estado ativo = pleno sempre.
-        "& .row-primary": { opacity: 0.55, transition: "opacity 0.15s" },
-        "&:hover .row-primary, &:focus-within .row-primary": { opacity: 1 },
-        "& .row-primary--active": { opacity: 1 },
-        "& .tag-hint-icon": { opacity: 0, transition: "opacity 0.15s" },
-        "&:hover .tag-hint-icon": { opacity: 1 },
-      }}
-    >
-      <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-        <Checkbox
-          checked={isSelected}
-          onChange={(e) => onSelect(tx.id, e.target.checked)}
-          size="small"
-          disabled={isReadOnly}
-        />
-      </TableCell>
-
-      <TableCell
-        sx={{ fontSize: 13, whiteSpace: "nowrap", cursor: isReadOnly ? "default" : "pointer" }}
-        onClick={() => !isReadOnly && startEdit("occurredOn")}
-      >
-        {formatDateShort(tx.occurredOn)}
-      </TableCell>
-
-      <TableCell
+    <>
+      <TableRow
+        hover
+        selected={isSelected}
         sx={{
-          fontSize: 13,
-          maxWidth: 200,
-          cursor: isReadOnly ? "default" : "pointer",
+          opacity: tx.isPending ? 0.65 : 1,
+          // Primárias (pendente/favorito): visíveis mas discretas em repouso (tappable em touch),
+          // plenas no hover/foco da linha; estado ativo = pleno sempre.
+          "& .row-primary": { opacity: 0.55, transition: "opacity 0.15s" },
+          "&:hover .row-primary, &:focus-within .row-primary": { opacity: 1 },
+          "& .row-primary--active": { opacity: 1 },
+          "& .tag-hint-icon": { opacity: 0, transition: "opacity 0.15s" },
+          "&:hover .tag-hint-icon": { opacity: 1 },
         }}
-        onClick={() => !isReadOnly && startEdit("description")}
-        aria-label={describeRowState(tx)}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-          <Box
-            component="span"
-            sx={{
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
+        <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onChange={(e) => onSelect(tx.id, e.target.checked)}
+            size="small"
+            disabled={isReadOnly}
+          />
+        </TableCell>
+
+        <TableCell
+          sx={{ fontSize: 13, whiteSpace: "nowrap", cursor: isReadOnly ? "default" : "pointer" }}
+          onClick={() => !isReadOnly && startEdit("occurredOn")}
+        >
+          {formatDateShort(tx.occurredOn)}
+        </TableCell>
+
+        <TableCell
+          sx={{
+            fontSize: 13,
+            maxWidth: 200,
+            cursor: isReadOnly ? "default" : "pointer",
+          }}
+          onClick={() => !isReadOnly && startEdit("description")}
+          aria-label={describeRowState(tx)}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+            <Box
+              component="span"
+              sx={{
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {tx.description || (
+                <Typography variant="caption" color="text.disabled">
+                  —
+                </Typography>
+              )}
+            </Box>
+            {matchedAlias && aliasApplication && (
+              <Tooltip title={m.transactions.aliasSuggestion.tooltip(matchedAlias.trigger)}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAliasAnchorEl(e.currentTarget);
+                  }}
+                  aria-label={m.transactions.aliasSuggestion.tooltip(matchedAlias.trigger)}
+                  sx={{ p: 0.25, flexShrink: 0 }}
+                >
+                  <AutoFixHighOutlinedIcon sx={{ fontSize: 16, color: "accent.primary" }} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+          {matchedAlias && aliasApplication && (
+            <AliasSuggestionPopover
+              anchorEl={aliasAnchorEl}
+              trigger={matchedAlias.trigger}
+              changes={aliasApplication.changes}
+              onApply={handleApplyAliasView}
+              onClose={() => setAliasAnchorEl(null)}
+            />
+          )}
+        </TableCell>
+
+        {!hiddenColumns.category && (
+          <TableCell
+            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+            onClick={() => !isReadOnly && startEdit("categoryId")}
           >
-            {tx.description || (
+            {categories.find((c) => c.id === tx.categoryId)?.name ?? (
               <Typography variant="caption" color="text.disabled">
                 —
               </Typography>
             )}
-          </Box>
-          {matchedAlias && aliasApplication && (
-            <Tooltip title={m.transactions.aliasSuggestion.tooltip(matchedAlias.trigger)}>
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setAliasAnchorEl(e.currentTarget);
-                }}
-                aria-label={m.transactions.aliasSuggestion.tooltip(matchedAlias.trigger)}
-                sx={{ p: 0.25, flexShrink: 0 }}
-              >
-                <AutoFixHighOutlinedIcon sx={{ fontSize: 16, color: "accent.primary" }} />
-              </IconButton>
-            </Tooltip>
-          )}
-        </Box>
-        {matchedAlias && aliasApplication && (
-          <AliasSuggestionPopover
-            anchorEl={aliasAnchorEl}
-            trigger={matchedAlias.trigger}
-            changes={aliasApplication.changes}
-            onApply={handleApplyAliasView}
-            onClose={() => setAliasAnchorEl(null)}
-          />
+          </TableCell>
         )}
-      </TableCell>
 
-      {!hiddenColumns.category && (
-        <TableCell
-          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-          onClick={() => !isReadOnly && startEdit("categoryId")}
-        >
-          {categories.find((c) => c.id === tx.categoryId)?.name ?? (
-            <Typography variant="caption" color="text.disabled">
-              —
-            </Typography>
-          )}
-        </TableCell>
-      )}
-
-      {!hiddenColumns.subcategory && (
-        <TableCell
-          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-          onClick={() => !isReadOnly && startEdit("subcategoryId")}
-        >
-          {subcatsForCategory.find((s) => s.id === tx.subcategoryId)?.name ?? (
-            <Typography variant="caption" color="text.disabled">
-              —
-            </Typography>
-          )}
-        </TableCell>
-      )}
-
-      {!hiddenColumns.institution && (
-        <TableCell
-          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-          onClick={() => !isReadOnly && startEdit("institutionId")}
-        >
-          {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? (
-            <Typography variant="caption" color="text.disabled">
-              —
-            </Typography>
-          )}
-        </TableCell>
-      )}
-
-      {!hiddenColumns.paymentMethod && (
-        <TableCell
-          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-          onClick={() => !isReadOnly && startEdit("paymentMethod")}
-        >
-          {tx.paymentMethod ? (
-            m.transactions.paymentMethods[tx.paymentMethod]
-          ) : (
-            <Typography variant="caption" color="text.disabled">
-              —
-            </Typography>
-          )}
-        </TableCell>
-      )}
-
-      <TableCell
-        align="right"
-        sx={{
-          fontWeight: "medium",
-          fontSize: 13,
-          whiteSpace: "nowrap",
-          color: isPositive ? "success.main" : "error.main",
-          cursor: isReadOnly ? "default" : "pointer",
-        }}
-        onClick={() => !isReadOnly && startEdit("amountCents")}
-      >
-        {tx.originalCurrency ? (
-          <Tooltip
-            title={[
-              "Moeda estrangeira",
-              tx.originalAmountCents && tx.originalAmountCents !== "0"
-                ? `${tx.originalCurrency} ${(Number(BigInt(tx.originalAmountCents)) / 100).toFixed(2)}`
-                : tx.originalCurrency,
-              tx.exchangeRate ? `câmbio R$${tx.exchangeRate.toFixed(2)}` : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-            arrow
+        {!hiddenColumns.subcategory && (
+          <TableCell
+            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+            onClick={() => !isReadOnly && startEdit("subcategoryId")}
           >
-            <span>{formatCentsToBrl(amount)}</span>
-          </Tooltip>
-        ) : (
-          formatCentsToBrl(amount)
+            {subcatsForCategory.find((s) => s.id === tx.subcategoryId)?.name ?? (
+              <Typography variant="caption" color="text.disabled">
+                —
+              </Typography>
+            )}
+          </TableCell>
         )}
-      </TableCell>
 
-      {!hiddenColumns.responsibleUser && (
-        <TableCell
-          sx={{ cursor: isReadOnly ? "default" : "pointer" }}
-          onClick={() => !isReadOnly && startEdit("responsibleUserId")}
-        >
-          {(() => {
-            const party = tx.responsiblePartyId
-              ? parties.find((p) => p.id === tx.responsiblePartyId)
-              : null;
-            if (!party) {
-              return (
-                <Typography variant="caption" color="text.disabled">
-                  —
-                </Typography>
-              );
-            }
-            return (
-              <Tooltip title={party.name}>
-                <Box component="span" sx={{ display: "inline-flex" }}>
-                  <PartyAvatar
-                    kind={party.kind}
-                    icon={party.icon}
-                    color={party.color}
-                    imageUrl={party.imageUrl}
-                    name={party.name}
-                    size={24}
-                  />
-                </Box>
-              </Tooltip>
-            );
-          })()}
-        </TableCell>
-      )}
+        {!hiddenColumns.institution && (
+          <TableCell
+            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+            onClick={() => !isReadOnly && startEdit("institutionId")}
+          >
+            {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? (
+              <Typography variant="caption" color="text.disabled">
+                —
+              </Typography>
+            )}
+          </TableCell>
+        )}
 
-      {!hiddenColumns.investmentType && (
+        {!hiddenColumns.paymentMethod && (
+          <TableCell
+            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+            onClick={() => !isReadOnly && startEdit("paymentMethod")}
+          >
+            {tx.paymentMethod ? (
+              m.transactions.paymentMethods[tx.paymentMethod]
+            ) : (
+              <Typography variant="caption" color="text.disabled">
+                —
+              </Typography>
+            )}
+          </TableCell>
+        )}
+
         <TableCell
-          sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-          onClick={() => !isReadOnly && startEdit("investmentType")}
+          align="right"
+          sx={{
+            fontWeight: "medium",
+            fontSize: 13,
+            whiteSpace: "nowrap",
+            color: isPositive ? "success.main" : "error.main",
+            cursor: isReadOnly ? "default" : "pointer",
+          }}
+          onClick={() => !isReadOnly && startEdit("amountCents")}
         >
-          {tx.investmentType ?? (
-            <Typography variant="caption" color="text.disabled">
-              —
-            </Typography>
+          {tx.originalCurrency ? (
+            <Tooltip
+              title={[
+                "Moeda estrangeira",
+                tx.originalAmountCents && tx.originalAmountCents !== "0"
+                  ? `${tx.originalCurrency} ${(Number(BigInt(tx.originalAmountCents)) / 100).toFixed(2)}`
+                  : tx.originalCurrency,
+                tx.exchangeRate ? `câmbio R$${tx.exchangeRate.toFixed(2)}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              arrow
+            >
+              <span>{formatCentsToBrl(amount)}</span>
+            </Tooltip>
+          ) : (
+            formatCentsToBrl(amount)
           )}
         </TableCell>
-      )}
 
-      {/* Parcela estruturada ou texto legado */}
-      {!hiddenColumns.cardInstallment && (
-        <TableCell sx={{ px: 1 }}>
-          {tx.installmentGroupId && tx.installmentNumber && tx.installmentGroupCount ? (
-            <Tooltip
-              title={m.transactions.installments.badgeTooltip(
-                tx.installmentNumber,
-                tx.installmentGroupCount,
-                m.transactions.installments.panelTitle,
-              )}
-            >
-              <Chip
-                label={m.transactions.installments.badge(
+        {!hiddenColumns.responsibleUser && (
+          <TableCell
+            sx={{ cursor: isReadOnly ? "default" : "pointer" }}
+            onClick={() => !isReadOnly && startEdit("responsibleUserId")}
+          >
+            {(() => {
+              const party = tx.responsiblePartyId
+                ? parties.find((p) => p.id === tx.responsiblePartyId)
+                : null;
+              if (!party) {
+                return (
+                  <Typography variant="caption" color="text.disabled">
+                    —
+                  </Typography>
+                );
+              }
+              return (
+                <Tooltip title={party.name}>
+                  <Box component="span" sx={{ display: "inline-flex" }}>
+                    <PartyAvatar
+                      kind={party.kind}
+                      icon={party.icon}
+                      color={party.color}
+                      imageUrl={party.imageUrl}
+                      name={party.name}
+                      size={24}
+                    />
+                  </Box>
+                </Tooltip>
+              );
+            })()}
+          </TableCell>
+        )}
+
+        {!hiddenColumns.investmentType && (
+          <TableCell
+            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
+            onClick={() => !isReadOnly && startEdit("investmentType")}
+          >
+            {tx.investmentType ?? (
+              <Typography variant="caption" color="text.disabled">
+                —
+              </Typography>
+            )}
+          </TableCell>
+        )}
+
+        {/* Parcela estruturada ou texto legado */}
+        {!hiddenColumns.cardInstallment && (
+          <TableCell sx={{ px: 1 }}>
+            {tx.installmentGroupId && tx.installmentNumber && tx.installmentGroupCount ? (
+              <Tooltip
+                title={m.transactions.installments.badgeTooltip(
                   tx.installmentNumber,
                   tx.installmentGroupCount,
+                  m.transactions.installments.panelTitle,
                 )}
-                size="small"
-                variant="outlined"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setInstallmentPanelOpen(true);
-                }}
-                sx={{
-                  height: 20,
-                  fontSize: 11,
-                  cursor: "pointer",
-                  "& .MuiChip-label": { px: 0.75 },
-                }}
-              />
-            </Tooltip>
-          ) : tx.cardInstallment ? (
-            <Typography variant="caption" color="text.secondary">
-              {tx.cardInstallment}
-            </Typography>
-          ) : null}
-        </TableCell>
-      )}
-      {!hiddenColumns.expenseType && tx.expenseType && (
-        <TableCell sx={{ px: 0.5, width: 28 }}>
-          <Tooltip title={m.transactions.expenseTypeTooltips[tx.expenseType] ?? ""}>
-            <span style={{ display: "inline-flex", alignItems: "center", marginTop: 6 }}>
-              {tx.expenseType === "fixed" && (
-                <LockOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-              )}
-              {tx.expenseType === "variable" && (
-                <WavesOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-              )}
-              {tx.expenseType === "one_time" && (
-                <FlashOnOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-              )}
-            </span>
-          </Tooltip>
-        </TableCell>
-      )}
-      {!hiddenColumns.expenseType && !tx.expenseType && <TableCell sx={{ px: 0.5, width: 28 }} />}
-
-      {/* Célula de tags */}
-      {!hiddenColumns.tags && (
-        <TableCell
-          ref={tagCellRef}
-          sx={{ cursor: "pointer", maxWidth: 160, minWidth: 60, px: 1 }}
-          onClick={(e) => setTagAnchor(e.currentTarget)}
-        >
-          {localTags.length > 0 ? (
-            <Box
-              sx={{
-                display: "flex",
-                gap: 0.5,
-                flexWrap: "nowrap",
-                overflow: "hidden",
-                alignItems: "center",
-              }}
-            >
-              {localTags.slice(0, 2).map((tag) => (
-                <Tooltip key={tag.id} title={tag.name} disableInteractive>
-                  <Chip
-                    label={tag.name}
-                    size="small"
-                    sx={{ ...tagChipSx(tag.color), maxWidth: 72 }}
-                  />
-                </Tooltip>
-              ))}
-              {localTags.length > 2 && (
+              >
                 <Chip
-                  label={`+${localTags.length - 2}`}
+                  label={m.transactions.installments.badge(
+                    tx.installmentNumber,
+                    tx.installmentGroupCount,
+                  )}
                   size="small"
-                  sx={{ fontSize: 11, height: 20, "& .MuiChip-label": { px: 0.75 } }}
+                  variant="outlined"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setInstallmentPanelOpen(true);
+                  }}
+                  sx={{
+                    height: 20,
+                    fontSize: 11,
+                    cursor: "pointer",
+                    "& .MuiChip-label": { px: 0.75 },
+                  }}
                 />
-              )}
-            </Box>
-          ) : (
-            <Tooltip title={m.transactions.tags.addTooltip}>
-              <LabelOutlinedIcon
-                className="tag-hint-icon"
-                sx={{ fontSize: 14, color: "text.disabled", display: "block" }}
-              />
+              </Tooltip>
+            ) : tx.cardInstallment ? (
+              <Typography variant="caption" color="text.secondary">
+                {tx.cardInstallment}
+              </Typography>
+            ) : null}
+          </TableCell>
+        )}
+        {!hiddenColumns.expenseType && tx.expenseType && (
+          <TableCell sx={{ px: 0.5, width: 28 }}>
+            <Tooltip title={m.transactions.expenseTypeTooltips[tx.expenseType] ?? ""}>
+              <span style={{ display: "inline-flex", alignItems: "center", marginTop: 6 }}>
+                {tx.expenseType === "fixed" && (
+                  <LockOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+                )}
+                {tx.expenseType === "variable" && (
+                  <WavesOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+                )}
+                {tx.expenseType === "one_time" && (
+                  <FlashOnOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+                )}
+              </span>
             </Tooltip>
-          )}
-        </TableCell>
-      )}
+          </TableCell>
+        )}
+        {!hiddenColumns.expenseType && !tx.expenseType && <TableCell sx={{ px: 0.5, width: 28 }} />}
 
-      {tagAnchor && (
-        <TagPopover
-          anchorEl={tagAnchor}
-          onClose={() => setTagAnchor(null)}
+        {/* Célula de tags */}
+        {!hiddenColumns.tags && (
+          <TableCell
+            ref={tagCellRef}
+            sx={{ cursor: "pointer", maxWidth: 160, minWidth: 60, px: 1 }}
+            onClick={(e) => setTagAnchor(e.currentTarget)}
+          >
+            {localTags.length > 0 ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 0.5,
+                  flexWrap: "nowrap",
+                  overflow: "hidden",
+                  alignItems: "center",
+                }}
+              >
+                {localTags.slice(0, 2).map((tag) => (
+                  <Tooltip key={tag.id} title={tag.name} disableInteractive>
+                    <Chip
+                      label={tag.name}
+                      size="small"
+                      sx={{ ...tagChipSx(tag.color), maxWidth: 72 }}
+                    />
+                  </Tooltip>
+                ))}
+                {localTags.length > 2 && (
+                  <Chip
+                    label={`+${localTags.length - 2}`}
+                    size="small"
+                    sx={{ fontSize: 11, height: 20, "& .MuiChip-label": { px: 0.75 } }}
+                  />
+                )}
+              </Box>
+            ) : (
+              <Tooltip title={m.transactions.tags.addTooltip}>
+                <LabelOutlinedIcon
+                  className="tag-hint-icon"
+                  sx={{ fontSize: 14, color: "text.disabled", display: "block" }}
+                />
+              </Tooltip>
+            )}
+          </TableCell>
+        )}
+
+        {tagAnchor && (
+          <TagPopover
+            anchorEl={tagAnchor}
+            onClose={() => setTagAnchor(null)}
+            accountId={accountId}
+            transactionId={tx.id}
+            currentTags={localTags}
+            onTagsChange={(tags) => {
+              setLocalTags(tags);
+              onOptimisticUpdate(tx.id, { tags });
+            }}
+          />
+        )}
+
+        <TransactionRowActions
+          tx={tx}
+          isReadOnly={isReadOnly}
+          onStartEdit={() => startEdit()}
+          onTogglePending={togglePending}
+          onToggleFavorite={toggleFavorite}
+          onViewDetails={handleViewDetails}
+          onDuplicate={handleDuplicate}
+          onMove={() => onOpenMove([tx.id])}
+          onCreateAlias={() => openCreateAlias(tx)}
+          onDelete={handleDelete}
+          onToggleDrawer={() => setDrawerOpen((o) => !o)}
+          onOpenMenu={onOpenMenu}
+        />
+
+        {/* Painel de grupo de parcelamento — Drawer via portal */}
+        {tx.installmentGroupId && installmentPanelOpen && (
+          <InstallmentGroupPanel
+            open={installmentPanelOpen}
+            onClose={() => setInstallmentPanelOpen(false)}
+            accountId={accountId}
+            monthId={tx.monthId}
+            installmentGroupId={tx.installmentGroupId}
+            canEdit={!isReadOnly}
+          />
+        )}
+
+        <LinkTransactionDialog
+          open={linkDialogOpen}
+          onClose={() => setLinkDialogOpen(false)}
           accountId={accountId}
           transactionId={tx.id}
-          currentTags={localTags}
-          onTagsChange={(tags) => {
-            setLocalTags(tags);
-            onOptimisticUpdate(tx.id, { tags });
-          }}
+          onLinked={() => onOptimisticUpdate(tx.id, { linkCount: tx.linkCount + 1 })}
         />
+
+        {aliasDialog}
+      </TableRow>
+      {drawerOpen && (
+        <TableRow>
+          <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
+            <Collapse in={drawerOpen} unmountOnExit>
+              <TransactionRowDetails
+                tx={tx}
+                isReadOnly={isReadOnly}
+                onManageLinks={() => setLinkDialogOpen(true)}
+                onViewInstallmentGroup={() => setInstallmentPanelOpen(true)}
+              />
+            </Collapse>
+          </TableCell>
+        </TableRow>
       )}
-
-      <TransactionRowActions
-        tx={tx}
-        isReadOnly={isReadOnly}
-        onStartEdit={() => startEdit()}
-        onStartEditWithNote={startEditWithNote}
-        onTogglePending={togglePending}
-        onToggleFavorite={toggleFavorite}
-        onViewDetails={handleViewDetails}
-        onDuplicate={handleDuplicate}
-        onMove={() => onOpenMove([tx.id])}
-        onCreateAlias={() => openCreateAlias(tx)}
-        onDelete={handleDelete}
-        onOpenLinkDialog={() => setLinkDialogOpen(true)}
-        onOpenMenu={onOpenMenu}
-      />
-
-      {/* Painel de grupo de parcelamento — Drawer via portal */}
-      {tx.installmentGroupId && installmentPanelOpen && (
-        <InstallmentGroupPanel
-          open={installmentPanelOpen}
-          onClose={() => setInstallmentPanelOpen(false)}
-          accountId={accountId}
-          monthId={tx.monthId}
-          installmentGroupId={tx.installmentGroupId}
-          canEdit={!isReadOnly}
-        />
-      )}
-
-      <LinkTransactionDialog
-        open={linkDialogOpen}
-        onClose={() => setLinkDialogOpen(false)}
-        accountId={accountId}
-        transactionId={tx.id}
-        onLinked={() => onOptimisticUpdate(tx.id, { linkCount: tx.linkCount + 1 })}
-      />
-
-      {aliasDialog}
-    </TableRow>
+    </>
   );
 }
 
