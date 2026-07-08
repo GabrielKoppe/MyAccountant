@@ -37,21 +37,23 @@ Direção escolhida (Opção 5 — **Separação Estado/Ação**), aprovada apó
 
 ### 2.1 Modo visualização — separar estado de ação (ROW-01, ROW-02)
 
-**Sinais de estado saem da coluna de ações** e viram glyphs passivos de baixo contraste na **célula de descrição**, ao lado da varinha de apelido que já vive ali (spec 61 §2.4, `TransactionRow.tsx:501-515`). As **ações frequentes** (pendente + favorito) ficam como toggles visíveis na coluna; o resto vai para o ⋮:
+> **Revisado em §10 (2026-07-08)** — a versão abaixo já reflete a revisão pós-implementação: os glyphs passivos saíram da célula de descrição e voltaram para a **coluna de ações** (ao lado de pendente/favorito), não-clicáveis; o ⋮ ganhou um item **Nota** com o mesmo padrão de separação por `<Divider>` do Excluir; a largura da coluna encolheu de forma uniforme. Ver §10 para o histórico/motivação da mudança.
+
+**Sinais de estado saem da célula de descrição** (só a varinha de apelido continua lá — é a única affordance realmente ligada ao *conteúdo* da descrição, spec 61 §2.4) **e viram glyphs passivos na própria coluna de ações**, antes das primárias. As **ações frequentes** (pendente + favorito) ficam como toggles visíveis na coluna; o resto vai para o ⋮:
 
 ```
-[▢] 15/06  Netflix 📝 💱 🔗² ✨   Assinat.  R$45,90  João        ⏳  ☆  ⋮
-            └── descrição ──┘└glyphs┘                          pend fav menu
+[▢] 15/06  Netflix ✨              Assinat.  R$45,90  João   📝 💱 🔗²  ⏳  ☆  ⋮
+            └── descrição ──┘                                └glyphs┘  pend fav menu
 ```
 
-- **Glyphs passivos na descrição** (só quando ativos, `text.tertiary`, `fontSize:14`, `flexShrink:0`, **não interativos**, `aria-hidden`): nota (📝 quando `tx.notes`), moeda estrangeira (💱 quando `tx.originalCurrency`), vínculos (🔗 + contagem quando `tx.linkCount>0` — o **número** em `text.secondary`, não `text.tertiary`, para passar contraste de texto pequeno). A varinha de apelido (✨ `accent.primary`) permanece como está (spec 61 §2.4 — interativa, é affordance, não estado passivo). **D2/D9**: a célula de descrição recebe um `aria-label` resumo (ex.: "Netflix — tem nota, moeda estrangeira, 2 vínculos") para o leitor de tela anunciar o estado uma vez por linha; os ícones em si são `aria-hidden`.
-- **Coluna de ações (não-viewer) = 3 alvos**: [ **alternar pendente** ] [ **alternar favorito** ] [ **⋮** ] (D1).
+- **Glyphs passivos na coluna de ações** (só quando ativos, `text.tertiary`, `fontSize:14`, **não interativos**, `aria-hidden`, posicionados antes das primárias): nota (📝 quando `tx.notes`), moeda estrangeira (💱 quando `tx.originalCurrency`), vínculos (🔗 + contagem quando `tx.linkCount>0` — o **número** em `text.secondary`, não `text.tertiary`). Visíveis também para **viewers** (informam, não mutam). A varinha de apelido (✨ `accent.primary`) permanece na descrição (spec 61 §2.4 — interativa, ligada ao conteúdo). **D2/D9/D12**: a célula de descrição mantém o `aria-label` resumo (ex.: "Netflix — tem nota, moeda estrangeira, 2 vínculos") para o leitor de tela — cobre o caso mesmo com os glyphs visuais movidos para a coluna de ações.
+- **Coluna de ações (não-viewer) = 3 alvos interativos** (+ glyphs passivos quando presentes): [ **alternar pendente** ] [ **alternar favorito** ] [ **⋮** ] (D1).
   - **Alternar pendente** (`HourglassEmpty`/`HourglassBottom`) e **alternar favorito** (`StarBorder`/`Star`, ativo em `warning.main`), **sempre visíveis** (não hover-gated — D5, cobre touch). `aria-label` **dinâmico** em ambos (`markAsPending`/`markAsDone`; `addToFavorites`/`removeFromFavorites`).
-  - Pendente **não** ganha glyph na descrição — o estado já é comunicado pelo dim da linha (`TransactionRow.tsx:453`, `opacity:0.65`) + o ícone da própria primária (D3). Favorito **não** é glyph passivo — é toggle visível (D1).
-  - **Opacidade de repouso (D8)**: as primárias em repouso ficam com opacidade reduzida (~0.55) e plenas em `:hover`/`:focus-within` da linha; quando **ativas** (`isPending`/`isFavorite`), ficam plenas sempre (o estado é informação). Calmo (design-system "calmo > vibrante") mas tappable em touch. `ui-critique` valida o valor final no diff.
-  - **⋮ (overflow)** abre `Menu` (§6.6): `Editar`, `Duplicar`, `Mover para…`, `Ver detalhes`, `Gerenciar vínculos`, `Criar apelido`, `<Divider>`, `Excluir` (`danger.main`, por último).
-- **Viewers (read-only)**: sem primárias (não mutam). Coluna = só `⋮` com `Ver detalhes` e `Gerenciar vínculos` (paridade com o acesso atual ao dialog de vínculos, hoje exposto a todos em `:102-111`). Glyphs passivos na descrição aparecem normalmente (leitura).
-- **Largura da coluna**: uniforme na tabela, governada pelas linhas EDIT/CREATE (7/4 botões, `width:200`). O ganho da Opção 5 é **clareza/densidade de alvos** no VIEW (10 → 3), **não** px; o header spacer (`TransactionTable.tsx:643`) permanece `width:200`.
+  - Pendente **não** ganha glyph — o estado já é comunicado pelo dim da linha (`TransactionRow.tsx:453`, `opacity:0.65`) + o ícone da própria primária (D3). Favorito **não** é glyph passivo — é toggle visível (D1).
+  - **Opacidade de repouso (D8)**: as primárias em repouso ficam com opacidade reduzida (~0.55) e plenas em `:hover`/`:focus-within` da linha; quando **ativas** (`isPending`/`isFavorite`), ficam plenas sempre (o estado é informação). Calmo (design-system "calmo > vibrante") mas tappable em touch.
+  - **⋮ (overflow)** abre `Menu` (§6.6): `Editar`, `Duplicar`, `Mover para…`, `<Divider>`, `Nota`, `Ver detalhes`, `Gerenciar vínculos`, `Criar apelido`, `<Divider>`, `Excluir` (`danger.main`, por último). **D13**: `Nota` abre a edição já com o painel de nota expandido (mesmo padrão de separação por `<Divider>` do grupo Excluir).
+- **Viewers (read-only)**: sem primárias (não mutam). Coluna = glyphs passivos (se houver) + `⋮` com `Ver detalhes` e `Gerenciar vínculos` (sem `Nota`, que exige modo edição). Paridade com o acesso atual ao dialog de vínculos.
+- **Largura da coluna (D11)**: uniforme na tabela (VIEW/EDIT/CREATE) para não haver "salto" ao entrar em edição — reduzida de `200px` para `160px`, valor que ainda cabe os 7 botões do editor com folga; gap interno entre os alvos reduzido de `layout.micro` (4px) para `0.5` (2px) em toda a coluna (glyphs, primárias, ⋮), deixando os alvos visualmente mais próximos.
 
 ### 2.2 Menu único + dialog de mover únicos, elevados à tabela (UX-01, PERF-01, D4, D6, D7)
 
@@ -96,15 +98,15 @@ CREATE  [▢] [data ][descrição ][categ.][valor  ][resp]  📝 💱           
 
 ## 4. Critérios de Aceitação
 
-**ROW-01 / ROW-02 (separação estado/ação, modo visualização):**
-- QUANDO uma transação tem nota, moeda estrangeira ou vínculo(s), A CÉLULA DE DESCRIÇÃO DEVE exibir o glyph passivo correspondente (`text.tertiary`, não interativo, `aria-hidden`; contagem de vínculos em `text.secondary`), e A COLUNA DE AÇÕES NÃO DEVE exibir esses sinais como botões.
+**ROW-01 / ROW-02 (separação estado/ação, modo visualização) — revisado em §10 (D10–D13):**
+- QUANDO uma transação tem nota, moeda estrangeira ou vínculo(s), A COLUNA DE AÇÕES DEVE exibir o glyph passivo correspondente antes das primárias (`text.tertiary`, não interativo, `aria-hidden`; contagem de vínculos em `text.secondary`), e A CÉLULA DE DESCRIÇÃO NÃO DEVE mais exibir esses glyphs visualmente.
 - QUANDO a transação não tem determinado estado, O GLYPH correspondente NÃO DEVE ser renderizado.
-- A CÉLULA DE DESCRIÇÃO DEVE ter um `aria-label` resumindo descrição + estados ativos (nota / moeda estrangeira / N vínculos).
-- A COLUNA DE AÇÕES (não-viewer) DEVE conter exatamente 3 alvos interativos: alternar pendente, alternar favorito e o ⋮.
+- A CÉLULA DE DESCRIÇÃO DEVE ter um `aria-label` resumindo descrição + estados ativos (nota / moeda estrangeira / N vínculos), mesmo com os glyphs visuais na coluna de ações (cobre leitor de tela).
+- A COLUNA DE AÇÕES (não-viewer) DEVE conter exatamente 3 alvos interativos: alternar pendente, alternar favorito e o ⋮ (glyphs passivos, quando presentes, não contam como alvo).
 - QUANDO o usuário clica na primária de pendente, A TRANSAÇÃO DEVE alternar `isPending` (comportamento de `togglePending`, feedback otimista); QUANDO clica na de favorito, DEVE alternar `isFavorite` (`toggleFavorite`).
 - ENQUANTO uma primária está em repouso e inativa, ELA DEVE ficar visível com opacidade reduzida (não `opacity:0`) e atingir opacidade plena em `:hover`/`:focus-within` da linha; QUANDO ativa (`isPending`/`isFavorite`), DEVE ficar em opacidade plena sempre.
-- QUANDO o usuário abre o ⋮ (não-viewer), O MENU DEVE listar, nesta ordem, Editar, Duplicar, Mover para…, Ver detalhes, Gerenciar vínculos, Criar apelido e, após um `<Divider>`, Excluir em `danger.main` (design-system §6.6).
-- SE o usuário é viewer (read-only), A COLUNA DE AÇÕES DEVE conter só o ⋮ com Ver detalhes e Gerenciar vínculos, e NÃO DEVE exibir primárias nem ações de mutação.
+- QUANDO o usuário abre o ⋮ (não-viewer), O MENU DEVE listar, nesta ordem, Editar, Duplicar, Mover para…, e após um `<Divider>`, Nota, Ver detalhes, Gerenciar vínculos, Criar apelido e, após outro `<Divider>`, Excluir em `danger.main` (design-system §6.6); QUANDO o usuário clica em Nota, O SISTEMA DEVE entrar em edição com o painel de nota já expandido.
+- SE o usuário é viewer (read-only), A COLUNA DE AÇÕES DEVE conter glyphs passivos (se houver) + só o ⋮ com Ver detalhes e Gerenciar vínculos (sem Nota), e NÃO DEVE exibir primárias nem ações de mutação.
 
 **Mover para… (D4):**
 - QUANDO o usuário clica em "Mover para…", O SISTEMA DEVE abrir o mesmo `MoveTransactionsDialog` do fluxo bulk, com `selectedIds` = `[id da linha]`.
@@ -248,8 +250,10 @@ const handleOpenRowMenu = useCallback(
 
 ### Coluna de ações — VIEW (referência)
 
+> **Superseded por §10.3 (2026-07-08)** — este bloco documenta o código da Task 4 (rodada 1: sem glyphs, `width:200`, `gap:layout.micro`). O código atual tem glyphs passivos antes das primárias, `onStartEditWithNote`, `width:160` e `gap:0.5`. Mantido aqui como referência histórica da rodada 1.
+
 ```tsx
-// TransactionRowActions.tsx  (✅ correto)
+// TransactionRowActions.tsx  (rodada 1 — ver TransactionRowActions.tsx atual + §10.3 para o estado real)
 <TableCell align="right" sx={{ width: 200, minWidth: 200, whiteSpace: "nowrap", pr: 1 }}
   onClick={(e) => e.stopPropagation()}>  {/* largura uniforme com EDIT/CREATE; ganho é densidade, não px */}
   <Box sx={{ display: "inline-flex", alignItems: "center", gap: layout.micro }}>
@@ -309,10 +313,12 @@ sx={{
 
 > Para os botões de EDIT/CREATE que continuam com reveal por hover, manter a classe `.action-icon` e **adicionar o par `:focus-within`** (A11Y-01).
 
-### Glyphs passivos + resumo a11y na descrição (referência)
+### Glyphs passivos + resumo a11y na descrição (referência — rodada 1, superseded)
+
+> **Superseded por D10/§10.3 (2026-07-08)** — os glyphs visuais saíram da descrição e foram para a coluna de ações (ver `TransactionRowActions.tsx` atual). A célula de descrição **mantém** só o `aria-label={describeRowState(tx)}` abaixo (sem o `Box` de ícones visuais que este bloco mostrava).
 
 ```tsx
-// TransactionRow.tsx — célula de descrição
+// TransactionRow.tsx — célula de descrição (rodada 1)
 <TableCell aria-label={describeRowState(tx)} /* "Netflix — tem nota, moeda estrangeira, 2 vínculos" */>
   <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
     <Box component="span" sx={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1487,3 +1493,45 @@ Após revisão do diff por `myaccountant-reviewer` + `ui-critique`, se aprovado,
 **3. Consistência de tipos:** `RowMenuItem` (Task 1) usado igual em Tasks 2/3/4/5/6. `describeRowState` assinatura idêntica em Tasks 1/5. `buildRowMenuItems` opts idênticos em Tasks 2/4. `onOpenMenu(e, items)` e `onOpenMove(ids)` consistentes entre Tasks 4/5/6. `MoveTransactionsDialog` props batem com `MoveTransactionsDialog.tsx:44-55`.
 
 Revisores sugeridos: `myaccountant-reviewer` (convenções) + `ui-critique` (visual/a11y light/dark, opacidade de repouso) sobre o diff final.
+
+---
+
+## 10. Revisão pós-implementação (2026-07-08) — feedback de uso real
+
+Após as Tasks 1–8 implementadas e revisadas (§9), o desenvolvedor usou a feature e pediu 4 ajustes antes de dar por encerrado. §2.1/§2.2 acima **já foram atualizados in-line** para refletir o resultado; esta seção registra o histórico, o motivo e as decisões (D10–D13).
+
+### 10.1 O que motivou a revisão
+
+- **Glyphs na descrição pesavam a célula.** O feedback: "não gostei dos glyphs na descrição, pq eles sobrecarregam e pesam a descrição". A varinha de apelido (spec 61 §2.4) faz sentido ali por estar **ligada ao conteúdo** da descrição; nota/câmbio/vínculos não têm essa relação — são estado da transação como um todo, não da string de descrição.
+- **Ícones das ações "distantes" e coluna "larga".** Gap de 4px (`layout.micro`) entre pendente/favorito/⋮ e largura fixa em `200px` (herdada da necessidade do editor, 7 botões) deixavam a coluna maior que o necessário no modo visualização, competindo por espaço com as outras colunas da tabela.
+
+### 10.2 Decisões (D10–D13)
+
+| # | Decisão | Escolha | Motivo |
+|---|---|---|---|
+| D10 | Onde vivem os glyphs passivos | **Coluna de ações**, antes das primárias — não mais na descrição | Descrição fica "leve" (só texto + varinha, que é affordance do conteúdo); estado geral da transação some para o lugar já dedicado a estado/ação |
+| D11 | Largura da coluna de ações | **Uniforme, reduzida de 200px → 160px** (VIEW/EDIT/CREATE) + gap de `layout.micro` (4px) → `0.5` (2px) em toda a coluna | Opção "sem salto" (recomendada e escolhida): tabela usa `table-layout:auto` — larguras divergentes entre VIEW e EDIT/CREATE fariam a coluna inteira "pular" de tamanho ao entrar em edição (o browser recalcula pela linha mais larga presente). 160px ainda cabe os 7 botões do editor (`p:0.5`, sem gap, ~20px/botão) com folga; ganho de espaço é mais modesto que uma redução livre por causa do piso de 40px das primárias (A11Y-03) — quando os 3 glyphs + 2 primárias + ⋮ coexistem, o conteúdo real da coluna já soma ~166-190px, perto do limite de 160-190px escolhido. Afinar esse número fica para a checagem visual pendente (§9 Task 8, ainda não feita). |
+| D12 | Nota/câmbio/vínculos ficam clicáveis onde? | **Marca passiva (não clicável) na coluna** + **item "Nota" clicável no ⋮** (câmbio já auto-abre ao editar; vínculos já tinha "Gerenciar vínculos") | Mantém a separação estado×ação (ROW-02): a marca só informa; a ação de fato (editar/ver) mora no ⋮, coerente com o resto do menu |
+| D13 | Grupo do item "Nota" no ⋮ | **`dividerBefore: true`**, mesmo padrão do grupo Excluir — fica: Editar, Duplicar, Mover para…, `<Divider>`, Nota, Ver detalhes, Gerenciar vínculos, Criar apelido, `<Divider>`, Excluir | Pedido explícito: "separação assim como está sendo feito no delete". Separa mutações "duras" (Editar/Duplicar/Mover) do grupo de leitura/estado (Nota/Ver detalhes/Gerenciar vínculos), sem introduzir um item de câmbio redundante com Editar (o painel de câmbio já auto-expande ao entrar em edição quando `originalCurrency` existe — `TransactionRowEditor.tsx` `foreignCurrencyOpen` inicializa `!!editValues.originalCurrency`) |
+
+### 10.3 Mudanças de código (delta desta revisão)
+
+- `src/components/transactions/TransactionRow.tsx`: removido o bloco de glyphs da célula de descrição (ficou só a varinha + `aria-label={describeRowState(tx)}`, mantido); adicionado `startEditWithNote()` (chama `startEdit()` + `setNotesOpen(true)`); imports não mais usados (`NoteIcon`, `CurrencyExchangeOutlinedIcon`, `LinkOutlinedIcon`, `layout`) removidos.
+- `src/components/transactions/TransactionRowActions.tsx`: novo prop `onStartEditWithNote`; cluster de glyphs passivos (`aria-hidden`, `fontSize:14`) renderizado antes das primárias, visível também para `isReadOnly`; gap da `Box` raiz `layout.micro` → `0.5`; largura da célula `200/200` → `160/160`.
+- `src/components/transactions/row-menu-items.tsx`: novo opt `onOpenNote`; novo item `Nota` (`dividerBefore: true`) inserido antes do grupo `readOnlyInfoItems` (renomeado de `readItems`), só no ramo não-viewer.
+- `src/components/transactions/TransactionRowEditor.tsx`, `NewTransactionRow.tsx`, `TransactionTable.tsx` (header spacer): largura `200/200` → `160/160`, sem outras mudanças (não têm gap explícito a reduzir — botões já ficam colados por não terem `Box` com `gap`).
+- `src/lib/messages/pt-BR.ts`: nova string `transactions.actions.note = "Nota"`.
+- Testes atualizados: `row-menu-items.test.tsx` (ordem inclui `Nota` com `dividerBefore`), `TransactionRowActions.test.tsx` (ordem do menu, ausência/presença das marcas passivas por `data-testid` do MUI icon, clique em `Nota` chama `onStartEditWithNote`).
+
+### 10.4 Critérios de aceitação adicionais
+
+- QUANDO a transação tem nota/câmbio/vínculo(s), A COLUNA DE AÇÕES DEVE exibir o(s) glyph(s) correspondente(s) (`aria-hidden`, não clicáveis) antes das primárias; a CÉLULA DE DESCRIÇÃO NÃO DEVE mais exibi-los visualmente (mantém só `aria-label` resumo + varinha de apelido).
+- QUANDO o usuário (não-viewer) abre o ⋮, O ITEM `Nota` DEVE aparecer com `dividerBefore: true`, entre `Mover para…` e `Ver detalhes`; SE o usuário é viewer, o item `Nota` NÃO DEVE aparecer.
+- QUANDO o usuário clica em `Nota`, O SISTEMA DEVE entrar em modo edição com o painel de nota já expandido (`notesOpen=true`).
+- A LARGURA da coluna de ações DEVE ser igual entre VIEW/EDIT/CREATE (evita salto de layout ao entrar em edição).
+
+### 10.5 Pendências (herdadas, ainda não fechadas)
+
+- Verificação visual em navegador (light/dark + densidade ~600px) — spec §9 Task 8 Steps 3–4, ainda não executada.
+- Ajuste fino do valor exato de largura (`160px`) e do gap (`0.5`/2px) fica sujeito à checagem visual acima — os valores aqui são um ponto de partida calculado (não validado em navegador).
+- `Status` da spec continua `ready` (não `approved`) — depende das pendências acima + confirmação do desenvolvedor.
