@@ -18,6 +18,7 @@ import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
+import Stack from "@mui/material/Stack";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
@@ -31,7 +32,7 @@ import { NumericFormat } from "react-number-format";
 
 import { createTransactionAction } from "@/actions/transactions";
 import { computeAliasApplication } from "@/lib/aliases/apply";
-import { motion } from "@/lib/design-tokens";
+import { layout, motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { centsToReais, reaisToCents } from "@/lib/money";
 import {
@@ -572,54 +573,62 @@ export function NewTransactionRow({
         {!hiddenColumns.tags && <TableCell sx={{ px: 1, minWidth: 60 }} />}
 
         <TableCell align="right" sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1 }}>
-          <Tooltip title={m.transactions.actions.addNote}>
-            <IconButton
-              size="small"
-              sx={{ p: 0.5 }}
-              onClick={() => setNotesOpen((o) => !o)}
-              aria-label={m.transactions.actions.addNote}
-              color={notesOpen || notes ? "primary" : "default"}
-            >
-              {notesOpen || notes ? (
-                <NoteIcon sx={{ fontSize: 16 }} />
-              ) : (
-                <NoteOutlinedIcon sx={{ fontSize: 16 }} />
-              )}
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={m.transactions.foreignCurrency.label}>
-            <IconButton
-              size="small"
-              sx={{ p: 0.5 }}
-              onClick={() => setForeignCurrencyOpen((o) => !o)}
-              aria-label={m.transactions.foreignCurrency.label}
-              color={foreignCurrencyOpen ? "primary" : "default"}
-            >
-              <CurrencyExchangeOutlinedIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
           <Tooltip title="Salvar (Enter)">
             <IconButton
               size="small"
-              sx={{ p: 0.5 }}
+              sx={{ p: 1, minWidth: 32, minHeight: 32 }}
               onClick={handleSave}
               aria-label={m.transactions.actions.save}
               disabled={saving}
               color="primary"
             >
-              <CheckIcon sx={{ fontSize: 16 }} />
+              <CheckIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Cancelar (Esc)">
             <IconButton
               size="small"
-              sx={{ p: 0.5 }}
+              sx={{ p: 1, minWidth: 32, minHeight: 32 }}
               onClick={onCancel}
               aria-label={m.transactions.actions.cancel}
             >
-              <CloseIcon sx={{ fontSize: 16 }} />
+              <CloseIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
+        </TableCell>
+      </TableRow>
+
+      {/* Barra de ferramentas da gaveta — toggles de nota + câmbio */}
+      <TableRow>
+        <TableCell colSpan={99} sx={{ py: 0.5, border: 0, bgcolor: "action.hover" }}>
+          <Stack direction="row" spacing={layout.inline} alignItems="center" sx={{ px: 2 }}>
+            <Tooltip title={m.transactions.actions.addNote}>
+              <IconButton
+                size="small"
+                sx={{ p: 0.5 }}
+                onClick={() => setNotesOpen((o) => !o)}
+                aria-label={m.transactions.actions.addNote}
+                color={notesOpen || notes ? "primary" : "default"}
+              >
+                {notesOpen || notes ? (
+                  <NoteIcon sx={{ fontSize: 16 }} />
+                ) : (
+                  <NoteOutlinedIcon sx={{ fontSize: 16 }} />
+                )}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={m.transactions.foreignCurrency.label}>
+              <IconButton
+                size="small"
+                sx={{ p: 0.5 }}
+                onClick={() => setForeignCurrencyOpen((o) => !o)}
+                aria-label={m.transactions.foreignCurrency.label}
+                color={foreignCurrencyOpen ? "primary" : "default"}
+              >
+                <CurrencyExchangeOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </TableCell>
       </TableRow>
 
