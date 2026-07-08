@@ -742,7 +742,6 @@ Expected: FAIL — "Failed to resolve import './RowActionsMenu'".
 ```tsx
 "use client";
 
-import { Fragment } from "react";
 import Divider from "@mui/material/Divider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
@@ -770,27 +769,28 @@ export function RowActionsMenu({ anchorEl, items, onClose }: Props) {
       transformOrigin={{ vertical: "top", horizontal: "right" }}
       slotProps={{ paper: { sx: { minWidth: 180 } } }}
     >
-      {items.map((item, i) => (
-        <Fragment key={i}>
-          {item.dividerBefore && <Divider />}
-          <MenuItem
-            onClick={() => {
-              item.onClick();
-              onClose();
-            }}
-            sx={{ py: 0.75, fontSize: 13, ...(item.danger ? { color: "danger.main" } : {}) }}
-          >
-            <ListItemIcon sx={{ minWidth: 32, ...(item.danger ? { color: "danger.main" } : {}) }}>
-              {item.icon}
-            </ListItemIcon>
-            {item.label}
-          </MenuItem>
-        </Fragment>
-      ))}
+      {items.flatMap((item, i) => [
+        item.dividerBefore ? <Divider key={`d-${i}`} /> : null,
+        <MenuItem
+          key={i}
+          onClick={() => {
+            item.onClick();
+            onClose();
+          }}
+          sx={{ py: 0.75, fontSize: 13, ...(item.danger ? { color: "danger.main" } : {}) }}
+        >
+          <ListItemIcon sx={{ minWidth: 32, ...(item.danger ? { color: "danger.main" } : {}) }}>
+            {item.icon}
+          </ListItemIcon>
+          {item.label}
+        </MenuItem>,
+      ])}
     </Menu>
   );
 }
 ```
+
+> **Nota pós-implementação (Task 3, achado de revisão):** a versão original desta referência usava `<Fragment key={i}>` para agrupar divisor+item. MUI's `MenuList` injeta `autoFocus`/`tabIndex` no filho no índice ativo via `React.cloneElement` — envolver em `Fragment` faz essas props caírem no Fragment, não no `MenuItem`, quebrando o foco de teclado (confirmado contra `@mui/material@6.5.0`, `MenuList.js:191-234`, e o próprio dev-warning do MUI para esse padrão). Corrigido para array plano (`.flatMap`), alinhado ao padrão já usado na referência de §7/Task 6.
 
 - [ ] **Step 4: Rodar o teste e ver passar**
 
