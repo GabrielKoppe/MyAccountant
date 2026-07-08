@@ -39,3 +39,6 @@ next-env.d.ts
 
 # pnpm
 pnpm-debug.log*
+
+# subagent-driven-development scratch (progress ledger, briefs, reports)
+.superpowers/
