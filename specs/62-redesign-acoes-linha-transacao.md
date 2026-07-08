@@ -241,18 +241,714 @@ export function countAttachments(tx: AttachmentInput): number {
 
 ## 9. Plano de Implementação
 
-> Plano TDD detalhado (bite-sized) gerado via skill `writing-plans` e colado aqui após aprovação do design. Esboço de fases:
+> Plano TDD bite-sized (gerado via `writing-plans`). Fonte única — o arquivo em `docs/superpowers/plans/` aponta para cá. Comandos rodam no container: `docker compose exec app <cmd>`.
 
-| Fase | Conteúdo | Modelo |
-|---|---|---|
-| 1 | `attachments.ts` `countAttachments` + testes; `AttachmentIndicator` (📎 + contagem, clicável) + testes | Haiku/Sonnet |
-| 2 | `TransactionRowDetails` (gaveta de leitura read-only, seções presentes, callbacks) + testes | Sonnet |
-| 3 | `TransactionRowActions`: remover marcadores passivos; coluna VIEW = `📎 ⏳ ☆ ⋮`; wiring `onToggleDrawer` | Sonnet |
-| 4 | `TransactionRow`: estado `drawerOpen`; render da gaveta (Collapse); contagem; remover código morto (glyphs, `startEditWithNote` se órfão) | Sonnet |
-| 5 | `row-menu-items` enxuto (remover Nota + Gerenciar vínculos) + testes; strings `pt-BR` | Haiku |
-| 6 | `TransactionRowEditor`: coluna = `✓ ✕`; seções → gaveta de edição; criar apelido no rodapé | Sonnet |
-| 7 | `NewTransactionRow`: coluna = `✓ ✕`; gaveta nota+câmbio; preservar entrada rápida | Sonnet |
-| 8 | Verificação: lint/typecheck/test; escala de ícones (grep `fontSize: 14`); light/dark; densidade | Sonnet |
+**Goal:** Transformar a linha de transação num master-detail: extras (nota/câmbio/vínculos/tags/parcela) viram anexos numa gaveta expansível acionada por um indicador `📎N`; VIEW/EDIT/CREATE ficam com coluna de ações de linguagem única.
+
+**Architecture:** Indicador `📎N` (novo `AttachmentIndicator`) na coluna de ações abre uma sub-linha `Collapse` de leitura (novo `TransactionRowDetails`, read-only) hospedada em `TransactionRow` (que já detém `linkDialogOpen`/`installmentPanelOpen`). EDIT/CREATE trocam os expansores da coluna por `✓ ✕` e movem as seções para a gaveta de formulário (reusa os `Collapse` já existentes no editor). Menu ⋮ e toggles reusados da v1.
+
+**Tech Stack:** Next.js 15 (Client Components), TS strict, MUI v6 + tokens, Vitest + Testing Library + userEvent.
+
+### 9.1 Global Constraints
+
+- MUI-only + tokens semânticos; sem hex; sem `!important`/`style` com cor. (CLAUDE.md §5.11)
+- Todo `IconButton` com `aria-label`; ícones = import nomeado de `@mui/icons-material`. (design-system §9)
+- Strings em `src/lib/messages/pt-BR.ts` (`m`); sem string hardcoded. (CLAUDE.md §5.10)
+- `TransactionRow` é `memo` — callbacks vindos de `TransactionTable` (`onOpenMenu`/`onOpenMove`) permanecem `useCallback`-estáveis. (§4 PERF)
+- Menu destrutivo: positivas primeiro, `<Divider>`, Excluir por último em `danger.main`. (design-system §6.6)
+- **Escala de ícone única:** ações `fontSize:18`; seções da gaveta `fontSize:16`; **nenhum `fontSize:14`** na linha. (§4 ROW-10)
+- Paridade light/dark; contagem do `📎` em `text.secondary`.
+- Não reimplementar mover/vínculos/parcela/detalhe — reusar dialogs existentes.
+
+### 9.2 File Structure
+
+**Novos:**
+- `src/components/transactions/attachments.ts` — `countAttachments(tx)`. Puro.
+- `src/components/transactions/AttachmentIndicator.tsx` — botão `📎N` (AttachFileOutlined + contagem).
+- `src/components/transactions/TransactionRowDetails.tsx` — gaveta de leitura read-only (seções presentes + callbacks).
+
+**Modificados:**
+- `row-menu-items.tsx` — remove `onOpenNote`/`onManageLinks`; ordem enxuta.
+- `TransactionRowActions.tsx` — remove marcadores passivos + `onStartEditWithNote`/`onOpenLinkDialog`; adiciona `📎` (via `AttachmentIndicator`) + `onToggleDrawer`.
+- `TransactionRow.tsx` — estado `drawerOpen`; sub-linha `Collapse` com `TransactionRowDetails`; remove `startEditWithNote` se órfão; wiring.
+- `TransactionRowEditor.tsx` — coluna = `✓ ✕`; seções (nota/câmbio/vínculos/tags) → gaveta; criar apelido no rodapé.
+- `NewTransactionRow.tsx` — coluna = `✓ ✕`; gaveta nota+câmbio.
+- `pt-BR.ts` — `attachments.{view, viewGroup}`; remover `actions.note` órfã (se sair).
+
+**Novos testes:** `attachments.test.ts`, `AttachmentIndicator.test.tsx`, `TransactionRowDetails.test.tsx`. Atualizados: `row-menu-items.test.tsx`, `TransactionRowActions.test.tsx`.
+
+---
+
+### Task 1: `countAttachments` + `AttachmentIndicator` + strings
+
+**Files:** Create `attachments.ts`, `attachments.test.ts`, `AttachmentIndicator.tsx`, `AttachmentIndicator.test.tsx`; Modify `pt-BR.ts`.
+
+**Interfaces produced:**
+- `countAttachments(tx: Pick<TransactionRow,"notes"|"originalCurrency"|"linkCount"|"tags"|"installmentGroupId">): number`
+- `<AttachmentIndicator count={number} onClick={() => void} />`
+- `m.transactions.attachments.{ view:(n:number)=>string; viewGroup:string }`
+
+- [ ] **Step 1: strings em `pt-BR.ts`** — no bloco `transactions:`, logo antes de `actions: {` (linha ~841), inserir:
+```ts
+    attachments: {
+      view: (n: number) => `Ver anexos (${n})`,
+      viewGroup: "Ver grupo",
+    },
+```
+
+- [ ] **Step 2: teste `attachments.test.ts` (falha)**
+```ts
+import { describe, expect, it } from "vitest";
+
+import { countAttachments } from "./attachments";
+
+const base = {
+  notes: null,
+  originalCurrency: null,
+  linkCount: 0,
+  tags: [] as { id: string; name: string; color: string | null }[],
+  installmentGroupId: null,
+};
+
+describe("countAttachments", () => {
+  it("zero quando não há extras", () => {
+    expect(countAttachments(base)).toBe(0);
+  });
+  it("soma nota + câmbio + vínculos + tags + parcela", () => {
+    expect(
+      countAttachments({
+        notes: "x",
+        originalCurrency: "USD",
+        linkCount: 2,
+        tags: [{ id: "1", name: "a", color: null }],
+        installmentGroupId: "g1",
+      }),
+    ).toBe(6);
+  });
+  it("conta cada tag e cada vínculo individualmente", () => {
+    expect(
+      countAttachments({ ...base, linkCount: 3, tags: [{ id: "1", name: "a", color: null }, { id: "2", name: "b", color: null }] }),
+    ).toBe(5);
+  });
+});
+```
+Run: `docker compose exec app pnpm test src/components/transactions/attachments.test.ts` → FAIL (import).
+
+- [ ] **Step 3: implementar `attachments.ts`**
+```ts
+import type { TransactionRow } from "./types";
+
+type AttachmentInput = Pick<
+  TransactionRow,
+  "notes" | "originalCurrency" | "linkCount" | "tags" | "installmentGroupId"
+>;
+
+/** Conta todos os anexos da linha (DD-62-ATT). Ajustável (ex.: tags como 1). */
+export function countAttachments(tx: AttachmentInput): number {
+  return (
+    (tx.notes ? 1 : 0) +
+    (tx.originalCurrency ? 1 : 0) +
+    tx.linkCount +
+    tx.tags.length +
+    (tx.installmentGroupId ? 1 : 0)
+  );
+}
+```
+Run mesmo teste → PASS (3).
+
+- [ ] **Step 4: teste `AttachmentIndicator.test.tsx` (falha)**
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
+import { AttachmentIndicator } from "./AttachmentIndicator";
+
+describe("AttachmentIndicator", () => {
+  it("mostra a contagem e aria-label", () => {
+    render(<AttachmentIndicator count={3} onClick={vi.fn()} />);
+    const btn = screen.getByRole("button", { name: "Ver anexos (3)" });
+    expect(btn).toBeInTheDocument();
+    expect(btn).toHaveTextContent("3");
+  });
+  it("dispara onClick", async () => {
+    const onClick = vi.fn();
+    render(<AttachmentIndicator count={2} onClick={onClick} />);
+    await userEvent.click(screen.getByRole("button", { name: "Ver anexos (2)" }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+```
+Run → FAIL (import).
+
+- [ ] **Step 5: implementar `AttachmentIndicator.tsx`**
+```tsx
+"use client";
+
+import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+
+import { m } from "@/lib/messages";
+
+type Props = {
+  count: number;
+  onClick: () => void;
+};
+
+const BTN_SX = { p: 1, minWidth: 32, minHeight: 32 } as const;
+
+/** Indicador de anexos (📎N) — abre a gaveta de leitura da linha (spec 62 §2.1). */
+export function AttachmentIndicator({ count, onClick }: Props) {
+  const label = m.transactions.attachments.view(count);
+  return (
+    <Tooltip title={label}>
+      <IconButton
+        size="small"
+        aria-label={label}
+        onClick={onClick}
+        sx={{ ...BTN_SX, color: "text.secondary" }}
+      >
+        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}>
+          <AttachFileOutlinedIcon sx={{ fontSize: 18 }} />
+          <Typography component="span" variant="caption" sx={{ color: "text.secondary" }}>
+            {count}
+          </Typography>
+        </Box>
+      </IconButton>
+    </Tooltip>
+  );
+}
+```
+Run → PASS (2).
+
+- [ ] **Step 6: commit**
+```bash
+git add src/components/transactions/attachments.ts src/components/transactions/attachments.test.ts src/components/transactions/AttachmentIndicator.tsx src/components/transactions/AttachmentIndicator.test.tsx src/lib/messages/pt-BR.ts
+git commit -m "feat(transactions): countAttachments + AttachmentIndicator (📎 anexos)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 2: `TransactionRowDetails` — gaveta de leitura
+
+**Files:** Create `TransactionRowDetails.tsx`, `TransactionRowDetails.test.tsx`.
+
+**Interfaces:**
+- Consumes: `TransactionRow`, `tagChipSx` (`@/components/tags/tagChipSx`), `formatCentsToBrl` (`@/lib/money`).
+- Produces: `<TransactionRowDetails tx={TxRow} isReadOnly={boolean} onManageLinks={()=>void} onViewInstallmentGroup={()=>void} />`
+
+- [ ] **Step 1: teste `TransactionRowDetails.test.tsx` (falha)**
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
+import { TransactionRowDetails } from "./TransactionRowDetails";
+import type { TransactionRow as TxRow } from "./types";
+
+const TX: TxRow = {
+  id: "tx-1", monthId: "m-1", occurredOn: "2026-06-15", amountCents: "4590",
+  description: "Netflix", notes: null, isPending: false, isFavorite: false,
+  categoryId: null, subcategoryId: null, institutionId: null, institutionText: null,
+  responsiblePartyId: null, cardInstallment: null, investmentType: null, expenseType: null,
+  paymentMethod: null, source: "manual", installmentGroupId: null, installmentNumber: null,
+  installmentGroupCount: null, originalAmountCents: null, originalCurrency: null, exchangeRate: null,
+  tags: [], linkCount: 0, createdById: "u-1", createdAt: "2026-06-15T00:00:00.000Z",
+  updatedById: null, updatedAt: "2026-06-15T00:00:00.000Z",
+};
+
+function renderDetails(tx: Partial<TxRow> = {}) {
+  const onManageLinks = vi.fn();
+  const onViewInstallmentGroup = vi.fn();
+  render(
+    <TransactionRowDetails
+      tx={{ ...TX, ...tx }}
+      isReadOnly={false}
+      onManageLinks={onManageLinks}
+      onViewInstallmentGroup={onViewInstallmentGroup}
+    />,
+  );
+  return { onManageLinks, onViewInstallmentGroup };
+}
+
+describe("TransactionRowDetails", () => {
+  it("mostra só a seção de nota quando só há nota", () => {
+    renderDetails({ notes: "Renovação anual" });
+    expect(screen.getByText("Renovação anual")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gerenciar vínculos" })).not.toBeInTheDocument();
+  });
+  it("seção de vínculos: [gerenciar] dispara onManageLinks", async () => {
+    const { onManageLinks } = renderDetails({ linkCount: 2 });
+    await userEvent.click(screen.getByRole("button", { name: "Gerenciar vínculos" }));
+    expect(onManageLinks).toHaveBeenCalledTimes(1);
+  });
+  it("seção de parcela: [ver grupo] dispara onViewInstallmentGroup", async () => {
+    const { onViewInstallmentGroup } = renderDetails({
+      installmentGroupId: "g1", installmentNumber: 3, installmentGroupCount: 12,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Ver grupo" }));
+    expect(onViewInstallmentGroup).toHaveBeenCalledTimes(1);
+  });
+  it("viewer: seção de vínculos não oferece [gerenciar]", () => {
+    renderDetails({ linkCount: 1 });
+    // (re-render com isReadOnly=true feito abaixo)
+  });
+  it("tags: renderiza chips das tags", () => {
+    renderDetails({ tags: [{ id: "1", name: "lazer", color: null }] });
+    expect(screen.getByText("lazer")).toBeInTheDocument();
+  });
+});
+```
+Run → FAIL (import).
+
+- [ ] **Step 2: implementar `TransactionRowDetails.tsx`**
+```tsx
+"use client";
+
+import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
+import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
+import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
+import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
+import { tagChipSx } from "@/components/tags/tagChipSx";
+import { layout } from "@/lib/design-tokens";
+import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
+
+import type { TransactionRow as TxRow } from "./types";
+
+type Props = {
+  tx: TxRow;
+  isReadOnly: boolean;
+  onManageLinks: () => void;
+  onViewInstallmentGroup: () => void;
+};
+
+const ICON_SX = { fontSize: 16, color: "text.tertiary", flexShrink: 0 } as const;
+
+function Row({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Stack direction="row" spacing={layout.inline} alignItems="flex-start">
+      {icon}
+      <Box sx={{ minWidth: 0, flex: 1 }}>{children}</Box>
+    </Stack>
+  );
+}
+
+/** Gaveta de leitura (read-only) dos anexos da linha (spec 62 §2.2). Reusa os
+ * dialogs existentes via callbacks — não reimplementa vínculos/parcela. */
+export function TransactionRowDetails({ tx, isReadOnly, onManageLinks, onViewInstallmentGroup }: Props) {
+  return (
+    <Box sx={{ px: 2, py: 1.5, bgcolor: "background.subtle" }}>
+      <Stack spacing={layout.stack}>
+        {tx.notes && (
+          <Row icon={<NoteOutlinedIcon sx={ICON_SX} />}>
+            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
+              {tx.notes}
+            </Typography>
+          </Row>
+        )}
+
+        {tx.originalCurrency && (
+          <Row icon={<CurrencyExchangeOutlinedIcon sx={ICON_SX} />}>
+            <Typography variant="body2" color="text.secondary">
+              {tx.originalCurrency}
+              {tx.originalAmountCents ? ` ${formatCentsToBrl(BigInt(tx.originalAmountCents))}` : ""}
+              {tx.exchangeRate ? ` · taxa ${tx.exchangeRate}` : ""}
+            </Typography>
+          </Row>
+        )}
+
+        {tx.linkCount > 0 && (
+          <Row icon={<LinkOutlinedIcon sx={ICON_SX} />}>
+            <Stack direction="row" spacing={layout.inline} alignItems="center">
+              <Typography variant="body2" color="text.secondary">
+                {m.transactions.rowState.links(tx.linkCount)}
+              </Typography>
+              {!isReadOnly && (
+                <Button size="small" variant="text" onClick={onManageLinks}>
+                  {m.transactions.links.manage}
+                </Button>
+              )}
+            </Stack>
+          </Row>
+        )}
+
+        {tx.tags.length > 0 && (
+          <Row icon={<LabelOutlinedIcon sx={ICON_SX} />}>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+              {tx.tags.map((t) => (
+                <Chip key={t.id} label={t.name} size="small" sx={tagChipSx(t.color)} />
+              ))}
+            </Box>
+          </Row>
+        )}
+
+        {tx.installmentGroupId && (
+          <Row icon={<EventRepeatOutlinedIcon sx={ICON_SX} />}>
+            <Stack direction="row" spacing={layout.inline} alignItems="center">
+              <Typography variant="body2" color="text.secondary">
+                {m.transactions.installments.column}{" "}
+                {tx.installmentNumber && tx.installmentGroupCount
+                  ? m.transactions.installments.badge(tx.installmentNumber, tx.installmentGroupCount)
+                  : ""}
+              </Typography>
+              <Button size="small" variant="text" onClick={onViewInstallmentGroup}>
+                {m.transactions.attachments.viewGroup}
+              </Button>
+            </Stack>
+          </Row>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+```
+> Ajustar o teste "viewer" (Step 1) para renderizar com `isReadOnly={true}` e assertar ausência do botão "Gerenciar vínculos". Run → PASS.
+
+- [ ] **Step 3: rodar + commit**
+```bash
+docker compose exec app pnpm test src/components/transactions/TransactionRowDetails.test.tsx
+git add src/components/transactions/TransactionRowDetails.tsx src/components/transactions/TransactionRowDetails.test.tsx
+git commit -m "feat(transactions): TransactionRowDetails (gaveta de leitura de anexos)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 3: `row-menu-items` enxuto (remove Nota + Gerenciar vínculos)
+
+**Files:** Modify `row-menu-items.tsx`, `row-menu-items.test.tsx`.
+
+**Interface produced:** `buildRowMenuItems(opts: { isReadOnly; onEdit; onDuplicate; onMove; onViewDetails; onCreateAlias; onDelete }): RowMenuItem[]` — sem `onOpenNote`/`onManageLinks`.
+
+- [ ] **Step 1: atualizar `row-menu-items.test.tsx`** — remover `onOpenNote`/`onManageLinks` dos handlers; nova ordem editor = `["Editar","Duplicar","Mover para…","Ver detalhes","Criar apelido a partir desta transação","Deletar"]` (Deletar com `danger` + `dividerBefore`); viewer = `["Ver detalhes"]`. Run → FAIL.
+
+- [ ] **Step 2: reescrever `row-menu-items.tsx`**
+```tsx
+import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DriveFileMoveOutlinedIcon from "@mui/icons-material/DriveFileMoveOutlined";
+import EditIcon from "@mui/icons-material/Edit";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+
+import { m } from "@/lib/messages";
+
+import type { RowMenuItem } from "./types";
+
+const ICON_SX = { fontSize: 16 } as const;
+
+type BuildOpts = {
+  isReadOnly: boolean;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onMove: () => void;
+  onViewDetails: () => void;
+  onCreateAlias: () => void;
+  onDelete: () => void;
+};
+
+/** Itens do menu ⋮ (spec 62 v2 §2.4). Nota e Gerenciar vínculos migraram para a
+ * gaveta de anexos. Viewer só vê Ver detalhes. Excluir por último (danger). */
+export function buildRowMenuItems(opts: BuildOpts): RowMenuItem[] {
+  const a = m.transactions.actions;
+
+  if (opts.isReadOnly) {
+    return [{ label: a.viewDetails, icon: <VisibilityOutlinedIcon sx={ICON_SX} />, onClick: opts.onViewDetails }];
+  }
+
+  return [
+    { label: a.edit, icon: <EditIcon sx={ICON_SX} />, onClick: opts.onEdit },
+    { label: a.duplicate, icon: <ContentCopyIcon sx={ICON_SX} />, onClick: opts.onDuplicate },
+    { label: a.moveTo, icon: <DriveFileMoveOutlinedIcon sx={ICON_SX} />, onClick: opts.onMove },
+    { label: a.viewDetails, icon: <VisibilityOutlinedIcon sx={ICON_SX} />, onClick: opts.onViewDetails },
+    { label: a.createAlias, icon: <BookmarkAddOutlinedIcon sx={ICON_SX} />, onClick: opts.onCreateAlias },
+    { label: a.delete, icon: <DeleteIcon sx={ICON_SX} />, onClick: opts.onDelete, danger: true, dividerBefore: true },
+  ];
+}
+```
+Run → PASS.
+
+- [ ] **Step 3: commit**
+```bash
+git add src/components/transactions/row-menu-items.tsx src/components/transactions/row-menu-items.test.tsx
+git commit -m "refactor(transactions): trim ⋮ menu (Nota/Gerenciar vínculos → gaveta)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 4: `TransactionRowActions` — coluna VIEW `📎 ⏳ ☆ ⋮`
+
+**Files:** Modify `TransactionRowActions.tsx`, `TransactionRowActions.test.tsx`.
+
+**Interface produced (novo Props):** remove `onStartEditWithNote`, `onOpenLinkDialog`; adiciona `onToggleDrawer: () => void`.
+
+- [ ] **Step 1: atualizar `TransactionRowActions.test.tsx`** — em `renderActions` spies: remover `onStartEditWithNote`, `onOpenLinkDialog`; adicionar `onToggleDrawer`. Remover os testes de marcadores passivos e do item "Nota". Novos/ajustados:
+  - editor mostra pendente/favorito/⋮ (mantém);
+  - quando `tx` tem anexos (ex.: `linkCount:2`), mostra botão "Ver anexos (2)" e clicar chama `onToggleDrawer`;
+  - quando `tx` limpo (0 anexos), NÃO há botão "Ver anexos";
+  - `⋮` chama `onOpenMenu` com itens `["Editar","Duplicar","Mover para…","Ver detalhes","Criar apelido a partir desta transação","Deletar"]`.
+  Run → FAIL.
+
+- [ ] **Step 2: reescrever `TransactionRowActions.tsx`**
+```tsx
+"use client";
+
+import HourglassBottomIcon from "@mui/icons-material/HourglassBottom";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import TableCell from "@mui/material/TableCell";
+import Tooltip from "@mui/material/Tooltip";
+
+import { m } from "@/lib/messages";
+
+import { AttachmentIndicator } from "./AttachmentIndicator";
+import { countAttachments } from "./attachments";
+import { buildRowMenuItems } from "./row-menu-items";
+import type { RowMenuItem, TransactionRow as TxRow } from "./types";
+
+type Props = {
+  tx: TxRow;
+  isReadOnly: boolean;
+  onStartEdit: () => void;
+  onTogglePending: (e: React.MouseEvent) => void;
+  onToggleFavorite: (e: React.MouseEvent) => void;
+  onViewDetails: () => void;
+  onDuplicate: () => void;
+  onMove: () => void;
+  onCreateAlias: () => void;
+  onDelete: () => void;
+  onToggleDrawer: () => void;
+  onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, items: RowMenuItem[]) => void;
+};
+
+const ICON_SX = { fontSize: 18 } as const;
+const BTN_SX = { p: 1, minWidth: 32, minHeight: 32 } as const;
+const GAP = 0.5;
+
+export function TransactionRowActions({
+  tx, isReadOnly, onStartEdit, onTogglePending, onToggleFavorite, onViewDetails,
+  onDuplicate, onMove, onCreateAlias, onDelete, onToggleDrawer, onOpenMenu,
+}: Props) {
+  const pendingLabel = tx.isPending ? m.transactions.actions.markAsDone : m.transactions.actions.markAsPending;
+  const favoriteLabel = tx.isFavorite ? m.transactions.actions.removeFromFavorites : m.transactions.actions.addToFavorites;
+  const attachmentCount = countAttachments(tx);
+
+  const items = buildRowMenuItems({
+    isReadOnly,
+    onEdit: onStartEdit,
+    onDuplicate,
+    onMove,
+    onViewDetails,
+    onCreateAlias,
+    onDelete,
+  });
+
+  return (
+    <TableCell
+      align="right"
+      sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Box sx={{ display: "inline-flex", alignItems: "center", gap: GAP }}>
+        {attachmentCount > 0 && <AttachmentIndicator count={attachmentCount} onClick={onToggleDrawer} />}
+
+        {!isReadOnly && (
+          <>
+            <Tooltip title={pendingLabel}>
+              <IconButton
+                size="small"
+                onClick={onTogglePending}
+                aria-label={pendingLabel}
+                className={`row-primary${tx.isPending ? " row-primary--active" : ""}`}
+                sx={{ ...BTN_SX, color: "text.secondary" }}
+              >
+                {tx.isPending ? <HourglassBottomIcon sx={ICON_SX} /> : <HourglassEmptyIcon sx={ICON_SX} />}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title={favoriteLabel}>
+              <IconButton
+                size="small"
+                onClick={onToggleFavorite}
+                aria-label={favoriteLabel}
+                className={`row-primary${tx.isFavorite ? " row-primary--active" : ""}`}
+                sx={{ ...BTN_SX, color: tx.isFavorite ? "warning.main" : "text.secondary" }}
+              >
+                {tx.isFavorite ? <StarIcon sx={ICON_SX} /> : <StarBorderIcon sx={ICON_SX} />}
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
+
+        <Tooltip title={m.transactions.actions.more}>
+          <IconButton
+            size="small"
+            aria-label={m.transactions.actions.more}
+            onClick={(e) => onOpenMenu(e, items)}
+            sx={{ ...BTN_SX, color: "text.secondary" }}
+          >
+            <MoreVertIcon sx={ICON_SX} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+    </TableCell>
+  );
+}
+```
+Run → PASS. (Typecheck do projeto vai falhar em `TransactionRow.tsx` até a Task 5 — esperado, não rodar isolado.)
+
+- [ ] **Step 3: commit**
+```bash
+git add src/components/transactions/TransactionRowActions.tsx src/components/transactions/TransactionRowActions.test.tsx
+git commit -m "refactor(transactions): action column = 📎 anexos + toggles + ⋮
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 5: `TransactionRow` — estado da gaveta + sub-linha + wiring
+
+**Files:** Modify `TransactionRow.tsx`.
+
+- [ ] **Step 1: imports** — adicionar `import Collapse from "@mui/material/Collapse";` e `import { TransactionRowDetails } from "./TransactionRowDetails";`.
+
+- [ ] **Step 2: estado** — junto aos `useState` (linha ~114): `const [drawerOpen, setDrawerOpen] = useState(false);`.
+
+- [ ] **Step 3: remover `startEditWithNote` órfão** — a função (linha ~143) e o comentário acima só existiam para o item "Nota" do menu. Após atualizar o call-site (Step 5), remover a definição. Confirmar sem outros usos: `docker compose exec app grep -n "startEditWithNote" src/components/transactions/TransactionRow.tsx`.
+
+- [ ] **Step 4: envolver o retorno de leitura num Fragment + sub-linha da gaveta** — localize `// Modo leitura\n  return (\n    <TableRow` (linha ~451) e o fechamento `</TableRow>\n  );` (linha ~819). Trocar para:
+```tsx
+  // Modo leitura
+  return (
+    <>
+      <TableRow
+        hover
+        selected={isSelected}
+        sx={{ /* ...inalterado... */ }}
+      >
+        {/* ...conteúdo atual da linha, incl. <TransactionRowActions .../> e os dialogs/aliasDialog... */}
+      </TableRow>
+      {drawerOpen && (
+        <TableRow>
+          <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
+            <Collapse in={drawerOpen} unmountOnExit>
+              <TransactionRowDetails
+                tx={tx}
+                isReadOnly={isReadOnly}
+                onManageLinks={() => setLinkDialogOpen(true)}
+                onViewInstallmentGroup={() => setInstallmentPanelOpen(true)}
+              />
+            </Collapse>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+```
+> Os dialogs (`InstallmentGroupPanel`, `LinkTransactionDialog`) e `{aliasDialog}` permanecem dentro do `<TableRow>` principal (portam via portal) — não precisam mover.
+
+- [ ] **Step 5: atualizar o call-site de `<TransactionRowActions>`** (linha ~782) — remover `onStartEditWithNote={startEditWithNote}` e `onOpenLinkDialog={() => setLinkDialogOpen(true)}`; adicionar `onToggleDrawer={() => setDrawerOpen((o) => !o)}`. Demais props inalteradas.
+
+- [ ] **Step 6: typecheck** — `docker compose exec app pnpm typecheck` → PASS (0 erros). Se acusar `Typography`/imports órfãos em `TransactionRow.tsx`, remover só os não usados.
+
+- [ ] **Step 7: commit**
+```bash
+git add src/components/transactions/TransactionRow.tsx
+git commit -m "feat(transactions): expandable read drawer wired to 📎 indicator
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 6: `TransactionRowEditor` — coluna `✓ ✕` + gaveta de edição
+
+**Files:** Modify `TransactionRowEditor.tsx`.
+
+**Objetivo:** a célula de ações (`:554-640`) passa a conter só `✓ salvar` e `✕ cancelar` (`fontSize:18`). Os 5 botões expansores (nota/câmbio/vínculos/tags/criar-apelido) saem da célula. As seções colapsáveis já existentes (`Collapse` de notas `:646`, tags `:690`, câmbio `:724`, vínculos `:843`) passam a ser **sempre renderizadas na gaveta** (uma única sub-região abaixo da linha), cada seção com seu rótulo; a de "Criar apelido" vira um `Button variant="text"` no rodapé da gaveta.
+
+- [ ] **Step 1: reduzir a célula de ações** — substituir o bloco `:554-640` por só os dois `IconButton` de salvar/cancelar com `fontSize:18`, `aria-label`, `sx={{ p: 1, minWidth: 32, minHeight: 32 }}`. Remover os expansores e seus `Tooltip`.
+
+- [ ] **Step 2: abrir as seções da gaveta por padrão** — as seções deixam de depender dos toggles `notesOpen`/`foreignCurrencyOpen`/`linksOpen`/`tagsOpen` da célula (removidos). Trocar cada `Collapse in={xOpen}` para `in` sempre `true` **quando em edição** (a linha inteira já é o editor), OU manter os estados mas inicializá-los abertos e sem botão de toggle. Escolha simples: renderizar as seções diretamente (sem `Collapse`), agrupadas numa `<TableRow><TableCell colSpan={99}>` com `Stack` — nota, câmbio, vínculos, tags — reusando os editores internos que já existem em cada bloco `Collapse` atual (mover o conteúdo de dentro dos `Collapse` para dentro do `Stack`).
+
+- [ ] **Step 3: criar apelido no rodapé** — abaixo das seções, `<Button variant="text" startIcon={<BookmarkAddOutlinedIcon sx={{ fontSize: 16 }} />} onClick={onCreateAlias}>{m.transactions.actions.createAlias}</Button>` (preserva spec 61 §2.5).
+
+- [ ] **Step 4: limpar props/estados órfãos** — se `notesOpen`/`setNotesOpen`/`tagsOpen`/`setTagsOpen` (props vindas de `TransactionRow`) ficarem sem uso, remover das `Props` do editor e do call-site em `TransactionRow.tsx` (linha ~426-427). `docker compose exec app grep -n "notesOpen\|tagsOpen" src/components/transactions/TransactionRow*.tsx`.
+
+- [ ] **Step 5: verificação** — `docker compose exec app pnpm typecheck && docker compose exec app pnpm test src/components/transactions`. Verificação manual (sem RTL do editor): abrir edição de uma transação, confirmar `✓ ✕` na coluna, seções na gaveta, criar-apelido visível, salvar/cancelar OK.
+
+- [ ] **Step 6: commit**
+```bash
+git add src/components/transactions/TransactionRowEditor.tsx src/components/transactions/TransactionRow.tsx
+git commit -m "refactor(transactions): editor = ✓✕ column + sections in drawer
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 7: `NewTransactionRow` — coluna `✓ ✕` + gaveta nota+câmbio
+
+**Files:** Modify `NewTransactionRow.tsx`.
+
+- [ ] **Step 1: reduzir a célula de ações** (`:573-624`) — só `✓ salvar` (`handleSave`, `disabled={saving}`) e `✕ cancelar` (`onCancel`), `fontSize:18`, `sx={{ p:1, minWidth:32, minHeight:32 }}`, `aria-label`. Remover os expansores de nota e câmbio da célula.
+- [ ] **Step 2: seções na gaveta** — nota e câmbio renderizadas diretamente na sub-região (reusar os `Collapse` existentes convertidos em seções sempre visíveis, como na Task 6). Manter entrada rápida (foco na descrição após salvar) intacta.
+- [ ] **Step 3: verificação** — `docker compose exec app pnpm typecheck && docker compose exec app pnpm test src/components/transactions/NewTransactionRow.test.tsx` → os 8 testes existentes DEVEM continuar verdes (testam comportamento de create, não layout dos botões; ajustar só se algum assert casar num tooltip/label removido).
+- [ ] **Step 4: commit**
+```bash
+git add src/components/transactions/NewTransactionRow.tsx
+git commit -m "refactor(transactions): create row = ✓✕ column + note/fx in drawer
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 8: Verificação final
+
+**Files:** nenhum (gate).
+
+- [ ] **Step 1:** `docker compose exec app pnpm lint && docker compose exec app pnpm typecheck && docker compose exec app pnpm test` → tudo verde, 0 erro de lint.
+- [ ] **Step 2: escala de ícones** — `docker compose exec app grep -rn "fontSize: 14" src/components/transactions/*.tsx` → nenhuma ocorrência em código de linha (view/actions/details/editor/new-row). Exceção conhecida: `tag-hint-icon` do editor/`LabelOutlinedIcon` placeholder — se restar, subir para 16.
+- [ ] **Step 3: props/strings órfãs** — `docker compose exec app grep -rn "onStartEditWithNote\|onOpenLinkDialog\|onOpenNote\|onManageLinks\|MARKER_ICON" src/components/transactions` → nenhuma. `actions.note` em `pt-BR.ts` removida se sem uso (`grep -rn "actions.note" src`).
+- [ ] **Step 4: visual (humano)** — light E dark: `📎N` legível (contagem `text.secondary`); gaveta de leitura abre/fecha; edição/criação com `✓ ✕` + gaveta; sem hydration warning.
+- [ ] **Step 5: commit final (se houve ajuste)**
+```bash
+git add -A && git commit -m "chore(transactions): lint/icon-scale pass for expandable row
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### 9.3 Self-Review (autor do plano)
+
+**Cobertura §4:** ROW-10 (escala única) → Tasks 4/6/7 + gate Task 8 Step 2. ROW-11 (anexos fora de ação/descrição) → Tasks 2/4/5. ROW-12 (indicador + gatilho, clique-edita preservado) → Tasks 1/4/5. ROW-13 (gaveta leitura) → Tasks 2/5. `countAttachments` regra → Task 1. EDIT/CREATE `✓✕` + gaveta → Tasks 6/7. Menu ⋮ enxuto + viewer → Task 3. PERF/memo (callbacks estáveis já em `TransactionTable`; gaveta via `Collapse`) → Tasks 4/5. Light/dark → Task 8.
+
+**Placeholders:** nenhum "TBD"; arquivos novos com código completo; big-files com passos+âncoras+snippets (mesma abordagem da v1).
+
+**Consistência de tipos:** `countAttachments` assinatura igual em Tasks 1/4. `AttachmentIndicator` props `{count,onClick}` iguais em 1/4. `buildRowMenuItems` opts (sem `onOpenNote`/`onManageLinks`) iguais em 3/4. `TransactionRowActions` novo Props (`onToggleDrawer`, sem `onStartEditWithNote`/`onOpenLinkDialog`) casa com o call-site da Task 5. `TransactionRowDetails` props `{tx,isReadOnly,onManageLinks,onViewInstallmentGroup}` iguais em 2/5.
 
 Revisores: `myaccountant-reviewer` (convenções) + `ui-critique` (visual/a11y, escala de ícones, gaveta em light/dark) sobre o diff final.
 
