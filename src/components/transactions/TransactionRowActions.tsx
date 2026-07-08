@@ -32,7 +32,7 @@ type Props = {
 };
 
 const ICON_SX = { fontSize: 18 } as const;
-const BTN_SX = { p: 1 } as const;
+const BTN_SX = { p: 1, minWidth: 40, minHeight: 40 } as const;
 
 export function TransactionRowActions({
   tx,
