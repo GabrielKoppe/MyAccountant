@@ -41,7 +41,6 @@ const TX: TxRow = {
 function renderActions(props: Partial<Parameters<typeof TransactionRowActions>[0]> = {}) {
   const spies = {
     onStartEdit: vi.fn(),
-    onStartEditWithNote: vi.fn(),
     onTogglePending: vi.fn(),
     onToggleFavorite: vi.fn(),
     onViewDetails: vi.fn(),
@@ -49,7 +48,7 @@ function renderActions(props: Partial<Parameters<typeof TransactionRowActions>[0
     onMove: vi.fn(),
     onCreateAlias: vi.fn(),
     onDelete: vi.fn(),
-    onOpenLinkDialog: vi.fn(),
+    onToggleDrawer: vi.fn(),
     onOpenMenu: vi.fn(),
   };
   render(
@@ -94,9 +93,7 @@ describe("TransactionRowActions", () => {
       "Editar",
       "Duplicar",
       "Mover para…",
-      "Nota",
       "Ver detalhes",
-      "Gerenciar vínculos",
       "Criar apelido a partir desta transação",
       "Deletar",
     ]);
@@ -108,28 +105,16 @@ describe("TransactionRowActions", () => {
     expect(screen.getByRole("button", { name: "Remover dos favoritos" })).toBeInTheDocument();
   });
 
-  it("transação limpa: nenhuma marca passiva (nota/câmbio/vínculo) é renderizada", () => {
+  it("transação limpa (0 anexos): NÃO mostra botão de anexos", () => {
     renderActions();
-    expect(screen.queryByTestId("NoteIcon")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("CurrencyExchangeOutlinedIcon")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("LinkOutlinedIcon")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver anexos/ })).not.toBeInTheDocument();
   });
 
-  it("transação com nota, câmbio e vínculos: marcas passivas aparecem (não clicáveis)", () => {
-    renderActions({
-      tx: { ...TX, notes: "algo", originalCurrency: "USD", linkCount: 2 },
-    });
-    expect(screen.getByTestId("NoteIcon")).toBeInTheDocument();
-    expect(screen.getByTestId("CurrencyExchangeOutlinedIcon")).toBeInTheDocument();
-    expect(screen.getByTestId("LinkOutlinedIcon")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-  });
-
-  it("clicar em Nota no ⋮ chama onStartEditWithNote", async () => {
-    const spies = renderActions();
-    await userEvent.click(screen.getByRole("button", { name: "Mais ações" }));
-    const items = spies.onOpenMenu.mock.calls[0][1];
-    items.find((i: { label: string }) => i.label === "Nota")!.onClick();
-    expect(spies.onStartEditWithNote).toHaveBeenCalledTimes(1);
+  it("transação com anexos (linkCount:2): mostra 'Ver anexos (2)' e clicar chama onToggleDrawer", async () => {
+    const spies = renderActions({ tx: { ...TX, linkCount: 2 } });
+    const btn = screen.getByRole("button", { name: "Ver anexos (2)" });
+    expect(btn).toBeInTheDocument();
+    await userEvent.click(btn);
+    expect(spies.onToggleDrawer).toHaveBeenCalledTimes(1);
   });
 });
