@@ -17,4 +17,20 @@ describe("AttachmentIndicator", () => {
     await userEvent.click(screen.getByRole("button", { name: "Ver anexos (2)" }));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it("reflete o estado da gaveta em aria-expanded", () => {
+    const { rerender } = render(
+      <AttachmentIndicator count={1} onClick={vi.fn()} expanded={true} />,
+    );
+    expect(screen.getByRole("button", { name: "Ver anexos (1)" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+
+    rerender(<AttachmentIndicator count={1} onClick={vi.fn()} expanded={false} />);
+    expect(screen.getByRole("button", { name: "Ver anexos (1)" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
 });

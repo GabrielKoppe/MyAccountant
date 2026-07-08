@@ -541,7 +541,7 @@ export function TransactionRowEditor({
                 )}
               </Box>
             ) : (
-              <LabelOutlinedIcon sx={{ fontSize: 14, color: "text.disabled", display: "block" }} />
+              <LabelOutlinedIcon sx={{ fontSize: 16, color: "text.disabled", display: "block" }} />
             )}
           </TableCell>
         )}
@@ -581,7 +581,7 @@ export function TransactionRowEditor({
             >
               <IconButton
                 size="small"
-                sx={{ p: 0.5 }}
+                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
                 onClick={() => setNotesOpen((o) => !o)}
                 aria-label={
                   notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote
@@ -597,7 +597,7 @@ export function TransactionRowEditor({
             <Tooltip title={m.transactions.foreignCurrency.label}>
               <IconButton
                 size="small"
-                sx={{ p: 0.5 }}
+                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
                 onClick={() => setForeignCurrencyOpen((o) => !o)}
                 aria-label={m.transactions.foreignCurrency.label}
                 color={"default"}
@@ -608,7 +608,7 @@ export function TransactionRowEditor({
             <Tooltip title={m.transactions.links.title}>
               <IconButton
                 size="small"
-                sx={{ p: 0.5 }}
+                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
                 onClick={() => setLinksOpen((o) => !o)}
                 aria-label={m.transactions.links.title}
                 color={"default"}
@@ -620,7 +620,7 @@ export function TransactionRowEditor({
               <Tooltip title={m.transactions.tags.editTitle}>
                 <IconButton
                   size="small"
-                  sx={{ p: 0.5 }}
+                  sx={{ p: 1, minWidth: 32, minHeight: 32 }}
                   onClick={() => setTagsOpen((o) => !o)}
                   aria-label={m.transactions.tags.editTitle}
                 >
@@ -875,7 +875,7 @@ export function TransactionRowEditor({
                 </Typography>
                 <Tooltip title={m.transactions.links.addLink}>
                   <IconButton size="small" sx={{ p: 0.25 }} onClick={() => setLinkDialogOpen(true)}>
-                    <AddLinkIcon sx={{ fontSize: 14 }} />
+                    <AddLinkIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
               </Box>

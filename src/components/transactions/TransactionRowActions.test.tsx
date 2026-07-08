@@ -49,6 +49,7 @@ function renderActions(props: Partial<Parameters<typeof TransactionRowActions>[0
     onCreateAlias: vi.fn(),
     onDelete: vi.fn(),
     onToggleDrawer: vi.fn(),
+    drawerOpen: false,
     onOpenMenu: vi.fn(),
   };
   render(

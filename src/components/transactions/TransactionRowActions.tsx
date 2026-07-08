@@ -29,6 +29,7 @@ type Props = {
   onCreateAlias: () => void;
   onDelete: () => void;
   onToggleDrawer: () => void;
+  drawerOpen: boolean;
   onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, items: RowMenuItem[]) => void;
 };
 
@@ -48,6 +49,7 @@ export function TransactionRowActions({
   onCreateAlias,
   onDelete,
   onToggleDrawer,
+  drawerOpen,
   onOpenMenu,
 }: Props) {
   const pendingLabel = tx.isPending
@@ -75,7 +77,9 @@ export function TransactionRowActions({
       onClick={(e) => e.stopPropagation()}
     >
       <Box sx={{ display: "inline-flex", alignItems: "center", gap: GAP }}>
-        {attachmentCount > 0 && <AttachmentIndicator count={attachmentCount} onClick={onToggleDrawer} />}
+        {attachmentCount > 0 && (
+          <AttachmentIndicator count={attachmentCount} onClick={onToggleDrawer} expanded={drawerOpen} />
+        )}
 
         {!isReadOnly && (
           <>

@@ -748,7 +748,7 @@ export function TransactionRowBase({
               <Tooltip title={m.transactions.tags.addTooltip}>
                 <LabelOutlinedIcon
                   className="tag-hint-icon"
-                  sx={{ fontSize: 14, color: "text.disabled", display: "block" }}
+                  sx={{ fontSize: 16, color: "text.disabled", display: "block" }}
                 />
               </Tooltip>
             )}
@@ -781,6 +781,7 @@ export function TransactionRowBase({
           onCreateAlias={() => openCreateAlias(tx)}
           onDelete={handleDelete}
           onToggleDrawer={() => setDrawerOpen((o) => !o)}
+          drawerOpen={drawerOpen}
           onOpenMenu={onOpenMenu}
         />
 
@@ -809,7 +810,7 @@ export function TransactionRowBase({
       {drawerOpen && (
         <TableRow>
           <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
-            <Collapse in={drawerOpen} unmountOnExit>
+            <Collapse in={drawerOpen} appear unmountOnExit>
               <TransactionRowDetails
                 tx={tx}
                 isReadOnly={isReadOnly}

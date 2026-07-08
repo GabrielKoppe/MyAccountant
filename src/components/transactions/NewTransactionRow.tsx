@@ -573,7 +573,7 @@ export function NewTransactionRow({
         {!hiddenColumns.tags && <TableCell sx={{ px: 1, minWidth: 60 }} />}
 
         <TableCell align="right" sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1 }}>
-          <Tooltip title="Salvar (Enter)">
+          <Tooltip title={m.transactions.actions.save}>
             <IconButton
               size="small"
               sx={{ p: 1, minWidth: 32, minHeight: 32 }}
@@ -585,7 +585,7 @@ export function NewTransactionRow({
               <CheckIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Cancelar (Esc)">
+          <Tooltip title={m.transactions.actions.cancel}>
             <IconButton
               size="small"
               sx={{ p: 1, minWidth: 32, minHeight: 32 }}
@@ -605,7 +605,7 @@ export function NewTransactionRow({
             <Tooltip title={m.transactions.actions.addNote}>
               <IconButton
                 size="small"
-                sx={{ p: 0.5 }}
+                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
                 onClick={() => setNotesOpen((o) => !o)}
                 aria-label={m.transactions.actions.addNote}
                 color={notesOpen || notes ? "primary" : "default"}
@@ -620,7 +620,7 @@ export function NewTransactionRow({
             <Tooltip title={m.transactions.foreignCurrency.label}>
               <IconButton
                 size="small"
-                sx={{ p: 0.5 }}
+                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
                 onClick={() => setForeignCurrencyOpen((o) => !o)}
                 aria-label={m.transactions.foreignCurrency.label}
                 color={foreignCurrencyOpen ? "primary" : "default"}
