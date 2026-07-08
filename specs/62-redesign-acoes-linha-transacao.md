@@ -393,7 +393,7 @@ sx={{
 
 **Novos testes:** `row-state.test.ts`, `row-menu-items.test.tsx`, `RowActionsMenu.test.tsx`, `TransactionRowActions.test.tsx` (todos co-locados em `src/components/transactions/`).
 
-### 9.3 Task 1: Fundação — tipo `RowMenuItem`, `describeRowState`, strings de estado
+### Task 1: Fundação — tipo `RowMenuItem`, `describeRowState`, strings de estado
 
 **Files:**
 - Modify: `src/components/transactions/types.ts`
@@ -517,7 +517,7 @@ git commit -m "feat(transactions): add RowMenuItem type + describeRowState helpe
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
-### 9.4 Task 2: `buildRowMenuItems` — conteúdo do menu ⋮ (editor vs viewer)
+### Task 2: `buildRowMenuItems` — conteúdo do menu ⋮ (editor vs viewer)
 
 **Files:**
 - Create: `src/components/transactions/row-menu-items.tsx`
@@ -675,7 +675,7 @@ git commit -m "feat(transactions): add buildRowMenuItems for row overflow menu
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
-### 9.5 Task 3: `RowActionsMenu` — componente presentacional do menu único
+### Task 3: `RowActionsMenu` — componente presentacional do menu único
 
 **Files:**
 - Create: `src/components/transactions/RowActionsMenu.tsx`
@@ -806,7 +806,7 @@ git commit -m "feat(transactions): add RowActionsMenu (single overflow menu)
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
-### 9.6 Task 4: Reescrever `TransactionRowActions` — primárias + ⋮
+### Task 4: Reescrever `TransactionRowActions` — primárias + ⋮
 
 **Files:**
 - Modify (rewrite): `src/components/transactions/TransactionRowActions.tsx`
@@ -1104,7 +1104,7 @@ git commit -m "refactor(transactions): row actions = primaries (pending/favorite
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
-### 9.7 Task 5: `TransactionRow` — glyphs passivos, aria-resumo, opacidade, wiring
+### Task 5: `TransactionRow` — glyphs passivos, aria-resumo, opacidade, wiring
 
 **Files:**
 - Modify: `src/components/transactions/TransactionRow.tsx`
@@ -1247,7 +1247,7 @@ git commit -m "feat(transactions): passive state glyphs + aria summary + primary
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
-### 9.8 Task 6: `TransactionTable` — Menu + MoveDialog únicos, callbacks estáveis
+### Task 6: `TransactionTable` — Menu + MoveDialog únicos, callbacks estáveis
 
 **Files:**
 - Modify: `src/components/transactions/TransactionTable.tsx`
@@ -1357,7 +1357,7 @@ git commit -m "feat(transactions): single overflow menu + per-row move dialog in
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
-### 9.9 Task 7: Correções de a11y em edição e criação
+### Task 7: Correções de a11y em edição e criação
 
 **Files:**
 - Modify: `src/components/transactions/TransactionRowEditor.tsx`
@@ -1415,7 +1415,7 @@ git commit -m "fix(transactions): aria-labels + focus-visible on edit/create act
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
-### 9.10 Task 8: Verificação final (lint, typecheck, testes, light/dark, densidade)
+### Task 8: Verificação final (lint, typecheck, testes, light/dark, densidade)
 
 **Files:** nenhum (gate de qualidade).
 
