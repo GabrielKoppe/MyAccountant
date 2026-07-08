@@ -842,6 +842,7 @@ export const messages = {
       viewDetails: "Ver detalhes",
       edit: "Editar",
       duplicate: "Duplicar",
+      moveTo: "Mover para…",
       createAlias: "Criar apelido a partir desta transação",
       delete: "Deletar",
       addNote: "Adicionar nota",
@@ -909,6 +910,7 @@ export const messages = {
     links: {
       title: "Vínculos",
       addLink: "Vincular transação",
+      manage: "Gerenciar vínculos",
       removeLink: "Remover vínculo",
       types: {
         reimbursed_by: "Reembolsado por",
