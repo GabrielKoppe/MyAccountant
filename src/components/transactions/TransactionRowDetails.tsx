@@ -14,7 +14,6 @@ import Typography from "@mui/material/Typography";
 import { tagChipSx } from "@/components/tags/tagChipSx";
 import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
-import { formatCentsToBrl } from "@/lib/money";
 
 import type { TransactionRow as TxRow } from "./types";
 
@@ -54,8 +53,10 @@ export function TransactionRowDetails({ tx, isReadOnly, onManageLinks, onViewIns
           <Row icon={<CurrencyExchangeOutlinedIcon sx={ICON_SX} />}>
             <Typography variant="body2" color="text.secondary">
               {tx.originalCurrency}
-              {tx.originalAmountCents ? ` ${formatCentsToBrl(BigInt(tx.originalAmountCents))}` : ""}
-              {tx.exchangeRate ? ` · taxa ${tx.exchangeRate}` : ""}
+              {tx.originalAmountCents && tx.originalAmountCents !== "0"
+                ? ` ${(Number(BigInt(tx.originalAmountCents)) / 100).toFixed(2)}`
+                : ""}
+              {tx.exchangeRate ? ` · ${m.transactions.foreignCurrency.rateDisplay(tx.exchangeRate)}` : ""}
             </Typography>
           </Row>
         )}

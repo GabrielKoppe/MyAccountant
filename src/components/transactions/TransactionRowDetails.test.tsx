@@ -57,4 +57,9 @@ describe("TransactionRowDetails", () => {
     renderDetails({ tags: [{ id: "1", name: "lazer", color: null }] });
     expect(screen.getByText("lazer")).toBeInTheDocument();
   });
+  it("seção de câmbio: mostra moeda, valor estrangeiro e taxa centralizada", () => {
+    renderDetails({ originalCurrency: "USD", originalAmountCents: "899", exchangeRate: 5.11 });
+    expect(screen.getByText(/USD.*8\.99/)).toBeInTheDocument();
+    expect(screen.getByText(/câmbio R\$5\.11/)).toBeInTheDocument();
+  });
 });

@@ -912,6 +912,7 @@ export const messages = {
       originalAmountLabel: "Valor original",
       fillOriginalAmount: "Preencher valor original",
       calculatedRate: "Taxa calculada automaticamente",
+      rateDisplay: (rate: number) => `câmbio R$${rate.toFixed(2)}`,
     },
     links: {
       title: "Vínculos",
