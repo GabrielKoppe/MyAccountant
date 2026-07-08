@@ -80,7 +80,7 @@ CREATE  [▢] [data ][descrição ][categ.][valor  ][resp]  📝 💱           
 - **ROW-03**: remover `menuAnchor`/`setMenuAnchor` do `type Props` e do call-site (`TransactionRow.tsx:778-779`); expor `onOpenMenu`.
 - **A11Y-01**: adicionar `&:focus-within .action-icon { opacity: 1 }` ao lado do `:hover` em `TransactionRow.tsx:455-456`.
 - **A11Y-02**: `aria-label` explícito em **todo** `IconButton` (não confiar no Tooltip).
-- **A11Y-03**: alvo de toque ≥ 40px nos botões que sobrevivem na coluna (2 primárias + ⋮). Glyphs passivos não têm alvo (não interativos), então não dependem de hover/touch — as ações frequentes (primárias) são **sempre visíveis** (opacidade de repouso reduzida, D8), não `opacity:0`.
+- **A11Y-03**: alvo de toque nos botões que sobrevivem na coluna (2 primárias + ⋮) — **~32px, revisado em D14 (§10.2)**, ver histórico da mudança de 40px→32px. Glyphs passivos não têm alvo (não interativos), então não dependem de hover/touch — as ações frequentes (primárias) são **sempre visíveis** (opacidade de repouso reduzida, D8), não `opacity:0`.
 
 ---
 
@@ -122,7 +122,7 @@ CREATE  [▢] [data ][descrição ][categ.][valor  ][resp]  📝 💱           
 **A11Y-01/02/03:**
 - QUANDO o foco de teclado chega a um botão de ação, ELE DEVE estar visível (`opacity:1` via `:focus-within`).
 - TODO `IconButton` da coluna de ações DEVE ter `aria-label` explícito; as primárias DEVEM ter `aria-label` dinâmico conforme o estado.
-- As primárias DEVEM ser acessíveis em touch (sempre visíveis, não hover-gated); os alvos de pendente, favorito e ⋮ DEVEM ter ≥ 40px.
+- As primárias DEVEM ser acessíveis em touch (sempre visíveis, não hover-gated); os alvos de pendente, favorito e ⋮ têm **~32px** (revisado em D14 — prioriza densidade visual sobre o piso ≥40px original; ver §10.2).
 
 **Edição / Criação:**
 - O MODO EDIÇÃO DEVE preservar os expansores (nota/fx/vínculos/tags), o botão Criar apelido (spec 61 §2.5) e Salvar/Cancelar, aplicando `aria-label` + `:focus-within`.
@@ -1513,6 +1513,7 @@ Após as Tasks 1–8 implementadas e revisadas (§9), o desenvolvedor usou a fea
 | D11 | Largura da coluna de ações | **Uniforme, reduzida de 200px → 160px** (VIEW/EDIT/CREATE) + gap de `layout.micro` (4px) → `0.5` (2px) em toda a coluna | Opção "sem salto" (recomendada e escolhida): tabela usa `table-layout:auto` — larguras divergentes entre VIEW e EDIT/CREATE fariam a coluna inteira "pular" de tamanho ao entrar em edição (o browser recalcula pela linha mais larga presente). 160px ainda cabe os 7 botões do editor (`p:0.5`, sem gap, ~20px/botão) com folga; ganho de espaço é mais modesto que uma redução livre por causa do piso de 40px das primárias (A11Y-03) — quando os 3 glyphs + 2 primárias + ⋮ coexistem, o conteúdo real da coluna já soma ~166-190px, perto do limite de 160-190px escolhido. Afinar esse número fica para a checagem visual pendente (§9 Task 8, ainda não feita). |
 | D12 | Nota/câmbio/vínculos ficam clicáveis onde? | **Marca passiva (não clicável) na coluna** + **item "Nota" clicável no ⋮** (câmbio já auto-abre ao editar; vínculos já tinha "Gerenciar vínculos") | Mantém a separação estado×ação (ROW-02): a marca só informa; a ação de fato (editar/ver) mora no ⋮, coerente com o resto do menu |
 | D13 | Grupo do item "Nota" no ⋮ | **`dividerBefore: true`**, mesmo padrão do grupo Excluir — fica: Editar, Duplicar, Mover para…, `<Divider>`, Nota, Ver detalhes, Gerenciar vínculos, Criar apelido, `<Divider>`, Excluir | Pedido explícito: "separação assim como está sendo feito no delete". Separa mutações "duras" (Editar/Duplicar/Mover) do grupo de leitura/estado (Nota/Ver detalhes/Gerenciar vínculos), sem introduzir um item de câmbio redundante com Editar (o painel de câmbio já auto-expande ao entrar em edição quando `originalCurrency` existe — `TransactionRowEditor.tsx` `foreignCurrencyOpen` inicializa `!!editValues.originalCurrency`) |
+| D14 | Tamanho do alvo de pendente/favorito/⋮ | **~32px** (`BTN_SX minWidth/minHeight: 40 → 32`), **reabre A11Y-03** | Mesmo depois de gap 4px→2px, o feedback foi "ainda separado, hover não tá legal": a caixa de 40px em volta de um ícone de 18px sobra ~11px de espaço morto por lado, e o hover (que preenche a caixa toda) fica desproporcional/"blobudo". Opção apresentada era manter 40px de clique real com um alvo visual menor (técnica de hit-slop via `::after`), mas o desenvolvedor preferiu simplicidade: encolher tudo (visual **e** clique) para ~32px, aceitando abrir mão do piso ≥40px fechado na revisão final. Decisão explícita e informada — não é regressão silenciosa. |
 
 ### 10.3 Mudanças de código (delta desta revisão)
 
@@ -1530,7 +1531,16 @@ Após as Tasks 1–8 implementadas e revisadas (§9), o desenvolvedor usou a fea
 - QUANDO o usuário clica em `Nota`, O SISTEMA DEVE entrar em modo edição com o painel de nota já expandido (`notesOpen=true`).
 - A LARGURA da coluna de ações DEVE ser igual entre VIEW/EDIT/CREATE (evita salto de layout ao entrar em edição).
 
-### 10.5 Pendências (herdadas, ainda não fechadas)
+### 10.6 Revisão adicional (mesma sessão) — alvo de toque 40px → 32px (D14)
+
+Após ver o resultado de §10.1–10.4 rodando, novo feedback: "os botões de ícone de ação estão muito separados... o efeito de hover tb não está legal". Causa raiz identificada: `BTN_SX` (`TransactionRowActions.tsx`) forçava `minWidth/minHeight: 40` (piso A11Y-03 fechado na revisão final) em volta de um ícone de 18px — a caixa de clique, não o `gap` (já em 2px), é que criava a sensação de distância, e o hover do MUI preenche a caixa de 40px inteira.
+
+Apresentadas 3 opções (ver D14): manter 40px de clique com alvo visual menor via hit-slop (`::after` com inset negativo — expande a área clicável sem aumentar o visual), encolher tudo pra ~32px (reabre A11Y-03), ou só ajustar cor/opacidade do hover sem mexer no tamanho. **Escolhida: encolher tudo pra ~32px.**
+
+- `src/components/transactions/TransactionRowActions.tsx`: `BTN_SX.minWidth`/`minHeight` `40` → `32`. Nada mais mudou (ícone continua `fontSize:18`, gap continua `0.5`).
+- A11Y-03 (§1, §2.4, §4) atualizado in-place para apontar aqui em vez de `≥40px`.
+
+### 10.7 Pendências (herdadas, ainda não fechadas)
 
 - Verificação visual em navegador (light/dark + densidade ~600px) — spec §9 Task 8 Steps 3–4, ainda não executada.
 - Ajuste fino do valor exato de largura (`160px`) e do gap (`0.5`/2px) fica sujeito à checagem visual acima — os valores aqui são um ponto de partida calculado (não validado em navegador).
