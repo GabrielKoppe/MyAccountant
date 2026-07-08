@@ -537,7 +537,7 @@ export function NewTransactionRow({
 
         {/* Tipo de gasto (expenseType) */}
         {!hiddenColumns.expenseType && (
-          <TableCell sx={{ px: 0.5, width: 28 }}>
+          <TableCell sx={{ px: 0.5, width: 24 }}>
             <Tooltip title={m.transactions.expenseTypeLabel}>
               <ToggleButtonGroup
                 value={expenseType}

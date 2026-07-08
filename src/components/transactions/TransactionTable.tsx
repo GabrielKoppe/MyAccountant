@@ -643,12 +643,15 @@ export function TransactionTable({
                     <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tipo inv.</TableCell>
                   )}
                   {show("cardInstallment") && (
-                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
+                    <TableCell align="left" sx={{ fontSize: 12, fontWeight: "bold" }}>
                       {m.transactions.installments.column}
                     </TableCell>
                   )}
                   {show("expenseType") && (
-                    <TableCell sx={{ fontSize: 12, fontWeight: "bold", width: 28, px: 0.5 }}>
+                    <TableCell
+                      align="center"
+                      sx={{ fontSize: 12, fontWeight: "bold", width: 28, px: 0.5 }}
+                    >
                       Tipo
                     </TableCell>
                   )}

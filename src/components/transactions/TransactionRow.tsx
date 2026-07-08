@@ -704,7 +704,7 @@ export function TransactionRowBase({
       {!hiddenColumns.expenseType && tx.expenseType && (
         <TableCell sx={{ px: 0.5, width: 28 }}>
           <Tooltip title={m.transactions.expenseTypeTooltips[tx.expenseType] ?? ""}>
-            <span style={{ display: "inline-flex", alignItems: "center" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", marginTop: 6 }}>
               {tx.expenseType === "fixed" && (
                 <LockOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
               )}
