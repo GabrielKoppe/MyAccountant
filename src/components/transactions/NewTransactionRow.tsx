@@ -577,6 +577,7 @@ export function NewTransactionRow({
               size="small"
               sx={{ p: 0.5 }}
               onClick={() => setNotesOpen((o) => !o)}
+              aria-label={m.transactions.actions.addNote}
               color={notesOpen || notes ? "primary" : "default"}
             >
               {notesOpen || notes ? (
@@ -591,6 +592,7 @@ export function NewTransactionRow({
               size="small"
               sx={{ p: 0.5 }}
               onClick={() => setForeignCurrencyOpen((o) => !o)}
+              aria-label={m.transactions.foreignCurrency.label}
               color={foreignCurrencyOpen ? "primary" : "default"}
             >
               <CurrencyExchangeOutlinedIcon sx={{ fontSize: 16 }} />
@@ -601,6 +603,7 @@ export function NewTransactionRow({
               size="small"
               sx={{ p: 0.5 }}
               onClick={handleSave}
+              aria-label={m.transactions.actions.save}
               disabled={saving}
               color="primary"
             >
@@ -608,7 +611,12 @@ export function NewTransactionRow({
             </IconButton>
           </Tooltip>
           <Tooltip title="Cancelar (Esc)">
-            <IconButton size="small" sx={{ p: 0.5 }} onClick={onCancel}>
+            <IconButton
+              size="small"
+              sx={{ p: 0.5 }}
+              onClick={onCancel}
+              aria-label={m.transactions.actions.cancel}
+            >
               <CloseIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>

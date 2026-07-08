@@ -555,7 +555,12 @@ export function TransactionRowEditor({
           <Tooltip
             title={notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote}
           >
-            <IconButton size="small" sx={{ p: 0.5 }} onClick={() => setNotesOpen((o) => !o)}>
+            <IconButton
+              size="small"
+              sx={{ p: 0.5 }}
+              onClick={() => setNotesOpen((o) => !o)}
+              aria-label={notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote}
+            >
               {notesOpen || (editValues.notes && editValues.notes.length > 0) ? (
                 <NoteIcon sx={{ fontSize: 16 }} />
               ) : (
@@ -568,6 +573,7 @@ export function TransactionRowEditor({
               size="small"
               sx={{ p: 0.5 }}
               onClick={() => setForeignCurrencyOpen((o) => !o)}
+              aria-label={m.transactions.foreignCurrency.label}
               color={"default"}
             >
               <CurrencyExchangeOutlinedIcon sx={{ fontSize: 16 }} />
@@ -578,6 +584,7 @@ export function TransactionRowEditor({
               size="small"
               sx={{ p: 0.5 }}
               onClick={() => setLinksOpen((o) => !o)}
+              aria-label={m.transactions.links.title}
               color={"default"}
             >
               <LinkOutlinedIcon sx={{ fontSize: 16 }} />
@@ -585,7 +592,12 @@ export function TransactionRowEditor({
           </Tooltip>
           {!hiddenColumns.tags && (
             <Tooltip title={m.transactions.tags.editTitle}>
-              <IconButton size="small" sx={{ p: 0.5 }} onClick={() => setTagsOpen((o) => !o)}>
+              <IconButton
+                size="small"
+                sx={{ p: 0.5 }}
+                onClick={() => setTagsOpen((o) => !o)}
+                aria-label={m.transactions.tags.editTitle}
+              >
                 {tagsOpen || editValues.tags.length > 0 ? (
                   <LabelIcon sx={{ fontSize: 16 }} color={"inherit"} />
                 ) : (
@@ -605,12 +617,23 @@ export function TransactionRowEditor({
             </IconButton>
           </Tooltip>
           <Tooltip title={m.transactions.actions.save}>
-            <IconButton size="small" sx={{ p: 0.5 }} onClick={onSave} color="primary">
+            <IconButton
+              size="small"
+              sx={{ p: 0.5 }}
+              onClick={onSave}
+              aria-label={m.transactions.actions.save}
+              color="primary"
+            >
               <CheckIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
           <Tooltip title={m.transactions.actions.cancel}>
-            <IconButton size="small" sx={{ p: 0.5 }} onClick={onCancel}>
+            <IconButton
+              size="small"
+              sx={{ p: 0.5 }}
+              onClick={onCancel}
+              aria-label={m.transactions.actions.cancel}
+            >
               <CloseIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
