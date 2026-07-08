@@ -1,9 +1,12 @@
 "use client";
 
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
+import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
 import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import NoteIcon from "@mui/icons-material/Note";
 import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -30,6 +33,7 @@ import {
 } from "@/lib/aliases/apply";
 import { matchAlias } from "@/lib/aliases/match";
 import { formatDateShort } from "@/lib/dates";
+import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
 import type { CreateTransactionAliasInput } from "@/lib/schemas/transaction-alias";
@@ -40,6 +44,7 @@ import { TransactionAliasFormDialog } from "./aliases/TransactionAliasFormDialog
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import { useOptions } from "./OptionsContext";
 import { PartyAvatar } from "./PartyAvatar";
+import { describeRowState } from "./row-state";
 import { TransactionRowActions } from "./TransactionRowActions";
 import { TransactionRowEditor } from "./TransactionRowEditor";
 import type {
@@ -48,6 +53,7 @@ import type {
   InstitutionOption,
   MemberOption,
   ResponsiblePartyOption,
+  RowMenuItem,
   TransactionRow as TxRow,
 } from "./types";
 
@@ -71,6 +77,8 @@ type Props = {
   onDuplicated: (newTx: TxRow, sourceId: string) => void;
   onViewDetails: (id: string) => void;
   onAutoEditConsumed: () => void;
+  onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, items: RowMenuItem[]) => void;
+  onOpenMove: (ids: string[]) => void;
 };
 
 export function TransactionRowBase({
@@ -93,6 +101,8 @@ export function TransactionRowBase({
   onDuplicated,
   onViewDetails,
   onAutoEditConsumed,
+  onOpenMenu,
+  onOpenMove,
 }: Props) {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { onCreateCategory, onCreateSubcategory, onCreateInstitution, canManageOptions } =
@@ -144,15 +154,6 @@ export function TransactionRowBase({
   useEffect(() => {
     setLocalTags(tx.tags);
   }, [tx.tags]);
-
-  function startEditWithNote(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (isReadOnly) return;
-    setEditValues(tx);
-    setFocusField("notes");
-    setNotesOpen(true);
-    setEditing(true);
-  }
 
   async function saveEdit() {
     if (!editing) return;
@@ -451,11 +452,11 @@ export function TransactionRowBase({
       selected={isSelected}
       sx={{
         opacity: tx.isPending ? 0.65 : 1,
-        // Ícones de ação: ocultos por padrão, visíveis no hover
-        "& .action-icon": { opacity: 0, transition: "opacity 0.15s" },
-        "&:hover .action-icon": { opacity: 1 },
-        // Estado ativo (favorito, pendente, nota): sempre levemente visível
-        "& .action-icon--active": { opacity: 0.75 },
+        // Primárias (pendente/favorito): visíveis mas discretas em repouso (tappable em touch),
+        // plenas no hover/foco da linha; estado ativo = pleno sempre.
+        "& .row-primary": { opacity: 0.55, transition: "opacity 0.15s" },
+        "&:hover .row-primary, &:focus-within .row-primary": { opacity: 1 },
+        "& .row-primary--active": { opacity: 1 },
       }}
     >
       <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
@@ -481,6 +482,7 @@ export function TransactionRowBase({
           cursor: isReadOnly ? "default" : "pointer",
         }}
         onClick={() => !isReadOnly && startEdit("description")}
+        aria-label={describeRowState(tx)}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
           <Box
@@ -496,6 +498,28 @@ export function TransactionRowBase({
               <Typography variant="caption" color="text.disabled">
                 —
               </Typography>
+            )}
+          </Box>
+          <Box
+            component="span"
+            aria-hidden
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: layout.micro,
+              flexShrink: 0,
+              color: "text.tertiary",
+            }}
+          >
+            {tx.notes && <NoteIcon sx={{ fontSize: 14 }} />}
+            {tx.originalCurrency && <CurrencyExchangeOutlinedIcon sx={{ fontSize: 14 }} />}
+            {tx.linkCount > 0 && (
+              <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
+                <LinkOutlinedIcon sx={{ fontSize: 14 }} />
+                <Typography component="span" variant="caption" sx={{ color: "text.secondary" }}>
+                  {tx.linkCount}
+                </Typography>
+              </Box>
             )}
           </Box>
           {matchedAlias && aliasApplication && (
@@ -775,17 +799,16 @@ export function TransactionRowBase({
       <TransactionRowActions
         tx={tx}
         isReadOnly={isReadOnly}
-        menuAnchor={null}
-        setMenuAnchor={() => {}}
         onStartEdit={() => startEdit()}
-        onStartEditWithNote={startEditWithNote}
         onTogglePending={togglePending}
         onToggleFavorite={toggleFavorite}
         onViewDetails={handleViewDetails}
         onDuplicate={handleDuplicate}
+        onMove={() => onOpenMove([tx.id])}
         onCreateAlias={() => openCreateAlias(tx)}
         onDelete={handleDelete}
         onOpenLinkDialog={() => setLinkDialogOpen(true)}
+        onOpenMenu={onOpenMenu}
       />
 
       {/* Painel de grupo de parcelamento — Drawer via portal */}
