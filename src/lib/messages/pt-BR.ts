@@ -838,6 +838,10 @@ export const messages = {
       foreignCurrency: "moeda estrangeira",
       links: (n: number) => `${n} ${n === 1 ? "vínculo" : "vínculos"}`,
     },
+    attachments: {
+      view: (n: number) => `Ver anexos (${n})`,
+      viewGroup: "Ver grupo",
+    },
     actions: {
       viewDetails: "Ver detalhes",
       edit: "Editar",
