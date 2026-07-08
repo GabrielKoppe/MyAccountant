@@ -109,8 +109,6 @@ export function TransactionRowBase({
   const [focusField, setFocusField] = useState("occurredOn");
   const [editValues, setEditValues] = useState<TxRow>(tx);
   const [_saving, setSaving] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [tagsOpen, setTagsOpen] = useState(false);
   const [tagAnchor, setTagAnchor] = useState<HTMLElement | null>(null);
   const [localTags, setLocalTags] = useState(tx.tags);
   const [installmentPanelOpen, setInstallmentPanelOpen] = useState(false);
@@ -137,7 +135,6 @@ export function TransactionRowBase({
     if (isReadOnly) return;
     setEditValues(tx);
     setFocusField(field);
-    setNotesOpen(false);
     setEditing(true);
   }
 
@@ -422,10 +419,6 @@ export function TransactionRowBase({
           editValues={editValues}
           setEditValues={setEditValues}
           isSelected={isSelected}
-          notesOpen={notesOpen}
-          setNotesOpen={setNotesOpen}
-          tagsOpen={tagsOpen}
-          setTagsOpen={setTagsOpen}
           focusField={focusField}
           hiddenColumns={hiddenColumns}
           categories={categories}

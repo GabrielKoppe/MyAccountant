@@ -23,6 +23,7 @@ import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
+import Stack from "@mui/material/Stack";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
@@ -49,7 +50,7 @@ import Box from "@mui/material/Box";
 import { TagPopover } from "@/components/tags/TagPopover";
 import { computeAliasApplication } from "@/lib/aliases/apply";
 import { formatDateBr } from "@/lib/dates";
-import { motion } from "@/lib/design-tokens";
+import { layout, motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { centsToReais, reaisToCents, formatCentsToBrl } from "@/lib/money";
 import { INVESTMENT_TYPES, TransactionPaymentMethod } from "@/lib/schemas/transaction";
@@ -77,10 +78,6 @@ type Props = {
   editValues: TxRow;
   setEditValues: React.Dispatch<React.SetStateAction<TxRow>>;
   isSelected: boolean;
-  notesOpen: boolean;
-  setNotesOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  tagsOpen: boolean;
-  setTagsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   focusField: string;
   hiddenColumns: HiddenColumns;
   categories: CategoryOption[];
@@ -101,10 +98,6 @@ export function TransactionRowEditor({
   editValues,
   setEditValues,
   isSelected,
-  notesOpen,
-  setNotesOpen,
-  tagsOpen,
-  setTagsOpen,
   focusField,
   hiddenColumns,
   categories,
@@ -182,6 +175,9 @@ export function TransactionRowEditor({
       ),
     });
   }
+
+  const [notesOpen, setNotesOpen] = useState<boolean>(() => !!editValues.notes);
+  const [tagsOpen, setTagsOpen] = useState<boolean>(() => editValues.tags.length > 0);
 
   const [foreignCurrencyOpen, setForeignCurrencyOpen] = useState(
     () => !!editValues.originalCurrency,
@@ -552,91 +548,100 @@ export function TransactionRowEditor({
 
         {/* Ações */}
         <TableCell align="right" sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1 }}>
-          <Tooltip
-            title={notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote}
-          >
-            <IconButton
-              size="small"
-              sx={{ p: 0.5 }}
-              onClick={() => setNotesOpen((o) => !o)}
-              aria-label={notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote}
-            >
-              {notesOpen || (editValues.notes && editValues.notes.length > 0) ? (
-                <NoteIcon sx={{ fontSize: 16 }} />
-              ) : (
-                <NoteOutlinedIcon sx={{ fontSize: 16 }} />
-              )}
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={m.transactions.foreignCurrency.label}>
-            <IconButton
-              size="small"
-              sx={{ p: 0.5 }}
-              onClick={() => setForeignCurrencyOpen((o) => !o)}
-              aria-label={m.transactions.foreignCurrency.label}
-              color={"default"}
-            >
-              <CurrencyExchangeOutlinedIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={m.transactions.links.title}>
-            <IconButton
-              size="small"
-              sx={{ p: 0.5 }}
-              onClick={() => setLinksOpen((o) => !o)}
-              aria-label={m.transactions.links.title}
-              color={"default"}
-            >
-              <LinkOutlinedIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-          {!hiddenColumns.tags && (
-            <Tooltip title={m.transactions.tags.editTitle}>
-              <IconButton
-                size="small"
-                sx={{ p: 0.5 }}
-                onClick={() => setTagsOpen((o) => !o)}
-                aria-label={m.transactions.tags.editTitle}
-              >
-                {tagsOpen || editValues.tags.length > 0 ? (
-                  <LabelIcon sx={{ fontSize: 16 }} color={"inherit"} />
-                ) : (
-                  <LabelOutlinedIcon sx={{ fontSize: 16 }} />
-                )}
-              </IconButton>
-            </Tooltip>
-          )}
-          <Tooltip title={m.transactions.actions.createAlias}>
-            <IconButton
-              size="small"
-              sx={{ p: 0.5 }}
-              onClick={onCreateAlias}
-              aria-label={m.transactions.actions.createAlias}
-            >
-              <BookmarkAddOutlinedIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
           <Tooltip title={m.transactions.actions.save}>
             <IconButton
               size="small"
-              sx={{ p: 0.5 }}
+              sx={{ p: 1, minWidth: 32, minHeight: 32 }}
               onClick={onSave}
               aria-label={m.transactions.actions.save}
               color="primary"
             >
-              <CheckIcon sx={{ fontSize: 16 }} />
+              <CheckIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
           <Tooltip title={m.transactions.actions.cancel}>
             <IconButton
               size="small"
-              sx={{ p: 0.5 }}
+              sx={{ p: 1, minWidth: 32, minHeight: 32 }}
               onClick={onCancel}
               aria-label={m.transactions.actions.cancel}
             >
-              <CloseIcon sx={{ fontSize: 16 }} />
+              <CloseIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
+        </TableCell>
+      </TableRow>
+
+      {/* Barra de ferramentas da gaveta — toggles de seção + criar apelido */}
+      <TableRow>
+        <TableCell colSpan={99} sx={{ py: 0.5, border: 0, bgcolor: "action.selected" }}>
+          <Stack direction="row" spacing={layout.inline} alignItems="center" sx={{ px: 2 }}>
+            <Tooltip
+              title={notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote}
+            >
+              <IconButton
+                size="small"
+                sx={{ p: 0.5 }}
+                onClick={() => setNotesOpen((o) => !o)}
+                aria-label={
+                  notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote
+                }
+              >
+                {notesOpen || (editValues.notes && editValues.notes.length > 0) ? (
+                  <NoteIcon sx={{ fontSize: 16 }} />
+                ) : (
+                  <NoteOutlinedIcon sx={{ fontSize: 16 }} />
+                )}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={m.transactions.foreignCurrency.label}>
+              <IconButton
+                size="small"
+                sx={{ p: 0.5 }}
+                onClick={() => setForeignCurrencyOpen((o) => !o)}
+                aria-label={m.transactions.foreignCurrency.label}
+                color={"default"}
+              >
+                <CurrencyExchangeOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={m.transactions.links.title}>
+              <IconButton
+                size="small"
+                sx={{ p: 0.5 }}
+                onClick={() => setLinksOpen((o) => !o)}
+                aria-label={m.transactions.links.title}
+                color={"default"}
+              >
+                <LinkOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+            {!hiddenColumns.tags && (
+              <Tooltip title={m.transactions.tags.editTitle}>
+                <IconButton
+                  size="small"
+                  sx={{ p: 0.5 }}
+                  onClick={() => setTagsOpen((o) => !o)}
+                  aria-label={m.transactions.tags.editTitle}
+                >
+                  {tagsOpen || editValues.tags.length > 0 ? (
+                    <LabelIcon sx={{ fontSize: 16 }} color={"inherit"} />
+                  ) : (
+                    <LabelOutlinedIcon sx={{ fontSize: 16 }} />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
+            <Box sx={{ flex: 1 }} />
+            <Button
+              variant="text"
+              size="small"
+              startIcon={<BookmarkAddOutlinedIcon sx={{ fontSize: 16 }} />}
+              onClick={onCreateAlias}
+            >
+              {m.transactions.actions.createAlias}
+            </Button>
+          </Stack>
         </TableCell>
       </TableRow>
 
