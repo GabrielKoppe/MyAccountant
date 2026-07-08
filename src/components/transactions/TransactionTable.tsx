@@ -37,8 +37,10 @@ import { m } from "@/lib/messages";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
 import { BulkActionBar } from "./BulkActionBar";
+import { MoveTransactionsDialog } from "./MoveTransactionsDialog";
 import { NewTransactionRow } from "./NewTransactionRow";
 import { OptionsProvider } from "./OptionsContext";
+import { RowActionsMenu } from "./RowActionsMenu";
 import { TransactionDetailDialog } from "./TransactionDetailDialog";
 import { TransactionRow } from "./TransactionRow";
 import type {
@@ -47,6 +49,7 @@ import type {
   InstitutionOption,
   MemberOption,
   ResponsiblePartyOption,
+  RowMenuItem,
   TransactionRow as TxRow,
 } from "./types";
 
@@ -172,6 +175,18 @@ export function TransactionTable({
 
   const [detailTxId, setDetailTxId] = useState<string | null>(null);
   const [editRequestId, setEditRequestId] = useState<string | null>(null);
+  const [rowMenu, setRowMenu] = useState<{ anchorEl: HTMLElement; items: RowMenuItem[] } | null>(
+    null,
+  );
+  const [moveIds, setMoveIds] = useState<string[] | null>(null);
+
+  const handleOpenRowMenu = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>, items: RowMenuItem[]) => {
+      setRowMenu({ anchorEl: e.currentTarget, items });
+    },
+    [],
+  );
+  const handleOpenMove = useCallback((ids: string[]) => setMoveIds(ids), []);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [sort, setSort] = useState<SortState>(null);
@@ -726,6 +741,8 @@ export function TransactionTable({
                           onDuplicated={onDuplicated}
                           onViewDetails={setDetailTxId}
                           onAutoEditConsumed={handleAutoEditConsumed}
+                          onOpenMenu={handleOpenRowMenu}
+                          onOpenMove={handleOpenMove}
                         />
                       ));
                     }
@@ -780,6 +797,8 @@ export function TransactionTable({
                           onDuplicated={onDuplicated}
                           onViewDetails={setDetailTxId}
                           onAutoEditConsumed={handleAutoEditConsumed}
+                          onOpenMenu={handleOpenRowMenu}
+                          onOpenMove={handleOpenMove}
                         />,
                       );
                     }
@@ -812,6 +831,29 @@ export function TransactionTable({
               onViewLinkedTransaction={(txId) => setDetailTxId(txId)}
             />
           )}
+
+          <RowActionsMenu
+            anchorEl={rowMenu?.anchorEl ?? null}
+            items={rowMenu?.items ?? []}
+            onClose={() => setRowMenu(null)}
+          />
+
+          <MoveTransactionsDialog
+            accountId={accountId}
+            sourceTableId={tableId}
+            sourceMonthId={monthId}
+            sourceCountType={sectionCountType}
+            sampleAmountCents={
+              moveIds ? String(rows.find((r) => r.id === moveIds[0])?.amountCents ?? "") : undefined
+            }
+            selectedIds={moveIds ?? []}
+            open={!!moveIds}
+            onClose={() => setMoveIds(null)}
+            onMoved={(ids) => {
+              onBulkMoved(ids);
+              setMoveIds(null);
+            }}
+          />
         </Box>
       </TagUpdateContext.Provider>
     </OptionsProvider>
