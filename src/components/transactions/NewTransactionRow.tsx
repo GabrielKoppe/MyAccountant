@@ -9,7 +9,6 @@ import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import Collapse from "@mui/material/Collapse";
 import Fade from "@mui/material/Fade";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -41,11 +40,11 @@ import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-a
 
 import { AliasSuggestionPopover } from "./aliases/AliasSuggestionPopover";
 import { useAliasMatch } from "./aliases/useAliasMatch";
+import { CollapsibleSectionRow } from "./CollapsibleSectionRow";
 import { CreatableEntitySelect } from "./CreatableEntitySelect";
 import { useOptions } from "./OptionsContext";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
 import { RowDrawerToolbar } from "./RowDrawerToolbar";
-import SectionDrawer from "./SectionDrawer";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -604,117 +603,108 @@ export function NewTransactionRow({
         fx={{ open: foreignCurrencyOpen, onToggle: () => setForeignCurrencyOpen((o) => !o) }}
       />
 
-      {/* Linha de nota */}
-      <TableRow sx={{ bgcolor: "action.hover" }}>
-        <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
-          <Collapse in={notesOpen} unmountOnExit>
-            <SectionDrawer label={m.transactions.fields.notes}>
-              <TextField
-                multiline
-                minRows={2}
-                maxRows={6}
-                fullWidth
+      {/* Seções colapsáveis da gaveta — CollapsibleSectionRow compartilhado com TransactionRowEditor */}
+      <CollapsibleSectionRow
+        open={notesOpen}
+        bgcolor="action.hover"
+        label={m.transactions.fields.notes}
+      >
+        <TextField
+          multiline
+          minRows={2}
+          maxRows={6}
+          fullWidth
+          size="small"
+          variant="standard"
+          placeholder={m.transactions.fields.notesPlaceholder}
+          value={notes ?? ""}
+          onChange={(e) => setNotes(e.target.value || null)}
+          sx={{ "& textarea": { fontSize: 13 } }}
+          autoFocus
+        />
+      </CollapsibleSectionRow>
+
+      <CollapsibleSectionRow
+        open={foreignCurrencyOpen}
+        bgcolor="action.hover"
+        label={m.transactions.foreignCurrency.label}
+      >
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+          <TextField
+            size="small"
+            variant="standard"
+            label={m.transactions.foreignCurrency.currencyLabel}
+            value={originalCurrency ?? ""}
+            onChange={(e) => setOriginalCurrency(e.target.value.toUpperCase().slice(0, 3) || null)}
+            inputProps={{ maxLength: 3 }}
+            sx={{ width: 110, "& input": { fontSize: 13 } }}
+          />
+          {!advancedFxMode ? (
+            <NumericFormat
+              customInput={TextField}
+              size="small"
+              variant="standard"
+              label={m.transactions.foreignCurrency.exchangeRateLabel}
+              value={exchangeRate ?? ""}
+              decimalSeparator=","
+              decimalScale={6}
+              allowNegative={false}
+              onValueChange={({ floatValue }) => setExchangeRate(floatValue ?? null)}
+              sx={{ width: 160, "& input": { fontSize: 13 } }}
+            />
+          ) : (
+            <>
+              <NumericFormat
+                customInput={TextField}
                 size="small"
                 variant="standard"
-                placeholder={m.transactions.fields.notesPlaceholder}
-                value={notes ?? ""}
-                onChange={(e) => setNotes(e.target.value || null)}
-                sx={{ "& textarea": { fontSize: 13 } }}
-                autoFocus
+                label={m.transactions.foreignCurrency.originalAmountLabel}
+                value={originalAmountCents ? Number(BigInt(originalAmountCents)) / 100 : ""}
+                decimalSeparator=","
+                decimalScale={2}
+                fixedDecimalScale
+                allowNegative={false}
+                onValueChange={({ floatValue }) => {
+                  setOriginalAmountCents(
+                    floatValue !== undefined
+                      ? BigInt(Math.round(floatValue * 100)).toString()
+                      : null,
+                  );
+                }}
+                sx={{ width: 140, "& input": { fontSize: 13 } }}
               />
-            </SectionDrawer>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-
-      {/* Linha de moeda estrangeira */}
-      <TableRow sx={{ bgcolor: "action.hover" }}>
-        <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
-          <Collapse in={foreignCurrencyOpen} unmountOnExit>
-            <SectionDrawer label={m.transactions.foreignCurrency.label}>
-              <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+              <Tooltip title={m.transactions.foreignCurrency.calculatedRate} placement="top">
                 <TextField
                   size="small"
                   variant="standard"
-                  label={m.transactions.foreignCurrency.currencyLabel}
-                  value={originalCurrency ?? ""}
-                  onChange={(e) =>
-                    setOriginalCurrency(e.target.value.toUpperCase().slice(0, 3) || null)
+                  label={m.transactions.foreignCurrency.exchangeRateLabel}
+                  value={
+                    calculatedExchangeRate !== null
+                      ? calculatedExchangeRate.toFixed(4)
+                      : (exchangeRate?.toFixed(4) ?? "")
                   }
-                  inputProps={{ maxLength: 3 }}
-                  sx={{ width: 110, "& input": { fontSize: 13 } }}
-                />
-                {!advancedFxMode ? (
-                  <NumericFormat
-                    customInput={TextField}
-                    size="small"
-                    variant="standard"
-                    label={m.transactions.foreignCurrency.exchangeRateLabel}
-                    value={exchangeRate ?? ""}
-                    decimalSeparator=","
-                    decimalScale={6}
-                    allowNegative={false}
-                    onValueChange={({ floatValue }) => setExchangeRate(floatValue ?? null)}
-                    sx={{ width: 160, "& input": { fontSize: 13 } }}
-                  />
-                ) : (
-                  <>
-                    <NumericFormat
-                      customInput={TextField}
-                      size="small"
-                      variant="standard"
-                      label={m.transactions.foreignCurrency.originalAmountLabel}
-                      value={originalAmountCents ? Number(BigInt(originalAmountCents)) / 100 : ""}
-                      decimalSeparator=","
-                      decimalScale={2}
-                      fixedDecimalScale
-                      allowNegative={false}
-                      onValueChange={({ floatValue }) => {
-                        setOriginalAmountCents(
-                          floatValue !== undefined
-                            ? BigInt(Math.round(floatValue * 100)).toString()
-                            : null,
-                        );
-                      }}
-                      sx={{ width: 140, "& input": { fontSize: 13 } }}
-                    />
-                    <Tooltip title={m.transactions.foreignCurrency.calculatedRate} placement="top">
-                      <TextField
-                        size="small"
-                        variant="standard"
-                        label={m.transactions.foreignCurrency.exchangeRateLabel}
-                        value={
-                          calculatedExchangeRate !== null
-                            ? calculatedExchangeRate.toFixed(4)
-                            : (exchangeRate?.toFixed(4) ?? "")
-                        }
-                        InputProps={{ readOnly: true }}
-                        sx={{
-                          width: 160,
-                          "& input": { fontSize: 13, color: "text.secondary", cursor: "default" },
-                        }}
-                      />
-                    </Tooltip>
-                  </>
-                )}
-                <Typography
-                  variant="caption"
-                  color="primary"
-                  sx={{ cursor: "pointer" }}
-                  onClick={() => {
-                    setAdvancedFxMode((v) => !v);
-                    if (advancedFxMode) setOriginalAmountCents(null);
+                  InputProps={{ readOnly: true }}
+                  sx={{
+                    width: 160,
+                    "& input": { fontSize: 13, color: "text.secondary", cursor: "default" },
                   }}
-                >
-                  {advancedFxMode
-                    ? "← Modo simples"
-                    : m.transactions.foreignCurrency.fillOriginalAmount}
-                </Typography>
-              </Box>
-            </SectionDrawer>
-          </Collapse>
-        </TableCell>
-      </TableRow>
+                />
+              </Tooltip>
+            </>
+          )}
+          <Typography
+            variant="caption"
+            color="primary"
+            sx={{ cursor: "pointer" }}
+            onClick={() => {
+              setAdvancedFxMode((v) => !v);
+              if (advancedFxMode) setOriginalAmountCents(null);
+            }}
+          >
+            {advancedFxMode ? "← Modo simples" : m.transactions.foreignCurrency.fillOriginalAmount}
+          </Typography>
+        </Box>
+      </CollapsibleSectionRow>
     </>
   );
 }

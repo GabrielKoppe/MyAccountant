@@ -14,7 +14,6 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
-import Collapse from "@mui/material/Collapse";
 import Fade from "@mui/material/Fade";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -54,9 +53,9 @@ import { useAliasMatch } from "./aliases/useAliasMatch";
 import { CreatableEntitySelect } from "./CreatableEntitySelect";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import { useOptions } from "./OptionsContext";
+import { CollapsibleSectionRow } from "./CollapsibleSectionRow";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
 import { RowDrawerToolbar } from "./RowDrawerToolbar";
-import SectionDrawer from "./SectionDrawer";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -588,331 +587,304 @@ export function TransactionRowEditor({
         onCreateAlias={onCreateAlias}
       />
 
-      {/* Linha de notas colapsável */}
-      <TableRow sx={{ bgcolor: "action.selected" }}>
-        <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
-          <Collapse in={notesOpen} unmountOnExit>
-            <SectionDrawer key="notes" label={m.transactions.fields.notes}>
-              <TextField
-                multiline
-                minRows={2}
-                maxRows={6}
-                fullWidth
-                size="small"
-                variant="standard"
-                // label={m.transactions.fields.notes}
-                placeholder={m.transactions.fields.notesPlaceholder}
-                value={editValues.notes ?? ""}
-                onChange={(e) =>
-                  setEditValues((prev) => ({ ...prev, notes: e.target.value || null }))
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") onCancel();
-                }}
-                sx={{ "& textarea": { fontSize: 13 } }}
-                autoFocus={focusField === "notes"}
-              />
-            </SectionDrawer>
-          </Collapse>
-        </TableCell>
-      </TableRow>
+      {/* Seções colapsáveis da gaveta — CollapsibleSectionRow compartilhado com NewTransactionRow */}
+      <CollapsibleSectionRow
+        open={notesOpen}
+        bgcolor="action.selected"
+        label={m.transactions.fields.notes}
+      >
+        <TextField
+          multiline
+          minRows={2}
+          maxRows={6}
+          fullWidth
+          size="small"
+          variant="standard"
+          // label={m.transactions.fields.notes}
+          placeholder={m.transactions.fields.notesPlaceholder}
+          value={editValues.notes ?? ""}
+          onChange={(e) => setEditValues((prev) => ({ ...prev, notes: e.target.value || null }))}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel();
+          }}
+          sx={{ "& textarea": { fontSize: 13 } }}
+          autoFocus={focusField === "notes"}
+        />
+      </CollapsibleSectionRow>
 
-      {/* Linha de tags colapsável */}
-      <TableRow sx={{ bgcolor: "action.selected" }}>
-        <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
-          <Collapse in={tagsOpen} unmountOnExit>
-            <SectionDrawer key="tags" label={m.transactions.tags.editTitle}>
-              <TagPopover
-                anchorEl={null}
-                onClose={() => {}}
-                accountId={accountId}
-                transactionId={tx.id}
-                currentTags={editValues.tags}
-                onTagsChange={(tags) => setEditValues((prev) => ({ ...prev, tags }))}
-                inline
-              />
-            </SectionDrawer>
-          </Collapse>
-        </TableCell>
-      </TableRow>
+      <CollapsibleSectionRow
+        open={tagsOpen}
+        bgcolor="action.selected"
+        label={m.transactions.tags.editTitle}
+      >
+        <TagPopover
+          anchorEl={null}
+          onClose={() => {}}
+          accountId={accountId}
+          transactionId={tx.id}
+          currentTags={editValues.tags}
+          onTagsChange={(tags) => setEditValues((prev) => ({ ...prev, tags }))}
+          inline
+        />
+      </CollapsibleSectionRow>
 
-      {/* Linha de moeda estrangeira colapsável */}
-      <TableRow sx={{ bgcolor: "action.selected" }}>
-        <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
-          <Collapse
-            in={foreignCurrencyOpen}
-            unmountOnExit
-            timeout={{ enter: motion.duration.slow, exit: motion.duration.normal }}
+      <CollapsibleSectionRow
+        open={foreignCurrencyOpen}
+        bgcolor="action.selected"
+        label={m.transactions.foreignCurrency.label}
+        timeout={{ enter: motion.duration.slow, exit: motion.duration.normal }}
+      >
+        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <TextField
+            {...sharedInputProps}
+            label={m.transactions.foreignCurrency.currencyLabel}
+            value={editValues.originalCurrency ?? ""}
+            onChange={(e) =>
+              setEditValues((prev) => ({
+                ...prev,
+                originalCurrency: e.target.value.toUpperCase().slice(0, 3) || null,
+              }))
+            }
+            inputProps={{ maxLength: 3 }}
+            sx={{ width: 140, "& input": { fontSize: 12 } }}
+          />
+
+          {/* Slide direcional: avançado entra da direita, simples da esquerda */}
+          <Box
+            key={String(advancedFxMode)}
+            sx={{
+              display: "flex",
+              gap: 2,
+              alignItems: "flex-end",
+              flexWrap: "wrap",
+              animation: `${advancedFxMode ? "fxSlideRight" : "fxSlideLeft"} ${motion.duration.slow}ms ${motion.easing.entrance}`,
+              "@keyframes fxSlideRight": {
+                from: { opacity: 0, transform: "translateX(10px)" },
+                to: { opacity: 1, transform: "translateX(0)" },
+              },
+              "@keyframes fxSlideLeft": {
+                from: { opacity: 0, transform: "translateX(-10px)" },
+                to: { opacity: 1, transform: "translateX(0)" },
+              },
+            }}
           >
-            <SectionDrawer key="foreignCurrency" label={m.transactions.foreignCurrency.label}>
-              <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end", flexWrap: "wrap" }}>
-                <TextField
+            {!advancedFxMode ? (
+              <NumericFormat
+                customInput={TextField}
+                {...sharedInputProps}
+                label={m.transactions.foreignCurrency.exchangeRateLabel}
+                value={editValues.exchangeRate ?? ""}
+                decimalSeparator=","
+                decimalScale={6}
+                allowNegative={false}
+                onValueChange={({ floatValue }) =>
+                  setEditValues((prev) => ({
+                    ...prev,
+                    exchangeRate: floatValue ?? null,
+                  }))
+                }
+                sx={{ width: 160, "& input": { fontSize: 12 } }}
+              />
+            ) : (
+              <>
+                <NumericFormat
+                  customInput={TextField}
                   {...sharedInputProps}
-                  label={m.transactions.foreignCurrency.currencyLabel}
-                  value={editValues.originalCurrency ?? ""}
-                  onChange={(e) =>
-                    setEditValues((prev) => ({
-                      ...prev,
-                      originalCurrency: e.target.value.toUpperCase().slice(0, 3) || null,
-                    }))
+                  label={m.transactions.foreignCurrency.originalAmountLabel}
+                  value={
+                    editValues.originalAmountCents
+                      ? Number(BigInt(editValues.originalAmountCents)) / 100
+                      : ""
                   }
-                  inputProps={{ maxLength: 3 }}
+                  decimalSeparator=","
+                  decimalScale={2}
+                  fixedDecimalScale
+                  allowNegative={false}
+                  onValueChange={({ floatValue }) => {
+                    const cents =
+                      floatValue !== undefined
+                        ? BigInt(Math.round(floatValue * 100)).toString()
+                        : null;
+                    setEditValues((prev) => ({ ...prev, originalAmountCents: cents }));
+                  }}
                   sx={{ width: 140, "& input": { fontSize: 12 } }}
                 />
-
-                {/* Slide direcional: avançado entra da direita, simples da esquerda */}
-                <Box
-                  key={String(advancedFxMode)}
-                  sx={{
-                    display: "flex",
-                    gap: 2,
-                    alignItems: "flex-end",
-                    flexWrap: "wrap",
-                    animation: `${advancedFxMode ? "fxSlideRight" : "fxSlideLeft"} ${motion.duration.slow}ms ${motion.easing.entrance}`,
-                    "@keyframes fxSlideRight": {
-                      from: { opacity: 0, transform: "translateX(10px)" },
-                      to: { opacity: 1, transform: "translateX(0)" },
-                    },
-                    "@keyframes fxSlideLeft": {
-                      from: { opacity: 0, transform: "translateX(-10px)" },
-                      to: { opacity: 1, transform: "translateX(0)" },
-                    },
-                  }}
-                >
-                  {!advancedFxMode ? (
-                    <NumericFormat
-                      customInput={TextField}
-                      {...sharedInputProps}
-                      label={m.transactions.foreignCurrency.exchangeRateLabel}
-                      value={editValues.exchangeRate ?? ""}
-                      decimalSeparator=","
-                      decimalScale={6}
-                      allowNegative={false}
-                      onValueChange={({ floatValue }) =>
-                        setEditValues((prev) => ({
-                          ...prev,
-                          exchangeRate: floatValue ?? null,
-                        }))
-                      }
-                      sx={{ width: 160, "& input": { fontSize: 12 } }}
-                    />
-                  ) : (
-                    <>
-                      <NumericFormat
-                        customInput={TextField}
-                        {...sharedInputProps}
-                        label={m.transactions.foreignCurrency.originalAmountLabel}
-                        value={
-                          editValues.originalAmountCents
-                            ? Number(BigInt(editValues.originalAmountCents)) / 100
-                            : ""
-                        }
-                        decimalSeparator=","
-                        decimalScale={2}
-                        fixedDecimalScale
-                        allowNegative={false}
-                        onValueChange={({ floatValue }) => {
-                          const cents =
-                            floatValue !== undefined
-                              ? BigInt(Math.round(floatValue * 100)).toString()
-                              : null;
-                          setEditValues((prev) => ({ ...prev, originalAmountCents: cents }));
-                        }}
-                        sx={{ width: 140, "& input": { fontSize: 12 } }}
-                      />
-                      <Tooltip
-                        title={m.transactions.foreignCurrency.calculatedRate}
-                        placement="top"
-                      >
-                        <TextField
-                          {...sharedInputProps}
-                          label={m.transactions.foreignCurrency.exchangeRateLabel}
-                          value={
-                            calculatedExchangeRate !== null
-                              ? calculatedExchangeRate.toFixed(4)
-                              : (editValues.exchangeRate?.toFixed(4) ?? "")
-                          }
-                          InputProps={{ readOnly: true }}
-                          sx={{
-                            width: 160,
-                            "& input": {
-                              fontSize: 12,
-                              color: "text.secondary",
-                              cursor: "default",
-                            },
-                          }}
-                        />
-                      </Tooltip>
-                    </>
-                  )}
-                </Box>
-
-                <Button
-                  size="small"
-                  variant="text"
-                  color="inherit"
-                  sx={{
-                    textTransform: "none",
-                    fontSize: 12,
-                    px: 2,
-                    py: 1,
-                    fontWeight: 400,
-                    minWidth: 160,
-                  }}
-                  onClick={() => {
-                    setAdvancedFxMode((v) => !v);
-                    if (advancedFxMode) {
-                      setEditValues((prev) => ({ ...prev, originalAmountCents: null }));
+                <Tooltip title={m.transactions.foreignCurrency.calculatedRate} placement="top">
+                  <TextField
+                    {...sharedInputProps}
+                    label={m.transactions.foreignCurrency.exchangeRateLabel}
+                    value={
+                      calculatedExchangeRate !== null
+                        ? calculatedExchangeRate.toFixed(4)
+                        : (editValues.exchangeRate?.toFixed(4) ?? "")
                     }
-                  }}
-                >
-                  <Box
-                    component="span"
-                    key={String(advancedFxMode)}
+                    InputProps={{ readOnly: true }}
                     sx={{
-                      animation: `fxLabelIn ${motion.duration.slow}ms ${motion.easing.entrance}`,
-                      animationDelay: `${motion.duration.fast}ms`,
-                      animationFillMode: "backwards",
-                      "@keyframes fxLabelIn": {
-                        from: { opacity: 0 },
-                        to: { opacity: 1 },
+                      width: 160,
+                      "& input": {
+                        fontSize: 12,
+                        color: "text.secondary",
+                        cursor: "default",
                       },
                     }}
-                  >
-                    {advancedFxMode
-                      ? "← Modo simples"
-                      : m.transactions.foreignCurrency.fillOriginalAmount}
-                  </Box>
-                </Button>
-              </Box>
-            </SectionDrawer>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-      {/* Linha de vínculos colapsável */}
-      <TableRow sx={{ bgcolor: "action.selected" }}>
-        <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
-          <Collapse in={linksOpen} unmountOnExit>
-            <SectionDrawer
-              key="links"
-              label={m.transactions.links.title}
-              action={
-                <>
-                  {links.length > 0 && (
+                  />
+                </Tooltip>
+              </>
+            )}
+          </Box>
+
+          <Button
+            size="small"
+            variant="text"
+            color="inherit"
+            sx={{
+              textTransform: "none",
+              fontSize: 12,
+              px: 2,
+              py: 1,
+              fontWeight: 400,
+              minWidth: 160,
+            }}
+            onClick={() => {
+              setAdvancedFxMode((v) => !v);
+              if (advancedFxMode) {
+                setEditValues((prev) => ({ ...prev, originalAmountCents: null }));
+              }
+            }}
+          >
+            <Box
+              component="span"
+              key={String(advancedFxMode)}
+              sx={{
+                animation: `fxLabelIn ${motion.duration.slow}ms ${motion.easing.entrance}`,
+                animationDelay: `${motion.duration.fast}ms`,
+                animationFillMode: "backwards",
+                "@keyframes fxLabelIn": {
+                  from: { opacity: 0 },
+                  to: { opacity: 1 },
+                },
+              }}
+            >
+              {advancedFxMode
+                ? "← Modo simples"
+                : m.transactions.foreignCurrency.fillOriginalAmount}
+            </Box>
+          </Button>
+        </Box>
+      </CollapsibleSectionRow>
+
+      <CollapsibleSectionRow
+        open={linksOpen}
+        bgcolor="action.selected"
+        label={m.transactions.links.title}
+        action={
+          <>
+            {links.length > 0 && (
+              <Typography
+                component="span"
+                variant="caption"
+                color="accent.primary"
+                sx={{ ml: 0.75, fontSize: 10 }}
+              >
+                ({links.length})
+              </Typography>
+            )}
+            <Tooltip title={m.transactions.links.addLink}>
+              <IconButton size="small" sx={{ p: 0.25 }} onClick={() => setLinkDialogOpen(true)}>
+                <AddLinkIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </>
+        }
+      >
+        {/* Lista de vínculos em linha */}
+        {loadingLinks ? (
+          <Typography variant="caption" color="text.disabled">
+            Carregando...
+          </Typography>
+        ) : links.length === 0 ? (
+          <Typography variant="caption" color="text.disabled">
+            {m.transactions.links.empty}
+          </Typography>
+        ) : (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+            {links.map((link) => (
+              <Box
+                key={link.id}
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  px: 2,
+                  py: 1,
+                  bgcolor: "background.subtle",
+                  border: 1,
+                  borderColor: "border.subtle",
+                  borderRadius: 1,
+                  maxWidth: 280,
+                }}
+              >
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, minWidth: 0 }}>
+                  <Typography variant="caption" color="text.tertiary" display="block">
+                    {m.transactions.links.types[link.type]}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500} noWrap>
+                    {link.linkedTransaction.description ?? "—"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {formatDateBr(link.linkedTransaction.occurredOn)} ·{" "}
                     <Typography
                       component="span"
                       variant="caption"
-                      color="accent.primary"
-                      sx={{ ml: 0.75, fontSize: 10 }}
+                      sx={{ fontFamily: "var(--font-jetbrains-mono), monospace" }}
                     >
-                      ({links.length})
+                      {link.linkedTransaction.amountCents
+                        ? formatCentsToBrl(BigInt(link.linkedTransaction.amountCents))
+                        : ""}
                     </Typography>
-                  )}
-                  <Tooltip title={m.transactions.links.addLink}>
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Tooltip title="Ir para o mês e seção desta transação">
                     <IconButton
                       size="small"
-                      sx={{ p: 0.25 }}
-                      onClick={() => setLinkDialogOpen(true)}
-                    >
-                      <AddLinkIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                </>
-              }
-            >
-              {/* Lista de vínculos em linha */}
-              {loadingLinks ? (
-                <Typography variant="caption" color="text.disabled">
-                  Carregando...
-                </Typography>
-              ) : links.length === 0 ? (
-                <Typography variant="caption" color="text.disabled">
-                  {m.transactions.links.empty}
-                </Typography>
-              ) : (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-                  {links.map((link) => (
-                    <Box
-                      key={link.id}
-                      sx={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: 1,
-                        px: 2,
-                        py: 1,
-                        bgcolor: "background.subtle",
-                        border: 1,
-                        borderColor: "border.subtle",
-                        borderRadius: 1,
-                        maxWidth: 280,
+                      sx={{ p: 0.125, flexShrink: 0 }}
+                      onClick={() => {
+                        router.push(
+                          `/${accountId}/months/${link.linkedTransaction.monthId}?tab=${link.linkedTransaction.sectionId}`,
+                        );
                       }}
                     >
-                      <Box
-                        sx={{ display: "flex", flexDirection: "column", gap: 0.25, minWidth: 0 }}
-                      >
-                        <Typography variant="caption" color="text.tertiary" display="block">
-                          {m.transactions.links.types[link.type]}
-                        </Typography>
-                        <Typography variant="body2" fontWeight={500} noWrap>
-                          {link.linkedTransaction.description ?? "—"}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatDateBr(link.linkedTransaction.occurredOn)} ·{" "}
-                          <Typography
-                            component="span"
-                            variant="caption"
-                            sx={{ fontFamily: "var(--font-jetbrains-mono), monospace" }}
-                          >
-                            {link.linkedTransaction.amountCents
-                              ? formatCentsToBrl(BigInt(link.linkedTransaction.amountCents))
-                              : ""}
-                          </Typography>
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <Tooltip title="Ir para o mês e seção desta transação">
-                          <IconButton
-                            size="small"
-                            sx={{ p: 0.125, flexShrink: 0 }}
-                            onClick={() => {
-                              router.push(
-                                `/${accountId}/months/${link.linkedTransaction.monthId}?tab=${link.linkedTransaction.sectionId}`,
-                              );
-                            }}
-                          >
-                            <OpenInNewIcon sx={{ fontSize: 12, color: "text.secondary" }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={m.transactions.links.removeLink}>
-                          <IconButton
-                            size="small"
-                            sx={{ p: 0.125, flexShrink: 0 }}
-                            onClick={async () => {
-                              const res = await deleteTransactionLinkAction(accountId, {
-                                linkId: link.id,
-                              });
-                              if (res.ok) {
-                                setLinks((prev) => prev.filter((l) => l.id !== link.id));
-                                setEditValues((prev) => ({
-                                  ...prev,
-                                  linkCount: Math.max(0, prev.linkCount - 1),
-                                }));
-                              }
-                            }}
-                          >
-                            <RemoveCircleOutlineIcon sx={{ fontSize: 12, color: "error.main" }} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Box>
-                  ))}
+                      <OpenInNewIcon sx={{ fontSize: 12, color: "text.secondary" }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={m.transactions.links.removeLink}>
+                    <IconButton
+                      size="small"
+                      sx={{ p: 0.125, flexShrink: 0 }}
+                      onClick={async () => {
+                        const res = await deleteTransactionLinkAction(accountId, {
+                          linkId: link.id,
+                        });
+                        if (res.ok) {
+                          setLinks((prev) => prev.filter((l) => l.id !== link.id));
+                          setEditValues((prev) => ({
+                            ...prev,
+                            linkCount: Math.max(0, prev.linkCount - 1),
+                          }));
+                        }
+                      }}
+                    >
+                      <RemoveCircleOutlineIcon sx={{ fontSize: 12, color: "error.main" }} />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
-              )}
-            </SectionDrawer>
-          </Collapse>
-        </TableCell>
-      </TableRow>
+              </Box>
+            ))}
+          </Box>
+        )}
+      </CollapsibleSectionRow>
 
       <LinkTransactionDialog
         open={linkDialogOpen}
