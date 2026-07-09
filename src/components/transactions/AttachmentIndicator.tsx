@@ -26,7 +26,7 @@ export function AttachmentIndicator({ count, onClick, expanded }: Props) {
         aria-label={label}
         aria-expanded={expanded}
         onClick={onClick}
-        sx={{ ...BTN_SX, color: "text.secondary" }}
+        sx={{ ...BTN_SX, color: "text.secondary", mr: 1 }}
       >
         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}>
           <AttachFileOutlinedIcon sx={{ fontSize: 18 }} />

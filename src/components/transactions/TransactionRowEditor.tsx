@@ -13,7 +13,10 @@ import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import NoteIcon from "@mui/icons-material/Note";
 import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
@@ -42,11 +45,6 @@ import {
   deleteTransactionLinkAction,
 } from "@/actions/transaction-links";
 import { tagChipSx } from "@/components/tags/tagChipSx";
-
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
-import Box from "@mui/material/Box";
-
 import { TagPopover } from "@/components/tags/TagPopover";
 import { computeAliasApplication } from "@/lib/aliases/apply";
 import { formatDateBr } from "@/lib/dates";
@@ -636,8 +634,17 @@ export function TransactionRowEditor({
             <Button
               variant="text"
               size="small"
-              startIcon={<BookmarkAddOutlinedIcon sx={{ fontSize: 16 }} />}
+              color={"inherit"}
+              startIcon={<BookmarkAddOutlinedIcon color={"inherit"} sx={{ fontSize: 16 }} />}
               onClick={onCreateAlias}
+              sx={{
+                textTransform: "none",
+                fontSize: 12,
+                px: 2,
+                py: 1,
+                fontWeight: 400,
+                color: "text.secondary",
+              }}
             >
               {m.transactions.actions.createAlias}
             </Button>

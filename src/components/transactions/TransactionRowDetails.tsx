@@ -1,7 +1,9 @@
 "use client";
 
+import AddLinkIcon from "@mui/icons-material/AddLink";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import { IconButton, Tooltip } from "@mui/material";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
@@ -61,7 +63,8 @@ function Section({
       <Stack
         direction="row"
         alignItems="center"
-        justifyContent="space-between"
+        justifyContent="flex-start"
+        gap={1}
         sx={{ minHeight: 24, mb: 0.5 }}
       >
         <Typography variant="caption" color="text.primary" sx={LABEL_SX}>
@@ -104,7 +107,9 @@ export function TransactionRowDetails({
           {tx.originalAmountCents && tx.originalAmountCents !== "0"
             ? ` ${(Number(BigInt(tx.originalAmountCents)) / 100).toFixed(2)}`
             : ""}
-          {tx.exchangeRate ? ` · ${m.transactions.foreignCurrency.rateDisplay(tx.exchangeRate)}` : ""}
+          {tx.exchangeRate
+            ? ` · ${m.transactions.foreignCurrency.rateDisplay(tx.exchangeRate)}`
+            : ""}
         </Typography>
       </Section>,
     );
@@ -117,9 +122,11 @@ export function TransactionRowDetails({
         label={m.transactions.links.title}
         action={
           !isReadOnly && (
-            <Button size="small" variant="text" color="inherit" sx={ACTION_BTN_SX} onClick={onManageLinks}>
-              {m.transactions.links.manage}
-            </Button>
+            <Tooltip title={m.transactions.links.manage}>
+              <IconButton size="small" sx={{ p: 0.25 }} onClick={onManageLinks}>
+                <AddLinkIcon sx={{ fontSize: 12 }} />
+              </IconButton>
+            </Tooltip>
           )
         }
       >
@@ -148,9 +155,11 @@ export function TransactionRowDetails({
         key="installment"
         label={m.transactions.installments.column}
         action={
-          <Button size="small" variant="text" color="inherit" sx={ACTION_BTN_SX} onClick={onViewInstallmentGroup}>
-            {m.transactions.attachments.viewGroup}
-          </Button>
+          <Tooltip title={m.transactions.attachments.viewGroup}>
+            <IconButton size="small" sx={{ p: 0.25 }} onClick={onViewInstallmentGroup}>
+              <VisibilityIcon sx={{ fontSize: 12 }} />
+            </IconButton>
+          </Tooltip>
         }
       >
         <Typography variant="body2" color="text.primary">

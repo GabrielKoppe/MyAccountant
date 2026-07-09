@@ -35,7 +35,7 @@ type Props = {
 
 const ICON_SX = { fontSize: 18 } as const;
 const BTN_SX = { p: 1, minWidth: 32, minHeight: 32 } as const;
-const GAP = 0.5;
+const GAP = 0.2;
 
 export function TransactionRowActions({
   tx,
