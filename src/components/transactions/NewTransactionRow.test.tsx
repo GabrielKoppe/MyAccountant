@@ -49,6 +49,22 @@ vi.mock("@/actions/transactions", () => ({
   createTransactionAction: (...args: unknown[]) => createTransactionAction(...args),
 }));
 
+// RowDrawer importa (estaticamente) RowLinksSection e TagPopover, que puxam
+// Server Actions (transaction-links / tags → next-auth) não resolvíveis sob
+// vitest — mesmo padrão do mock de @/actions/transactions acima. Nenhum dos
+// dois é renderizado no create (sem `links`/`tags`), então basta mockar os
+// módulos para a resolução do grafo de import; useRouter não é chamado.
+vi.mock("@/actions/transaction-links", () => ({
+  listLinksForTransactionAction: vi.fn(),
+  deleteTransactionLinkAction: vi.fn(),
+}));
+vi.mock("@/actions/tags", () => ({
+  addTagToTransactionAction: vi.fn(),
+  listTagsAction: vi.fn(),
+  removeTagFromTransactionAction: vi.fn(),
+  updateTagAction: vi.fn(),
+}));
+
 function renderRow(props: Partial<Parameters<typeof NewTransactionRow>[0]> = {}) {
   const onCreated = vi.fn();
   const onCancel = vi.fn();
