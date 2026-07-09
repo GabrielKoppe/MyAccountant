@@ -49,11 +49,11 @@ vi.mock("@/actions/transactions", () => ({
   createTransactionAction: (...args: unknown[]) => createTransactionAction(...args),
 }));
 
-// RowDrawer importa (estaticamente) RowLinksSection e TagPopover, que puxam
-// Server Actions (transaction-links / tags → next-auth) não resolvíveis sob
-// vitest — mesmo padrão do mock de @/actions/transactions acima. Nenhum dos
-// dois é renderizado no create (sem `links`/`tags`), então basta mockar os
-// módulos para a resolução do grafo de import; useRouter não é chamado.
+// RowDrawer (compartilhada com o editor) importa incondicionalmente os
+// subsistemas de vínculos e tags (via TagPopover → TagEditor), mesmo que
+// NewTransactionRow nunca passe `links`/`tags` (create não suporta nenhum dos
+// dois). Mocks evitam que os módulos reais (Server Actions) sejam resolvidos
+// neste teste.
 vi.mock("@/actions/transaction-links", () => ({
   listLinksForTransactionAction: vi.fn(),
   deleteTransactionLinkAction: vi.fn(),
@@ -63,6 +63,14 @@ vi.mock("@/actions/tags", () => ({
   listTagsAction: vi.fn(),
   removeTagFromTransactionAction: vi.fn(),
   updateTagAction: vi.fn(),
+}));
+
+// RowDrawer também chama useRouter() incondicionalmente (para o link "abrir
+// transação vinculada"), mesmo sem a prop `links`. Fora de uma árvore Next.js
+// App Router real, o hook lança "invariant expected app router to be
+// mounted" — mock evita isso sem alterar a RowDrawer.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 function renderRow(props: Partial<Parameters<typeof NewTransactionRow>[0]> = {}) {

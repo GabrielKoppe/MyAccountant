@@ -21,7 +21,7 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import { useSnackbar } from "notistack";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NumericFormat } from "react-number-format";
 
 import { createTransactionAction } from "@/actions/transactions";
@@ -39,10 +39,11 @@ import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-a
 
 import { AliasSuggestionPopover } from "./aliases/AliasSuggestionPopover";
 import { useAliasMatch } from "./aliases/useAliasMatch";
+import { CollapsibleSectionRow } from "./CollapsibleSectionRow";
 import { CreatableEntitySelect } from "./CreatableEntitySelect";
 import { useOptions } from "./OptionsContext";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
-import { RowDrawer } from "./RowDrawer";
+import { RowDrawerToolbar } from "./RowDrawerToolbar";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -109,13 +110,24 @@ export function NewTransactionRow({
   );
   const [paymentMethod, setPaymentMethod] = useState<TransactionPaymentMethod | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [originalCurrency, setOriginalCurrency] = useState<string | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [originalAmountCents, setOriginalAmountCents] = useState<string | null>(null);
-  // Remonta a RowDrawer após cada salvamento de entrada rápida, para que seus
-  // toggles internos (nota/fx/avançado) re-inicializem a partir do conteúdo
-  // agora limpo.
-  const [resetKey, setResetKey] = useState(0);
+  const [foreignCurrencyOpen, setForeignCurrencyOpen] = useState(false);
+  const [advancedFxMode, setAdvancedFxMode] = useState(false);
+
+  const calculatedExchangeRate = useMemo(() => {
+    if (!advancedFxMode || !originalAmountCents) return null;
+    const brl = Number(BigInt(amountCents));
+    const foreign = Number(BigInt(originalAmountCents));
+    if (foreign === 0) return null;
+    return Math.round((brl / foreign) * 1e6) / 1e6;
+  }, [advancedFxMode, amountCents, originalAmountCents]);
+
+  useEffect(() => {
+    if (calculatedExchangeRate !== null) setExchangeRate(calculatedExchangeRate);
+  }, [calculatedExchangeRate]);
 
   // Aplicação manual de apelido (Fase 4) — linha nova sempre habilitada (não há
   // "mount com descrição preenchida" a evitar, ao contrário do editor).
@@ -308,10 +320,12 @@ export function NewTransactionRow({
     setExpenseType(TransactionExpenseType.one_time);
     setPaymentMethod(null);
     setNotes(null);
+    setNotesOpen(false);
     setOriginalCurrency(null);
     setExchangeRate(null);
     setOriginalAmountCents(null);
-    setResetKey((k) => k + 1);
+    setForeignCurrencyOpen(false);
+    setAdvancedFxMode(false);
     descriptionRef.current?.focus();
   }
 
@@ -580,22 +594,159 @@ export function NewTransactionRow({
         </TableCell>
       </TableRow>
 
-      {/* Gaveta da linha — caixa-preta compartilhada com TransactionRowEditor.
-          `key={resetKey}` remonta a gaveta após cada save de entrada rápida. */}
-      <RowDrawer
-        key={resetKey}
+      {/* Barra de ferramentas da gaveta — toggles de nota + câmbio
+          (componente compartilhado com TransactionRowEditor). */}
+      <RowDrawerToolbar
         bgcolor="action.hover"
-        notes={notes}
-        onNotesChange={setNotes}
-        notesAutoFocus
-        amountCents={amountCents}
-        originalCurrency={originalCurrency}
-        onOriginalCurrencyChange={setOriginalCurrency}
-        exchangeRate={exchangeRate}
-        onExchangeRateChange={setExchangeRate}
-        originalAmountCents={originalAmountCents}
-        onOriginalAmountCentsChange={setOriginalAmountCents}
+        note={{ open: notesOpen, onToggle: () => setNotesOpen((o) => !o), hasContent: !!notes }}
+        fx={{ open: foreignCurrencyOpen, onToggle: () => setForeignCurrencyOpen((o) => !o) }}
       />
+
+      {/* Seções colapsáveis da gaveta — CollapsibleSectionRow compartilhado com TransactionRowEditor */}
+      <CollapsibleSectionRow
+        open={notesOpen}
+        bgcolor="action.hover"
+        label={m.transactions.fields.notes}
+      >
+        <TextField
+          multiline
+          minRows={2}
+          maxRows={6}
+          fullWidth
+          size="small"
+          variant="standard"
+          placeholder={m.transactions.fields.notesPlaceholder}
+          value={notes ?? ""}
+          onChange={(e) => setNotes(e.target.value || null)}
+          sx={{ "& textarea": { fontSize: 13 } }}
+          autoFocus
+        />
+      </CollapsibleSectionRow>
+
+      <CollapsibleSectionRow
+        open={foreignCurrencyOpen}
+        bgcolor="action.hover"
+        label={m.transactions.foreignCurrency.label}
+      >
+        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <TextField
+            size="small"
+            variant="standard"
+            label={m.transactions.foreignCurrency.currencyLabel}
+            value={originalCurrency ?? ""}
+            onChange={(e) => setOriginalCurrency(e.target.value.toUpperCase().slice(0, 3) || null)}
+            inputProps={{ maxLength: 3 }}
+            sx={{ width: 140, "& input": { fontSize: 12 } }}
+          />
+          <Box
+            key={String(advancedFxMode)}
+            sx={{
+              display: "flex",
+              gap: 2,
+              alignItems: "flex-end",
+              flexWrap: "wrap",
+              animation: `${advancedFxMode ? "fxSlideRight" : "fxSlideLeft"} ${motion.duration.slow}ms ${motion.easing.entrance}`,
+              "@keyframes fxSlideRight": {
+                from: { opacity: 0, transform: "translateX(10px)" },
+                to: { opacity: 1, transform: "translateX(0)" },
+              },
+              "@keyframes fxSlideLeft": {
+                from: { opacity: 0, transform: "translateX(-10px)" },
+                to: { opacity: 1, transform: "translateX(0)" },
+              },
+            }}
+          >
+            {!advancedFxMode ? (
+              <NumericFormat
+                customInput={TextField}
+                size="small"
+                variant="standard"
+                label={m.transactions.foreignCurrency.exchangeRateLabel}
+                value={exchangeRate ?? ""}
+                decimalSeparator=","
+                decimalScale={6}
+                allowNegative={false}
+                onValueChange={({ floatValue }) => setExchangeRate(floatValue ?? null)}
+                sx={{ width: 160, "& input": { fontSize: 12 } }}
+              />
+            ) : (
+              <>
+                <NumericFormat
+                  customInput={TextField}
+                  size="small"
+                  variant="standard"
+                  label={m.transactions.foreignCurrency.originalAmountLabel}
+                  value={originalAmountCents ? Number(BigInt(originalAmountCents)) / 100 : ""}
+                  decimalSeparator=","
+                  decimalScale={2}
+                  fixedDecimalScale
+                  allowNegative={false}
+                  onValueChange={({ floatValue }) => {
+                    setOriginalAmountCents(
+                      floatValue !== undefined
+                        ? BigInt(Math.round(floatValue * 100)).toString()
+                        : null,
+                    );
+                  }}
+                  sx={{ width: 140, "& input": { fontSize: 12 } }}
+                />
+                <Tooltip title={m.transactions.foreignCurrency.calculatedRate} placement="top">
+                  <TextField
+                    size="small"
+                    variant="standard"
+                    label={m.transactions.foreignCurrency.exchangeRateLabel}
+                    value={
+                      calculatedExchangeRate !== null
+                        ? calculatedExchangeRate.toFixed(4)
+                        : (exchangeRate?.toFixed(4) ?? "")
+                    }
+                    InputProps={{ readOnly: true }}
+                    sx={{
+                      width: 160,
+                      "& input": { fontSize: 12, color: "text.secondary", cursor: "default" },
+                    }}
+                  />
+                </Tooltip>
+              </>
+            )}
+          </Box>
+          <Button
+            size="small"
+            variant="text"
+            color="inherit"
+            sx={{
+              textTransform: "none",
+              fontSize: 12,
+              px: 2,
+              py: 1,
+              fontWeight: 400,
+              minWidth: 160,
+            }}
+            onClick={() => {
+              setAdvancedFxMode((v) => !v);
+              if (advancedFxMode) setOriginalAmountCents(null);
+            }}
+          >
+            <Box
+              component="span"
+              key={String(advancedFxMode)}
+              sx={{
+                animation: `fxLabelIn ${motion.duration.slow}ms ${motion.easing.entrance}`,
+                animationDelay: `${motion.duration.fast}ms`,
+                animationFillMode: "backwards",
+                "@keyframes fxLabelIn": {
+                  from: { opacity: 0 },
+                  to: { opacity: 1 },
+                },
+              }}
+            >
+              {advancedFxMode
+                ? "← Modo simples"
+                : m.transactions.foreignCurrency.fillOriginalAmount}
+            </Box>
+          </Button>
+        </Box>
+      </CollapsibleSectionRow>
     </>
   );
 }
