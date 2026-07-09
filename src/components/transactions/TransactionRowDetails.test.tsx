@@ -34,11 +34,11 @@ describe("TransactionRowDetails", () => {
   it("mostra só a seção de nota quando só há nota", () => {
     renderDetails({ notes: "Renovação anual" });
     expect(screen.getByText("Renovação anual")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Gerenciar vínculos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Vincular transação" })).not.toBeInTheDocument();
   });
   it("seção de vínculos: [gerenciar] dispara onManageLinks", async () => {
     const { onManageLinks } = renderDetails({ linkCount: 2 });
-    await userEvent.click(screen.getByRole("button", { name: "Gerenciar vínculos" }));
+    await userEvent.click(screen.getByRole("button", { name: "Vincular transação" }));
     expect(onManageLinks).toHaveBeenCalledTimes(1);
   });
   it("seção de parcela: [ver grupo] dispara onViewInstallmentGroup", async () => {
@@ -51,7 +51,7 @@ describe("TransactionRowDetails", () => {
   it("viewer: seção de vínculos não oferece [gerenciar]", () => {
     renderDetails({ linkCount: 1 }, true);
     expect(screen.getByText("1 vínculo")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Gerenciar vínculos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Vincular transação" })).not.toBeInTheDocument();
   });
   it("tags: renderiza chips das tags", () => {
     renderDetails({ tags: [{ id: "1", name: "lazer", color: null }] });

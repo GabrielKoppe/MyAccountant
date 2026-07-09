@@ -2,17 +2,11 @@
 
 import AddLinkIcon from "@mui/icons-material/AddLink";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
-import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
 import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
-import LabelIcon from "@mui/icons-material/Label";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import NoteIcon from "@mui/icons-material/Note";
-import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
@@ -26,7 +20,6 @@ import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import Stack from "@mui/material/Stack";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
@@ -48,7 +41,7 @@ import { tagChipSx } from "@/components/tags/tagChipSx";
 import { TagPopover } from "@/components/tags/TagPopover";
 import { computeAliasApplication } from "@/lib/aliases/apply";
 import { formatDateBr } from "@/lib/dates";
-import { layout, motion } from "@/lib/design-tokens";
+import { motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { centsToReais, reaisToCents, formatCentsToBrl } from "@/lib/money";
 import { INVESTMENT_TYPES, TransactionPaymentMethod } from "@/lib/schemas/transaction";
@@ -62,6 +55,8 @@ import { CreatableEntitySelect } from "./CreatableEntitySelect";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import { useOptions } from "./OptionsContext";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
+import { RowDrawerToolbar } from "./RowDrawerToolbar";
+import SectionDrawer from "./SectionDrawer";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -570,107 +565,34 @@ export function TransactionRowEditor({
         </TableCell>
       </TableRow>
 
-      {/* Barra de ferramentas da gaveta — toggles de seção + criar apelido */}
-      <TableRow>
-        <TableCell colSpan={99} sx={{ py: 0.5, border: 0, bgcolor: "action.selected" }}>
-          <Stack direction="row" spacing={layout.inline} alignItems="center" sx={{ px: 2 }}>
-            <Tooltip
-              title={notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote}
-            >
-              <IconButton
-                size="small"
-                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
-                onClick={() => setNotesOpen((o) => !o)}
-                aria-label={
-                  notesOpen ? m.transactions.actions.hideNotes : m.transactions.actions.addNote
-                }
-              >
-                {notesOpen || (editValues.notes && editValues.notes.length > 0) ? (
-                  <NoteIcon sx={{ fontSize: 16 }} />
-                ) : (
-                  <NoteOutlinedIcon sx={{ fontSize: 16 }} />
-                )}
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={m.transactions.foreignCurrency.label}>
-              <IconButton
-                size="small"
-                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
-                onClick={() => setForeignCurrencyOpen((o) => !o)}
-                aria-label={m.transactions.foreignCurrency.label}
-                color={"default"}
-              >
-                <CurrencyExchangeOutlinedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={m.transactions.links.title}>
-              <IconButton
-                size="small"
-                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
-                onClick={() => setLinksOpen((o) => !o)}
-                aria-label={m.transactions.links.title}
-                color={"default"}
-              >
-                <LinkOutlinedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-            {!hiddenColumns.tags && (
-              <Tooltip title={m.transactions.tags.editTitle}>
-                <IconButton
-                  size="small"
-                  sx={{ p: 1, minWidth: 32, minHeight: 32 }}
-                  onClick={() => setTagsOpen((o) => !o)}
-                  aria-label={m.transactions.tags.editTitle}
-                >
-                  {tagsOpen || editValues.tags.length > 0 ? (
-                    <LabelIcon sx={{ fontSize: 16 }} color={"inherit"} />
-                  ) : (
-                    <LabelOutlinedIcon sx={{ fontSize: 16 }} />
-                  )}
-                </IconButton>
-              </Tooltip>
-            )}
-            <Box sx={{ flex: 1 }} />
-            <Button
-              variant="text"
-              size="small"
-              color={"inherit"}
-              startIcon={<BookmarkAddOutlinedIcon color={"inherit"} sx={{ fontSize: 16 }} />}
-              onClick={onCreateAlias}
-              sx={{
-                textTransform: "none",
-                fontSize: 12,
-                px: 2,
-                py: 1,
-                fontWeight: 400,
-                color: "text.secondary",
-              }}
-            >
-              {m.transactions.actions.createAlias}
-            </Button>
-          </Stack>
-        </TableCell>
-      </TableRow>
+      {/* Barra de ferramentas da gaveta — toggles de seção + criar apelido
+          (componente compartilhado com NewTransactionRow). */}
+      <RowDrawerToolbar
+        bgcolor="action.selected"
+        note={{
+          open: notesOpen,
+          onToggle: () => setNotesOpen((o) => !o),
+          hasContent: !!editValues.notes,
+        }}
+        fx={{ open: foreignCurrencyOpen, onToggle: () => setForeignCurrencyOpen((o) => !o) }}
+        links={{ open: linksOpen, onToggle: () => setLinksOpen((o) => !o) }}
+        tags={
+          !hiddenColumns.tags
+            ? {
+                open: tagsOpen,
+                onToggle: () => setTagsOpen((o) => !o),
+                hasContent: editValues.tags.length > 0,
+              }
+            : null
+        }
+        onCreateAlias={onCreateAlias}
+      />
 
       {/* Linha de notas colapsável */}
       <TableRow sx={{ bgcolor: "action.selected" }}>
         <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
           <Collapse in={notesOpen} unmountOnExit>
-            <Box sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
-              <Typography
-                variant="caption"
-                color="text.primary"
-                sx={{
-                  display: "block",
-                  mb: 1,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  fontSize: 10,
-                  fontWeight: 500,
-                }}
-              >
-                {m.transactions.fields.notes}
-              </Typography>
+            <SectionDrawer key="notes" label={m.transactions.fields.notes}>
               <TextField
                 multiline
                 minRows={2}
@@ -690,73 +612,40 @@ export function TransactionRowEditor({
                 sx={{ "& textarea": { fontSize: 13 } }}
                 autoFocus={focusField === "notes"}
               />
-            </Box>
+            </SectionDrawer>
           </Collapse>
         </TableCell>
       </TableRow>
 
       {/* Linha de tags colapsável */}
-      {!hiddenColumns.tags && (
-        <TableRow sx={{ bgcolor: "action.selected" }}>
-          <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
-            <Collapse in={tagsOpen} unmountOnExit>
-              <Box sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
-                <Typography
-                  variant="caption"
-                  color="text.primary"
-                  sx={{
-                    display: "block",
-                    mb: 1,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                    fontSize: 10,
-                    fontWeight: 500,
-                  }}
-                >
-                  Tags
-                </Typography>
-                <TagPopover
-                  anchorEl={null}
-                  onClose={() => {}}
-                  accountId={accountId}
-                  transactionId={tx.id}
-                  currentTags={editValues.tags}
-                  onTagsChange={(tags) => setEditValues((prev) => ({ ...prev, tags }))}
-                  inline
-                />
-              </Box>
-            </Collapse>
-          </TableCell>
-        </TableRow>
-      )}
+      <TableRow sx={{ bgcolor: "action.selected" }}>
+        <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
+          <Collapse in={tagsOpen} unmountOnExit>
+            <SectionDrawer key="tags" label={m.transactions.tags.editTitle}>
+              <TagPopover
+                anchorEl={null}
+                onClose={() => {}}
+                accountId={accountId}
+                transactionId={tx.id}
+                currentTags={editValues.tags}
+                onTagsChange={(tags) => setEditValues((prev) => ({ ...prev, tags }))}
+                inline
+              />
+            </SectionDrawer>
+          </Collapse>
+        </TableCell>
+      </TableRow>
 
       {/* Linha de moeda estrangeira colapsável */}
       <TableRow sx={{ bgcolor: "action.selected" }}>
         <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
-          <Collapse in={foreignCurrencyOpen} unmountOnExit>
-            <Box sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
-              <Typography
-                variant="caption"
-                color="text.primary"
-                sx={{
-                  display: "block",
-                  mb: 1,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  fontSize: 10,
-                  fontWeight: 500,
-                }}
-              >
-                Anotação · Moeda estrangeira
-              </Typography>
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 2,
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                }}
-              >
+          <Collapse
+            in={foreignCurrencyOpen}
+            unmountOnExit
+            timeout={{ enter: motion.duration.slow, exit: motion.duration.normal }}
+          >
+            <SectionDrawer key="foreignCurrency" label={m.transactions.foreignCurrency.label}>
+              <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end", flexWrap: "wrap" }}>
                 <TextField
                   {...sharedInputProps}
                   label={m.transactions.foreignCurrency.currencyLabel}
@@ -768,71 +657,108 @@ export function TransactionRowEditor({
                     }))
                   }
                   inputProps={{ maxLength: 3 }}
-                  sx={{ width: 110, "& input": { fontSize: 13 } }}
+                  sx={{ width: 140, "& input": { fontSize: 12 } }}
                 />
-                {!advancedFxMode ? (
-                  <NumericFormat
-                    customInput={TextField}
-                    {...sharedInputProps}
-                    label={m.transactions.foreignCurrency.exchangeRateLabel}
-                    value={editValues.exchangeRate ?? ""}
-                    decimalSeparator=","
-                    decimalScale={6}
-                    allowNegative={false}
-                    onValueChange={({ floatValue }) =>
-                      setEditValues((prev) => ({
-                        ...prev,
-                        exchangeRate: floatValue ?? null,
-                      }))
-                    }
-                    sx={{ width: 160, "& input": { fontSize: 13 } }}
-                  />
-                ) : (
-                  <>
+
+                {/* Slide direcional: avançado entra da direita, simples da esquerda */}
+                <Box
+                  key={String(advancedFxMode)}
+                  sx={{
+                    display: "flex",
+                    gap: 2,
+                    alignItems: "flex-end",
+                    flexWrap: "wrap",
+                    animation: `${advancedFxMode ? "fxSlideRight" : "fxSlideLeft"} ${motion.duration.slow}ms ${motion.easing.entrance}`,
+                    "@keyframes fxSlideRight": {
+                      from: { opacity: 0, transform: "translateX(10px)" },
+                      to: { opacity: 1, transform: "translateX(0)" },
+                    },
+                    "@keyframes fxSlideLeft": {
+                      from: { opacity: 0, transform: "translateX(-10px)" },
+                      to: { opacity: 1, transform: "translateX(0)" },
+                    },
+                  }}
+                >
+                  {!advancedFxMode ? (
                     <NumericFormat
                       customInput={TextField}
                       {...sharedInputProps}
-                      label={m.transactions.foreignCurrency.originalAmountLabel}
-                      value={
-                        editValues.originalAmountCents
-                          ? Number(BigInt(editValues.originalAmountCents)) / 100
-                          : ""
-                      }
+                      label={m.transactions.foreignCurrency.exchangeRateLabel}
+                      value={editValues.exchangeRate ?? ""}
                       decimalSeparator=","
-                      decimalScale={2}
-                      fixedDecimalScale
+                      decimalScale={6}
                       allowNegative={false}
-                      onValueChange={({ floatValue }) => {
-                        const cents =
-                          floatValue !== undefined
-                            ? BigInt(Math.round(floatValue * 100)).toString()
-                            : null;
-                        setEditValues((prev) => ({ ...prev, originalAmountCents: cents }));
-                      }}
-                      sx={{ width: 140, "& input": { fontSize: 13 } }}
+                      onValueChange={({ floatValue }) =>
+                        setEditValues((prev) => ({
+                          ...prev,
+                          exchangeRate: floatValue ?? null,
+                        }))
+                      }
+                      sx={{ width: 160, "& input": { fontSize: 12 } }}
                     />
-                    <Tooltip title={m.transactions.foreignCurrency.calculatedRate} placement="top">
-                      <TextField
+                  ) : (
+                    <>
+                      <NumericFormat
+                        customInput={TextField}
                         {...sharedInputProps}
-                        label={m.transactions.foreignCurrency.exchangeRateLabel}
+                        label={m.transactions.foreignCurrency.originalAmountLabel}
                         value={
-                          calculatedExchangeRate !== null
-                            ? calculatedExchangeRate.toFixed(4)
-                            : (editValues.exchangeRate?.toFixed(4) ?? "")
+                          editValues.originalAmountCents
+                            ? Number(BigInt(editValues.originalAmountCents)) / 100
+                            : ""
                         }
-                        InputProps={{ readOnly: true }}
-                        sx={{
-                          width: 160,
-                          "& input": { fontSize: 13, color: "text.secondary", cursor: "default" },
+                        decimalSeparator=","
+                        decimalScale={2}
+                        fixedDecimalScale
+                        allowNegative={false}
+                        onValueChange={({ floatValue }) => {
+                          const cents =
+                            floatValue !== undefined
+                              ? BigInt(Math.round(floatValue * 100)).toString()
+                              : null;
+                          setEditValues((prev) => ({ ...prev, originalAmountCents: cents }));
                         }}
+                        sx={{ width: 140, "& input": { fontSize: 12 } }}
                       />
-                    </Tooltip>
-                  </>
-                )}
-                <Typography
-                  variant="caption"
-                  color="primary"
-                  sx={{ cursor: "pointer" }}
+                      <Tooltip
+                        title={m.transactions.foreignCurrency.calculatedRate}
+                        placement="top"
+                      >
+                        <TextField
+                          {...sharedInputProps}
+                          label={m.transactions.foreignCurrency.exchangeRateLabel}
+                          value={
+                            calculatedExchangeRate !== null
+                              ? calculatedExchangeRate.toFixed(4)
+                              : (editValues.exchangeRate?.toFixed(4) ?? "")
+                          }
+                          InputProps={{ readOnly: true }}
+                          sx={{
+                            width: 160,
+                            "& input": {
+                              fontSize: 12,
+                              color: "text.secondary",
+                              cursor: "default",
+                            },
+                          }}
+                        />
+                      </Tooltip>
+                    </>
+                  )}
+                </Box>
+
+                <Button
+                  size="small"
+                  variant="text"
+                  color="inherit"
+                  sx={{
+                    textTransform: "none",
+                    fontSize: 12,
+                    px: 2,
+                    py: 1,
+                    fontWeight: 400,
+                    minWidth: 160,
+                  }}
                   onClick={() => {
                     setAdvancedFxMode((v) => !v);
                     if (advancedFxMode) {
@@ -840,12 +766,26 @@ export function TransactionRowEditor({
                     }
                   }}
                 >
-                  {advancedFxMode
-                    ? "← Modo simples"
-                    : m.transactions.foreignCurrency.fillOriginalAmount}
-                </Typography>
+                  <Box
+                    component="span"
+                    key={String(advancedFxMode)}
+                    sx={{
+                      animation: `fxLabelIn ${motion.duration.slow}ms ${motion.easing.entrance}`,
+                      animationDelay: `${motion.duration.fast}ms`,
+                      animationFillMode: "backwards",
+                      "@keyframes fxLabelIn": {
+                        from: { opacity: 0 },
+                        to: { opacity: 1 },
+                      },
+                    }}
+                  >
+                    {advancedFxMode
+                      ? "← Modo simples"
+                      : m.transactions.foreignCurrency.fillOriginalAmount}
+                  </Box>
+                </Button>
               </Box>
-            </Box>
+            </SectionDrawer>
           </Collapse>
         </TableCell>
       </TableRow>
@@ -853,22 +793,11 @@ export function TransactionRowEditor({
       <TableRow sx={{ bgcolor: "action.selected" }}>
         <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
           <Collapse in={linksOpen} unmountOnExit>
-            <Box sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
-              {/* Cabeçalho com contador e botão de adicionar */}
-              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, mb: 0.75 }}>
-                <Typography
-                  variant="caption"
-                  color="text.primary"
-                  sx={{
-                    display: "block",
-                    mb: 1,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                    fontSize: 10,
-                    fontWeight: 500,
-                  }}
-                >
-                  {m.transactions.links.title}
+            <SectionDrawer
+              key="links"
+              label={m.transactions.links.title}
+              action={
+                <>
                   {links.length > 0 && (
                     <Typography
                       component="span"
@@ -879,14 +808,18 @@ export function TransactionRowEditor({
                       ({links.length})
                     </Typography>
                   )}
-                </Typography>
-                <Tooltip title={m.transactions.links.addLink}>
-                  <IconButton size="small" sx={{ p: 0.25 }} onClick={() => setLinkDialogOpen(true)}>
-                    <AddLinkIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-
+                  <Tooltip title={m.transactions.links.addLink}>
+                    <IconButton
+                      size="small"
+                      sx={{ p: 0.25 }}
+                      onClick={() => setLinkDialogOpen(true)}
+                    >
+                      <AddLinkIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              }
+            >
               {/* Lista de vínculos em linha */}
               {loadingLinks ? (
                 <Typography variant="caption" color="text.disabled">
@@ -936,20 +869,6 @@ export function TransactionRowEditor({
                               : ""}
                           </Typography>
                         </Typography>
-
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{
-                            fontFamily: "var(--font-jetbrains-mono), monospace",
-                            fontSize: 11,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {link.linkedTransaction.amountCents
-                            ? formatCentsToBrl(BigInt(link.linkedTransaction.amountCents))
-                            : ""}
-                        </Typography>
                       </Box>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                         <Tooltip title="Ir para o mês e seção desta transação">
@@ -990,7 +909,7 @@ export function TransactionRowEditor({
                   ))}
                 </Box>
               )}
-            </Box>
+            </SectionDrawer>
           </Collapse>
         </TableCell>
       </TableRow>

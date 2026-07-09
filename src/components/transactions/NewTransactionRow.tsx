@@ -3,11 +3,8 @@
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
 import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import NoteIcon from "@mui/icons-material/Note";
-import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
 import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -18,7 +15,6 @@ import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import Stack from "@mui/material/Stack";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
@@ -32,7 +28,7 @@ import { NumericFormat } from "react-number-format";
 
 import { createTransactionAction } from "@/actions/transactions";
 import { computeAliasApplication } from "@/lib/aliases/apply";
-import { layout, motion } from "@/lib/design-tokens";
+import { motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { centsToReais, reaisToCents } from "@/lib/money";
 import {
@@ -48,6 +44,8 @@ import { useAliasMatch } from "./aliases/useAliasMatch";
 import { CreatableEntitySelect } from "./CreatableEntitySelect";
 import { useOptions } from "./OptionsContext";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
+import { RowDrawerToolbar } from "./RowDrawerToolbar";
+import SectionDrawer from "./SectionDrawer";
 import type {
   CategoryOption,
   HiddenColumns,
@@ -598,45 +596,19 @@ export function NewTransactionRow({
         </TableCell>
       </TableRow>
 
-      {/* Barra de ferramentas da gaveta — toggles de nota + câmbio */}
-      <TableRow>
-        <TableCell colSpan={99} sx={{ py: 0.5, border: 0, bgcolor: "action.hover" }}>
-          <Stack direction="row" spacing={layout.inline} alignItems="center" sx={{ px: 2 }}>
-            <Tooltip title={m.transactions.actions.addNote}>
-              <IconButton
-                size="small"
-                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
-                onClick={() => setNotesOpen((o) => !o)}
-                aria-label={m.transactions.actions.addNote}
-                color={notesOpen || notes ? "primary" : "default"}
-              >
-                {notesOpen || notes ? (
-                  <NoteIcon sx={{ fontSize: 16 }} />
-                ) : (
-                  <NoteOutlinedIcon sx={{ fontSize: 16 }} />
-                )}
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={m.transactions.foreignCurrency.label}>
-              <IconButton
-                size="small"
-                sx={{ p: 1, minWidth: 32, minHeight: 32 }}
-                onClick={() => setForeignCurrencyOpen((o) => !o)}
-                aria-label={m.transactions.foreignCurrency.label}
-                color={foreignCurrencyOpen ? "primary" : "default"}
-              >
-                <CurrencyExchangeOutlinedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        </TableCell>
-      </TableRow>
+      {/* Barra de ferramentas da gaveta — toggles de nota + câmbio
+          (componente compartilhado com TransactionRowEditor). */}
+      <RowDrawerToolbar
+        bgcolor="action.hover"
+        note={{ open: notesOpen, onToggle: () => setNotesOpen((o) => !o), hasContent: !!notes }}
+        fx={{ open: foreignCurrencyOpen, onToggle: () => setForeignCurrencyOpen((o) => !o) }}
+      />
 
       {/* Linha de nota */}
       <TableRow sx={{ bgcolor: "action.hover" }}>
         <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
           <Collapse in={notesOpen} unmountOnExit>
-            <Box sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
+            <SectionDrawer label={m.transactions.fields.notes}>
               <TextField
                 multiline
                 minRows={2}
@@ -644,14 +616,13 @@ export function NewTransactionRow({
                 fullWidth
                 size="small"
                 variant="standard"
-                label={m.transactions.fields.notes}
                 placeholder={m.transactions.fields.notesPlaceholder}
                 value={notes ?? ""}
                 onChange={(e) => setNotes(e.target.value || null)}
                 sx={{ "& textarea": { fontSize: 13 } }}
                 autoFocus
               />
-            </Box>
+            </SectionDrawer>
           </Collapse>
         </TableCell>
       </TableRow>
@@ -660,20 +631,7 @@ export function NewTransactionRow({
       <TableRow sx={{ bgcolor: "action.hover" }}>
         <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
           <Collapse in={foreignCurrencyOpen} unmountOnExit>
-            <Box sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
-              <Typography
-                variant="caption"
-                color="text.disabled"
-                sx={{
-                  display: "block",
-                  mb: 1,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  fontSize: 10,
-                }}
-              >
-                Anotação · Moeda estrangeira
-              </Typography>
+            <SectionDrawer label={m.transactions.foreignCurrency.label}>
               <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
                 <TextField
                   size="small"
@@ -753,7 +711,7 @@ export function NewTransactionRow({
                     : m.transactions.foreignCurrency.fillOriginalAmount}
                 </Typography>
               </Box>
-            </Box>
+            </SectionDrawer>
           </Collapse>
         </TableCell>
       </TableRow>
