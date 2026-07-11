@@ -1,6 +1,6 @@
 # Spec 21 — Melhorias de Navegação e Arquitetura de Informação
 
-> Status: approved
+> Status: implemented (MonthPickerNav, next-nprogress-bar, generateMetadata dinâmico, settings sidebar, AccountSwitcher — 2026-07-11)
 > Insumo: docs/v2-analysis.md §3 UX-05, UX-07, UX-11, §8 IA 8.1, IA 8.2, IA 8.3
 > Skills: [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md)
 

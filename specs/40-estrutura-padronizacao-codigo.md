@@ -1,6 +1,6 @@
 # Spec 40 — Revisão de Estrutura e Padronização de Código
 
-> Status: approved
+> Status: implemented (EST-01 services extraídos, EST-02 defineUserAction, EST-03 settings-service dividido, EST-04 MONTH_NAMES/centsToBrlInput, EST-05 hooks unificado — 2026-07-11)
 > Insumo: revisão de código em `src/` (auditoria de estrutura, 2026-06-11) + `specs/15-project-structure.md`
 > Skills: [`code-structure`](../skills/code-structure/SKILL.md) *(criado por esta spec)* · [`server-actions`](../skills/server-actions/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`spec-writing`](../skills/spec-writing/SKILL.md) · [`testing`](../skills/testing/SKILL.md) 
 

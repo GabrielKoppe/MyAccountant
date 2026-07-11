@@ -1,6 +1,6 @@
 # Spec 32 — Reformulação dos Dialogs e Modals
 
-> Status: approved
+> Status: implemented (DialogShell.tsx como componente canônico de dialog — 2026-07-11)
 > Insumo: `skills/design-system/SKILL.md §5.5` · `skills/mui-patterns/SKILL.md` · revisão de código em `src/components/ui/DialogShell.tsx` · `src/components/finance-tables/CreateTableModal.tsx` · `src/components/transactions/MoveTransactionsDialog.tsx` · `src/components/months/CreateMonthModal.tsx` · `src/components/csv-import/ImportWizard.tsx` · managers em `src/app/(app)/[accountId]/settings/`
 > Skills: [`design-system`](../skills/design-system/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md)
 

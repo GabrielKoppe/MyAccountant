@@ -1,6 +1,6 @@
 # Spec 36 — Widgets Configuráveis e Instanciáveis de Dashboard
 
-> Status: approved
+> Status: implemented (DashboardGridEditor, DashboardGridCanvas, WidgetConfigForm, WidgetPalette, settings/dashboards — 2026-07-11)
 > Refinamento: 2026-06-14 — sessão de refinamento de produto (ver §6 para tabela completa de decisões).
 > Insumo: docs/wave-2.md §4 (Dashboards customizáveis) · evolução de `specs/33-dashboard-widgets.md` (§5 itens "criar/duplicar widgets" e "configurar conteúdo interno", marcados como fora de escopo) · reuso de `src/lib/schemas/sandbox.ts` e `specs/19-transaction-search-filter-sort.md` · `docs/widgets.md`
 > Skills: [`design-system`](../skills/design-system/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`dashboard-widgets`](../skills/dashboard-widgets/SKILL.md)

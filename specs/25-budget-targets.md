@@ -1,6 +1,6 @@
 # Spec 25 — Metas de Orçamento
 
-> Status: approved
+> Status: implemented (BudgetsWidget, BudgetProgressBar, BudgetWidgetContent, settings/budgets, budget-service, budgets.ts action — 2026-07-11)
 > Insumo: docs/v2-analysis.md §6 F-04
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
 

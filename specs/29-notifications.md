@@ -1,6 +1,6 @@
 # Spec 29 — Notificações In-App
 
-> Status: approved
+> Status: implemented (notification-service, NotificationBell, notifications.ts action, notifyTransactionMutation integrado nos services — 2026-07-11)
 > Insumo: docs/v2-analysis.md §6 F-06
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`email-resend`](../skills/email-resend/SKILL.md) · [`logging`](../skills/logging/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
 

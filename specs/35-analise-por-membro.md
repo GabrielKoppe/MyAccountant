@@ -1,6 +1,6 @@
 # Spec 35 — Análise de Gastos por Membro
 
-> Status: approved
+> Status: implemented (MemberBreakdownWidget, MemberRadarWidget, MemberYearlyWidget, member-analytics.ts, integrado nos dashboards monthly/yearly — 2026-07-11)
 > Insumo: docs/wave-2.md §5 (Análise por membro) · revisão de código em `prisma/schema.prisma` (`Transaction.responsibleUserId`, `AccountMember`, `User`) e `src/lib/queries/dashboards.ts` · entrevista de refinamento de produto (decisões registradas na §6)
 > Skills: [`money-handling`](../skills/money-handling/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`dashboard-widgets`](../skills/dashboard-widgets/SKILL.md) · [`dashboards-charts`](../skills/dashboards-charts/SKILL.md) · [`rsc-client-boundary`](../skills/rsc-client-boundary/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`logging`](../skills/logging/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
 

@@ -1,6 +1,6 @@
 # Spec 38 — Novos Widgets de Dashboard
 
-> Status: approved
+> Status: implemented (ActivityWidget, FilteredTransactionsWidget, WeeklySpendingWidget, TopCategoriesWidget, CategoryBreakdownWidget, InstitutionBreakdownWidget, MemberListWidget, ChecklistWidget, KpiCustomWidget e outros — 2026-07-11)
 > Insumo: conversa de produto (2026-06-11) sobre expansão do catálogo de widgets da Spec 33; refinamento de produto (2026-06-21)
 > Relacionado: [`spec 41`](41-aprimoramentos-objeto-transacao.md) (widget `recurring-vs-variable` aguarda `isFixed` nesta spec)
 > Skills: [`design-system`](../skills/design-system/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`logging`](../skills/logging/SKILL.md) · [`testing`](../skills/testing/SKILL.md)

@@ -1,6 +1,6 @@
 # Spec 59 — Tratar o sinal do valor ao mover transações entre seções
 
-> Status: ready
+> Status: implemented (entregue 2026-07-11)
 > Insumo: revisão de código em `src/server/services/transaction-service.ts:251` (`moveTransactions`) e nos pontos de derivação de sinal (`src/lib/export-utils.ts:12`, `src/components/transactions/TransactionRow.tsx:90`, `src/components/finance-tables/FinanceTableCard.tsx:136`, `src/server/queries/sandbox.ts:65`)
 > Skills: [`money-handling`](../skills/money-handling/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`ui-feedback`](../skills/ui-feedback/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
 

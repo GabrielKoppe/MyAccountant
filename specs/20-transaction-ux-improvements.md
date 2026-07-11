@@ -1,6 +1,6 @@
 # Spec 20 — Melhorias de UX nas Transações
 
-> Status: approved
+> Status: implemented (UX-02 undo-delete via DeleteUndoProvider, UX-03 edição por clique na célula — entregue em conjunto com spec 41)
 > Insumo: docs/v2-analysis.md §3 UX-02, UX-03, UX-08, UX-12
 > Skills: [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md)
 

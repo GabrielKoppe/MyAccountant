@@ -1,6 +1,6 @@
 # Spec 60 — Atribuição de Responsável por Persona (conjunta e não-membros)
 
-> Status: ready
+> Status: implemented (entregue 2026-07-11)
 > Insumo: análise de solução (2026-07-03) — pilar Colaboração · revisão de código em `prisma/schema.prisma` (`Transaction.responsibleUserId:370`, `AccountSettings.defaultResponsibleUserId:239`, `TableTemplateItem.responsibleUserId:512`), `src/server/queries/member-analytics.ts` · review de arquitetura (architect-reviewer, veredito sound-with-changes)
 > Skills: [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md)
 

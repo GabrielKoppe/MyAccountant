@@ -1,6 +1,6 @@
 # Spec 33 — Widgets Configuráveis de Dashboard e Resumo
 
-> Status: approved
+> Status: implemented (DashboardGrid, widget-registry, widget-types, panels/ com todos os widgets — 2026-07-11)
 > Insumo: revisão de código em `src/components/dashboards/MonthlyDashboardClient.tsx`, `src/components/months/MonthSummary.tsx`, `src/app/(app)/[accountId]/dashboards/yearly/[year]/page.tsx`; ideia do desenvolvedor (widgets configuráveis estilo Android).
 > Skills: [`design-system`](../skills/design-system/SKILL.md) · [`dashboards-charts`](../skills/dashboards-charts/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md)
 

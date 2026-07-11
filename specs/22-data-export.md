@@ -1,6 +1,6 @@
 # Spec 22 — Exportação de Dados
 
-> Status: approved
+> Status: implemented (export CSV + PDF via route handlers /api/v1/.../export/{csv,pdf} — 2026-07-11)
 > Insumo: docs/v2-analysis.md §6 F-01, §7 DT-01 (único item da lista "não entregue no V1" classificado como bloqueador de adoção)
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`logging`](../skills/logging/SKILL.md)
 

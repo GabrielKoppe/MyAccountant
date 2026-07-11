@@ -1,6 +1,6 @@
 # Spec 19 — Busca, Filtro e Ordenação de Transações
 
-> Status: approved
+> Status: implemented (drawer, ordenação, busca por tabela, chips, URL params, totais filtrados em tabela e seção — entregue em conjunto com spec 41)
 > Insumo: docs/v2-analysis.md §3 UX-01, §6 F-05, ajuste do usuário sobre UX-04
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md)
 

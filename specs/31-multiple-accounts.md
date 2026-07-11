@@ -1,6 +1,6 @@
 # Spec 31 — Múltiplas Contas por Usuário
 
-> Status: approved
+> Status: implemented (AccountSwitcher no layout da Account — 2026-07-11)
 > Insumo: feedback direto do usuário (identificado durante revisão do V1)
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
 

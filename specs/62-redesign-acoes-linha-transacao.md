@@ -1,6 +1,6 @@
 # Spec 62 — Linha de Transação Expansível (gaveta de anexos + coluna de ações unificada)
 
-> Status: ready
+> Status: implemented (entregue 2026-07-11)
 > Insumo: uso real da implementação v1 (coluna-de-ações com glyphs/primárias) + feedback do desenvolvedor (2026-07-08): "ícones de tamanhos diferentes/estranhos; view/edit/create muito diferentes; notas/fx/vínculos não pertencem à descrição — são atributos/anexos". Pivô de design aprovado por múltipla-escolha (linha expansível > indicador único > coluna dedicada). Reescreve esta spec in-place; a direção v1 vira histórico em §10.
 > Skills: [`design-system`](../skills/design-system/SKILL.md) · [`frontend-design`](../skills/frontend-design/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`ui-feedback`](../skills/ui-feedback/SKILL.md) · [`rsc-client-boundary`](../skills/rsc-client-boundary/SKILL.md)
 

@@ -1,6 +1,6 @@
 # Spec 24 — Transações Recorrentes Automáticas
 
-> Status: approved
+> Status: implemented (InstallmentGroupPanel, installment-service, createInstallmentGroupAction, integrado em TransactionRowDetails — 2026-07-11)
 > Insumo: docs/v2-analysis.md §6 F-03
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
 

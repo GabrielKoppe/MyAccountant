@@ -1,6 +1,6 @@
 # Spec 34 — Insights Automáticos do Dashboard
 
-> Status: approved
+> Status: implemented (InsightsCard no painel de resumo do mês — 2026-07-11)
 > Insumo: docs/wave-2.md §3 (Insights automáticos) · revisão de código em `src/components/dashboards/MonthlyDashboardClient.tsx` e `src/lib/queries/budgets.ts`
 > Skills: [`money-handling`](../skills/money-handling/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`logging`](../skills/logging/SKILL.md) · [`testing`](../skills/testing/SKILL.md) · [`dashboard-widgets`](../skills/dashboard-widgets/SKILL.md)
 

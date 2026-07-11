@@ -1,6 +1,6 @@
 # Spec 18 — Bug Fixes V2
 
-> Status: ready
+> Status: implemented (BUG-01/02/03 corrigidos durante v2; BUG-04 resolvido via spec 62 — notes na gaveta de anexos `TransactionRowDetails`, não como tooltip isolado)
 > Insumo: docs/v2-analysis.md §2 (BUG-01, BUG-02, BUG-03, BUG-04)
 > Skills: [`money-handling`](../skills/money-handling/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
 

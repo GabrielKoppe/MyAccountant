@@ -1,6 +1,6 @@
 # Spec 39 — Revisão de Performance e Padrões de Carregamento
 
-> Status: approved
+> Status: implemented (PERF-01 loading.tsx/Suspense, PERF-02 revalidateMonth granular, PERF-03 groupBy, PERF-04 RSC refactor, PERF-05 React.memo, PERF-06 recharts dynamic, PERF-07 NotificationBell debounce, PERF-08 React.cache — 2026-07-11)
 > Insumo: revisão de código em `src/` (auditoria de performance, 2026-06-11)
 > Skills: [`performance`](../skills/performance/SKILL.md) *(criado por esta spec)* · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`testing`](../skills/testing/SKILL.md) 
 

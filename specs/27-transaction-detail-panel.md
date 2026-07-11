@@ -1,6 +1,6 @@
 # Spec 27 — Painel de Detalhes da Transação
 
-> Status: approved
+> Status: implemented (TransactionDetailDialog integrado em TransactionTable — 2026-07-11)
 > Insumo: docs/v2-analysis.md §5 SEC-03 (reinterpretado conforme feedback do usuário) · entrevista de refinamento 2026-06-09
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`date-timezone`](../skills/date-timezone/SKILL.md)
 
