@@ -149,11 +149,13 @@ export function InviteConfirmView({
   accountName,
   roleLabel,
   token,
+  inviteId,
 }: {
   inviterName: string;
   accountName: string;
   roleLabel: string;
-  token: string;
+  token?: string;
+  inviteId?: string;
 }) {
   return (
     <InviteFrame tone="accent" icon={<MailOutlineIcon sx={{ fontSize: 30 }} />}>
@@ -161,7 +163,7 @@ export function InviteConfirmView({
       <Typography variant="body2" color="text.tertiary">
         {m.account.acceptInvite.confirmHint}
       </Typography>
-      <InviteActions token={token} />
+      <InviteActions token={token} inviteId={inviteId} />
     </InviteFrame>
   );
 }

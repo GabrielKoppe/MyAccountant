@@ -5,15 +5,19 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/prisma";
-import { getInviteByToken } from "@/server/services/member-service";
+import { getInviteById, getInviteByToken } from "@/server/services/member-service";
 import { m } from "@/lib/messages";
 import { InviteConfirmView, InviteInfoState, InvitePromptView } from "./InviteViews";
 
-type SearchParams = Promise<{ token?: string }>;
+type SearchParams = Promise<{ token?: string; inviteId?: string }>;
 
 export default async function AcceptInvitePage({ searchParams }: { searchParams: SearchParams }) {
-  const { token = "" } = await searchParams;
-  const invite = await getInviteByToken(token);
+  const { token = "", inviteId = "" } = await searchParams;
+  const invite = token
+    ? await getInviteByToken(token)
+    : inviteId
+      ? await getInviteById(inviteId)
+      : null;
 
   const goHome = (
     <Button variant="outlined" href="/home">
@@ -73,7 +77,11 @@ export default async function AcceptInvitePage({ searchParams }: { searchParams:
         inviterName={invite.inviterName}
         accountName={invite.accountName}
         roleLabel={roleLabel}
-        callbackUrl={`/invite/accept?token=${encodeURIComponent(token)}`}
+        callbackUrl={
+          token
+            ? `/invite/accept?token=${encodeURIComponent(token)}`
+            : `/invite/accept?inviteId=${encodeURIComponent(inviteId)}`
+        }
       />
     );
   }
@@ -101,7 +109,8 @@ export default async function AcceptInvitePage({ searchParams }: { searchParams:
       inviterName={invite.inviterName}
       accountName={invite.accountName}
       roleLabel={roleLabel}
-      token={token}
+      token={token || undefined}
+      inviteId={inviteId || undefined}
     />
   );
 }

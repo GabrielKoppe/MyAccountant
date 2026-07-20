@@ -23,7 +23,7 @@ export default async function HomePage() {
     });
     if (user) {
       const invite = await getPendingInviteForEmail(user.email);
-      if (invite) redirect(`/invite/accept?token=${invite.token}`);
+      if (invite) redirect(`/invite/accept?inviteId=${invite.id}`);
     }
     redirect("/onboarding");
   }

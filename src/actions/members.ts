@@ -70,36 +70,41 @@ export const deleteAccountAction = defineAction({
   },
 });
 
+type InviteRef = { token?: string; inviteId?: string };
+
 export async function acceptInviteAction(
-  token: string,
+  ref: InviteRef,
 ): Promise<ActionResult<{ accountId: string }>> {
   try {
     const user = await requireUser().catch(() => null);
     if (!user) return actionError("UNAUTHORIZED", "Você precisa estar logado.");
 
-    const result = await memberService.acceptInvite(token, user.id);
+    const result = ref.inviteId
+      ? await memberService.acceptInviteById(ref.inviteId, user.id)
+      : await memberService.acceptInvite(ref.token ?? "", user.id);
     return actionSuccess(result);
   } catch (error) {
     if (error instanceof AppError) {
       return actionError(error.code, error.message, error.fieldErrors);
     }
-    log.error({ err: error, token }, "Accept invite failed");
+    log.error({ err: error }, "Accept invite failed");
     return actionError("INTERNAL", "Erro inesperado. Tente novamente.");
   }
 }
 
-export async function declineInviteAction(token: string): Promise<ActionResult<void>> {
+export async function declineInviteAction(ref: InviteRef): Promise<ActionResult<void>> {
   try {
     const user = await requireUser().catch(() => null);
     if (!user) return actionError("UNAUTHORIZED", "Você precisa estar logado.");
 
-    await memberService.declineInvite(token, user.id);
+    if (ref.inviteId) await memberService.declineInviteById(ref.inviteId, user.id);
+    else await memberService.declineInvite(ref.token ?? "", user.id);
     return actionSuccess(undefined);
   } catch (error) {
     if (error instanceof AppError) {
       return actionError(error.code, error.message, error.fieldErrors);
     }
-    log.error({ err: error, token }, "Decline invite failed");
+    log.error({ err: error }, "Decline invite failed");
     return actionError("INTERNAL", "Erro inesperado. Tente novamente.");
   }
 }

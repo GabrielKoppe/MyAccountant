@@ -12,14 +12,15 @@ import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 
 type Props = {
-  token: string;
+  token?: string;
+  inviteId?: string;
 };
 
 /**
  * Botões de confirmação da tela de aceite. Só renderizado quando o usuário
  * está logado com o email correto do convite (validado no server component).
  */
-export function InviteActions({ token }: Props) {
+export function InviteActions({ token, inviteId }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export function InviteActions({ token }: Props) {
   function handleAccept() {
     setError(null);
     startTransition(async () => {
-      const result = await acceptInviteAction(token);
+      const result = await acceptInviteAction({ token, inviteId });
       if (result.ok) {
         router.push(`/${result.data.accountId}`);
         router.refresh();
@@ -41,7 +42,7 @@ export function InviteActions({ token }: Props) {
   function handleDecline() {
     setError(null);
     startTransition(async () => {
-      const result = await declineInviteAction(token);
+      const result = await declineInviteAction({ token, inviteId });
       if (result.ok) {
         setDeclined(true);
       } else {
