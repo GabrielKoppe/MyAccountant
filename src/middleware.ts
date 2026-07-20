@@ -1,6 +1,5 @@
-import NextAuth from "next-auth";
-import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import NextAuth from "next-auth";
 
 import { authConfig } from "@/server/auth/config";
 
@@ -13,9 +12,14 @@ const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password",
 // A tela de aceite de convite precisa ser vista antes mesmo de existir cadastro.
 const PUBLIC_ROUTES = ["/invite"];
 
-export default auth((req: NextRequest & { auth: unknown }) => {
-  const session = (req as NextRequest & { auth: { user?: { id?: string } } | null }).auth;
-  const isAuthenticated = !!session?.user?.id;
+// Nota: NÃO anotar `req` manualmente como `NextRequest & { auth: unknown }` — o endpoint MCP
+// (spec 63) importa `mcp-handler`, que faz `declare global { interface Request { auth?: AuthInfo } }`.
+// Uma intersecção manual aqui força `auth` a ser não-opcional (AuthInfo | undefined), o que colide
+// com `NextAuthRequest.auth` (Session | null) e quebra o typecheck. Deixar o parâmetro inferir o
+// tipo a partir do overload de `auth()` evita o conflito (a checagem interna do next-auth já é
+// suprimida por `skipLibCheck`).
+export default auth((req) => {
+  const isAuthenticated = !!req.auth?.user?.id;
   const pathname = req.nextUrl.pathname;
 
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
