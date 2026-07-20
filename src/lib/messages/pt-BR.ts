@@ -144,6 +144,7 @@ export const messages = {
       responsibles: "Responsáveis",
       checklist: "Checklist mensal",
       aliases: "Apelidos",
+      connectors: "Connectors de IA",
       account: "Conta",
       visualization: "Visualização",
       dashboards: {
@@ -1532,6 +1533,24 @@ export const messages = {
     lgpdNotice: (clientName: string) =>
       `Os dados consultados serão enviados ao ${clientName} e processados pelo provedor dele.`,
     authorize: "Autorizar",
+  },
+  mcpConnectors: {
+    title: "Connectors de IA",
+    description:
+      "Aplicativos de IA (ex: Claude) autorizados a acessar os dados financeiros desta conta.",
+    emptyTitle: "Nenhum connector autorizado",
+    emptyDescription:
+      "Quando você autorizar um assistente de IA a acessar esta conta, ele aparecerá aqui.",
+    appColumn: "Aplicativo",
+    grantedAtColumn: "Autorizado em",
+    lastUsedColumn: "Último uso",
+    actionsColumn: "Ações",
+    neverUsed: "Nunca usado",
+    revokeButton: "Revogar",
+    revokeTitle: "Revogar acesso",
+    revokeConfirm: (clientName: string) =>
+      `Tem certeza que deseja revogar o acesso de "${clientName}"? O aplicativo perderá acesso aos dados desta conta imediatamente.`,
+    revokeSuccess: "Connector revogado com sucesso.",
   },
   notifications: {
     title: "Notificações",
