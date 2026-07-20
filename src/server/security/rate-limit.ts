@@ -17,8 +17,8 @@ function getRedis(): Redis | null {
             token: env.UPSTASH_REDIS_REST_TOKEN,
           })
         : null;
-    // SEC-01: em produção o rate limiting é obrigatório — falha na 1ª chamada se faltar config.
-    if (env.NODE_ENV === "production" && !redisSingleton) {
+    // SEC-01: em produção o rate limiting é obrigatório — exceto em E2E (spec 58 DD-08).
+    if (env.NODE_ENV === "production" && !env.E2E && !redisSingleton) {
       throw new Error(
         "UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN são obrigatórios em produção (SEC-01).",
       );

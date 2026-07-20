@@ -137,7 +137,7 @@ export function FinanceTableCard({
   const { filters, isActive: hasGlobalFilters } = useMonthFilters();
 
   const total = BigInt(table.total);
-  const isReadOnly = !sectionIsActive;
+  const isReadOnly = !sectionIsActive || !canEdit;
   // Em seções subtract, positivo = despesa (vermelho) e negativo = estorno (verde)
   const totalIsPositive = sectionCountType === "subtract" ? total < 0n : total >= 0n;
   const typeLabel = table.tableTypeName;

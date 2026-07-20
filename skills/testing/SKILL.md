@@ -24,7 +24,7 @@ src/server/services/foo.ts    ← src/server/services/foo.test.ts
 src/components/Bar.tsx        ← src/components/Bar.test.tsx
 ```
 
-**Regra**: arquivo de teste ao lado do arquivo de origem. Arquivos `.test.ts` (nunca `.spec.ts`).
+**Regra**: arquivo de teste ao lado do arquivo de origem. Arquivos `.test.ts` (nunca `.spec.ts`) **para testes Vitest em `src/`**. Testes E2E de Playwright usam `.spec.ts` sob `e2e/` (ver `specs/58-testes-e2e.md`).
 
 Helpers compartilhados ficam em:
 ```
@@ -250,10 +250,10 @@ mockCompare.mockResolvedValueOnce(false);
 
 ## 12. O que NÃO testar
 
-- ❌ `page.tsx` / `layout.tsx` (cobertos por E2E em v2)
+- ❌ `page.tsx` / `layout.tsx` (cobertos por E2E — Playwright, spec 58)
 - ❌ Componentes triviais (wrappers sem lógica)
 - ❌ Route handlers (a lógica está nos services)
-- ❌ Fluxos E2E (ex: login → criar account → criar mês) — fica para v2
+- Fluxos E2E ponta-a-ponta são cobertos por Playwright em `e2e/` (spec 58) — não por Vitest.
 
 ## 13. Anti-patterns
 

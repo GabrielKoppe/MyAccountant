@@ -1,0 +1,35 @@
+# .github/workflows/e2e.yml
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run E2E stack
+        run: |
+          docker compose --profile e2e up --build \
+            --abort-on-container-exit --exit-code-from e2e-runner \
+            postgres-e2e app-e2e e2e-runner
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile e2e down -v
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore

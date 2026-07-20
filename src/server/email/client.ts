@@ -14,6 +14,9 @@ export async function sendEmail(options: {
   html: string;
   text: string;
 }): Promise<{ messageId: string }> {
+  // spec 58 (DD-08): em E2E não há envio real — evita rede/flakiness.
+  if (env.E2E) return { messageId: "e2e-noop" };
+
   const sender = parseEmailFrom(env.EMAIL_FROM);
 
   const response = await fetch(BREVO_API_URL, {

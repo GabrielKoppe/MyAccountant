@@ -55,7 +55,74 @@ services:
     profiles:
       - tools
 
+  postgres-e2e:
+    image: postgres:16-alpine
+    profiles: ["e2e"]
+    environment:
+      POSTGRES_USER: myaccountant
+      POSTGRES_PASSWORD: e2e_password
+      POSTGRES_DB: myaccountant_e2e
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-e2e-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myaccountant -d myaccountant_e2e"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app-e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    profiles: ["e2e"]
+    command: sh -c "pnpm install --no-frozen-lockfile && pnpm prisma generate && pnpm prisma migrate deploy && pnpm exec tsx e2e/fixtures/seed.ts && pnpm build && pnpm start -p 3000"
+    environment:
+      E2E: "true"
+      DATABASE_URL: postgresql://myaccountant:e2e_password@postgres-e2e:5432/myaccountant_e2e?schema=public
+      DIRECT_URL: postgresql://myaccountant:e2e_password@postgres-e2e:5432/myaccountant_e2e?schema=public
+      NEXTAUTH_URL: http://app-e2e:3000
+      AUTH_TRUST_HOST: "true"
+      NEXTAUTH_SECRET: e2e_secret_change_me_min_32_chars_padding_ok
+      GOOGLE_CLIENT_ID: placeholder
+      GOOGLE_CLIENT_SECRET: placeholder
+      BREVO_API_KEY: placeholder
+      EMAIL_FROM: MyAccountant <e2e@localhost>
+      NEXT_PUBLIC_APP_URL: http://app-e2e:3000
+      LOG_LEVEL: warn
+    volumes:
+      - ./:/app
+      - app-e2e-node-modules:/app/node_modules
+    depends_on:
+      postgres-e2e:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/login >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 40
+
+  e2e-runner:
+    image: mcr.microsoft.com/playwright:v1.49.1-jammy
+    profiles: ["e2e"]
+    working_dir: /app
+    environment:
+      PLAYWRIGHT_BASE_URL: http://app-e2e:3000
+      DATABASE_URL: postgresql://myaccountant:e2e_password@postgres-e2e:5432/myaccountant_e2e?schema=public
+      CI: "true"
+    volumes:
+      - ./:/app
+      - e2e-runner-node-modules:/app/node_modules
+    depends_on:
+      app-e2e:
+        condition: service_healthy
+    command: sh -c "corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --frozen-lockfile && pnpm prisma generate && pnpm exec playwright test"
+
 volumes:
   postgres-data:
   app-node-modules:
   app-next-cache:
+  postgres-e2e-data:
+  app-e2e-node-modules:
+  e2e-runner-node-modules:

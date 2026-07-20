@@ -34,6 +34,9 @@ export const env = createEnv({
     MCP_ISSUER_URL: z.string().url().optional(),
     MCP_ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
     MCP_REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(90),
+
+    // E2E: quando "true", neutraliza deps externas (email no-op, rate-limit off). Ver spec 58.
+    E2E: z.enum(["true", "false"]).transform((v) => v === "true").default("false"),
   },
 
   client: {
@@ -59,6 +62,7 @@ export const env = createEnv({
     MCP_ISSUER_URL: process.env.MCP_ISSUER_URL,
     MCP_ACCESS_TOKEN_TTL_SECONDS: process.env.MCP_ACCESS_TOKEN_TTL_SECONDS,
     MCP_REFRESH_TOKEN_TTL_DAYS: process.env.MCP_REFRESH_TOKEN_TTL_DAYS,
+    E2E: process.env.E2E,
   },
 
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,

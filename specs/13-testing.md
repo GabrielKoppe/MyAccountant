@@ -21,7 +21,7 @@ Pirâmide simples — **sem E2E no MVP**.
         └─────────────────────┘
 ```
 
-> E2E (Playwright) será adicionado em v2, quando o app estiver maduro. Por enquanto, testes manuais em PR são suficientes.
+> E2E (Playwright) é entregue pela [`spec 58`](58-testes-e2e.md) — testes ponta-a-ponta em `e2e/*.spec.ts`, complementares a esta pirâmide de unit/integration com Vitest (não a substituem).
 
 ## 3. Stack
 
@@ -460,7 +460,7 @@ const tx = buildTransaction({ amountCents: 50000n, isFavorite: true });
 **Baixa prioridade** (não testar):
 - ❌ Componentes triviais (botões wrapper)
 - ❌ Route Handlers (cobertos via service tests)
-- ❌ Páginas Next (`page.tsx`) — testes E2E cobrem em v2
+- ❌ Páginas Next (`page.tsx`) — cobertas por E2E via Playwright (spec 58), não por Vitest
 
 ## 10. CI
 

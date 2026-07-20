@@ -275,6 +275,13 @@ docker compose exec app pnpm test
 docker compose exec app pnpm test:watch
 docker compose exec app pnpm test:coverage
 
+# E2E (Playwright) — sobe stack dedicada (postgres-e2e + app-e2e) e roda os testes
+docker compose --profile e2e up --build --abort-on-container-exit --exit-code-from e2e-runner postgres-e2e app-e2e e2e-runner
+docker compose --profile e2e down -v        # limpar (volume do DB de teste)
+
+# Re-semear o DB de teste sem recriar a stack
+docker compose exec app-e2e pnpm exec tsx e2e/fixtures/seed.ts
+
 # Email preview (React Email)
 docker compose exec app pnpm email   # http://localhost:3001
 
