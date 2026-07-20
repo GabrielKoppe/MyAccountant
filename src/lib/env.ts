@@ -24,6 +24,12 @@ export const env = createEnv({
     // Lista de emails permitidos para registro, separados por vírgula.
     // Quando não definido ou vazio, qualquer email pode se cadastrar.
     ALLOWED_EMAILS: z.string().optional(),
+
+    // ===== MCP Connector =====
+    MCP_ENABLED: z.enum(["true", "false"]).transform((v) => v === "true").default("false"),
+    MCP_ISSUER_URL: z.string().url().optional(),
+    MCP_ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
+    MCP_REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(90),
   },
 
   client: {
@@ -43,6 +49,10 @@ export const env = createEnv({
     LOG_LEVEL: process.env.LOG_LEVEL,
     ALLOWED_EMAILS: process.env.ALLOWED_EMAILS,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    MCP_ENABLED: process.env.MCP_ENABLED,
+    MCP_ISSUER_URL: process.env.MCP_ISSUER_URL,
+    MCP_ACCESS_TOKEN_TTL_SECONDS: process.env.MCP_ACCESS_TOKEN_TTL_SECONDS,
+    MCP_REFRESH_TOKEN_TTL_DAYS: process.env.MCP_REFRESH_TOKEN_TTL_DAYS,
   },
 
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
