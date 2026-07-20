@@ -190,4 +190,38 @@ describe("POST /api/oauth/token", () => {
     expect(mockConsumeAuthCode).not.toHaveBeenCalled();
     expect(mockRotateRefreshToken).not.toHaveBeenCalled();
   });
+
+  it("Content-Type inválido (application/json) → 400 invalid_request, sem chamar consumeAuthCode/issueTokens", async () => {
+    const request = new Request("http://localhost/api/oauth/token", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(VALID_CODE_PARAMS),
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(body).toEqual({ error: "invalid_request" });
+    expect(mockConsumeAuthCode).not.toHaveBeenCalled();
+    expect(mockIssueTokens).not.toHaveBeenCalled();
+  });
+
+  it("sem Content-Type → 400 invalid_request, sem chamar consumeAuthCode/issueTokens", async () => {
+    const request = new Request("http://localhost/api/oauth/token", {
+      method: "POST",
+      body: new URLSearchParams(VALID_CODE_PARAMS).toString(),
+    });
+    request.headers.delete("content-type");
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(body).toEqual({ error: "invalid_request" });
+    expect(mockConsumeAuthCode).not.toHaveBeenCalled();
+    expect(mockIssueTokens).not.toHaveBeenCalled();
+  });
 });

@@ -25,14 +25,17 @@ import { issueTokens, rotateRefreshToken, upsertGrant } from "@/server/mcp/oauth
  *   já implementa o gate de uso único (o refresh antigo é invalidado na
  *   mesma operação que emite o par novo — ver `store.ts`).
  *
- * Erros nunca vazam detalhe interno: sempre `{ error: "invalid_grant" }` ou
- * `{ error: "unsupported_grant_type" }`, HTTP 400, `Cache-Control: no-store`
+ * Erros nunca vazam detalhe interno: sempre `{ error: "invalid_grant" }`,
+ * `{ error: "unsupported_grant_type" }` ou `{ error: "invalid_request" }`
+ * (Content-Type inválido/ausente no corpo), HTTP 400, `Cache-Control: no-store`
  * (tokens/erros de token endpoint nunca devem ser cacheados).
  */
 
 type Tokens = { accessToken: string; refreshToken: string };
 
-function oauthError(error: "invalid_grant" | "unsupported_grant_type"): Response {
+function oauthError(
+  error: "invalid_grant" | "unsupported_grant_type" | "invalid_request",
+): Response {
   return Response.json({ error }, { status: 400, headers: { "Cache-Control": "no-store" } });
 }
 
@@ -60,7 +63,17 @@ export async function POST(request: Request): Promise<Response> {
     return new Response(null, { status: 404 });
   }
 
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    // Content-Type ausente ou não-form (ex.: application/json) faz o parser
+    // nativo do Fetch lançar TypeError — sem o catch isso escapa cru do POST
+    // e quebra o contrato de erro do endpoint (sempre `{ error }` JSON, 400,
+    // `Cache-Control: no-store`, nunca detalhe interno).
+    return oauthError("invalid_request");
+  }
+
   const grantType = formString(form, "grant_type");
 
   if (grantType === "authorization_code") {
@@ -74,6 +87,12 @@ export async function POST(request: Request): Promise<Response> {
     const record = await consumeAuthCode(code);
     if (!record) return oauthError("invalid_grant");
 
+    // Não re-busca o client via getClient(client_id) aqui: o code já foi
+    // vinculado a um client+redirect_uri validados no consentimento/authorize
+    // (Task 3.4), codes são de uso único com TTL curto (~10min), clients
+    // públicos não têm secret para reverificar, e não existe feature de
+    // exclusão de client — então bater `record.clientId === client_id` já é
+    // suficiente (ver task-3.5-report.md para o raciocínio completo).
     if (
       record.clientId !== clientId ||
       record.redirectUri !== redirectUri ||
