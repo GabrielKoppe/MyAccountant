@@ -128,6 +128,7 @@ model User {
   checklistItemsCreated       ChecklistItem[]          @relation("ChecklistItemCreatedBy")
   checklistCompletions        ChecklistCompletion[]    @relation("ChecklistCompletedBy")
   transactionAliasesCreated   TransactionAlias[]       @relation("TransactionAliasCreatedBy")
+  mcpGrants                   McpGrant[]
 
   @@map("users")
 }
@@ -207,6 +208,7 @@ model Account {
   checklistItems       ChecklistItem[]
   checklistCompletions ChecklistCompletion[]
   transactionAliases   TransactionAlias[]
+  mcpGrants            McpGrant[]
 
   @@map("accounts")
 }
@@ -891,4 +893,77 @@ model ChecklistCompletion {
   @@index([monthId])
   @@index([transactionId])
   @@map("checklist_completions")
+}
+
+// =========================================
+// Domain — MCP OAuth Connector (Spec 63)
+// =========================================
+
+enum McpTokenType {
+  access
+  refresh
+
+  @@map("mcp_token_type")
+}
+
+model McpClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  clientName   String
+  redirectUris String[]
+  createdAt    DateTime @default(now())
+
+  grants McpGrant[]
+
+  @@map("mcp_client")
+}
+
+model McpGrant {
+  id         String    @id @default(cuid())
+  userId     String
+  accountId  String
+  clientId   String
+  scope      String    @default("read")
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  client  McpClient  @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  tokens  McpToken[]
+
+  @@unique([userId, accountId, clientId])
+  @@index([accountId])
+  @@map("mcp_grant")
+}
+
+model McpToken {
+  id        String       @id @default(cuid())
+  grantId   String
+  type      McpTokenType
+  tokenHash String       @unique
+  expiresAt DateTime
+  createdAt DateTime     @default(now())
+
+  grant McpGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+
+  @@index([grantId])
+  @@map("mcp_token")
+}
+
+model McpAuthCode {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  clientId      String
+  userId        String
+  accountId     String
+  redirectUri   String
+  codeChallenge String
+  scope         String    @default("read")
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@map("mcp_auth_code")
 }
