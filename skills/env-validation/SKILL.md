@@ -222,6 +222,25 @@ describe("env validation", () => {
 ❌ Var commitada em `.env` versionado (NÃO COMMITAR `.env`)
 ❌ Var sem default e sem `.optional()` quando deveria ser opcional
 ❌ Validar var só em runtime (queremos crash no boot)
+❌ Acessar `env.SERVER_VAR` no **top-level** de um módulo server-only importado por testes — sob jsdom (ambiente padrão do Vitest aqui) o guard client/server do `@t3-oss/env-nextjs` dispara "Attempted to access a server-side environment variable on the client" e o teste quebra no import.
+
+## Gotcha: env em módulos server-only sob teste jsdom
+
+Os testes rodam em `environment: "jsdom"` (window definido → o t3-env trata como client → acessar var server-only **lança**). Módulos como `logger`/`auth-service` passam porque acessam `env` **lazy** (dentro de funções). Se um módulo novo precisar de `env` para montar um singleton (ex.: cliente Redis do rate limit), **não** acesse no top-level:
+
+```ts
+// ❌ Quebra no import sob jsdom
+const redis = env.UPSTASH_REDIS_REST_URL ? new Redis({ url: env.UPSTASH_REDIS_REST_URL }) : null;
+
+// ✅ Lazy — só toca env quando chamado (runtime real: server/edge)
+let _redis: Redis | null | undefined;
+function getRedis() {
+  if (_redis === undefined) _redis = env.UPSTASH_REDIS_REST_URL ? new Redis({ ... }) : null;
+  return _redis;
+}
+```
+
+Alternativa pontual: `// @vitest-environment node` no topo do teste (mas isso reintroduz a validação completa de env no import — o padrão lazy é preferível).
 
 ## Checklist
 

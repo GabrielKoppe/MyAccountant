@@ -6,6 +6,8 @@
 
 ## `pnpm lint` está quebrado (Next 16 removeu `next lint`)
 
+> **✅ RESOLVIDO (2026-07-20):** o script `lint` já é `eslint .` no `package.json` e `pnpm lint` roda normalmente (0 errors, apenas warnings de baseline `import/order`). Entrada mantida como histórico.
+
 **Sintoma**: `docker compose exec app pnpm lint` (e `lint:fix`) falha com
 `Invalid project directory provided, no such directory: /app/lint`.
 
@@ -29,3 +31,36 @@ desenvolvedor antes (opções: (a) migrar para flat config agora, (b) fixar
 chamar `eslint` com `--config` explícito em formato legado via um pacote de
 compat mantido). Até lá, mudanças de código devem ser validadas com
 `pnpm typecheck` + `pnpm test`, já que `pnpm lint` não é confiável no estado atual.
+
+---
+
+## `pnpm add` falha com `ERR_PNPM_UNEXPECTED_STORE`
+
+**Sintoma**: `docker compose exec app pnpm add <pkg>` falha com
+`Unexpected store location` — o `node_modules` está linkado do store
+`/root/.local/share/pnpm/store/v3`, mas o pnpm quer usar `/app/.pnpm-store/v3`.
+
+**Causa**: a imagem instalou as deps com um store global (`/root/.local/share/pnpm/store/v3`)
+diferente do default que o pnpm passou a querer no diretório do projeto.
+
+**Como evitar**: rodar o add apontando o store existente:
+`docker compose exec app pnpm add <pkg> --store-dir /root/.local/share/pnpm/store/v3`.
+(Os warnings de `unmet peer` que aparecem — vitest/mui-nextjs/mcp-handler/swagger — são
+baseline pré-existente, não do pacote adicionado.)
+
+---
+
+## Teste `NewTransactionRow.test.tsx` é flaky
+
+**Sintoma**: `src/components/transactions/NewTransactionRow.test.tsx` (grupo
+"aplicação manual de apelido — Fase 4") falha de forma intermitente na suíte
+completa (1–3 testes), mas passa 8/8 quando rodado isolado. Cada caso leva 1,5–27s.
+
+**Causa**: teste de UI com timers/popover/`useTransition` + snackbar; sob carga da
+suíte completa (jsdom, ~890 testes) estoura timeouts de espera de forma não-determinística.
+
+**Como evitar / próximo passo**: não bloquear merges por ele — re-rodar isolado
+(`docker compose exec app pnpm test src/components/transactions/NewTransactionRow.test.tsx`)
+para confirmar verde. Fix real (futuro): usar fake timers (`vi.useFakeTimers`) e
+`findBy*`/`waitFor` com timeout explícito em vez de esperas implícitas; ou marcar
+`{ retry: 2 }` nesses casos. Não relacionado à Spec 23.
