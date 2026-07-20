@@ -132,7 +132,7 @@ describe("findGrantByRefreshToken", () => {
 });
 
 describe("rotateRefreshToken", () => {
-  it("refresh válido: deleta o par antigo do grant e emite um novo par", async () => {
+  it("refresh válido: consome atomicamente o refresh antigo, apaga o access sibling e emite um novo par", async () => {
     prismaMock.mcpToken.findUnique.mockResolvedValue({
       id: "t-old-refresh",
       grantId: "grant1",
@@ -142,7 +142,10 @@ describe("rotateRefreshToken", () => {
       createdAt: new Date(),
       grant,
     } as never);
-    prismaMock.mcpToken.deleteMany.mockResolvedValue({ count: 2 });
+    // As mutações rodam dentro de prisma.$transaction — executa o callback
+    // com o próprio prismaMock como `tx` (mesmo padrão de transaction-service.test.ts).
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(prismaMock));
+    prismaMock.mcpToken.deleteMany.mockResolvedValue({ count: 1 });
     prismaMock.mcpToken.create.mockResolvedValue({} as never);
 
     const result = await rotateRefreshToken("old-refresh");
@@ -152,8 +155,14 @@ describe("rotateRefreshToken", () => {
     expect(typeof result!.refreshToken).toBe("string");
     expect(result!.refreshToken).not.toBe("old-refresh");
 
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    // Gate de uso único: delete pelo tokenHash específico do refresh, não pelo grantId inteiro.
     expect(prismaMock.mcpToken.deleteMany).toHaveBeenCalledWith({
-      where: { grantId: "grant1" },
+      where: { tokenHash: hashToken("old-refresh"), type: "refresh" },
+    });
+    // Limpeza do access sibling do par antigo.
+    expect(prismaMock.mcpToken.deleteMany).toHaveBeenCalledWith({
+      where: { grantId: "grant1", type: "access" },
     });
     // issueTokens cria exatamente um McpToken "access" e um "refresh".
     expect(prismaMock.mcpToken.create).toHaveBeenCalledTimes(2);
@@ -161,6 +170,33 @@ describe("rotateRefreshToken", () => {
       .map((c) => (c[0] as any).data.type)
       .sort();
     expect(types).toEqual(["access", "refresh"]);
+  });
+
+  it("uso único (TOCTOU): uma segunda rotação com o MESMO refresh raw perde a corrida e retorna null", async () => {
+    prismaMock.mcpToken.findUnique.mockResolvedValue({
+      id: "t-old-refresh",
+      grantId: "grant1",
+      type: "refresh",
+      tokenHash: hashToken("old-refresh"),
+      expiresAt: new Date(Date.now() + 10_000),
+      createdAt: new Date(),
+      grant,
+    } as never);
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(prismaMock));
+    // Simula a segunda chamada concorrente: a primeira já ganhou a corrida e
+    // apagou a linha do refresh — o deleteMany do gate de single-use desta
+    // chamada não encontra mais nada para apagar (count 0).
+    prismaMock.mcpToken.deleteMany.mockResolvedValueOnce({ count: 0 });
+
+    const result = await rotateRefreshToken("old-refresh");
+
+    expect(result).toBeNull();
+    expect(prismaMock.mcpToken.deleteMany).toHaveBeenCalledWith({
+      where: { tokenHash: hashToken("old-refresh"), type: "refresh" },
+    });
+    // Perdeu a corrida: nunca apaga o access sibling nem emite um novo par.
+    expect(prismaMock.mcpToken.deleteMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.mcpToken.create).not.toHaveBeenCalled();
   });
 
   it("refresh de grant revogado retorna null e não deleta nem emite nada", async () => {
@@ -177,6 +213,7 @@ describe("rotateRefreshToken", () => {
     const result = await rotateRefreshToken("raw");
 
     expect(result).toBeNull();
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
     expect(prismaMock.mcpToken.deleteMany).not.toHaveBeenCalled();
     expect(prismaMock.mcpToken.create).not.toHaveBeenCalled();
   });
@@ -187,6 +224,7 @@ describe("rotateRefreshToken", () => {
     const result = await rotateRefreshToken("token-inexistente");
 
     expect(result).toBeNull();
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
     expect(prismaMock.mcpToken.deleteMany).not.toHaveBeenCalled();
   });
 });
