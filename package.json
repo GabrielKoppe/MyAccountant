@@ -44,6 +44,8 @@
     "@react-email/components": "^0.0.34",
     "@react-pdf/renderer": "^4.5.1",
     "@t3-oss/env-nextjs": "^0.11.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "bcryptjs": "^2.4.3",
     "date-fns": "^3.6.0",
     "mcp-handler": "^1.1.0",

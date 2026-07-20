@@ -25,6 +25,10 @@ export const env = createEnv({
     // Quando não definido ou vazio, qualquer email pode se cadastrar.
     ALLOWED_EMAILS: z.string().optional(),
 
+    // ===== Rate limiting (SEC-01) — obrigatórias em produção =====
+    UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+
     // ===== MCP Connector =====
     MCP_ENABLED: z.enum(["true", "false"]).transform((v) => v === "true").default("false"),
     MCP_ISSUER_URL: z.string().url().optional(),
@@ -48,6 +52,8 @@ export const env = createEnv({
     EMAIL_FROM: process.env.EMAIL_FROM,
     LOG_LEVEL: process.env.LOG_LEVEL,
     ALLOWED_EMAILS: process.env.ALLOWED_EMAILS,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     MCP_ENABLED: process.env.MCP_ENABLED,
     MCP_ISSUER_URL: process.env.MCP_ISSUER_URL,
