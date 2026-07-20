@@ -24,6 +24,34 @@ export const signupFormSchema = signupSchema
     path: ["confirmPassword"],
   });
 
+const passwordRule = z
+  .string()
+  .min(8, "Senha deve ter pelo menos 8 caracteres")
+  .regex(/[a-zA-Z]/, "Deve conter ao menos uma letra")
+  .regex(/[0-9]/, "Deve conter ao menos um número");
+
+export const requestPasswordResetSchema = z.object({
+  email: emailSchema,
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token obrigatório"),
+  password: passwordRule,
+});
+
+export const resetPasswordFormSchema = z
+  .object({
+    password: passwordRule,
+    confirmPassword: z.string().min(1, "Confirme a senha"),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "As senhas não coincidem",
+    path: ["confirmPassword"],
+  });
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type SignupFormValues = z.infer<typeof signupFormSchema>;
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ResetPasswordFormValues = z.infer<typeof resetPasswordFormSchema>;
