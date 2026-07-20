@@ -145,6 +145,7 @@ export const messages = {
       checklist: "Checklist mensal",
       aliases: "Apelidos",
       connectors: "Connectors de IA",
+      audit: "Trilha de auditoria",
       account: "Conta",
       visualization: "Visualização",
       dashboards: {

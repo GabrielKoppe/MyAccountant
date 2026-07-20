@@ -44,7 +44,12 @@ export default async function SettingsLayout({ children, params }: Props) {
   if (member.role === "viewer") redirect(`/${accountId}`);
 
   const isOwner = member.role === "owner";
-  const ownerLinks = isOwner ? [{ href: "members", label: m.settings.nav.members }] : [];
+  const ownerLinks = isOwner
+    ? [
+        { href: "members", label: m.settings.nav.members },
+        { href: "audit", label: m.settings.nav.audit },
+      ]
+    : [];
 
   return (
     <Box
