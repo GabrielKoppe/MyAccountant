@@ -9,6 +9,7 @@ const ERROR_STATUS: Record<string, number> = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   VALIDATION: 422,
+  TOO_MANY_REQUESTS: 429,
   INTERNAL: 500,
 };
 

@@ -4,6 +4,7 @@ export type ActionErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
+  | "TOO_MANY_REQUESTS"
   | "INTERNAL";
 
 export type ActionSuccess<T> = {

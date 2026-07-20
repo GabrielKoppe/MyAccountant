@@ -38,3 +38,9 @@ export class UnauthorizedError extends AppError {
     this.name = "UnauthorizedError";
   }
 }
+
+export class RateLimitError extends AppError {
+  constructor(message = "Muitas tentativas. Tente novamente mais tarde.") {
+    super("TOO_MANY_REQUESTS", message);
+  }
+}
