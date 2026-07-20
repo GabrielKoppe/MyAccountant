@@ -10,6 +10,7 @@ import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 
+import { requestPasswordResetAction } from "@/actions/auth";
 import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 
@@ -27,8 +28,9 @@ export function ForgotPasswordForm() {
     defaultValues: { email: "" },
   });
 
-  async function onSubmit(_values: FormValues) {
-    // TODO Fase 1: implementar com Resend (email de reset)
+  async function onSubmit(values: FormValues) {
+    await requestPasswordResetAction({ email: values.email });
+    // Sempre "sucesso" (anti-enumeração): mesma mensagem genérica.
     setSubmitted(true);
   }
 
