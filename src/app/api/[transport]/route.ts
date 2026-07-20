@@ -1,10 +1,13 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 
 import { env } from "@/lib/env";
+import { logger } from "@/server/logger";
 import { verifyMcpBearer } from "@/server/mcp/auth";
+import { checkMcpRateLimit } from "@/server/mcp/rate-limit";
 import { serializeForMcp } from "@/server/mcp/serialize";
 import { mcpTools } from "@/server/mcp/tools";
 import { resolveReadContext } from "@/server/mcp/visibility";
+import { prisma } from "@/server/prisma";
 
 /**
  * Endpoint MCP remoto (spec 63, Task 2.2) — conector fica em `/api/mcp`
@@ -34,14 +37,33 @@ function buildHandler() {
           tool.name,
           { description: tool.description, inputSchema: tool.shape },
           async (args, extra) => {
-            const { userId, accountId } = extra.authInfo!.extra as {
+            const { userId, accountId, grantId } = extra.authInfo!.extra as {
               userId: string;
               accountId: string;
               grantId: string;
             };
-            const ctx = await resolveReadContext(accountId, userId);
-            const data = await tool.run(ctx, args);
-            return { content: [{ type: "text" as const, text: serializeForMcp(data) }] };
+            const start = Date.now();
+            const log = logger.child({
+              module: "mcp.tool",
+              accountId,
+              userId,
+              grantId,
+              tool: tool.name,
+            });
+            try {
+              checkMcpRateLimit(grantId);
+              const ctx = await resolveReadContext(accountId, userId);
+              const data = await tool.run(ctx, args);
+              log.info({ durationMs: Date.now() - start, ok: true }, "mcp tool call");
+              // Fire-and-forget: não bloqueia a resposta da tool por causa do touch de `lastUsedAt`.
+              void prisma.mcpGrant
+                .update({ where: { id: grantId }, data: { lastUsedAt: new Date() } })
+                .catch(() => {});
+              return { content: [{ type: "text" as const, text: serializeForMcp(data) }] };
+            } catch (err) {
+              log.warn({ durationMs: Date.now() - start, ok: false }, "mcp tool call failed");
+              throw err;
+            }
           },
         );
       }
