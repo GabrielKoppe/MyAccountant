@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { consumeAuthCode } from "@/server/mcp/oauth/codes";
+import { corsHeaders, preflight } from "@/server/mcp/oauth/cors";
 import { verifyPkceS256 } from "@/server/mcp/oauth/pkce";
 import { issueTokens, rotateRefreshToken, upsertGrant } from "@/server/mcp/oauth/store";
 
@@ -34,12 +35,16 @@ import { issueTokens, rotateRefreshToken, upsertGrant } from "@/server/mcp/oauth
 type Tokens = { accessToken: string; refreshToken: string };
 
 function oauthError(
+  req: Request,
   error: "invalid_grant" | "unsupported_grant_type" | "invalid_request",
 ): Response {
-  return Response.json({ error }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  return Response.json(
+    { error },
+    { status: 400, headers: { "Cache-Control": "no-store", ...corsHeaders(req) } },
+  );
 }
 
-function tokenResponse(tokens: Tokens): Response {
+function tokenResponse(req: Request, tokens: Tokens): Response {
   return Response.json(
     {
       access_token: tokens.accessToken,
@@ -48,8 +53,12 @@ function tokenResponse(tokens: Tokens): Response {
       refresh_token: tokens.refreshToken,
       scope: "read",
     },
-    { headers: { "Cache-Control": "no-store" } },
+    { headers: { "Cache-Control": "no-store", ...corsHeaders(req) } },
   );
+}
+
+export function OPTIONS(request: Request): Response {
+  return preflight(request);
 }
 
 /** Lê um campo do form-urlencoded como string; qualquer outro shape vira `""` (nunca lança). */
@@ -60,7 +69,7 @@ function formString(form: FormData, key: string): string {
 
 export async function POST(request: Request): Promise<Response> {
   if (!env.MCP_ENABLED) {
-    return new Response(null, { status: 404 });
+    return new Response(null, { status: 404, headers: corsHeaders(request) });
   }
 
   let form: FormData;
@@ -71,7 +80,7 @@ export async function POST(request: Request): Promise<Response> {
     // nativo do Fetch lançar TypeError — sem o catch isso escapa cru do POST
     // e quebra o contrato de erro do endpoint (sempre `{ error }` JSON, 400,
     // `Cache-Control: no-store`, nunca detalhe interno).
-    return oauthError("invalid_request");
+    return oauthError(request, "invalid_request");
   }
 
   const grantType = formString(form, "grant_type");
@@ -85,7 +94,7 @@ export async function POST(request: Request): Promise<Response> {
     // Gate de uso único PRIMEIRO: um replay do mesmo code precisa ser
     // rejeitado atomicamente antes de qualquer outra checagem.
     const record = await consumeAuthCode(code);
-    if (!record) return oauthError("invalid_grant");
+    if (!record) return oauthError(request, "invalid_grant");
 
     // Não re-busca o client via getClient(client_id) aqui: o code já foi
     // vinculado a um client+redirect_uri validados no consentimento/authorize
@@ -98,24 +107,24 @@ export async function POST(request: Request): Promise<Response> {
       record.redirectUri !== redirectUri ||
       !verifyPkceS256(codeVerifier, record.codeChallenge)
     ) {
-      return oauthError("invalid_grant");
+      return oauthError(request, "invalid_grant");
     }
 
     // Grant já existe do consentimento (Task 3.4) — upsertGrant é idempotente.
     const grant = await upsertGrant(record.userId, record.accountId, record.clientId);
     const tokens = await issueTokens(grant.id);
 
-    return tokenResponse(tokens);
+    return tokenResponse(request, tokens);
   }
 
   if (grantType === "refresh_token") {
     const refreshToken = formString(form, "refresh_token");
 
     const tokens = await rotateRefreshToken(refreshToken);
-    if (!tokens) return oauthError("invalid_grant");
+    if (!tokens) return oauthError(request, "invalid_grant");
 
-    return tokenResponse(tokens);
+    return tokenResponse(request, tokens);
   }
 
-  return oauthError("unsupported_grant_type");
+  return oauthError(request, "unsupported_grant_type");
 }

@@ -16,7 +16,7 @@ vi.mock("@/server/mcp/oauth/store", () => ({
   rotateRefreshToken: mockRotateRefreshToken,
 }));
 
-import { POST } from "@/app/api/oauth/token/route";
+import { OPTIONS, POST } from "@/app/api/oauth/token/route";
 
 const AUTH_CODE_RECORD = {
   id: "code-1",
@@ -73,7 +73,33 @@ beforeEach(() => {
   mockRotateRefreshToken.mockResolvedValue(TOKENS);
 });
 
+describe("OPTIONS /api/oauth/token (CORS preflight)", () => {
+  it("responde 204 ecoando a Origin da requisição", async () => {
+    const request = new Request("http://localhost/api/oauth/token", {
+      method: "OPTIONS",
+      headers: { origin: "http://localhost:6274" },
+    });
+
+    const response = OPTIONS(request);
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:6274");
+    expect(response.headers.get("access-control-allow-methods")).toBe("POST, OPTIONS");
+  });
+});
+
 describe("POST /api/oauth/token", () => {
+  it("inclui Access-Control-Allow-Origin ecoando a Origin em toda resposta (sucesso e erro)", async () => {
+    const successResponse = await POST(makeRequest(VALID_CODE_PARAMS));
+    expect(successResponse.headers.get("access-control-allow-origin")).toBe("*");
+
+    mockConsumeAuthCode.mockResolvedValue(null);
+    const errorRequest = makeRequest(VALID_CODE_PARAMS);
+    errorRequest.headers.set("origin", "http://localhost:6274");
+    const errorResponse = await POST(errorRequest);
+    expect(errorResponse.headers.get("access-control-allow-origin")).toBe("http://localhost:6274");
+  });
+
   it("retorna 404 quando MCP_ENABLED está desligado", async () => {
     envMock.MCP_ENABLED = false;
 

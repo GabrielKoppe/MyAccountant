@@ -6,7 +6,7 @@ const mockRegisterClient = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/env", () => ({ env: envMock }));
 vi.mock("@/server/mcp/oauth/clients", () => ({ registerClient: mockRegisterClient }));
 
-import { POST } from "@/app/api/oauth/register/route";
+import { OPTIONS, POST } from "@/app/api/oauth/register/route";
 
 function makeRequest(body: unknown): Request {
   return new Request("http://localhost/api/oauth/register", {
@@ -19,6 +19,21 @@ function makeRequest(body: unknown): Request {
 beforeEach(() => {
   vi.clearAllMocks();
   envMock.MCP_ENABLED = true;
+});
+
+describe("OPTIONS /api/oauth/register (CORS preflight)", () => {
+  it("responde 204 ecoando a Origin da requisição", async () => {
+    const request = new Request("http://localhost/api/oauth/register", {
+      method: "OPTIONS",
+      headers: { origin: "http://localhost:6274" },
+    });
+
+    const response = OPTIONS(request);
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:6274");
+    expect(response.headers.get("access-control-allow-methods")).toBe("POST, OPTIONS");
+  });
 });
 
 describe("POST /api/oauth/register", () => {
@@ -37,6 +52,7 @@ describe("POST /api/oauth/register", () => {
     const body = await response.json();
 
     expect(response.status).toBe(201);
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
     expect(body.client_id).toBe("generated-client-id");
     expect(body.client_name).toBe("Claude Desktop");
     expect(body.redirect_uris).toEqual(["https://claude.ai/callback"]);

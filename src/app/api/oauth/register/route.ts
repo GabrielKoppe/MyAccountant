@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { registerClient } from "@/server/mcp/oauth/clients";
+import { corsHeaders, preflight } from "@/server/mcp/oauth/cors";
 
 /**
  * Dynamic Client Registration (RFC 7591) — spec 63, Task 3.3.
@@ -16,8 +17,11 @@ import { registerClient } from "@/server/mcp/oauth/clients";
  * Rate-limit deste endpoint aberto fica para a Task 4.2.
  */
 
-const invalidClientMetadata = (description: string) =>
-  Response.json({ error: "invalid_client_metadata", error_description: description }, { status: 400 });
+const invalidClientMetadata = (request: Request, description: string) =>
+  Response.json(
+    { error: "invalid_client_metadata", error_description: description },
+    { status: 400, headers: corsHeaders(request) },
+  );
 
 function isAllowedRedirectUri(uri: string): boolean {
   let parsed: URL;
@@ -32,20 +36,24 @@ function isAllowedRedirectUri(uri: string): boolean {
   return parsed.protocol === "http:" && parsed.hostname === "localhost";
 }
 
+export function OPTIONS(request: Request): Response {
+  return preflight(request);
+}
+
 export async function POST(request: Request): Promise<Response> {
   if (!env.MCP_ENABLED) {
-    return new Response(null, { status: 404 });
+    return new Response(null, { status: 404, headers: corsHeaders(request) });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return invalidClientMetadata("Corpo da requisição precisa ser um JSON válido.");
+    return invalidClientMetadata(request, "Corpo da requisição precisa ser um JSON válido.");
   }
 
   if (typeof body !== "object" || body === null) {
-    return invalidClientMetadata("Corpo da requisição precisa ser um objeto JSON.");
+    return invalidClientMetadata(request, "Corpo da requisição precisa ser um objeto JSON.");
   }
 
   const { client_name, redirect_uris } = body as {
@@ -58,11 +66,14 @@ export async function POST(request: Request): Promise<Response> {
     redirect_uris.length === 0 ||
     !redirect_uris.every((uri): uri is string => typeof uri === "string")
   ) {
-    return invalidClientMetadata("redirect_uris precisa ser um array não vazio de strings.");
+    return invalidClientMetadata(request, "redirect_uris precisa ser um array não vazio de strings.");
   }
 
   if (!redirect_uris.every(isAllowedRedirectUri)) {
-    return invalidClientMetadata("redirect_uris precisa usar https:// (ou http://localhost em dev).");
+    return invalidClientMetadata(
+      request,
+      "redirect_uris precisa usar https:// (ou http://localhost em dev).",
+    );
   }
 
   const clientName = typeof client_name === "string" && client_name.length > 0 ? client_name : "MCP Client";
@@ -79,6 +90,6 @@ export async function POST(request: Request): Promise<Response> {
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
     },
-    { status: 201 },
+    { status: 201, headers: corsHeaders(request) },
   );
 }
