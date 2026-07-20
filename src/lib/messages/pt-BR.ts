@@ -1517,6 +1517,22 @@ export const messages = {
       expandGoals: "Ver metas",
     },
   },
+  mcpConsent: {
+    errorTitle: "Não foi possível continuar",
+    invalidClient: "Aplicativo desconhecido ou não registrado.",
+    invalidRedirectUri: "Endereço de retorno não corresponde ao aplicativo solicitante.",
+    invalidRequest: "A solicitação de autorização é inválida.",
+    title: "Conceder acesso",
+    subtitle: (clientName: string) =>
+      `${clientName} está solicitando acesso aos seus dados financeiros.`,
+    accountLabel: "Conta",
+    noAccounts: "Você não é membro de nenhuma Account para conceder acesso.",
+    scopeReadOnly:
+      "Acesso somente leitura — o aplicativo não poderá criar, editar ou excluir dados.",
+    lgpdNotice: (clientName: string) =>
+      `Os dados consultados serão enviados ao ${clientName} e processados pelo provedor dele.`,
+    authorize: "Autorizar",
+  },
   notifications: {
     title: "Notificações",
     empty: "Nenhuma notificação.",
