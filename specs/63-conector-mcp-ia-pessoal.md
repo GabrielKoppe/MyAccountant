@@ -115,10 +115,10 @@ Para um connector remoto, o MCP exige que o servidor de recurso seja protegido p
 | DD-01 | Como o usuário conecta a IA dele | **MCP connector** (expose), não BYOK | Assinatura de chat consumer alcança connectors, mas **não** gera API key (ver MCP-02) |
 | DD-02 | Origem das tools | Wrappers sobre **queries já existentes** (`src/server/queries/`); reusar módulo comum se existir | Reaproveita o que existe (DRY) sem acoplar 55 e 63 |
 | DD-03 | Autenticação do canal | **OAuth 2.1** como authorization server (PKCE + DCR + metadados) | Exigência do MCP p/ connectors remotos; consentimento, escopo e revogação |
-| DD-03a | Implementação do OAuth | **Lib/adaptador** (não hand-roll), storage Prisma | Código sensível; lib cobre protocolo; storage é nosso |
+| DD-03a | Implementação do OAuth | **Resource** via `mcp-handler` (Next-native); **Authorization Server nativo** em Route Handlers (Path A), storage Prisma | Spike provou que o AS do SDK é Express-only e não serve ao App Router; o lado resource é lib-provido. Ver `docs/superpowers/plans/63-spike-mcp-notes.md` |
 | DD-04 | Origem do `accountId`/`userId` | Sempre da concessão OAuth (token), nunca do input do modelo | Multi-tenancy estrito mesmo sob manipulação do modelo |
 | DD-05 | Providers-alvo | Claude.ai primário; ChatGPT best-effort; Gemini fora | Suporte a MCP remoto sólido no Claude.ai |
-| DD-06 | Stack MCP/OAuth | **`mcp-handler` + `@modelcontextprotocol/sdk`**, AS Prisma-backed, **NextAuth mantido** p/ login | Uma stack de login intacta; libs oficiais; menos superfície nova. (Entrevista) |
+| DD-06 | Stack MCP/OAuth | **`mcp-handler@1.1.0` + `@modelcontextprotocol/sdk@1.29.0`** p/ o resource; **AS nativo** (Path A) Prisma-backed; **NextAuth mantido** p/ login | Resource lib-provido e Next-native; AS do SDK é Express-only (spike), por isso nativo. Uma stack de login intacta. (Entrevista + spike) |
 | DD-07 | Escopo do token | Somente leitura, escopado a uma Account por concessão | Assistente jamais altera dados; isolamento por Account |
 | DD-08 | Relação com spec 55 | **Independentes** — qualquer ordem; sem dependência de código | Liberdade de implementar 55 ou 63 primeiro; reuso sem acoplamento |
 | DD-09 | Visibilidade por membro (spec 44) | Tools passam por um **`ReadContext`** único; hoje só `accountId`+membership, amanhã herda a visibilidade da 44 | Superfície MCP coberta por construção quando a 44 existir; sem tocar cada tool (Entrevista Q1) |
@@ -136,7 +136,7 @@ Para um connector remoto, o MCP exige que o servidor de recurso seja protegido p
 
 | Item | Arquivo(s) a tocar |
 |---|---|
-| Endpoint MCP (handshake + tools) | `src/app/api/mcp/[transport]/route.ts` (novo) |
+| Endpoint MCP (handshake + tools) | `src/app/api/[transport]/route.ts` (novo; `basePath:"/api"` → URL do connector `/api/mcp`) |
 | Catálogo de tools (wrappers) | `src/server/mcp/tools.ts` (novo) |
 | Contexto de leitura / seam da visibilidade (spec 44) | `src/server/mcp/visibility.ts` (novo) |
 | Membership sem sessão (contexto Bearer) | `src/server/auth/membership.ts` (novo); `requireAccountAccess` passa a delegar a ele |
@@ -196,7 +196,22 @@ await requireAccountAccess(grant.accountId);
 
 ---
 
-### Task 0.1: Spike — fixar API das libs MCP/OAuth
+### Pós-spike (AUTORITATIVO — sobrepõe o texto das tasks abaixo)
+
+O spike (Task 0.1, ver `docs/superpowers/plans/63-spike-mcp-notes.md`) fixou `@modelcontextprotocol/sdk@1.29.0` + `mcp-handler@1.1.0` e definiu correções que **prevalecem**:
+
+1. **Rota**: `src/app/api/[transport]/route.ts` com `config.basePath = "/api"` (URL do connector = `/api/mcp`).
+2. **`McpTool`** carrega `shape: z.ZodRawShape` (p/ `registerTool.inputSchema`) **além** de `schema: z.ZodObject` (validação/testes).
+3. **Serializer** `serializeForMcp(data)` (BigInt centavos→string, Date→ISO); o `cb` retorna `{ content: [{ type: "text", text: serializeForMcp(data) }] }`.
+4. **Bearer**: `verifyMcpBearer(req, token?) → AuthInfo | undefined` (contrato do `withMcpAuth`), devolvendo `{ token, clientId, scopes:["read"], extra:{ userId, accountId, grantId } }`.
+5. **Endpoint (Task 2.2)**: `createMcpRouteHandler(init, {serverInfo}, {basePath:"/api", disableSse:true})` + `withMcpAuth(base, verifyMcpBearer, {required:true, requiredScopes:["read"]})`; cada tool via `server.registerTool(name, {description, inputSchema: tool.shape}, cb)`.
+6. **AS nativo (Path A)** — Fase 3 reescrita: `/api/oauth/authorize`, `/api/oauth/token`, `/api/oauth/register`, `/.well-known/oauth-authorization-server` como Route Handlers Next sobre o storage (Task 2.1); metadata de **resource** via `protectedResourceHandler` do mcp-handler. **Não** usar `mcpAuthRouter`/`OAuthServerProvider` do SDK (Express-only).
+7. **Rate-limit (4.2) e log (4.3)** entram **dentro** do `cb` da tool (onde há `authInfo`).
+8. **Redis**: com `disableSse:true` + stateless, verificar se dispensa; se preciso, reusar Upstash (`MCP_REDIS_URL` opcional).
+
+---
+
+### Task 0.1: Spike — fixar API das libs MCP/OAuth ✅ CONCLUÍDA
 
 **Files:**
 - Create: `docs/superpowers/plans/63-spike-mcp-notes.md`
