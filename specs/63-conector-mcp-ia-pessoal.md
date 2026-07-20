@@ -849,107 +849,116 @@ git commit -m "feat(mcp): endpoint MCP + resolução de grant via Bearer"
 
 ---
 
-### Task 3.1: OAuth provider (SDK) sobre o storage
+### Fase 3 — Authorization Server NATIVO (Path A, pós-spike)
 
-**Files:**
-- Create: `src/server/mcp/oauth/provider.ts`
-- Test: `src/server/mcp/oauth/__tests__/provider.test.ts`
+O AS do SDK MCP é Express-only (spike). A Fase 3 implementa o Authorization Server como **Route Handlers nativos do Next** sobre o storage Prisma. O lado resource (Fase 2) já usa `withMcpAuth`/`protectedResourceHandler` do mcp-handler. Fluxo **OAuth 2.1 público** (clients sem secret) + **PKCE S256 obrigatório** + **DCR**.
 
-**Interfaces:**
-- Consumes: interface do provider do SDK (spike), storage (2.1), models (0.2).
-- Produces: `mcpOAuthProvider` implementando `authorize`/`exchangeAuthorizationCode`/`exchangeRefreshToken`/`verifyAccessToken` (nomes exatos por spike), com PKCE e DCR persistidos em `McpClient`/`McpAuthCode`.
-
-- [ ] **Step 1..N (TDD por método do provider)**: para cada método exigido pelo SDK, um teste que exercita o caminho feliz + um de rejeição (code expirado, PKCE inválido, refresh revogado), depois a implementação sobre o storage. Emissão de tokens delega a `issueTokens`; verificação delega a `findGrantByAccessToken`.
-
-- [ ] **Step final: Commit**
-
-```bash
-git add src/server/mcp/oauth/
-git commit -m "feat(mcp): OAuth provider (PKCE, DCR, code/refresh) sobre storage"
-```
+**Invariantes de segurança (valem para TODA task da Fase 3):**
+- PKCE S256 **obrigatório**: sem `code_challenge` no authorize → rejeita; no token, `verifyPkceS256(code_verifier, code_challenge)` com comparação constante.
+- `redirect_uri` casa **exatamente** com uma registrada no client (igualdade estrita, nunca prefixo/substring).
+- Authorization code: **uso único** (`consumedAt` marcado atomicamente), TTL curto (~10 min), armazenado **hasheado** (SEC-02), ligado a `(clientId, userId, accountId, redirectUri, codeChallenge, scope)`.
+- Escopo só `read`. `accountId` sempre do grant.
+- Sem `client_secret` (clients públicos MCP); metadata `token_endpoint_auth_methods_supported: ["none"]`.
+- `/api/oauth/*` e `/.well-known/*` ficam **fora** do enforcement de sessão do middleware — já satisfeito hoje (o matcher `src/middleware.ts` exclui `/api` e caminhos com `.`; confirmado no review da Task 2.2). Só re-verificar em 3.6; **não** re-editar o matcher.
 
 ---
 
-### Task 3.2: Endpoints de descoberta + authorize/token
+### Task 3.1: Extensões do storage OAuth (client, auth code, grant upsert, refresh/rotate, PKCE)
 
 **Files:**
-- Create: `src/app/.well-known/oauth-authorization-server/route.ts`, `src/app/.well-known/oauth-protected-resource/route.ts`, `src/app/api/oauth/authorize/route.ts`, `src/app/api/oauth/token/route.ts`
+- Create: `src/server/mcp/oauth/clients.ts`, `src/server/mcp/oauth/codes.ts`, `src/server/mcp/oauth/pkce.ts`
+- Modify: `src/server/mcp/oauth/store.ts` (adicionar grant upsert + refresh)
+- Test: `src/server/mcp/oauth/__tests__/{clients,codes,pkce,store-refresh}.test.ts`
 
-**Interfaces:**
-- Consumes: `mcpOAuthProvider` (3.1), `env.MCP_ISSUER_URL`.
-- Produces: documentos de metadados e os endpoints do fluxo, montados via o roteador de AS do SDK (spike).
+**Interfaces (Produces):**
+- `clients.ts`: `registerClient({ clientName, redirectUris }): Promise<McpClient>` (gera `clientId` random), `getClient(clientId): Promise<McpClient | null>`.
+- `codes.ts`: `createAuthCode(input): Promise<string>` (retorna o code RAW; persiste `code` **hasheado**, TTL ~10min), `consumeAuthCode(rawCode): Promise<McpAuthCode | null>` (uso único atômico: `updateMany where code=hash AND consumedAt=null set consumedAt=now`, retorna o registro só se marcou 1 linha e não expirou).
+- `store.ts`: `upsertGrant(userId, accountId, clientId): Promise<McpGrant>` (idempotente por `@@unique`), `findGrantByRefreshToken(raw): Promise<McpGrant | null>` (rejeita expirado/revogado/tipo≠refresh), `rotateRefreshToken(oldRefreshRaw): Promise<{ accessToken, refreshToken } | null>` (valida o refresh, **deleta** o par antigo, emite novo par via `issueTokens` — resolve o carry-forward da Task 2.1).
+- `pkce.ts`: `verifyPkceS256(verifier, challenge): boolean`.
 
-- [ ] **Step 1: Teste dos metadados**
-
-```bash
-curl -s http://localhost:3000/.well-known/oauth-authorization-server | jq '.issuer, .authorization_endpoint, .token_endpoint'
-```
-Esperado: valores derivados de `env.MCP_ISSUER_URL`, endpoints `/api/oauth/authorize` e `/api/oauth/token`.
-
-- [ ] **Step 2: Montar os handlers pelo roteador do SDK** conforme o spike; `authorize` exige sessão NextAuth (redireciona ao login se ausente) e delega à tela de consentimento (Task 3.3).
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add "src/app/.well-known" src/app/api/oauth/
-git commit -m "feat(mcp): metadados OAuth + endpoints authorize/token"
-```
-
----
-
-### Task 3.3: Tela de consentimento (login NextAuth + seleção de Account + aviso LGPD)
-
-**Files:**
-- Create: `src/app/api/oauth/consent/page.tsx` (ou rota equivalente do fluxo authorize), `src/actions/mcp-consent.ts`
-- Test: `src/actions/__tests__/mcp-consent.test.ts`
-
-**Interfaces:**
-- Consumes: `requireUser` (sessão NextAuth), `prisma.accountMember.findMany`, `mcpOAuthProvider`.
-- Produces: `approveConsent(input): Promise<ActionResult<{ redirectTo: string }>>` — cria/reusa o `McpGrant` `(userId, accountId, clientId)`, emite o authorization code, retorna a redireção.
-
-- [ ] **Step 1: Teste — cria grant só para Account da qual o usuário é membro**
-
+**Código-chave (PKCE, comparação constante):**
 ```ts
-// usuário u1 tenta consentir accountId "a-outro" do qual NÃO é membro → ForbiddenError; grant não é criado
+// src/server/mcp/oauth/pkce.ts
+import { createHash, timingSafeEqual } from "node:crypto";
+export function verifyPkceS256(verifier: string, challenge: string): boolean {
+  const hashed = createHash("sha256").update(verifier).digest("base64url");
+  const a = Buffer.from(hashed);
+  const b = Buffer.from(challenge);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 ```
-(Usar `ensureMembership` dentro da action; multi-tenancy obrigatório.)
 
-- [ ] **Step 2: Rodar e ver falhar; implementar a action** (usa `defineAction`, `ensureMembership`, cria `McpGrant`, chama o provider p/ emitir o code).
-
-- [ ] **Step 3: UI de consentimento** (MUI + tokens do tema): nome do app cliente, `<Select>` de Account a partir de `accountMember.findMany({ where: { userId } })`, texto de escopo "somente leitura" e **aviso LGPD** ("os dados consultados serão enviados ao {clientName} e processados pelo provedor dele"). Botões "Autorizar"/"Cancelar".
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add src/app/api/oauth/consent/ src/actions/mcp-consent.ts src/actions/__tests__/
-git commit -m "feat(mcp): consentimento com seleção de Account e aviso LGPD"
-```
+- [ ] TDD por unidade (mock `@/server/prisma` via `tests/mocks/prisma.ts` `prismaMock`; mock `@/lib/env` como em `auth-service.test.ts`):
+  - PKCE: verifier correto → true; errado/tamanho diferente → false.
+  - `consumeAuthCode`: 1ª chamada retorna o registro; 2ª (replay) → null; code expirado → null.
+  - `rotateRefreshToken`: refresh válido → novo par + par antigo removido; refresh de grant revogado → null.
+  - `registerClient`/`getClient`: round-trip; `upsertGrant`: idempotente por `(user,account,client)`.
+- [ ] Commit: `feat(mcp): storage OAuth — clients, auth codes (uso único), grant upsert, refresh rotate, PKCE`
 
 ---
 
-### Task 3.4: Exceção do middleware
+### Task 3.2: Metadata do Authorization Server + Protected Resource
 
-**Files:**
-- Modify: `src/middleware.ts`
+**Files:** Create `src/app/.well-known/oauth-authorization-server/route.ts`, `src/app/.well-known/oauth-protected-resource/route.ts`
 
-**Interfaces:**
-- Produces: matcher que continua **não** capturando `/api/*` — e um comentário-âncora garantindo que, quando a spec 23 SEC-04 adicionar enforcement a `/api/v1`, `/api/mcp`, `/api/oauth` e `/.well-known` fiquem **fora**.
+**Interfaces:** Consumes `env.MCP_ISSUER_URL` (fallback `getPublicOrigin(req)` do mcp-handler).
 
-- [ ] **Step 1: Confirmar (teste manual) que `/api/mcp`, `/api/oauth` e `/.well-known` respondem sem redirect de login.**
+- [ ] AS metadata (RFC 8414) — GET JSON com: `issuer`, `authorization_endpoint` (`/api/oauth/authorize`), `token_endpoint` (`/api/oauth/token`), `registration_endpoint` (`/api/oauth/register`), `response_types_supported: ["code"]`, `grant_types_supported: ["authorization_code","refresh_token"]`, `code_challenge_methods_supported: ["S256"]`, `scopes_supported: ["read"]`, `token_endpoint_auth_methods_supported: ["none"]`.
+- [ ] Protected Resource (RFC 9728) — usar `protectedResourceHandler({ authServerUrls: [issuer] })` do mcp-handler + `metadataCorsOptionsRequestHandler()` para `OPTIONS`.
+- [ ] Verificar: `curl .../.well-known/oauth-authorization-server | jq` mostra os endpoints; `curl .../.well-known/oauth-protected-resource` aponta o AS.
+- [ ] Commit: `feat(mcp): metadata OAuth (authorization-server + protected-resource)`
 
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/.well-known/oauth-authorization-server
-```
-Esperado: `200` (não `302` de login).
+---
 
-- [ ] **Step 2: Adicionar comentário-âncora no matcher** referenciando DD-15 e a spec 23 SEC-04.
+### Task 3.3: DCR — registro dinâmico de cliente (`/api/oauth/register`)
 
-- [ ] **Step 3: Commit**
+**Files:** Create `src/app/api/oauth/register/route.ts`; Test do handler.
 
-```bash
-git add src/middleware.ts
-git commit -m "chore(mcp): âncora p/ manter /api/mcp fora do enforcement de sessão (DD-15)"
-```
+**Interfaces:** Consumes `registerClient` (3.1).
+
+- [ ] POST (RFC 7591): aceita `{ client_name, redirect_uris: string[], ... }`; valida `redirect_uris` presente e cada URI `https://` ou `http://localhost` (dev); cria via `registerClient`; responde **201** com `{ client_id, client_id_issued_at, client_name, redirect_uris, token_endpoint_auth_method: "none", grant_types: ["authorization_code","refresh_token"], response_types: ["code"] }`. Sem `client_secret` (público).
+- [ ] TDD: registro válido → 201 + client_id; `redirect_uris` ausente/ inválida → 400 `invalid_client_metadata`.
+- [ ] Nota: rate-limit do endpoint público fica na Task 4.2 (DCR aberto é exigência do connector; mitigar com rate-limit + dados mínimos).
+- [ ] Commit: `feat(mcp): dynamic client registration (/api/oauth/register)`
+
+---
+
+### Task 3.4: Authorize + tela de consentimento (login NextAuth + seleção de Account + LGPD)
+
+**Files:** Create `src/app/api/oauth/authorize/route.ts`, a rota de consentimento (`src/app/(app)/oauth/consent/page.tsx` ou equivalente client), `src/actions/mcp-consent.ts`; Test da action.
+
+**Interfaces:** Consumes `getClient` (3.1), `auth()`/`requireUser`, `prisma.accountMember.findMany`, `ensureMembership` (Task 1.1), `upsertGrant` + `createAuthCode` (3.1). Produces `approveConsent(input): Promise<ActionResult<{ redirectTo: string }>>`.
+
+- [ ] **`/api/oauth/authorize` (GET):** validar `client_id` (`getClient` — se ausente → página de erro, **não** redirect), `redirect_uri` (igualdade estrita com `client.redirectUris` — senão erro, **não** redirect), `response_type=code`, `code_challenge` + `code_challenge_method=S256` (senão `error=invalid_request`), `scope ⊆ {read}`, capturar `state`. Se **sem sessão** (`auth()`), redirecionar para `/login?callbackUrl=<url do authorize>`. Com sessão → renderizar a tela de consentimento com os parâmetros validados.
+- [ ] **Tela de consentimento (MUI + tokens do tema):** nome do client, `<Select>` de Account de `accountMember.findMany({ where: { userId } })` (spec 31 — não há "account ativa"), escopo "somente leitura", **aviso LGPD**: "os dados consultados serão enviados ao {client_name} e processados pelo provedor dele". Botões **Autorizar** / **Cancelar**.
+- [ ] **`approveConsent` action (`defineAction`):** input = params do authorize + `accountId` escolhido. `ensureMembership(userId, accountId)` (multi-tenancy — rejeita não-membro). `upsertGrant(userId, accountId, clientId)`. `createAuthCode({ clientId, userId, accountId, redirectUri, codeChallenge, scope })`. Retorna `redirectTo = redirect_uri?code=<code>&state=<state>`. Cancelar → `redirect_uri?error=access_denied&state=<state>`.
+- [ ] **TDD (multi-tenancy obrigatório):** consentir para account da qual NÃO é membro → `ForbiddenError`, **nenhum** grant/code criado; `redirect_uri` fora da lista do client → erro (não redirect); caminho feliz cria code ligado a `(client,user,account,codeChallenge)`.
+- [ ] Commit: `feat(mcp): authorize + consentimento (Account + LGPD) + auth code`
+
+---
+
+### Task 3.5: Token endpoint (`/api/oauth/token`)
+
+**Files:** Create `src/app/api/oauth/token/route.ts`; Test do handler.
+
+**Interfaces:** Consumes `consumeAuthCode`, `verifyPkceS256`, `getClient`, `upsertGrant`, `issueTokens` (2.1), `findGrantByRefreshToken`/`rotateRefreshToken` (3.1).
+
+- [ ] POST form-encoded. **`grant_type=authorization_code`**: `consumeAuthCode(code)` (uso único → se null `invalid_grant`); conferir `code.clientId===client_id`, `code.redirectUri===redirect_uri`, `verifyPkceS256(code_verifier, code.codeChallenge)` (senão `invalid_grant`); `issueTokens(code.<grant>)` (grant já existe do consentimento — resolver o grantId por `(userId,accountId,clientId)`); responder `{ access_token, token_type:"Bearer", expires_in, refresh_token, scope:"read" }`.
+- [ ] **`grant_type=refresh_token`**: `findGrantByRefreshToken` (null/revogado → `invalid_grant`); `rotateRefreshToken` → novo par; responder os tokens.
+- [ ] Erros no formato OAuth JSON (`{ error: "invalid_grant" | "invalid_request" | "unsupported_grant_type" }`, HTTP 400), sem vazar detalhe.
+- [ ] **TDD:** code exchange feliz; **replay** do mesmo code → `invalid_grant`; `code_verifier` errado → `invalid_grant`; `redirect_uri` divergente → `invalid_grant`; refresh feliz + rotação invalida o refresh antigo.
+- [ ] Commit: `feat(mcp): token endpoint (code+PKCE, refresh rotation)`
+
+---
+
+### Task 3.6: Validação end-to-end do fluxo (fecha o handshake adiado da 2.2)
+
+**Files:** none de produção (verificação); opcional `docs/superpowers/plans/63-e2e-notes.md`.
+
+- [ ] Com `MCP_ENABLED=true` local, rodar o fluxo completo com um client de teste: `register` → `authorize` (usuário logado escolhe Account) → `token` → chamar `/api/mcp` com `Authorization: Bearer <access>` → `tools/list` lista as 11 tools e uma tool retorna dado real da Account concedida.
+- [ ] Confirmar que `/api/oauth/*` e `/.well-known/*` **não** recebem 302 de login (DD-15 — só verificar, não editar o matcher).
+- [ ] Confirmar multi-tenancy live: token da Account A nunca devolve dado da B.
+- [ ] Documentar os passos + resultados. Isto fecha o handshake que a Task 2.2 deixou adiado.
 
 ---
 
