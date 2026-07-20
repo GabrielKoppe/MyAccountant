@@ -908,25 +908,25 @@ enum McpTokenType {
 
 model McpClient {
   id           String   @id @default(cuid())
-  clientId     String   @unique
-  clientName   String
-  redirectUris String[]
-  createdAt    DateTime @default(now())
+  clientId     String   @unique @map("client_id")
+  clientName   String   @map("client_name")
+  redirectUris String[] @map("redirect_uris")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   grants McpGrant[]
 
-  @@map("mcp_client")
+  @@map("mcp_clients")
 }
 
 model McpGrant {
   id         String    @id @default(cuid())
-  userId     String
-  accountId  String
-  clientId   String
+  userId     String    @map("user_id")
+  accountId  String    @map("account_id")
+  clientId   String    @map("client_id")
   scope      String    @default("read")
-  createdAt  DateTime  @default(now())
-  lastUsedAt DateTime?
-  revokedAt  DateTime?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
 
   user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   account Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -935,35 +935,35 @@ model McpGrant {
 
   @@unique([userId, accountId, clientId])
   @@index([accountId])
-  @@map("mcp_grant")
+  @@map("mcp_grants")
 }
 
 model McpToken {
   id        String       @id @default(cuid())
-  grantId   String
+  grantId   String       @map("grant_id")
   type      McpTokenType
-  tokenHash String       @unique
-  expiresAt DateTime
-  createdAt DateTime     @default(now())
+  tokenHash String       @unique @map("token_hash")
+  expiresAt DateTime     @map("expires_at")
+  createdAt DateTime     @default(now()) @map("created_at")
 
   grant McpGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
 
   @@index([grantId])
-  @@map("mcp_token")
+  @@map("mcp_tokens")
 }
 
 model McpAuthCode {
   id            String    @id @default(cuid())
   code          String    @unique
-  clientId      String
-  userId        String
-  accountId     String
-  redirectUri   String
-  codeChallenge String
+  clientId      String    @map("client_id")
+  userId        String    @map("user_id")
+  accountId     String    @map("account_id")
+  redirectUri   String    @map("redirect_uri")
+  codeChallenge String    @map("code_challenge")
   scope         String    @default("read")
-  expiresAt     DateTime
-  consumedAt    DateTime?
-  createdAt     DateTime  @default(now())
+  expiresAt     DateTime  @map("expires_at")
+  consumedAt    DateTime? @map("consumed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
 
-  @@map("mcp_auth_code")
+  @@map("mcp_auth_codes")
 }
