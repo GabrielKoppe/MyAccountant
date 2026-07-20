@@ -1,6 +1,6 @@
-import { ForbiddenError, UnauthorizedError } from "@/server/api/errors";
+import { UnauthorizedError } from "@/server/api/errors";
 import { auth } from "@/server/auth";
-import { prisma } from "@/server/prisma";
+import { ensureMembership } from "@/server/auth/membership";
 
 export async function requireUser() {
   const session = await auth();
@@ -12,16 +12,6 @@ export async function requireUser() {
 
 export async function requireAccountAccess(accountId: string) {
   const user = await requireUser();
-
-  const member = await prisma.accountMember.findUnique({
-    where: {
-      accountId_userId: { accountId, userId: user.id },
-    },
-  });
-
-  if (!member) {
-    throw new ForbiddenError("Você não é membro desta conta.");
-  }
-
+  const member = await ensureMembership(user.id, accountId);
   return { user, member };
 }
