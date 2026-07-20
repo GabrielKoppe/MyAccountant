@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { prisma } from "@/server/prisma";
 
 export type AccountConnector = {
@@ -8,23 +10,27 @@ export type AccountConnector = {
 };
 
 /**
- * Lista os connectors MCP ativos (não revogados) de uma Account.
+ * Lista os connectors MCP ativos (não revogados) do usuário autenticado
+ * dentro de uma Account.
  *
- * Multi-tenancy (spec 63, Task 4.1): sempre filtrado por `accountId` — nunca
- * expor grants de outra Account. Chamado apenas depois de
- * `requireAccountAccess(accountId)` confirmar que o usuário é membro.
+ * User-scoped (spec 63, Task 4.1): cada membro vê e revoga SOMENTE os
+ * próprios connectors — filtrado por `accountId` E `userId`. Chamado apenas
+ * depois de `requireAccountAccess(accountId)` confirmar que o usuário é
+ * membro.
  */
-export async function getAccountConnectors(accountId: string): Promise<AccountConnector[]> {
-  const grants = await prisma.mcpGrant.findMany({
-    where: { accountId, revokedAt: null },
-    include: { client: { select: { clientName: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+export const getAccountConnectors = cache(
+  async (accountId: string, userId: string): Promise<AccountConnector[]> => {
+    const grants = await prisma.mcpGrant.findMany({
+      where: { accountId, userId, revokedAt: null },
+      include: { client: { select: { clientName: true } } },
+      orderBy: { createdAt: "desc" },
+    });
 
-  return grants.map((grant) => ({
-    id: grant.id,
-    clientName: grant.client.clientName,
-    createdAt: grant.createdAt,
-    lastUsedAt: grant.lastUsedAt,
-  }));
-}
+    return grants.map((grant) => ({
+      id: grant.id,
+      clientName: grant.client.clientName,
+      createdAt: grant.createdAt,
+      lastUsedAt: grant.lastUsedAt,
+    }));
+  },
+);

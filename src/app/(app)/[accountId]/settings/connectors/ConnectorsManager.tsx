@@ -96,14 +96,16 @@ export function ConnectorsManager({ accountId, connectors }: Props) {
                     </TableCell>
                     <TableCell align="right">
                       <Tooltip title={cc.revokeButton}>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          disabled={isPending}
-                          onClick={() => setRevokeTarget(connector)}
-                        >
-                          <BlockIcon fontSize="small" />
-                        </IconButton>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            disabled={isPending}
+                            onClick={() => setRevokeTarget(connector)}
+                          >
+                            <BlockIcon fontSize="small" />
+                          </IconButton>
+                        </span>
                       </Tooltip>
                     </TableCell>
                   </TableRow>

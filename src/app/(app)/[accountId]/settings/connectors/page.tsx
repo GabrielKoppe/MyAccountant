@@ -19,9 +19,10 @@ export default async function ConnectorsSettingsPage({ params }: Props) {
   const { accountId } = await params;
 
   // Multi-tenancy (spec 63, Task 4.1): só chega aqui quem é membro da Account.
-  await requireAccountAccess(accountId).catch(() => redirect("/home"));
+  const { user } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
 
-  const connectors = await getAccountConnectors(accountId);
+  // User-scoped: cada membro vê apenas os próprios connectors.
+  const connectors = await getAccountConnectors(accountId, user.id);
 
   return <ConnectorsManager accountId={accountId} connectors={connectors} />;
 }

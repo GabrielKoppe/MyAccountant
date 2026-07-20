@@ -9,27 +9,28 @@ import { revokeGrant } from "@/server/mcp/oauth/store";
 import { prisma } from "@/server/prisma";
 
 /**
- * Revoga um connector MCP (`McpGrant`) da Account do usuário autenticado
+ * Revoga um connector MCP (`McpGrant`) do PRÓPRIO usuário autenticado
  * (spec 63, Task 4.1).
  *
- * Multi-tenancy: `defineAction` já garante (via `requireAccountAccess`) que o
- * usuário é membro de `accountId`. Isso NÃO é suficiente — antes de revogar,
- * validamos que o `McpGrant` alvo pertence EXATAMENTE a essa Account. Sem essa
- * segunda checagem, um membro da Account A poderia revogar (ou confirmar a
- * existência de) o grant de outra Account só adivinhando/recebendo o
- * `grantId`. Se o grant não existir ou pertencer a outra Account, lançamos
- * `NotFoundError` (sem distinguir os dois casos, para não vazar existência)
- * e `revokeGrant` nunca é chamado.
+ * User-scoped: `defineAction` garante (via `requireAccountAccess`) que o
+ * usuário é membro de `accountId` — mas isso NÃO é suficiente, pois qualquer
+ * membro poderia revogar o grant de OUTRO membro só adivinhando/recebendo o
+ * `grantId`. Por isso validamos que o `McpGrant` alvo pertence EXATAMENTE a
+ * essa Account E a esse usuário (`grant.userId === ctx.userId`). Se o grant
+ * não existir, pertencer a outra Account, ou pertencer a outro usuário da
+ * mesma Account, lançamos `NotFoundError` (sem distinguir os casos, para não
+ * vazar existência) e `revokeGrant` nunca é chamado. Não é necessário
+ * `requireRoles` — o user-scoping já é o gate de autorização.
  */
 export const revokeConnectorAction = defineAction({
   schema: revokeConnectorSchema,
   handler: async (input, ctx) => {
     const grant = await prisma.mcpGrant.findUnique({
       where: { id: input.grantId },
-      select: { id: true, accountId: true },
+      select: { id: true, accountId: true, userId: true },
     });
 
-    if (!grant || grant.accountId !== ctx.accountId) {
+    if (!grant || grant.accountId !== ctx.accountId || grant.userId !== ctx.userId) {
       throw new NotFoundError("Connector");
     }
 

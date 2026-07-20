@@ -34,6 +34,7 @@ const editorLinks = [
   { href: "templates", label: m.settings.nav.templates },
   { href: "budgets", label: m.budgets.nav },
   visualizationEntry,
+  { href: "connectors", label: m.settings.nav.connectors },
 ];
 
 export default async function SettingsLayout({ children, params }: Props) {
@@ -43,12 +44,7 @@ export default async function SettingsLayout({ children, params }: Props) {
   if (member.role === "viewer") redirect(`/${accountId}`);
 
   const isOwner = member.role === "owner";
-  const ownerLinks = isOwner
-    ? [
-        { href: "members", label: m.settings.nav.members },
-        { href: "connectors", label: m.settings.nav.connectors },
-      ]
-    : [];
+  const ownerLinks = isOwner ? [{ href: "members", label: m.settings.nav.members }] : [];
 
   return (
     <Box

@@ -16,11 +16,18 @@ import { revokeConnectorAction } from "@/actions/mcp-connectors";
 
 // requireAccountAccess é mockado (tests/mocks/auth.ts) para SEMPRE suceder,
 // não importa o accountId — o que estamos testando aqui é a segunda camada
-// de multi-tenancy: a ownership check dentro do próprio handler, que compara
-// grant.accountId ao accountId do chamador.
+// de autorização: a ownership check dentro do próprio handler, que compara
+// grant.accountId E grant.userId ao ctx (accountId do chamador e userId do
+// usuário autenticado no mock).
 // IDs no formato cuid (schema `revokeConnectorSchema` valida `grantId` com `.cuid()`).
-const GRANT_A = { id: "cgrantidaaaaaaaaaaaaaaaa", accountId: "acc-A" };
-const GRANT_B = { id: "cgrantidbbbbbbbbbbbbbbbb", accountId: "acc-B" };
+// tests/mocks/auth.ts fixa o usuário autenticado com id "user-test-1".
+const GRANT_A = { id: "cgrantidaaaaaaaaaaaaaaaa", accountId: "acc-A", userId: "user-test-1" };
+const GRANT_B = { id: "cgrantidbbbbbbbbbbbbbbbb", accountId: "acc-B", userId: "user-test-1" };
+const GRANT_OTHER_USER = {
+  id: "cgrantidccccccccccccccccc",
+  accountId: "acc-A",
+  userId: "user-test-2",
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,6 +44,19 @@ describe("revokeConnectorAction", () => {
       expect(result.error.code).toBe("NOT_FOUND");
     }
     // O grant da Account B deve permanecer intacto — revokeGrant nunca é chamado.
+    expect(mockRevokeGrant).not.toHaveBeenCalled();
+  });
+
+  it("user-scoping: NÃO revoga um grant de OUTRO usuário na mesma Account", async () => {
+    prismaMock.mcpGrant.findUnique.mockResolvedValue(GRANT_OTHER_USER as never);
+
+    const result = await revokeConnectorAction("acc-A", { grantId: GRANT_OTHER_USER.id });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("NOT_FOUND");
+    }
+    // O grant pertence a outro usuário (mesma Account) — nunca revogado.
     expect(mockRevokeGrant).not.toHaveBeenCalled();
   });
 
