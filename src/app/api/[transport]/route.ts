@@ -72,7 +72,11 @@ function buildHandler() {
     { basePath: "/api", disableSse: true, maxDuration: 60 },
   );
 
-  return withMcpAuth(base, verifyMcpBearer, { required: true, requiredScopes: ["read"] });
+  return withMcpAuth(base, verifyMcpBearer, {
+    required: true,
+    requiredScopes: ["read"],
+    resourceMetadataPath: "/.well-known/oauth-protected-resource/api/mcp",
+  });
 }
 
 async function disabledHandler(): Promise<Response> {
