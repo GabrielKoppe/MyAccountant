@@ -1,11 +1,12 @@
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AuthCard } from "@/components/auth/AuthCard";
 import { layout } from "@/lib/design-tokens";
+import { env } from "@/lib/env";
 import { m } from "@/lib/messages";
 import { requireUser } from "@/server/auth/session";
 import { getClient } from "@/server/mcp/oauth/clients";
@@ -66,6 +67,13 @@ export default async function ConsentPage({
 }: {
   searchParams: Promise<ConsentSearchParams>;
 }) {
+  // Gate por feature flag: mesmo comportamento 404 do /api/oauth/authorize —
+  // com a flag desligada, o connector não existe (evita mintar grant/code
+  // órfão mesmo que o usuário chegue direto nesta URL).
+  if (!env.MCP_ENABLED) {
+    notFound();
+  }
+
   const raw = await searchParams;
 
   const clientId = raw.client_id ?? null;

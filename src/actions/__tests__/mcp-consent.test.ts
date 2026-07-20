@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import "../../../tests/mocks/auth";
 
+const envMock = vi.hoisted(() => ({ MCP_ENABLED: true }));
 const mockGetClient = vi.hoisted(() => vi.fn());
 const mockEnsureMembership = vi.hoisted(() => vi.fn());
 const mockUpsertGrant = vi.hoisted(() => vi.fn());
 const mockCreateAuthCode = vi.hoisted(() => vi.fn());
 
+vi.mock("@/lib/env", () => ({ env: envMock }));
 vi.mock("@/server/mcp/oauth/clients", () => ({ getClient: mockGetClient }));
 vi.mock("@/server/auth/membership", () => ({ ensureMembership: mockEnsureMembership }));
 vi.mock("@/server/mcp/oauth/store", () => ({ upsertGrant: mockUpsertGrant }));
@@ -35,6 +37,7 @@ const BASE_INPUT = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  envMock.MCP_ENABLED = true;
   mockGetClient.mockResolvedValue(VALID_CLIENT);
   mockEnsureMembership.mockResolvedValue({
     accountId: "acc-1",
@@ -46,6 +49,21 @@ beforeEach(() => {
 });
 
 describe("approveConsentAction", () => {
+  it("com MCP_ENABLED=false: rejeita e não cria grant nem code (evita órfão)", async () => {
+    envMock.MCP_ENABLED = false;
+
+    const result = await approveConsentAction(BASE_INPUT);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("NOT_FOUND");
+    }
+    expect(mockGetClient).not.toHaveBeenCalled();
+    expect(mockEnsureMembership).not.toHaveBeenCalled();
+    expect(mockUpsertGrant).not.toHaveBeenCalled();
+    expect(mockCreateAuthCode).not.toHaveBeenCalled();
+  });
+
   it("multi-tenancy: rejeita consentir para uma Account da qual o usuário NÃO é membro", async () => {
     mockEnsureMembership.mockRejectedValue(new ForbiddenError("Usuário não é membro desta conta."));
 

@@ -1,8 +1,9 @@
 "use server";
 
+import { env } from "@/lib/env";
 import { approveConsentSchema } from "@/lib/schemas/mcp-consent";
 import { defineUserAction } from "@/server/api/define-action";
-import { AppError } from "@/server/api/errors";
+import { AppError, NotFoundError } from "@/server/api/errors";
 import { ensureMembership } from "@/server/auth/membership";
 import { getClient } from "@/server/mcp/oauth/clients";
 import { createAuthCode } from "@/server/mcp/oauth/codes";
@@ -21,6 +22,14 @@ import { upsertGrant } from "@/server/mcp/oauth/store";
 export const approveConsentAction = defineUserAction({
   schema: approveConsentSchema,
   handler: async (input, ctx) => {
+    // Gate por feature flag: com `MCP_ENABLED=false` o connector não existe —
+    // mesmo comportamento 404 dos demais endpoints OAuth (authorize, token,
+    // register, /api/mcp). Sem este gate, com a flag desligada, um usuário
+    // logado ainda conseguiria mintar um McpGrant + McpAuthCode órfãos.
+    if (!env.MCP_ENABLED) {
+      throw new NotFoundError("Conector MCP");
+    }
+
     const client = await getClient(input.clientId);
     if (!client || !client.redirectUris.includes(input.redirectUri)) {
       throw new AppError("VALIDATION", "Client OAuth ou redirect_uri inválidos.");
