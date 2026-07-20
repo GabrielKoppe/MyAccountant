@@ -70,7 +70,7 @@ enum AccountMemberRole {
 
 ### 2.3 Isolamento verificável (PRIV-03)
 
-- A restrição é aplicada na **camada de serviço**, não na UI: um helper de autorização resolve a visibilidade efetiva e remove/agrega dados **antes** de retornar, cobrindo igualmente RSC, Server Actions, API REST (`/api/v1/`) e export.
+- A restrição é aplicada na **camada de serviço**, não na UI: um helper de autorização resolve a visibilidade efetiva e remove/agrega dados **antes** de retornar, cobrindo igualmente RSC, Server Actions, API REST (`/api/v1/`), export **e o canal MCP read-only (spec 63)** — cujas tools passam pelo `ReadContext` (`src/server/mcp/visibility.ts`) justamente para herdar esta camada quando implementada.
 
 ## 3. User Stories
 
@@ -95,7 +95,7 @@ enum AccountMemberRole {
 
 **PRIV-03 / Multi-tenancy:**
 - QUANDO qualquer leitura/mutação roda, A ACTION DEVE começar com `requireAccountAccess(accountId)` e toda query DEVE filtrar por `accountId`, somando a restrição de visibilidade ao filtro de tenant.
-- QUANDO a restrição de visibilidade é aplicada, ELA DEVE valer igualmente em RSC, Server Action, API REST e export (não pode ser só client-side).
+- QUANDO a restrição de visibilidade é aplicada, ELA DEVE valer igualmente em RSC, Server Action, API REST, export e o canal MCP (spec 63) — não pode ser só client-side.
 - QUANDO um `SectionVisibility` referencia seção ou usuário de outra Account, O SERVIÇO DEVE rejeitar a criação.
 
 ## 5. Fora de Escopo
