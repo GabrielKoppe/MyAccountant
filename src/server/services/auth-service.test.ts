@@ -2,24 +2,48 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prismaMock } from "@/../tests/mocks/prisma";
 import { ConflictError } from "@/server/api/errors";
+import { hashToken } from "@/server/security/hash-token";
 
-import { createUser, hasPendingInvite, isSignupAllowed, verifyPassword } from "./auth-service";
+import {
+  createUser,
+  hasPendingInvite,
+  isSignupAllowed,
+  requestPasswordReset,
+  resetPassword,
+  verifyPassword,
+} from "./auth-service";
 
 // vi.hoisted permite usar as fns mock na factory e nos testes sem problemas de hoisting
 const mockHash = vi.hoisted(() => vi.fn());
 const mockCompare = vi.hoisted(() => vi.fn());
-const envMock = vi.hoisted(() => ({ ALLOWED_EMAILS: undefined as string | undefined }));
+const envMock = vi.hoisted(() => ({
+  ALLOWED_EMAILS: undefined as string | undefined,
+  NEXT_PUBLIC_APP_URL: "https://app.test",
+}));
 
 vi.mock("bcryptjs", () => ({
   default: { hash: mockHash, compare: mockCompare },
 }));
 vi.mock("@/lib/env", () => ({ env: envMock }));
+vi.mock("@/server/email/email-service", () => ({
+  emailService: { send: vi.fn().mockResolvedValue({ ok: true }) },
+}));
+vi.mock("@/emails", () => ({
+  passwordResetEmailTemplate: {},
+  oauthOnlyResetEmailTemplate: {},
+}));
+vi.mock("@/server/services/audit-service", () => ({
+  recordAudit: vi.fn().mockResolvedValue(undefined),
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockHash.mockResolvedValue("$2b$12$hashedpassword");
   mockCompare.mockResolvedValue(true);
   envMock.ALLOWED_EMAILS = undefined;
+  prismaMock.$transaction.mockImplementation(async (arg: any) =>
+    typeof arg === "function" ? arg(prismaMock) : Promise.all(arg),
+  );
 });
 
 describe("createUser", () => {
@@ -172,5 +196,66 @@ describe("isSignupAllowed", () => {
     prismaMock.accountInvite.findFirst.mockResolvedValue(null);
 
     await expect(isSignupAllowed("estranho@test.com")).resolves.toBe(false);
+  });
+});
+
+describe("requestPasswordReset", () => {
+  it("não envia email nem cria token quando o email não existe", async () => {
+    const { emailService } = await import("@/server/email/email-service");
+    prismaMock.user.findUnique.mockResolvedValue(null);
+    await requestPasswordReset("naoexiste@test.com");
+    expect(prismaMock.passwordResetToken.create).not.toHaveBeenCalled();
+    expect(emailService.send).not.toHaveBeenCalled();
+  });
+
+  it("cria token hasheado e envia email quando a conta tem senha", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "u1",
+      email: "u@test.com",
+      passwordHash: "hash",
+    } as never);
+    prismaMock.passwordResetToken.create.mockResolvedValue({} as never);
+    await requestPasswordReset("u@test.com");
+    const createArg = (prismaMock.passwordResetToken.create as any).mock.calls[0][0];
+    expect(createArg.data.tokenHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(createArg.data.userId).toBe("u1");
+  });
+
+  it("não cria token quando a conta é só-Google (sem passwordHash)", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "u1",
+      email: "u@test.com",
+      passwordHash: null,
+    } as never);
+    await requestPasswordReset("u@test.com");
+    expect(prismaMock.passwordResetToken.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("resetPassword", () => {
+  it("rejeita token inexistente/expirado/usado", async () => {
+    prismaMock.passwordResetToken.findUnique.mockResolvedValue(null);
+    await expect(resetPassword("raw", "NovaSenha1")).rejects.toThrow();
+  });
+
+  it("atualiza senha, seta passwordChangedAt e marca token como usado", async () => {
+    prismaMock.passwordResetToken.findUnique.mockResolvedValue({
+      id: "t1",
+      userId: "u1",
+      tokenHash: hashToken("raw"),
+      expiresAt: new Date(Date.now() + 3600_000),
+      usedAt: null,
+    } as never);
+    prismaMock.user.update.mockResolvedValue({} as never);
+    prismaMock.passwordResetToken.update.mockResolvedValue({} as never);
+    prismaMock.passwordResetToken.deleteMany.mockResolvedValue({ count: 0 } as never);
+    prismaMock.accountMember.findMany.mockResolvedValue([] as never);
+
+    await resetPassword("raw", "NovaSenha1");
+
+    const userUpdate = (prismaMock.user.update as any).mock.calls[0][0];
+    expect(userUpdate.where).toEqual({ id: "u1" });
+    expect(userUpdate.data.passwordHash).toEqual(expect.any(String));
+    expect(userUpdate.data.passwordChangedAt).toBeInstanceOf(Date);
   });
 });
