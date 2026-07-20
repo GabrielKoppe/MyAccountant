@@ -1,6 +1,6 @@
 # Spec 63 — Conector MCP para IA Pessoal do Usuário
 
-> Status: ready
+> Status: implemented (conector MCP + OAuth 2.1 AS entregue — endpoint `[transport]`, rotas `/api/oauth/*` + `/.well-known/*`, consent UI, `src/server/mcp/*`, connectors UI; ver histórico git)
 > Insumo: refinamento de produto sobre spec 55 (2026-07-19) — pilar Inteligência, direção "expose" (Model Context Protocol); entrevista de refinamento (2026-07-19)
 > Skills: [`api-routes`](../skills/api-routes/SKILL.md) · [`env-validation`](../skills/env-validation/SKILL.md) · [`logging`](../skills/logging/SKILL.md) · [`multitenancy`](../skills/multitenancy/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
 

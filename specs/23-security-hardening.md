@@ -1,6 +1,6 @@
 # Spec 23 — Hardening de Segurança (Abertura Pública)
 
-> Status: ready
+> Status: implemented (SEC-01/02/04/08a/09 entregues 2026-07-20 — ver §9 e histórico git `feat(security): ...`)
 > Insumo: docs/v2-analysis.md §5 SEC-01, SEC-02, SEC-04 · lacuna de recuperação de senha (`ForgotPasswordForm.tsx:31`, TODO nunca implementado) · entrevista de refinamento (2026-07-19) que estreitou o escopo para os itens *launch-gating* e construíveis hoje
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`env-validation`](../skills/env-validation/SKILL.md) · [`logging`](../skills/logging/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`api-routes`](../skills/api-routes/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`email-resend`](../skills/email-resend/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md)
 
@@ -85,7 +85,7 @@ Email via **Brevo + React Email** (`emailService.send`, fire-and-forget + log). 
 ## 4. Critérios de Aceitação
 
 **SEC-01 — Rate limiting:**
-- QUANDO um IP faz mais de 10 tentativas de login com falha em uma janela de 15 minutos, AS PRÓXIMAS TENTATIVAS DESSE IP DEVEM ser rejeitadas com HTTP 429 e mensagem "Muitas tentativas. Tente novamente em X minutos."
+- QUANDO um IP faz mais de 10 tentativas de login em uma janela de 15 minutos, AS PRÓXIMAS DEVEM ser rejeitadas com HTTP 429 e mensagem clara. (O rate limit roda no **middleware**, antes do handler NextAuth, então conta **todas** as tentativas do IP — não só as com falha; 10/15min é folgado para uso legítimo.)
 - QUANDO um IP faz mais de 5 solicitações de cadastro (signup) em uma hora, AS PRÓXIMAS DEVEM ser rejeitadas com HTTP 429 e mensagem clara.
 - QUANDO um usuário tenta enviar mais de 5 convites em uma hora, A AÇÃO DEVE ser bloqueada com mensagem de erro clara.
 - QUANDO uma recuperação de senha é solicitada mais de 3 vezes em uma hora para o mesmo email (ou IP), AS PRÓXIMAS DEVEM retornar a mensagem genérica **sem** enviar email.
@@ -97,7 +97,7 @@ Email via **Brevo + React Email** (`emailService.send`, fire-and-forget + log). 
 - O TOKEN RAW DEVE ser enviado apenas no link de email e nunca persistido.
 - QUANDO um usuário abre o link de aceite/preview/decline com o token raw, O SISTEMA DEVE calcular o SHA-256 e comparar com o banco nos três sítios de lookup.
 - SE o hash não corresponder, O CONVITE DEVE ser rejeitado como inválido.
-- A MIGRATION DEVE converter tokens plaintext existentes para o hash in-place (sem invalidar convites pendentes) e NÃO DEVE deixar nenhum token raw no banco.
+- A MIGRATION DEVE converter in-place os tokens plaintext dos convites **pendentes** para hash (preservando os convites já enviados). Tokens de convites já aceitos/revogados/expirados são inertes (nunca consultados no fluxo de aceite) e podem permanecer como estão.
 
 **SEC-04 — Middleware para API:**
 - QUANDO uma requisição sem sessão chega a qualquer rota `/api/v1/*`, O MIDDLEWARE DEVE retornar HTTP 401 com corpo JSON `{ "error": "Unauthorized" }`.
@@ -146,7 +146,7 @@ Email via **Brevo + React Email** (`emailService.send`, fire-and-forget + log). 
 | DD-05 | Proteção de `/api/v1/*` no middleware | Middleware garante autenticação (401); autorização (403) segue por-handler | Edge middleware não pode consultar `AccountMember` (autorização) de forma barata; `requireAccountAccess` continua como defense in depth |
 | DD-06 | Recuperação de senha | Construir o fluxo nesta spec (token hasheado, uso único, exp 1h, resposta genérica) | Abertura pública exige reset; construir junto com suas defesas evita janela insegura |
 | DD-07 | Anti-enumeração no reset | Resposta HTTP sempre genérica; diferenciação só no conteúdo do email | Não vaza existência de conta ao atacante, sem prender o usuário real (inclusive só-Google) |
-| DD-08 | Invalidação de sessão no reset | `User.passwordChangedAt` embutido no JWT; rejeitar tokens anteriores | Sessão é JWT (não revogável nativamente); troca de senha por suspeita de comprometimento precisa derrubar sessões antigas |
+| DD-08 | Invalidação de sessão no reset | `resetPassword` grava `User.passwordChangedAt`; o JWT carrega `loginAt` (timestamp do sign-in); **`requireUser` (Node) rejeita** o token quando `passwordChangedAt > loginAt` — comparação contra o **DB**, não no callback edge (o middleware edge não acessa Prisma) | Sessão é JWT (não revogável nativamente); a revogação exige checagem contra o DB, disponível só no contexto Node |
 | DD-09 | Escopo do AuditLog (SEC-08a) | Eventos de controle da conta existentes; excluir `account.deleted` | Foco em investigar incidentes de colaboração; log account-scoped morreria em cascata na exclusão da conta |
 | DD-10 | 2FA | Spec dedicada futura, recomendada antes da abertura ampla do Open Finance | Mantém o escopo desta spec, registrando a elevação de prioridade |
 
@@ -212,7 +212,7 @@ export const config = {
 ```
 
 **Migrations necessárias:**
-- SEC-02: `account_invites.token` passa a guardar o hash; migration data-fix hasheia in-place os valores plaintext existentes.
+- SEC-02: `account_invites.token` passa a guardar o hash; a migration data-fix hasheia in-place os tokens dos convites **pendentes** (`WHERE status='pending'`, via `pgcrypto`).
 - SEC-08a: nova tabela `audit_logs` com `@@index([accountId, createdAt])` e `onDelete: Cascade` de Account.
 - SEC-09: nova tabela `password_reset_tokens` (`userId`, `tokenHash` `@unique`, `expiresAt`, `usedAt`, `@@index([userId])`) + coluna `users.password_changed_at DateTime?`.
 
@@ -236,7 +236,9 @@ Itens de segurança que **não** são implementados nesta spec; cada um é **cri
 
 ## 9. Plano de Implementação
 
-> Plano de execução task-por-task desta spec, escrito com a skill `writing-plans`. Integrado aqui (não em arquivo separado). Executar direto na `main`, sem branch/worktree, com commit por task.
+> **✅ Implementado em 2026-07-20** (17 commits `feat(security): ...` na `main`; typecheck limpo, suíte verde). Plano mantido como registro do que foi construído.
+>
+> Plano de execução task-por-task desta spec, escrito com a skill `writing-plans`. Integrado aqui (não em arquivo separado). Executado direto na `main`, sem branch/worktree, com commit por task.
 
 > **For agentic workers:** Implemente task-por-task, em ordem. Cada passo é atômico (2-5 min). Steps usam checkbox (`- [ ]`) para tracking. **Execução direto na branch `main`** (sem branch/worktree, a pedido do dev) — o dev quer testar na main. Faça commits frequentes na main após cada task verde.
 
@@ -2695,5 +2697,5 @@ Pré-requisitos: `docker compose up -d`; para exercitar rate limiting de verdade
 
 - **Migrations** (Tasks 1, 9): são aditivas + data-fix. Para reverter, `prisma migrate resolve`/nova migration. O hash-in-place (Task 9) é **irreversível** (não dá para recuperar o token raw) — mas os convites pendentes continuam funcionando via link do email.
 - **Upstash ausente em produção:** o boot **falha** por design (SEC-01). Garanta as env vars antes do deploy.
-- **DD-08 refinado:** a invalidação de sessão é enforced em `requireUser` (DB check), não no callback edge. Atualize o sketch do DD-08 na spec 23 para refletir isso (ver handoff).
+- **DD-08:** a invalidação de sessão é enforced em `requireUser` (DB check), não no callback edge — o §6 DD-08 já reflete isso.
 - **Custo +1 query/request** em `requireUser` (passwordChangedAt). Otimização futura: cachear ou mover o check para `ensureMembership`.
