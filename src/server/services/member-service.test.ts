@@ -7,6 +7,7 @@ import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/error
 
 import {
   acceptInvite,
+  acceptInviteById,
   getInviteByToken,
   getPendingInviteForEmail,
   inviteMember,
@@ -21,6 +22,13 @@ vi.mock("@/server/email/email-service", () => ({
 }));
 vi.mock("@/emails", () => ({
   inviteEmailTemplate: {},
+}));
+vi.mock("@/server/security/rate-limit", () => ({
+  inviteLimiter: vi.fn(() => null),
+  enforceRateLimit: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/server/services/audit-service", () => ({
+  recordAudit: vi.fn().mockResolvedValue(undefined),
 }));
 
 beforeEach(() => {
@@ -178,6 +186,29 @@ describe("acceptInvite", () => {
   });
 });
 
+describe("acceptInviteById", () => {
+  it("aceita convite pendente por id quando o email do usuário bate", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ email: "novo@test.com" } as any);
+    prismaMock.accountInvite.findUnique.mockResolvedValue({
+      ...buildAccountInvite(),
+      email: "novo@test.com",
+      status: "pending",
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+      account: { id: "acc-test-1", name: "Conta" },
+    } as any);
+    prismaMock.accountMember.findUnique.mockResolvedValue(null);
+    prismaMock.accountMember.create.mockResolvedValue({} as any);
+    prismaMock.accountInvite.update.mockResolvedValue({} as any);
+
+    const result = await acceptInviteById("inv-1", "user-novo");
+
+    expect(result.accountId).toBe("acc-test-1");
+    expect(prismaMock.accountInvite.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "inv-1" } }),
+    );
+  });
+});
+
 describe("getInviteByToken", () => {
   const baseInvite = {
     email: "convidado@test.com",
@@ -254,12 +285,12 @@ describe("getInviteByToken", () => {
 });
 
 describe("getPendingInviteForEmail", () => {
-  it("retorna o token do convite pendente para o email", async () => {
-    prismaMock.accountInvite.findFirst.mockResolvedValue({ token: "tok-123" } as any);
+  it("retorna o id do convite pendente para o email", async () => {
+    prismaMock.accountInvite.findFirst.mockResolvedValue({ id: "inv-123" } as any);
 
     const result = await getPendingInviteForEmail("convidado@test.com");
 
-    expect(result?.token).toBe("tok-123");
+    expect(result?.id).toBe("inv-123");
     expect(prismaMock.accountInvite.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({

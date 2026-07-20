@@ -1,5 +1,7 @@
 import crypto from "crypto";
 
+import type { AccountMemberRole } from "@prisma/client";
+
 import { env } from "@/lib/env";
 import { m } from "@/lib/messages";
 import type {
@@ -19,6 +21,9 @@ import { emailService } from "@/server/email/email-service";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
 import type { ActionContext } from "@/server/api/define-action";
+import { hashToken } from "@/server/security/hash-token";
+import { enforceRateLimit, inviteLimiter } from "@/server/security/rate-limit";
+import { recordAudit } from "@/server/services/audit-service";
 import * as notificationService from "@/server/services/notification-service";
 import {
   archivePersonalPartyForUser,
@@ -30,6 +35,9 @@ const log = logger.child({ module: "member-service" });
 export async function inviteMember(input: InviteMemberInput, ctx: ActionContext) {
   const { email, role } = input;
   const { accountId, userId } = ctx;
+
+  // SEC-01: rate limit de convites por usuário.
+  await enforceRateLimit(inviteLimiter(), `invite:${userId}`);
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
@@ -68,7 +76,8 @@ export async function inviteMember(input: InviteMemberInput, ctx: ActionContext)
       accountId,
       email,
       role,
-      token,
+      // SEC-02: guarda apenas o hash; o token raw só vai no email.
+      token: hashToken(token),
       expiresAt,
       invitedById: userId,
     },
@@ -88,6 +97,14 @@ export async function inviteMember(input: InviteMemberInput, ctx: ActionContext)
   });
 
   log.info({ inviteId: invite.id, accountId, email }, "Member invited");
+  void recordAudit({
+    accountId,
+    actorUserId: userId,
+    action: "invite.sent",
+    targetType: "invite",
+    targetId: invite.id,
+    metadata: { email, role },
+  });
   return { inviteId: invite.id };
 }
 
@@ -105,18 +122,24 @@ export async function revokeInvite(input: RevokeInviteInput, ctx: ActionContext)
   });
 
   log.info({ inviteId: invite.id, accountId: ctx.accountId }, "Invite revoked");
+  void recordAudit({
+    accountId: ctx.accountId,
+    actorUserId: ctx.userId,
+    action: "invite.revoked",
+    targetType: "invite",
+    targetId: invite.id,
+  });
 }
 
 /**
- * Carrega os dados de um convite a partir do token, para exibição na tela pública
- * de aceite (`/invite/accept`). Retorna `null` se o token não existir.
- * Expõe apenas campos seguros — quem tem o token é o próprio convidado.
+ * Carrega os dados de um convite a partir do token (raw), para a tela pública de aceite
+ * (`/invite/accept`). O token é comparado por hash (SEC-02). Retorna `null` se não existir.
  */
 export async function getInviteByToken(token: string) {
   if (!token) return null;
 
   const invite = await prisma.accountInvite.findUnique({
-    where: { token },
+    where: { token: hashToken(token) },
     select: {
       email: true,
       role: true,
@@ -144,9 +167,44 @@ export async function getInviteByToken(token: string) {
 }
 
 /**
- * Retorna o convite pendente e não expirado mais recente para um email, ou `null`.
+ * Igual ao getInviteByToken, mas resolve por id (safety-net do usuário autenticado,
+ * onde não há token raw — a confiança é o email-match feito no aceite).
+ */
+export async function getInviteById(inviteId: string) {
+  if (!inviteId) return null;
+
+  const invite = await prisma.accountInvite.findUnique({
+    where: { id: inviteId },
+    select: {
+      email: true,
+      role: true,
+      status: true,
+      expiresAt: true,
+      accountId: true,
+      account: { select: { name: true } },
+      invitedBy: { select: { name: true, email: true } },
+    },
+  });
+  if (!invite) return null;
+
+  const isExpired = invite.expiresAt < new Date();
+  return {
+    email: invite.email,
+    role: invite.role,
+    status: invite.status,
+    expiresAt: invite.expiresAt,
+    accountId: invite.accountId,
+    accountName: invite.account.name,
+    inviterName: invite.invitedBy.name ?? invite.invitedBy.email,
+    isExpired,
+    isValid: invite.status === "pending" && !isExpired,
+  };
+}
+
+/**
+ * Retorna o id do convite pendente e não expirado mais recente para um email, ou `null`.
  * Usado como rede de segurança no roteamento: um usuário recém-criado sem membership
- * é levado para o aceite do convite em vez do onboarding de criar account.
+ * é levado para o aceite do convite em vez do onboarding.
  */
 export async function getPendingInviteForEmail(email: string) {
   return prisma.accountInvite.findFirst({
@@ -156,21 +214,26 @@ export async function getPendingInviteForEmail(email: string) {
       expiresAt: { gt: new Date() },
     },
     orderBy: { createdAt: "desc" },
-    select: { token: true },
+    select: { id: true },
   });
 }
 
-export async function acceptInvite(token: string, userId: string) {
+type ResolvedInvite = {
+  id: string;
+  accountId: string;
+  email: string;
+  role: AccountMemberRole;
+  status: string;
+  expiresAt: Date;
+  invitedById: string;
+};
+
+async function acceptResolvedInvite(invite: ResolvedInvite | null, userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { name: true, email: true },
   });
   if (!user) throw new UnauthorizedError();
-
-  const invite = await prisma.accountInvite.findUnique({
-    where: { token },
-    include: { account: { select: { id: true, name: true } } },
-  });
 
   if (!invite) throw new NotFoundError("Convite");
   if (invite.status !== "pending")
@@ -211,17 +274,39 @@ export async function acceptInvite(token: string, userId: string) {
   });
 
   log.info({ inviteId: invite.id, accountId: invite.accountId, userId }, "Invite accepted");
+  void recordAudit({
+    accountId: invite.accountId,
+    actorUserId: userId,
+    action: "invite.accepted",
+    targetType: "invite",
+    targetId: invite.id,
+    metadata: { role: invite.role },
+  });
   return { accountId: invite.accountId };
 }
 
-export async function declineInvite(token: string, userId: string) {
+export async function acceptInvite(token: string, userId: string) {
+  const invite = await prisma.accountInvite.findUnique({
+    where: { token: hashToken(token) },
+    include: { account: { select: { id: true, name: true } } },
+  });
+  return acceptResolvedInvite(invite as ResolvedInvite | null, userId);
+}
+
+export async function acceptInviteById(inviteId: string, userId: string) {
+  const invite = await prisma.accountInvite.findUnique({
+    where: { id: inviteId },
+    include: { account: { select: { id: true, name: true } } },
+  });
+  return acceptResolvedInvite(invite as ResolvedInvite | null, userId);
+}
+
+async function declineResolvedInvite(invite: ResolvedInvite | null, userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { email: true },
   });
   if (!user) throw new UnauthorizedError();
-
-  const invite = await prisma.accountInvite.findUnique({ where: { token } });
 
   if (!invite) throw new NotFoundError("Convite");
   if (invite.status !== "pending")
@@ -236,6 +321,16 @@ export async function declineInvite(token: string, userId: string) {
   });
 
   log.info({ inviteId: invite.id }, "Invite declined");
+}
+
+export async function declineInvite(token: string, userId: string) {
+  const invite = await prisma.accountInvite.findUnique({ where: { token: hashToken(token) } });
+  return declineResolvedInvite(invite as ResolvedInvite | null, userId);
+}
+
+export async function declineInviteById(inviteId: string, userId: string) {
+  const invite = await prisma.accountInvite.findUnique({ where: { id: inviteId } });
+  return declineResolvedInvite(invite as ResolvedInvite | null, userId);
 }
 
 export async function removeMember(input: RemoveMemberInput, ctx: ActionContext) {
@@ -264,6 +359,13 @@ export async function removeMember(input: RemoveMemberInput, ctx: ActionContext)
   });
 
   log.info({ targetUserId: input.targetUserId, accountId: ctx.accountId }, "Member removed");
+  void recordAudit({
+    accountId: ctx.accountId,
+    actorUserId: ctx.userId,
+    action: "member.removed",
+    targetType: "member",
+    targetId: input.targetUserId,
+  });
 }
 
 export async function updateMemberRole(input: UpdateMemberRoleInput, ctx: ActionContext) {
@@ -288,6 +390,14 @@ export async function updateMemberRole(input: UpdateMemberRoleInput, ctx: Action
     { targetUserId: input.targetUserId, role: input.role, accountId: ctx.accountId },
     "Member role updated",
   );
+  void recordAudit({
+    accountId: ctx.accountId,
+    actorUserId: ctx.userId,
+    action: "member.role_changed",
+    targetType: "member",
+    targetId: input.targetUserId,
+    metadata: { from: member.role, to: input.role },
+  });
 }
 
 export async function leaveAccount(ctx: ActionContext) {
@@ -321,6 +431,13 @@ export async function leaveAccount(ctx: ActionContext) {
   });
 
   log.info({ accountId: ctx.accountId, userId: ctx.userId }, "Member left account");
+  void recordAudit({
+    accountId: ctx.accountId,
+    actorUserId: ctx.userId,
+    action: "member.left",
+    targetType: "member",
+    targetId: ctx.userId,
+  });
 }
 
 export async function deleteAccount(ctx: ActionContext) {
