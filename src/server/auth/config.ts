@@ -8,6 +8,7 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
+      loginAt?: number;
     } & DefaultSession["user"];
   }
 }
@@ -37,12 +38,16 @@ export const authConfig = {
   },
   callbacks: {
     jwt({ token, user }) {
-      if (user?.id) token.sub = user.id;
+      if (user?.id) {
+        token.sub = user.id;
+        token.loginAt = Date.now();
+      }
       return token;
     },
     session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
+        session.user.loginAt = typeof token.loginAt === "number" ? token.loginAt : undefined;
       }
       return session;
     },
