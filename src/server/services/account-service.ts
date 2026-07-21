@@ -98,3 +98,44 @@ export async function createAccount(input: CreateAccountInput & { createdById: s
   log.info({ accountId: account.id, userId: createdById }, "Account created with defaults");
   return account;
 }
+
+/**
+ * Cria uma Account "vazia" (spec 64 DD-02, modo `new` do import): apenas
+ * Account + AccountSettings (defaults) + AccountMember owner. Ao contrário de
+ * `createAccount`, NÃO cria os defaults de onboarding (sections, categorias,
+ * tableTypes, personal party) — eles colidiriam com o snapshot importado
+ * (`@@unique([accountId, name])`).
+ *
+ * Se o nome colidir com uma conta que o usuário já possui, adiciona " (importado)"
+ * (e um contador se ainda colidir) — evita o `ConflictError` de nome duplicado.
+ */
+export async function createBareAccount(userId: string, name: string): Promise<{ id: string }> {
+  const existing = await prisma.account.findMany({
+    where: { members: { some: { userId } } },
+    select: { name: true },
+  });
+  const taken = new Set(existing.map((a) => a.name));
+
+  let finalName = name;
+  if (taken.has(finalName)) {
+    finalName = `${name} (importado)`;
+    let counter = 2;
+    while (taken.has(finalName)) {
+      finalName = `${name} (importado ${counter})`;
+      counter += 1;
+    }
+  }
+
+  const created = await prisma.account.create({
+    data: {
+      name: finalName,
+      createdById: userId,
+      settings: { create: { currency: "BRL", monthStartDay: 1 } },
+      members: { create: { userId, role: "owner" } },
+    },
+    select: { id: true },
+  });
+
+  log.info({ accountId: created.id, userId }, "Bare account created (import)");
+  return created;
+}

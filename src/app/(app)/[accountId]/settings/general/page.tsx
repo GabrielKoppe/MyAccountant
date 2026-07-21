@@ -10,6 +10,7 @@ import { GeneralSettingsForm } from "./GeneralSettingsForm";
 import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 import { Divider } from "@mui/material";
 import { AccountDangerZone } from "./AccountDangerZone";
+import { AccountDataSection } from "./AccountDataSection";
 import { TourResetSection } from "./TourResetSection";
 
 type Props = { params: Promise<{ accountId: string }> };
@@ -71,6 +72,10 @@ export default async function GeneralSettingsPage({ params }: Props) {
       <Divider sx={{ my: 3 }} />
 
       <TourResetSection accountId={accountId} />
+
+      <Divider sx={{ my: 3 }} />
+
+      <AccountDataSection accountId={accountId} accountName={account.name} role={member.role} />
 
       <Divider sx={{ my: 3 }} />
 
