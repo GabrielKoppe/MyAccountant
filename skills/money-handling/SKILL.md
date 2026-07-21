@@ -182,6 +182,24 @@ function isAmountPositiveForDisplay(amount: bigint, countType: SectionCountType)
 
 Aplicar esta lógica em: valor individual na `TransactionRow` e total no header do `FinanceTableCard`.
 
+### Cor de saldo patrimonial por `kind` (Net Worth — spec 46)
+
+Saldo de `BalanceAccount` **não** usa `countType` — a cor vem do `kind` da conta, não do sinal aritmético:
+
+- **Ativo** (`kind = "asset"`): colorir por sinal (padrão `<MoneyValue>` — positivo verde, negativo vermelho). Cheque especial (saldo negativo num ativo) fica vermelho corretamente.
+- **Passivo** (`kind = "liability"`): `balanceCents` é **positivo** (valor devido). Colorir **por contexto**, sempre `danger.main`/neutro — **nunca por sinal**. `<MoneyValue>` cru pintaria a dívida de verde (errado).
+
+```tsx
+// ✅ Passivo: cor por contexto
+<Typography component="span" sx={{ fontFamily: "var(--font-jetbrains-mono), monospace",
+  fontWeight: 500, fontVariantNumeric: "tabular-nums", color: "danger.main" }}>
+  {formatCentsToBrl(liability.balanceCents)}
+</Typography>
+
+// ❌ Não usar para passivo — positivo vira verde
+<MoneyValue cents={liability.balanceCents} />
+```
+
 ## React Hook Form integration
 
 ```tsx

@@ -93,15 +93,15 @@ enum TransactionLinkType {
 // =========================================
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  image         String?
-  emailVerified DateTime? @map("email_verified")
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String?
+  image             String?
+  emailVerified     DateTime? @map("email_verified")
   passwordHash      String?   @map("password_hash")
   passwordChangedAt DateTime? @map("password_changed_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   // NextAuth relations
   oauthAccounts OAuthAccount[]
@@ -213,6 +213,8 @@ model Account {
   transactionAliases   TransactionAlias[]
   mcpGrants            McpGrant[]
   auditLogs            AuditLog[]
+  balanceAccounts      BalanceAccount[]
+  balanceSnapshots     BalanceSnapshot[]
 
   @@map("accounts")
 }
@@ -528,6 +530,7 @@ model Institution {
   transactions       Transaction[]
   budgets            Budget[]
   transactionAliases TransactionAlias[]
+  balanceAccounts    BalanceAccount[]
 
   @@unique([accountId, name])
   @@map("institutions")
@@ -1005,4 +1008,53 @@ model AuditLog {
 
   @@index([accountId, createdAt])
   @@map("audit_logs")
+}
+
+// =========================================
+// Net Worth (Spec 46)
+// =========================================
+
+enum BalanceAccountKind {
+  asset
+  liability
+
+  @@map("balance_account_kind")
+}
+
+model BalanceAccount {
+  id            String             @id @default(cuid())
+  accountId     String             @map("account_id")
+  kind          BalanceAccountKind // imutável após a criação (ver §6 DD-05)
+  name          String // "Conta Nubank", "Apartamento", "Financiamento do carro"
+  institutionId String?            @map("institution_id")
+  archivedAt    DateTime?          @map("archived_at") // null = ativa; preenchido = data de corte do carry-forward (ver §6 DD-03)
+  createdById   String             @map("created_by_id")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  account     Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  institution Institution?      @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  snapshots   BalanceSnapshot[]
+
+  @@index([accountId])
+  @@index([accountId, kind])
+  @@map("balance_accounts")
+}
+
+model BalanceSnapshot {
+  id               String   @id @default(cuid())
+  accountId        String   @map("account_id")
+  balanceAccountId String   @map("balance_account_id")
+  balanceCents     BigInt   @map("balance_cents") // saldo do ativo/passivo na data; passivo é positivo (valor devido). Pode ser negativo (ex.: cheque especial num ativo)
+  capturedOn       DateTime @map("captured_on") @db.Date
+  createdById      String   @map("created_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  account        Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  balanceAccount BalanceAccount @relation(fields: [balanceAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([balanceAccountId, capturedOn])
+  @@index([accountId])
+  @@index([balanceAccountId, capturedOn])
+  @@map("balance_snapshots")
 }

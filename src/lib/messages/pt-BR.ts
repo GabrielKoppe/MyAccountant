@@ -1097,6 +1097,8 @@ export const messages = {
         // Spec 38
         "kpi-transaction-count": "Volume de Transações",
         "member-yearly": "Gastos por Membro no Ano",
+        // Spec 46
+        "net-worth-evolution": "Evolução do Patrimônio",
       },
       month_summary: {
         "kpi-income": "Entradas",
@@ -1161,6 +1163,8 @@ export const messages = {
           // Spec 38
           "kpi-transaction-count": "Quantidade de transações no ano",
           "member-yearly": "Ranking consolidado de gastos por pessoa no ano inteiro",
+          // Spec 46
+          "net-worth-evolution": "Evolução do patrimônio líquido ao longo do ano",
         },
         month_summary: {
           "kpi-income": "Total de entradas no período",
@@ -1518,6 +1522,32 @@ export const messages = {
       collapseGoals: "Ocultar metas",
       expandGoals: "Ver metas",
     },
+  },
+  netWorth: {
+    title: "Patrimônio Líquido",
+    assets: "Ativos",
+    liabilities: "Passivos",
+    newAccount: "Nova conta",
+    updateBalances: "Atualizar saldos",
+    kindAsset: "Ativo",
+    kindLiability: "Passivo",
+    nameLabel: "Nome",
+    institutionLabel: "Instituição (opcional)",
+    balanceLabel: "Saldo",
+    dateLabel: "Data",
+    archive: "Arquivar",
+    unarchive: "Desarquivar",
+    deleteTitle: "Excluir conta",
+    deleteConfirm: "Excluir a conta e todo o histórico de saldos? Esta ação não pode ser desfeita. Prefira arquivar para manter o histórico.",
+    created: "Conta criada.",
+    updated: "Conta atualizada.",
+    archived: "Conta arquivada.",
+    deleted: "Conta excluída.",
+    balancesSaved: "Saldos atualizados.",
+    empty: "Cadastre suas contas e bens para acompanhar seu patrimônio.",
+    staleSince: "Atualizado {when}",
+    navLabel: "Patrimônio",
+    vsPrevMonth: "vs. mês anterior",
   },
   mcpConsent: {
     errorTitle: "Não foi possível continuar",

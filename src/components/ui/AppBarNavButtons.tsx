@@ -10,6 +10,7 @@ import Tooltip from "@mui/material/Tooltip";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import GroupIcon from "@mui/icons-material/Group";
 import SettingsIcon from "@mui/icons-material/Settings";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 
 import { AppLink } from "@/components/ui/AppLink";
 
@@ -39,6 +40,17 @@ export function AppBarNavButtons({ accountId }: Props) {
           aria-label="Membros"
         >
           <GroupIcon />
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title="Patrimônio">
+        <IconButton
+          component={AppLink}
+          href={`/${accountId}/net-worth`}
+          color="inherit"
+          aria-label="Patrimônio"
+        >
+          <AccountBalanceWalletIcon />
         </IconButton>
       </Tooltip>
 

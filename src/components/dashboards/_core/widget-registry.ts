@@ -529,6 +529,14 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       sizeVariants: MEMBER_YEARLY_VARIANTS,
       defaultVisible: false,
     },
+    // ─── Spec 46 ────────────────────────────────────────────────────────────
+    {
+      id: "net-worth-evolution",
+      labelKey: "netWorthEvolution",
+      kind: "panel",
+      sizeVariants: WIDE_CHART_VARIANTS,
+      defaultVisible: false,
+    },
   ],
   month_summary: [
     {

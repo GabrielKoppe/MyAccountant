@@ -233,7 +233,7 @@ O projeto é dividido em fases independentemente testáveis. **Não pule fases**
 - ❌ `<Typography fontWeight="bold">` para enfatizar texto em headings — usar variante correta.
 - ❌ Hardcode em SVG/recharts (`fill="#2e7d32"`) — usar `theme.palette.*` ou `getChartColors(mode)`.
 - ❌ Implementar feature de UI sem testar em **light E dark mode**.
-- ❌ `useMediaQuery({ noSsr: true })` no ThemeProvider — causa hydration mismatch.
+- ❌ Resolver o tema `system` via `useMediaQuery("(prefers-color-scheme: dark)")` no render inicial — no MUI v6 (useSyncExternalStore) o client lê o matchMedia ao vivo já no 1º render; se o SO estiver dark, diverge do SSR (que é sempre light) e TODOS os hashes de classe do Emotion quebram (hydration mismatch). `noSsr` não resolve. Aplique a preferência do SO só após montar (flag `mounted`), ou migre para CSS variables (`colorSchemes` + `prefers-color-scheme`). Ver `ThemeProviderClient.tsx`.
 
 ---
 
@@ -277,18 +277,25 @@ docker compose exec app pnpm test:coverage
 
 # E2E (Playwright) — sobe stack dedicada (postgres-e2e + app-e2e) e roda os testes
 docker compose --profile e2e up --build --abort-on-container-exit --exit-code-from e2e-runner postgres-e2e app-e2e e2e-runner
-docker compose --profile e2e down -v        # limpar (volume do DB de teste)
 
-# Re-semear o DB de teste sem recriar a stack
+# Limpar SÓ o DB de teste (NUNCA use `down -v`: apaga TAMBÉM o volume do dev postgres-data)
+docker compose --profile e2e down
+docker volume rm my-accountant_postgres-e2e-data
+
+# Re-semear o DB de teste sem recriar a stack (SEMPRE contra app-e2e — NUNCA contra app/dev)
 docker compose exec app-e2e pnpm exec tsx e2e/fixtures/seed.ts
+```
 
+> ⚠️ **Aviso de dados**: `docker compose down -v` é **global** — remove todos os volumes top-level do projeto, incluindo `postgres-data` (dev), independente de `--profile`. Para limpar só o DB de teste, use os comandos acima (`down` sem `-v` + `docker volume rm my-accountant_postgres-e2e-data`). O seed E2E (`e2e/fixtures/seed.ts`) faz um **reset global** das tabelas (deleta todas as linhas) — só deve rodar contra o container `app-e2e` (banco `myaccountant_e2e`), **nunca** contra `app` (dev), sob risco de apagar os dados de desenvolvimento.
+
+```bash
 # Email preview (React Email)
 docker compose exec app pnpm email   # http://localhost:3001
 
 # Swagger UI
 # Acesse http://localhost:3000/api/docs no navegador
 
-# Reset do DB (cuidado — apaga dados)
+# Reset do DB (cuidado — apaga TODOS os volumes, dev + e2e; só use para reset total intencional do dev)
 docker compose down -v
 docker compose up -d
 docker compose exec app pnpm prisma migrate dev

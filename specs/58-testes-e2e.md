@@ -984,6 +984,9 @@ jobs:
 
       - name: Tear down
         if: always()
+        # `down -v` aqui é aceitável: o runner de CI é efêmero e não tem volume de dev.
+        # NUNCA rode este comando exato numa máquina de desenvolvedor — `down -v` é global
+        # e apaga também o volume `postgres-data` do dev (ver aviso no Step 1 abaixo).
         run: docker compose --profile e2e down -v
 
       - name: Upload Playwright report
@@ -1012,11 +1015,16 @@ jobs:
 ```bash
 # E2E (Playwright) — sobe stack dedicada (postgres-e2e + app-e2e) e roda os testes
 docker compose --profile e2e up --build --abort-on-container-exit --exit-code-from e2e-runner postgres-e2e app-e2e e2e-runner
-docker compose --profile e2e down -v        # limpar (volume do DB de teste)
 
-# Re-semear o DB de teste sem recriar a stack
+# Limpar SÓ o DB de teste (NUNCA use `down -v`: apaga TAMBÉM o volume do dev postgres-data)
+docker compose --profile e2e down
+docker volume rm my-accountant_postgres-e2e-data
+
+# Re-semear o DB de teste sem recriar a stack (SEMPRE contra app-e2e — NUNCA contra app/dev)
 docker compose exec app-e2e pnpm exec tsx e2e/fixtures/seed.ts
 ```
+
+> ⚠️ **Aviso de dados**: `docker compose down -v` é global — remove todos os volumes top-level do projeto (`postgres-data` do dev incluído), independente de `--profile`. O seed E2E (`e2e/fixtures/seed.ts`) faz reset global das tabelas e só deve rodar contra `app-e2e` (banco `myaccountant_e2e`), nunca contra `app` (dev).
 
 - [ ] **Step 2: Reconciliar `skills/testing/SKILL.md` §2.** Trocar a regra global por uma escopada:
 

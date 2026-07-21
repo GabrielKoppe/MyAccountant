@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import CssBaseline from "@mui/material/CssBaseline";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { ThemeProvider } from "@mui/material/styles";
@@ -24,11 +24,22 @@ export function ThemeProviderClient({
   const [mode, setModeState] = useState<ThemeMode>(initialMode);
   const [accentColor, setAccentColorState] = useState<AccentColorKey>(initialAccentColor);
 
-  // noSsr omitted intentionally: avoids Emotion class hash mismatches on hydration.
-  const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
+  // O servidor não tem acesso a matchMedia, então renderiza "system" como light.
+  // No MUI v6 o useMediaQuery usa useSyncExternalStore e lê o matchMedia ao vivo
+  // já na primeira renderização do client — se o SO estiver em dark, o primeiro
+  // render do client sai dark enquanto o SSR veio light, e TODOS os hashes de
+  // classe do Emotion divergem (hydration mismatch). Para o modo "system" só
+  // aplicamos a preferência do SO após montar, garantindo que o primeiro render
+  // do client seja idêntico ao SSR. Modos explícitos (light/dark) não precisam
+  // disso: já coincidem entre servidor e client.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const prefersDark = useMediaQuery("(prefers-color-scheme: dark)", { defaultMatches: false });
+  const systemDark = mounted && prefersDark;
 
   const resolvedMode: "light" | "dark" =
-    mode === "system" ? (prefersDark ? "dark" : "light") : mode;
+    mode === "system" ? (systemDark ? "dark" : "light") : mode;
 
   const muiTheme = useMemo(
     () => buildThemeWithAccent(resolvedMode, accentColor),

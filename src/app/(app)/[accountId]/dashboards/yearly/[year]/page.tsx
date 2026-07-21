@@ -10,6 +10,7 @@ import { getMemberYearlyTrend, getMemberYearlyBreakdown } from "@/server/queries
 import { getLayout } from "@/server/services/dashboard-layout-service";
 import { getKpiCustomDataMap } from "@/server/queries/kpi-custom";
 import { getSandboxDataMap } from "@/server/queries/sandbox";
+import { getNetWorthSeriesForYear } from "@/server/queries/net-worth";
 import { m } from "@/lib/messages";
 import { YearlyDashboardClient } from "@/components/dashboards/yearly/YearlyDashboardClient";
 
@@ -92,21 +93,29 @@ export default async function YearlyDashboardPage({ params }: Props) {
     ?.config as
     | { countInMonth?: string; sectionType?: string; includePending?: boolean }
     | undefined;
-  const [memberYearly, transactionCount, expenseCount, incomeCount] = await Promise.all([
-    getMemberYearlyBreakdown(accountId, year),
-    getTransactionCount(
-      accountId,
-      { monthIds: yearMonthIds },
-      {
-        countInMonth: (transactionCountConfig?.countInMonth ?? "all") as "all" | "only",
-        sectionType: (transactionCountConfig?.sectionType ?? "all") as "all" | "subtract" | "add",
-        includePending: transactionCountConfig?.includePending ?? true,
-      },
-    ),
-    // breakdown para o wide variant
-    getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "subtract" }),
-    getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "add" }),
-  ]);
+  // Spec 46 — fetch gated: só roda a série de patrimônio quando o widget está visível.
+  const hasNw = widgets.some((w) => w.widgetId === "net-worth-evolution" && w.visible);
+
+  const [memberYearly, transactionCount, expenseCount, incomeCount, netWorthSeries] =
+    await Promise.all([
+      getMemberYearlyBreakdown(accountId, year),
+      getTransactionCount(
+        accountId,
+        { monthIds: yearMonthIds },
+        {
+          countInMonth: (transactionCountConfig?.countInMonth ?? "all") as "all" | "only",
+          sectionType: (transactionCountConfig?.sectionType ?? "all") as
+            | "all"
+            | "subtract"
+            | "add",
+          includePending: transactionCountConfig?.includePending ?? true,
+        },
+      ),
+      // breakdown para o wide variant
+      getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "subtract" }),
+      getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "add" }),
+      hasNw ? getNetWorthSeriesForYear(accountId, year) : Promise.resolve([]),
+    ]);
 
   return (
     <YearlyDashboardClient
@@ -134,6 +143,7 @@ export default async function YearlyDashboardPage({ params }: Props) {
       transactionCount={transactionCount}
       expenseCount={expenseCount}
       incomeCount={incomeCount}
+      netWorthSeries={netWorthSeries}
     />
   );
 }

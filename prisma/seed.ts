@@ -1,23 +1,24 @@
 import { PrismaClient } from "@prisma/client";
+import { assertSafeSeedTarget } from "./seed-guard";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  assertSafeSeedTarget();
+
   console.log("Seeding database...");
 
-  // Limpar em ordem de dependência
-  await prisma.transaction.deleteMany();
-  await prisma.financeTable.deleteMany();
-  await prisma.month.deleteMany();
-  await prisma.tableType.deleteMany();
-  await prisma.subcategory.deleteMany();
-  await prisma.category.deleteMany();
-  await prisma.institution.deleteMany();
-  await prisma.section.deleteMany();
-  await prisma.accountSettings.deleteMany();
-  await prisma.accountMember.deleteMany();
+  // Reset via cascade: account.deleteMany() apaga (onDelete: Cascade) todo dado account-scoped
+  // (sections, months, finance_tables, transactions, categories, subcategories, institutions,
+  // budgets, installment_groups, pending_installments, balance_accounts, balance_snapshots,
+  // account_settings, account_members, account_invites, etc. — ver schema.prisma).
+  // Verificado no schema: nenhuma FK aponta para Account com onDelete: Restrict, e toda FK
+  // onDelete: Restrict (para User ou Section) está numa tabela que é ela própria account-scoped
+  // e já é cascade-deletada junto com o account (Postgres checa constraints não-deferráveis ao
+  // fim do statement, então o cascade inteiro resolve antes da checagem de Restrict).
   await prisma.account.deleteMany();
-  await prisma.userSettings.deleteMany();
+  // Neste ponto nenhuma linha aponta para User com onDelete: Restrict (todas eram account-scoped
+  // e já foram cascade-deletadas acima) — user.deleteMany() cascade limpa sessions/oauth/user_settings.
   await prisma.user.deleteMany();
 
   const user = await prisma.user.create({

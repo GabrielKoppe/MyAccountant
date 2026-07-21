@@ -94,4 +94,7 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   "institution-breakdown": AccountBalanceIcon,
   "week-chart": CalendarTodayIcon,
   "member-yearly": Diversity3Icon, // reusa ícone de member-breakdown
+
+  // Spec 46
+  "net-worth-evolution": ShowChartIcon, // já importado acima (kpi-monthly-avg)
 };

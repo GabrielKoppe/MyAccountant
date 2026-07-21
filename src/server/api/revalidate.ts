@@ -72,3 +72,8 @@ export function revalidateTransactionAliases(accountId: string) {
   revalidatePath(`/${accountId}/settings/aliases`);
   revalidatePath(`/${accountId}`);
 }
+
+/** Revalida a página de patrimônio líquido. */
+export function revalidateNetWorth(accountId: string) {
+  revalidatePath(`/${accountId}/net-worth`);
+}

@@ -31,6 +31,7 @@ import type { KpiCustomResult } from "@/server/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
 import type { SerializedSandboxResult } from "@/server/queries/sandbox";
+import { NetWorthEvolutionWidget } from "@/components/dashboards/panels/NetWorthEvolutionWidget";
 
 type Props = {
   accountId: string;
@@ -60,6 +61,14 @@ type Props = {
   transactionCount: number;
   expenseCount?: number;
   incomeCount?: number;
+  // Spec 46
+  netWorthSeries: {
+    year: number;
+    month: number;
+    assetsCents: string;
+    liabilitiesCents: string;
+    netCents: string;
+  }[];
 };
 
 export function YearlyDashboardClient({
@@ -88,6 +97,8 @@ export function YearlyDashboardClient({
   transactionCount,
   expenseCount,
   incomeCount,
+  // Spec 46
+  netWorthSeries,
 }: Props) {
   const yearTotalBigInt = BigInt(yearTotal);
   const yearlyIncomeBigInt = BigInt(yearlyIncome);
@@ -231,6 +242,13 @@ export function YearlyDashboardClient({
         renderMode={
           getRenderMode(widgets, "yearly", "member-yearly") as "compact" | "default" | "expanded"
         }
+      />
+    ),
+    // Spec 46
+    "net-worth-evolution": (
+      <NetWorthEvolutionWidget
+        series={netWorthSeries}
+        renderMode={getRenderMode(widgets, "yearly", "net-worth-evolution")}
       />
     ),
   };
