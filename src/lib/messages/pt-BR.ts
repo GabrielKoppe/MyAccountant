@@ -154,6 +154,24 @@ export const messages = {
         monthSummary: "Resumo do Mês",
       },
     },
+    audit: {
+      emptyTitle: "Nenhum evento registrado",
+      emptyDescription:
+        "Ações sensíveis — troca de papel de membro, convites e redefinição de senha — aparecerão aqui.",
+      unknownActor: "Sistema",
+      actionLabel: (action: string) => {
+        const labels: Record<string, string> = {
+          "member.role_changed": "Papel de membro alterado",
+          "member.removed": "Membro removido",
+          "member.left": "Membro saiu da conta",
+          "invite.sent": "Convite enviado",
+          "invite.accepted": "Convite aceito",
+          "invite.revoked": "Convite revogado",
+          "auth.password_reset": "Senha redefinida",
+        };
+        return labels[action] ?? action;
+      },
+    },
     dashboards: {
       pageTitle: (context: string) => {
         const labels: Record<string, string> = {

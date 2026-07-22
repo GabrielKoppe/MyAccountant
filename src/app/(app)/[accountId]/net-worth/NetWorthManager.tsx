@@ -56,12 +56,18 @@ import { containers, layout } from "@/lib/design-tokens";
 import { useActionFeedback } from "@/lib/hooks/use-action-feedback";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl, parseBrlMaskToCents, centsToBrlInput } from "@/lib/money";
-import { createBalanceAccountSchema, type CreateBalanceAccountInput } from "@/lib/schemas/balance-account";
+import {
+  createBalanceAccountSchema,
+  type CreateBalanceAccountInput,
+} from "@/lib/schemas/balance-account";
 import type { getNetWorthOverview, getNetWorthSeries } from "@/server/queries/net-worth";
 
 // Lazy — mantém recharts fora do bundle inicial (Fase 8).
 const NetWorthEvolutionChart = dynamic(
-  () => import("@/components/net-worth/NetWorthEvolutionChart").then((mod) => mod.NetWorthEvolutionChart),
+  () =>
+    import("@/components/net-worth/NetWorthEvolutionChart").then(
+      (mod) => mod.NetWorthEvolutionChart,
+    ),
   { ssr: false, loading: () => <ChartSkeleton height={260} /> },
 );
 
@@ -114,9 +120,10 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
   const [balanceIds, setBalanceIds] = useState<string[] | null>(null);
 
   // Menu de ações por linha
-  const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; account: BalanceAccountRow } | null>(
-    null,
-  );
+  const [menuAnchor, setMenuAnchor] = useState<{
+    el: HTMLElement;
+    account: BalanceAccountRow;
+  } | null>(null);
 
   const netCents = BigInt(overview.netCents);
   const delta = deltaVisual(overview.deltaPct);
@@ -126,7 +133,8 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
     [accounts],
   );
   const liabilities = useMemo(
-    () => accounts.filter((a) => a.kind === "liability").sort((a, b) => a.name.localeCompare(b.name)),
+    () =>
+      accounts.filter((a) => a.kind === "liability").sort((a, b) => a.name.localeCompare(b.name)),
     [accounts],
   );
   const activeAccounts = useMemo(() => accounts.filter((a) => a.archivedAt === null), [accounts]);
@@ -175,7 +183,12 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
         setAccounts((prev) =>
           prev.map((a) =>
             a.id === editTarget.id
-              ? { ...a, name: values.name, institutionId: values.institutionId ?? null, institutionName }
+              ? {
+                  ...a,
+                  name: values.name,
+                  institutionId: values.institutionId ?? null,
+                  institutionName,
+                }
               : a,
           ),
         );
@@ -219,7 +232,9 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
       if (!ok) return;
       setAccounts((prev) =>
         prev.map((a) =>
-          a.id === account.id ? { ...a, archivedAt: archived ? new Date().toISOString() : null } : a,
+          a.id === account.id
+            ? { ...a, archivedAt: archived ? new Date().toISOString() : null }
+            : a,
         ),
       );
       enqueueSnackbar(archived ? m.netWorth.archived : m.netWorth.updated, { variant: "success" });
@@ -247,7 +262,9 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
       return {
         balanceAccountId: id,
         name: acc?.name ?? "",
-        balanceInput: acc?.latestSnapshot ? centsToBrlInput(BigInt(acc.latestSnapshot.balanceCents)) : "",
+        balanceInput: acc?.latestSnapshot
+          ? centsToBrlInput(BigInt(acc.latestSnapshot.balanceCents))
+          : "",
       };
     });
     balancesForm.reset({ capturedOn: new Date().toISOString().slice(0, 10), entries });
@@ -278,7 +295,10 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
           if (!entry) return a;
           return {
             ...a,
-            latestSnapshot: { balanceCents: entry.balanceCents.toString(), capturedOn: values.capturedOn },
+            latestSnapshot: {
+              balanceCents: entry.balanceCents.toString(),
+              capturedOn: values.capturedOn,
+            },
           };
         }),
       );
@@ -325,13 +345,13 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
           }
         />
       ) : (
-        <Stack spacing={layout.section}>
+        <Stack spacing={layout.page}>
           {/* ── Hero KPI + cards Ativos/Passivos ── */}
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 1fr" },
-              gap: layout.cluster,
+              gap: layout.page,
             }}
           >
             <Paper
@@ -344,7 +364,7 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
               <Typography
                 variant="mono"
                 component="div"
-                sx={{ fontSize: "1.875rem", fontWeight: 600, lineHeight: 1.2 }}
+                sx={{ fontSize: "1.5rem", fontWeight: 600, lineHeight: 1.2 }}
               >
                 {formatCentsToBrl(netCents)}
               </Typography>
@@ -390,10 +410,16 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
 
           {/* ── Listas Ativos / Passivos ── */}
           <Box
-            sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: layout.cluster }}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gap: layout.cluster,
+            }}
           >
             <Stack spacing={layout.stack}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{m.netWorth.assets}</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                {m.netWorth.assets}
+              </Typography>
               {assets.length === 0 ? (
                 <Typography variant="body2" color="text.tertiary">
                   {m.common.none}
@@ -413,7 +439,9 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
             </Stack>
 
             <Stack spacing={layout.stack}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{m.netWorth.liabilities}</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                {m.netWorth.liabilities}
+              </Typography>
               {liabilities.length === 0 ? (
                 <Typography variant="body2" color="text.tertiary">
                   {m.common.none}
@@ -436,7 +464,11 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
       )}
 
       {/* ── Menu de ações por linha ── */}
-      <Menu anchorEl={menuAnchor?.el ?? null} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
+      <Menu
+        anchorEl={menuAnchor?.el ?? null}
+        open={!!menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+      >
         <MenuItem onClick={() => menuAnchor && openEdit(menuAnchor.account)}>
           <ListItemIcon>
             <EditIcon fontSize="small" />
@@ -663,12 +695,22 @@ function SummaryCard({ label, cents, color, bg }: SummaryCardProps) {
   return (
     <Paper
       variant="outlined"
-      sx={{ p: layout.card, bgcolor: bg, display: "flex", flexDirection: "column", gap: layout.micro }}
+      sx={{
+        p: layout.card,
+        bgcolor: bg,
+        display: "flex",
+        flexDirection: "column",
+        gap: layout.micro,
+      }}
     >
       <Typography variant="overline" sx={{ color: "text.tertiary" }}>
         {label}
       </Typography>
-      <Typography variant="mono" component="div" sx={{ fontSize: "1.5rem", fontWeight: 600, color }}>
+      <Typography
+        variant="mono"
+        component="div"
+        sx={{ fontSize: "1.2rem", fontWeight: 600, color }}
+      >
         {formatCentsToBrl(cents)}
       </Typography>
     </Paper>
@@ -688,7 +730,10 @@ function AccountRow({ account, canEdit, onOpenMenu }: AccountRowProps) {
   const stale = account.latestSnapshot ? isStale(account.latestSnapshot.capturedOn) : false;
 
   return (
-    <Paper variant="outlined" sx={{ px: layout.card, py: layout.stack, opacity: isArchived ? 0.6 : 1 }}>
+    <Paper
+      variant="outlined"
+      sx={{ px: layout.card, py: layout.stack, opacity: isArchived ? 0.6 : 1 }}
+    >
       <Box sx={{ display: "flex", alignItems: "center", gap: layout.inline }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="body2" fontWeight="medium" noWrap>
@@ -703,10 +748,7 @@ function AccountRow({ account, canEdit, onOpenMenu }: AccountRowProps) {
           {account.latestSnapshot ? (
             account.kind === "liability" ? (
               // Passivo: cor por contexto (danger), NUNCA <MoneyValue> cru (pintaria de verde).
-              <Typography
-                variant="mono"
-                sx={{ color: "danger.main", fontWeight: 500 }}
-              >
+              <Typography variant="mono" sx={{ color: "danger.main", fontWeight: 500 }}>
                 {formatCentsToBrl(BigInt(account.latestSnapshot.balanceCents))}
               </Typography>
             ) : (
@@ -721,7 +763,10 @@ function AccountRow({ account, canEdit, onOpenMenu }: AccountRowProps) {
           {account.latestSnapshot &&
             (stale ? (
               <StatusBadge variant="warning">
-                {m.netWorth.staleSince.replace("{when}", formatDateBr(account.latestSnapshot.capturedOn))}
+                {m.netWorth.staleSince.replace(
+                  "{when}",
+                  formatDateBr(account.latestSnapshot.capturedOn),
+                )}
               </StatusBadge>
             ) : (
               <Typography variant="caption" color="text.tertiary">

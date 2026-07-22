@@ -1,7 +1,7 @@
 "use client";
 
-import { Box, Breadcrumbs, Link as MuiLink, Stack, Typography } from "@mui/material";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import { Box, Breadcrumbs, Link as MuiLink, Stack, Typography } from "@mui/material";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
 
@@ -35,7 +35,7 @@ export interface PageHeaderProps {
  */
 export function PageHeader({ title, description, breadcrumbs, actions }: PageHeaderProps) {
   return (
-    <Stack spacing={layout.inline} sx={{ mb: layout.section }}>
+    <Stack spacing={layout.inline} sx={{ mb: layout.card }}>
       {breadcrumbs && breadcrumbs.length > 0 && (
         <Breadcrumbs
           separator={<NavigateNextIcon fontSize="small" />}
@@ -83,7 +83,7 @@ export function PageHeader({ title, description, breadcrumbs, actions }: PageHea
         spacing={layout.stack}
       >
         <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography variant="h1">{title}</Typography>
+          <Typography variant="h3">{title}</Typography>
           {description && (
             <Typography variant="body1" sx={{ color: "text.secondary", mt: layout.micro }}>
               {description}
