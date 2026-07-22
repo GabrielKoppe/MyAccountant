@@ -266,6 +266,12 @@ model AccountSettings {
   defaultResponsiblePartyId String?   @map("default_responsible_party_id")
   invertSignOnMoveByDefault Boolean   @default(true) @map("invert_sign_on_move_by_default")
   onboardingCompletedAt     DateTime? @map("onboarding_completed_at")
+  forecastHorizonMonths     Int       @default(6) @map("forecast_horizon_months")
+  forecastScenario          String    @default("realistic") @map("forecast_scenario")
+  forecastOptimisticPct     Int       @default(15) @map("forecast_optimistic_pct")
+  forecastConservativePct   Int       @default(15) @map("forecast_conservative_pct")
+  forecastVariableWindow    Int       @default(6) @map("forecast_variable_window")
+  forecastStartBalanceCents BigInt?   @map("forecast_start_balance_cents")
   createdAt                 DateTime  @default(now()) @map("created_at")
   updatedAt                 DateTime  @updatedAt @map("updated_at")
 

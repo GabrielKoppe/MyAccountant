@@ -537,6 +537,15 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
     },
+    // ─── Spec 48 ────────────────────────────────────────────────────────────
+    // Opt-in: reflete a projeção da account (forecast.scenarioDefault), sem config por instância.
+    {
+      id: "cashflow-forecast",
+      labelKey: "cashflowForecast",
+      kind: "panel",
+      sizeVariants: WIDE_CHART_VARIANTS,
+      defaultVisible: false,
+    },
   ],
   month_summary: [
     {

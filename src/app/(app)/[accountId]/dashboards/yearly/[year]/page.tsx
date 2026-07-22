@@ -1,18 +1,19 @@
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
+import { YearlyDashboardClient } from "@/components/dashboards/yearly/YearlyDashboardClient";
+import { m } from "@/lib/messages";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
+import { getCashflowForecast } from "@/server/queries/cashflow-forecast";
 import { getYearOverview, getTransactionCount } from "@/server/queries/dashboards";
-import { getMemberYearlyTrend, getMemberYearlyBreakdown } from "@/server/queries/member-analytics";
-import { getLayout } from "@/server/services/dashboard-layout-service";
 import { getKpiCustomDataMap } from "@/server/queries/kpi-custom";
-import { getSandboxDataMap } from "@/server/queries/sandbox";
+import { getMemberYearlyTrend, getMemberYearlyBreakdown } from "@/server/queries/member-analytics";
 import { getNetWorthSeriesForYear } from "@/server/queries/net-worth";
-import { m } from "@/lib/messages";
-import { YearlyDashboardClient } from "@/components/dashboards/yearly/YearlyDashboardClient";
+import { getSandboxDataMap } from "@/server/queries/sandbox";
+import { getLayout } from "@/server/services/dashboard-layout-service";
 
 type Props = { params: Promise<{ accountId: string; year: string }> };
 
@@ -95,8 +96,10 @@ export default async function YearlyDashboardPage({ params }: Props) {
     | undefined;
   // Spec 46 — fetch gated: só roda a série de patrimônio quando o widget está visível.
   const hasNw = widgets.some((w) => w.widgetId === "net-worth-evolution" && w.visible);
+  // Spec 48 — fetch gated: só roda a projeção de fluxo de caixa quando o widget está visível.
+  const hasForecast = widgets.some((w) => w.widgetId === "cashflow-forecast" && w.visible);
 
-  const [memberYearly, transactionCount, expenseCount, incomeCount, netWorthSeries] =
+  const [memberYearly, transactionCount, expenseCount, incomeCount, netWorthSeries, forecast] =
     await Promise.all([
       getMemberYearlyBreakdown(accountId, year),
       getTransactionCount(
@@ -104,10 +107,7 @@ export default async function YearlyDashboardPage({ params }: Props) {
         { monthIds: yearMonthIds },
         {
           countInMonth: (transactionCountConfig?.countInMonth ?? "all") as "all" | "only",
-          sectionType: (transactionCountConfig?.sectionType ?? "all") as
-            | "all"
-            | "subtract"
-            | "add",
+          sectionType: (transactionCountConfig?.sectionType ?? "all") as "all" | "subtract" | "add",
           includePending: transactionCountConfig?.includePending ?? true,
         },
       ),
@@ -115,6 +115,7 @@ export default async function YearlyDashboardPage({ params }: Props) {
       getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "subtract" }),
       getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "add" }),
       hasNw ? getNetWorthSeriesForYear(accountId, year) : Promise.resolve([]),
+      hasForecast ? getCashflowForecast(accountId) : Promise.resolve(null),
     ]);
 
   return (
@@ -144,6 +145,7 @@ export default async function YearlyDashboardPage({ params }: Props) {
       expenseCount={expenseCount}
       incomeCount={incomeCount}
       netWorthSeries={netWorthSeries}
+      forecast={forecast}
     />
   );
 }

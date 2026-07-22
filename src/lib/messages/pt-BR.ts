@@ -134,6 +134,7 @@ export const messages = {
   settings: {
     nav: {
       general: "Geral",
+      forecast: "Projeção",
       sections: "Seções",
       categories: "Categorias",
       institutions: "Instituições",
@@ -333,6 +334,35 @@ export const messages = {
       invertSignOnMoveHelper:
         "Ao mover transações entre uma seção que subtrai e uma que soma (ou vice-versa), inverte o sinal do valor por padrão para preservar o significado exibido. Você ainda pode ajustar a cada movimentação.",
       saved: "Configurações salvas.",
+    },
+    forecast: {
+      title: "Projeção de fluxo de caixa",
+      description:
+        "Ajuste como a projeção de saldo futuro é calculada a partir dos seus recorrentes, parcelas e hábitos de gasto recentes. Essas preferências valem para a página de Projeção e para o widget do dashboard anual.",
+      horizonLabel: "Horizonte da projeção",
+      horizonHelper: "Quantos meses à frente projetar, a partir do mês atual.",
+      horizonOptionLabel: (months: number) => `${months} meses`,
+      scenarioLabel: "Cenário padrão",
+      scenarioHelper:
+        "Cenário exibido ao abrir a página de Projeção. Pode ser alternado por lá a qualquer momento, sem afetar esta preferência.",
+      scenarios: {
+        optimistic: "Otimista",
+        realistic: "Realista",
+        conservative: "Conservador",
+      },
+      optimisticPctLabel: "Fator otimista",
+      optimisticPctHelper:
+        "Reduz a magnitude da estimativa de gastos não-comprometidos neste percentual.",
+      conservativePctLabel: "Fator conservador",
+      conservativePctHelper:
+        "Aumenta a magnitude da estimativa de gastos não-comprometidos neste percentual.",
+      variableWindowLabel: "Janela de estimativa",
+      variableWindowHelper:
+        "Quantos meses fechados usar na média de hábitos de gasto não-comprometidos (fora recorrentes e parcelas).",
+      variableWindowOptionLabel: (months: number) => `${months} meses`,
+      startBalanceLabel: "Saldo de partida (opcional)",
+      startBalanceHint: "Deixe vazio para usar o acumulado dos meses já lançados.",
+      saved: "Configurações de projeção salvas.",
     },
     sections: {
       title: "Seções",
@@ -1167,6 +1197,8 @@ export const messages = {
         "member-yearly": "Gastos por Membro no Ano",
         // Spec 46
         "net-worth-evolution": "Evolução do Patrimônio",
+        // Spec 48
+        "cashflow-forecast": "Projeção de Caixa",
       },
       month_summary: {
         "kpi-income": "Entradas",
@@ -1233,6 +1265,8 @@ export const messages = {
           "member-yearly": "Ranking consolidado de gastos por pessoa no ano inteiro",
           // Spec 46
           "net-worth-evolution": "Evolução do patrimônio líquido ao longo do ano",
+          // Spec 48
+          "cashflow-forecast": "Projeção do seu saldo para os próximos meses, a partir de hoje.",
         },
         month_summary: {
           "kpi-income": "Total de entradas no período",
@@ -1617,6 +1651,40 @@ export const messages = {
     staleSince: "Atualizado {when}",
     navLabel: "Patrimônio",
     vsPrevMonth: "vs. mês anterior",
+  },
+  cashflowForecast: {
+    navLabel: "Projeção",
+    title: "Projeção de Fluxo de Caixa",
+    fromToday: "Projeção a partir de hoje",
+    description:
+      "Estimativa do seu saldo nos próximos meses, com base em recorrentes, parcelas e hábitos recentes.",
+    scenarioLabel: "Cenário",
+    scenarios: {
+      optimistic: "Otimista",
+      realistic: "Realista",
+      conservative: "Conservador",
+    },
+    projected: "projetado",
+    known: "conhecido",
+    estimate: "estimativa",
+    estimateWindow: (n: number) => `média ${n}m`,
+    recurringIn: "Recorrentes (entrada)",
+    recurringOut: "Recorrentes (saída)",
+    installments: "Parcelas",
+    estimated: "Estimado (hábitos)",
+    monthResult: "Resultado do mês",
+    balance: "Saldo acumulado",
+    runwayTitle: "Ponto de ruptura",
+    runwayLabel: "fica negativo",
+    runwayBadge: (month: string) => `Fica negativo em ${month}`,
+    noRupture: "Sem ruptura no horizonte",
+    trough: (value: string, month: string) => `Menor saldo: ${value} · ${month}`,
+    lowData: "Estimativa com poucos dados",
+    startingAccrued: "Saldo acumulado",
+    startingOverride: "Saldo informado",
+    emptyTitle: "Sem dados para projetar",
+    emptyDescription: "Cadastre recorrentes e parcelas para ver sua projeção.",
+    configureLink: "Configurar projeção",
   },
   mcpConsent: {
     errorTitle: "Não foi possível continuar",

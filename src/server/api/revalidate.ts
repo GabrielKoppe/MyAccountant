@@ -77,3 +77,9 @@ export function revalidateTransactionAliases(accountId: string) {
 export function revalidateNetWorth(accountId: string) {
   revalidatePath(`/${accountId}/net-worth`);
 }
+
+/** Revalida configurações de forecast e o dashboard anual (layout completo — usar com moderação). */
+export function revalidateForecastSettings(accountId: string) {
+  revalidatePath(`/${accountId}/forecast`);
+  revalidatePath(`/${accountId}/dashboards/yearly`, "layout");
+}

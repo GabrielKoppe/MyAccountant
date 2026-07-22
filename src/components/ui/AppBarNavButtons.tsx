@@ -5,14 +5,16 @@
 // função Client Component) não é serializado corretamente na fronteira RSC→Client,
 // causando hydration mismatch (<a> no server, <span> no client).
 
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import GroupIcon from "@mui/icons-material/Group";
 import SettingsIcon from "@mui/icons-material/Settings";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 
 import { AppLink } from "@/components/ui/AppLink";
+import { m } from "@/lib/messages";
 
 type Props = {
   accountId: string;
@@ -51,6 +53,17 @@ export function AppBarNavButtons({ accountId }: Props) {
           aria-label="Patrimônio"
         >
           <AccountBalanceWalletIcon />
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title={m.cashflowForecast.navLabel}>
+        <IconButton
+          component={AppLink}
+          href={`/${accountId}/forecast`}
+          color="inherit"
+          aria-label={m.cashflowForecast.navLabel}
+        >
+          <TrendingUpIcon />
         </IconButton>
       </Tooltip>
 

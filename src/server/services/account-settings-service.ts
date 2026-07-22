@@ -1,7 +1,8 @@
+import type { ForecastSettings } from "@/lib/schemas/forecast";
+import type { UpdateAccountSettingsInput } from "@/lib/schemas/settings";
 import type { ActionContext } from "@/server/api/define-action";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
-import type { UpdateAccountSettingsInput } from "@/lib/schemas/settings";
 
 const log = logger.child({ module: "account-settings-service" });
 
@@ -31,4 +32,20 @@ export async function updateAccountSettings(input: UpdateAccountSettingsInput, c
   ]);
 
   log.info({ accountId: ctx.accountId }, "Account settings updated");
+}
+
+export async function updateForecastSettings(input: ForecastSettings, ctx: ActionContext) {
+  await prisma.accountSettings.update({
+    where: { accountId: ctx.accountId },
+    data: {
+      forecastHorizonMonths: input.forecastHorizonMonths,
+      forecastScenario: input.forecastScenario,
+      forecastOptimisticPct: input.forecastOptimisticPct,
+      forecastConservativePct: input.forecastConservativePct,
+      forecastVariableWindow: input.forecastVariableWindow,
+      forecastStartBalanceCents: input.forecastStartBalanceCents,
+    },
+  });
+
+  log.info({ accountId: ctx.accountId }, "Forecast settings updated");
 }

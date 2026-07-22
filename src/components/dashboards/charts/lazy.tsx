@@ -5,8 +5,10 @@
 // em páginas/dashboards. Isso mantém recharts/nivo fora do bundle inicial.
 
 import dynamic from "next/dynamic";
-import { ChartSkeleton } from "./ChartSkeleton";
+
 import { KpiCardSkeleton } from "../kpi/KpiCardSkeleton";
+
+import { ChartSkeleton } from "./ChartSkeleton";
 
 // ─── recharts charts ──────────────────────────────────────────────
 
@@ -48,6 +50,12 @@ export const BreakdownBarChart = dynamic(
 export const MemberTrendChart = dynamic(
   () => import("./MemberTrendChart").then((m) => ({ default: m.MemberTrendChart })),
   { ssr: false, loading: () => <ChartSkeleton height={240} /> },
+);
+
+// Spec 48 — Previsão de Fluxo de Caixa
+export const LazyCashflowForecastChart = dynamic(
+  () => import("./CashflowForecastChart").then((mod) => mod.CashflowForecastChart),
+  { ssr: false, loading: () => <ChartSkeleton height={300} /> },
 );
 
 // ─── recharts panels ─────────────────────────────────────────────

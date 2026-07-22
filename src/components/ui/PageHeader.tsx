@@ -85,7 +85,7 @@ export function PageHeader({ title, description, breadcrumbs, actions }: PageHea
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography variant="h3">{title}</Typography>
           {description && (
-            <Typography variant="body1" sx={{ color: "text.secondary", mt: layout.micro }}>
+            <Typography variant="body2" sx={{ color: "text.secondary", mt: layout.micro }}>
               {description}
             </Typography>
           )}

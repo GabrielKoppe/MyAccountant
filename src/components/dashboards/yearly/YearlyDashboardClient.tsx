@@ -1,37 +1,39 @@
 "use client";
 
-import React from "react";
-import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
-import Typography from "@mui/material/Typography";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 import SavingsIcon from "@mui/icons-material/Savings";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
+import React from "react";
 
-import { formatCentsToBrl } from "@/lib/money";
-import { m } from "@/lib/messages";
-import type { SectionMeta, CategorySum, MonthSummary } from "@/server/queries/dashboards";
-import type { MemberTrendSeries, MemberBreakdownRow } from "@/server/queries/member-analytics";
-
-import { KpiCard, MonthlyBarChart, MemberTrendChart } from "@/components/dashboards/charts/lazy";
-import { TopCategoriesWidget } from "@/components/dashboards/panels/TopCategoriesWidget";
-import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
-import { MemberYearlyWidget } from "@/components/dashboards/panels/MemberYearlyWidget";
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
-import { AppLink } from "@/components/ui/AppLink";
-import { YearSelector } from "@/components/dashboards/_shared/YearSelector";
-import { YearlyDashboardMenu } from "./YearlyDashboardMenu";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
-import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
-import { kpiCustomConfigSchema, type TopCategoriesConfig } from "@/lib/schemas/widget-config";
-import type { KpiCustomResult } from "@/server/queries/kpi-custom";
+import { YearSelector } from "@/components/dashboards/_shared/YearSelector";
+import { KpiCard, MonthlyBarChart, MemberTrendChart } from "@/components/dashboards/charts/lazy";
+import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
-import type { SerializedSandboxResult } from "@/server/queries/sandbox";
+import { CashflowForecastWidget } from "@/components/dashboards/panels/CashflowForecastWidget";
+import { MemberYearlyWidget } from "@/components/dashboards/panels/MemberYearlyWidget";
 import { NetWorthEvolutionWidget } from "@/components/dashboards/panels/NetWorthEvolutionWidget";
+import { TopCategoriesWidget } from "@/components/dashboards/panels/TopCategoriesWidget";
+import { AppLink } from "@/components/ui/AppLink";
+import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
+import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+import { kpiCustomConfigSchema, type TopCategoriesConfig } from "@/lib/schemas/widget-config";
+import type { CashflowForecast } from "@/server/queries/cashflow-forecast";
+import type { SectionMeta, CategorySum, MonthSummary } from "@/server/queries/dashboards";
+import type { KpiCustomResult } from "@/server/queries/kpi-custom";
+import type { MemberTrendSeries, MemberBreakdownRow } from "@/server/queries/member-analytics";
+import type { SerializedSandboxResult } from "@/server/queries/sandbox";
+
+import { YearlyDashboardMenu } from "./YearlyDashboardMenu";
 
 type Props = {
   accountId: string;
@@ -69,6 +71,8 @@ type Props = {
     liabilitiesCents: string;
     netCents: string;
   }[];
+  // Spec 48 — null quando o widget "cashflow-forecast" não está visível (fetch gated na page).
+  forecast: CashflowForecast | null;
 };
 
 export function YearlyDashboardClient({
@@ -99,6 +103,8 @@ export function YearlyDashboardClient({
   incomeCount,
   // Spec 46
   netWorthSeries,
+  // Spec 48
+  forecast,
 }: Props) {
   const yearTotalBigInt = BigInt(yearTotal);
   const yearlyIncomeBigInt = BigInt(yearlyIncome);
@@ -251,6 +257,18 @@ export function YearlyDashboardClient({
         renderMode={getRenderMode(widgets, "yearly", "net-worth-evolution")}
       />
     ),
+    // Spec 48
+    "cashflow-forecast": forecast ? (
+      <CashflowForecastWidget
+        forecast={forecast}
+        renderMode={
+          getRenderMode(widgets, "yearly", "cashflow-forecast") as
+            | "compact"
+            | "default"
+            | "expanded"
+        }
+      />
+    ) : null,
   };
 
   // nodeMap por instanceId: singletons pelo widgetId; kpi-custom por instância; analysis por instância.

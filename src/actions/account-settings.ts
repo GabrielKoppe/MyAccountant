@@ -1,6 +1,6 @@
 "use server";
 
-import { defineAction } from "@/server/api/define-action";
+import { forecastSettingsSchema } from "@/lib/schemas/forecast";
 import {
   createCategorySchema,
   createInstitutionSchema,
@@ -20,18 +20,20 @@ import {
   updateSubcategorySchema,
   updateTableTypeSchema,
 } from "@/lib/schemas/settings";
-import * as accountSettingsService from "@/server/services/account-settings-service";
-import * as categoryService from "@/server/services/category-service";
-import * as institutionService from "@/server/services/institution-service";
-import * as sectionService from "@/server/services/section-service";
-import * as tableTypeService from "@/server/services/table-type-service";
+import { defineAction } from "@/server/api/define-action";
 import {
   revalidateGeneralSettings,
+  revalidateForecastSettings,
   revalidateSections,
   revalidateCategories,
   revalidateInstitutions,
   revalidateTableTypes,
 } from "@/server/api/revalidate";
+import * as accountSettingsService from "@/server/services/account-settings-service";
+import * as categoryService from "@/server/services/category-service";
+import * as institutionService from "@/server/services/institution-service";
+import * as sectionService from "@/server/services/section-service";
+import * as tableTypeService from "@/server/services/table-type-service";
 
 const EDITOR_ROLES = ["owner", "editor"] as const;
 
@@ -43,6 +45,17 @@ export const updateAccountSettingsAction = defineAction({
   handler: async (input, ctx) => {
     await accountSettingsService.updateAccountSettings(input, ctx);
     revalidateGeneralSettings(ctx.accountId);
+  },
+});
+
+// ─── Forecast (spec 48) ───────────────────────────────────────────
+
+export const updateForecastSettingsAction = defineAction({
+  schema: forecastSettingsSchema,
+  requireRoles: [...EDITOR_ROLES],
+  handler: async (input, ctx) => {
+    await accountSettingsService.updateForecastSettings(input, ctx);
+    revalidateForecastSettings(ctx.accountId);
   },
 });
 
