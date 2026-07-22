@@ -20,6 +20,7 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import { AliasMatchMode, AliasPriority } from "@prisma/client";
 import { useSnackbar } from "notistack";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -93,6 +94,12 @@ function initDefaults(
   if (!alias) {
     return {
       trigger: "",
+      // Correspondência avançada (default = comportamento simples de sempre: contém, sem condições).
+      triggerMode: AliasMatchMode.contains,
+      priority: AliasPriority.medium,
+      conditionInstitutionId: null,
+      minCents: null,
+      maxCents: null,
       description: null,
       notes: null,
       amountCents: null,
@@ -116,6 +123,11 @@ function initDefaults(
   }
   return {
     trigger: alias.trigger,
+    triggerMode: alias.triggerMode,
+    priority: alias.priority,
+    conditionInstitutionId: alias.conditionInstitutionId,
+    minCents: alias.minCents !== null ? BigInt(alias.minCents) : null,
+    maxCents: alias.maxCents !== null ? BigInt(alias.maxCents) : null,
     description: alias.description,
     notes: alias.notes,
     amountCents: alias.amountCents !== null ? BigInt(alias.amountCents) : null,
@@ -207,6 +219,7 @@ export function TransactionAliasFormDialog({
   // Seções colapsáveis: Classificação sempre aberta; as demais abrem sozinhas
   // quando o apelido em edição já tem dados nelas (menos cliques para revisar).
   const [openSections, setOpenSections] = useState({
+    advanced: false,
     value: false,
     fx: false,
     tagsNotes: false,
@@ -217,6 +230,11 @@ export function TransactionAliasFormDialog({
     const d = initDefaults(alias, prefill);
     form.reset(d);
     setOpenSections({
+      advanced:
+        d.triggerMode !== AliasMatchMode.contains ||
+        d.conditionInstitutionId != null ||
+        d.minCents != null ||
+        d.maxCents != null,
       value:
         d.amountCents != null ||
         d.isPending != null ||
@@ -230,6 +248,7 @@ export function TransactionAliasFormDialog({
   }, [open, alias]);
 
   const trigger = form.watch("trigger");
+  const triggerMode = form.watch("triggerMode");
   const categoryId = form.watch("categoryId");
   const subcatsForCategory = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
 
@@ -342,9 +361,11 @@ export function TransactionAliasFormDialog({
                 error={!!fieldState.error}
                 helperText={
                   fieldState.error?.message ??
-                  (trigger.trim().length > 0 && trigger.trim().length < 3
-                    ? ta.triggerShortWarning
-                    : ta.triggerHint)
+                  (triggerMode === AliasMatchMode.regex
+                    ? ta.triggerRegexModeHint
+                    : trigger.trim().length > 0 && trigger.trim().length < 3
+                      ? ta.triggerShortWarning
+                      : ta.triggerHint)
                 }
                 fullWidth
                 autoFocus
@@ -367,6 +388,150 @@ export function TransactionAliasFormDialog({
                   ),
                 }}
               />
+            )}
+          />
+
+          {/* Gatilho avançado — poderes herdados da Regra (spec 50): modo do
+              gatilho (contém/regex), condição extra de instituição e faixa de valor.
+              Fechada por padrão (comportamento simples de apelido é o de sempre). */}
+          <CollapsibleSection
+            label={ta.advancedSectionLabel}
+            hint={ta.advancedSectionHint}
+            open={openSections.advanced}
+            onToggle={() => setOpenSections((s) => ({ ...s, advanced: !s.advanced }))}
+          >
+            <Stack spacing={layout.stack}>
+              <Controller
+                name="triggerMode"
+                control={form.control}
+                render={({ field }) => (
+                  <LabeledField label={ta.triggerModeLabel}>
+                    <ToggleButtonGroup
+                      value={field.value}
+                      exclusive
+                      size="small"
+                      aria-label={ta.triggerModeLabel}
+                      onChange={(_e, val) => {
+                        if (val) field.onChange(val as AliasMatchMode);
+                      }}
+                    >
+                      <ToggleButton value={AliasMatchMode.contains}>
+                        {ta.triggerModeContains}
+                      </ToggleButton>
+                      <ToggleButton value={AliasMatchMode.regex}>
+                        {ta.triggerModeRegex}
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+                  </LabeledField>
+                )}
+              />
+
+              <Controller
+                name="conditionInstitutionId"
+                control={form.control}
+                render={({ field }) => (
+                  <LabeledField
+                    label={ta.conditionInstitutionLabel}
+                    hint={ta.conditionInstitutionHint}
+                  >
+                    <CreatableEntitySelect
+                      value={field.value ?? null}
+                      onChange={field.onChange}
+                      options={institutions}
+                      onCreate={onCreateInstitution ?? noopCreate}
+                      canCreate={canCreateOptions && !!onCreateInstitution}
+                      variant="outlined"
+                      ariaLabel={ta.conditionInstitutionLabel}
+                      placeholderNone={m.common.none}
+                      sx={{ width: "100%" }}
+                    />
+                  </LabeledField>
+                )}
+              />
+
+              <Box sx={twoCol}>
+                <Controller
+                  name="minCents"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <LabeledField
+                      label={ta.minAmountLabel}
+                      error={fieldState.error?.message}
+                      hint={fieldState.error ? undefined : ta.amountRangeHint}
+                    >
+                      <NumericFormat
+                        customInput={TextField}
+                        size="small"
+                        value={field.value != null ? centsToReais(field.value) : ""}
+                        thousandSeparator="."
+                        decimalSeparator=","
+                        decimalScale={2}
+                        fixedDecimalScale
+                        allowNegative
+                        onValueChange={({ floatValue }) =>
+                          field.onChange(floatValue !== undefined ? reaisToCents(floatValue) : null)
+                        }
+                        InputProps={{
+                          startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                        }}
+                        inputProps={{ "aria-label": ta.minAmountLabel }}
+                        fullWidth
+                      />
+                    </LabeledField>
+                  )}
+                />
+
+                <Controller
+                  name="maxCents"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <LabeledField label={ta.maxAmountLabel} error={fieldState.error?.message}>
+                      <NumericFormat
+                        customInput={TextField}
+                        size="small"
+                        value={field.value != null ? centsToReais(field.value) : ""}
+                        thousandSeparator="."
+                        decimalSeparator=","
+                        decimalScale={2}
+                        fixedDecimalScale
+                        allowNegative
+                        onValueChange={({ floatValue }) =>
+                          field.onChange(floatValue !== undefined ? reaisToCents(floatValue) : null)
+                        }
+                        InputProps={{
+                          startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                        }}
+                        inputProps={{ "aria-label": ta.maxAmountLabel }}
+                        fullWidth
+                      />
+                    </LabeledField>
+                  )}
+                />
+              </Box>
+            </Stack>
+          </CollapsibleSection>
+
+          {/* Prioridade — desempate quando mais de um apelido casa a mesma transação
+              (bloco principal, sempre visível: afeta QUAL apelido vence, não só como ele casa). */}
+          <Controller
+            name="priority"
+            control={form.control}
+            render={({ field }) => (
+              <LabeledField label={ta.priorityLabel} hint={ta.priorityHint}>
+                <ToggleButtonGroup
+                  value={field.value}
+                  exclusive
+                  size="small"
+                  aria-label={ta.priorityLabel}
+                  onChange={(_e, val) => {
+                    if (val) field.onChange(val as AliasPriority);
+                  }}
+                >
+                  <ToggleButton value={AliasPriority.high}>{ta.priorityHigh}</ToggleButton>
+                  <ToggleButton value={AliasPriority.medium}>{ta.priorityMedium}</ToggleButton>
+                  <ToggleButton value={AliasPriority.low}>{ta.priorityLow}</ToggleButton>
+                </ToggleButtonGroup>
+              </LabeledField>
             )}
           />
 

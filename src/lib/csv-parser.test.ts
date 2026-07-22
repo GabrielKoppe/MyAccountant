@@ -535,6 +535,11 @@ describe("applyMappingToRows — apelidos (spec 61 Fase 5)", () => {
       id: "alias-1",
       trigger: "CEG",
       triggerNormalized: "ceg",
+      triggerMode: "contains",
+      priority: "medium",
+      conditionInstitutionId: null,
+      minCents: null,
+      maxCents: null,
       updatedAt: "2026-01-01T00:00:00.000Z",
       ...overrides,
     };

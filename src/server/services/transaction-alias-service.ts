@@ -89,6 +89,9 @@ export async function createTransactionAlias(
     await assertSubcategoryOwned(ctx.accountId, input.subcategoryId, input.categoryId ?? null);
   }
   if (input.institutionId) await assertInstitutionOwned(ctx.accountId, input.institutionId);
+  // Condição avançada: a instituição-condição também precisa pertencer à Account.
+  if (input.conditionInstitutionId)
+    await assertInstitutionOwned(ctx.accountId, input.conditionInstitutionId);
   if (input.responsiblePartyId)
     await assertResponsiblePartyOwned(ctx.accountId, input.responsiblePartyId);
   const tagIds = [...new Set(input.tagIds)];
@@ -107,6 +110,11 @@ export async function createTransactionAlias(
       accountId: ctx.accountId,
       trigger,
       triggerNormalized,
+      triggerMode: input.triggerMode,
+      priority: input.priority,
+      conditionInstitutionId: input.conditionInstitutionId ?? null,
+      minCents: input.minCents ?? null,
+      maxCents: input.maxCents ?? null,
       description: input.description ?? null,
       notes: input.notes ?? null,
       amountCents: input.amountCents ?? null,
@@ -154,6 +162,9 @@ export async function updateTransactionAlias(
   }
   if (input.institutionId !== undefined && input.institutionId !== null) {
     await assertInstitutionOwned(ctx.accountId, input.institutionId);
+  }
+  if (input.conditionInstitutionId !== undefined && input.conditionInstitutionId !== null) {
+    await assertInstitutionOwned(ctx.accountId, input.conditionInstitutionId);
   }
   if (input.responsiblePartyId !== undefined && input.responsiblePartyId !== null) {
     await assertResponsiblePartyOwned(ctx.accountId, input.responsiblePartyId);
@@ -203,6 +214,13 @@ export async function updateTransactionAlias(
       where: { id: input.aliasId },
       data: {
         ...(trigger !== undefined ? { trigger, triggerNormalized } : {}),
+        ...(input.triggerMode !== undefined ? { triggerMode: input.triggerMode } : {}),
+        ...(input.priority !== undefined ? { priority: input.priority } : {}),
+        ...(input.conditionInstitutionId !== undefined
+          ? { conditionInstitutionId: input.conditionInstitutionId }
+          : {}),
+        ...(input.minCents !== undefined ? { minCents: input.minCents } : {}),
+        ...(input.maxCents !== undefined ? { maxCents: input.maxCents } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
         ...(input.amountCents !== undefined ? { amountCents: input.amountCents } : {}),

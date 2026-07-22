@@ -525,12 +525,13 @@ model Institution {
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  account            Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdBy          User               @relation("InstitutionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  transactions       Transaction[]
-  budgets            Budget[]
-  transactionAliases TransactionAlias[]
-  balanceAccounts    BalanceAccount[]
+  account                    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy                  User               @relation("InstitutionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  transactions               Transaction[]
+  budgets                    Budget[]
+  transactionAliases         TransactionAlias[] @relation("AliasSetInstitution")
+  transactionAliasConditions TransactionAlias[] @relation("AliasConditionInstitution")
+  balanceAccounts            BalanceAccount[]
 
   @@unique([accountId, name])
   @@map("institutions")
@@ -730,10 +731,17 @@ model TransactionTag {
 // =========================================
 
 model TransactionAlias {
-  id                String @id @default(cuid())
-  accountId         String @map("account_id")
-  trigger           String @map("trigger_text") // display (case original) — evita palavra reservada
-  triggerNormalized String @map("trigger_normalized") // lowercase — match + unicidade
+  id                String         @id @default(cuid())
+  accountId         String         @map("account_id")
+  trigger           String         @map("trigger_text") // display (case original) — evita palavra reservada
+  triggerNormalized String         @map("trigger_normalized") // lowercase — match + unicidade
+  triggerMode       AliasMatchMode @default(contains) @map("trigger_mode") // contains (padrão) | regex
+  priority          AliasPriority  @default(medium) // desempate: prioridade → gatilho mais longo → mais recente
+
+  // Condições avançadas (opcionais; AND com o gatilho) — "correspondência avançada"
+  conditionInstitutionId String? @map("condition_institution_id")
+  minCents               BigInt? @map("min_cents")
+  maxCents               BigInt? @map("max_cents")
 
   // payload — todos opcionais (patch parcial; null = "não define")
   description         String?
@@ -759,13 +767,14 @@ model TransactionAlias {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  account          Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdBy        User                  @relation("TransactionAliasCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  category         Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  subcategory      Subcategory?          @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
-  institution      Institution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull)
-  responsibleParty ResponsibleParty?     @relation(fields: [responsiblePartyId], references: [id], onDelete: SetNull)
-  tags             TransactionAliasTag[]
+  account              Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy            User                  @relation("TransactionAliasCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  category             Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subcategory          Subcategory?          @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  institution          Institution?          @relation("AliasSetInstitution", fields: [institutionId], references: [id], onDelete: SetNull)
+  conditionInstitution Institution?          @relation("AliasConditionInstitution", fields: [conditionInstitutionId], references: [id], onDelete: SetNull)
+  responsibleParty     ResponsibleParty?     @relation(fields: [responsiblePartyId], references: [id], onDelete: SetNull)
+  tags                 TransactionAliasTag[]
 
   @@unique([accountId, triggerNormalized])
   @@index([accountId])
@@ -782,6 +791,23 @@ model TransactionAliasTag {
   @@id([aliasId, tagId])
   @@index([tagId])
   @@map("transaction_alias_tags")
+}
+
+// Modo de correspondência do gatilho do apelido (correspondência avançada).
+enum AliasMatchMode {
+  contains
+  regex
+
+  @@map("alias_match_mode")
+}
+
+// Prioridade do apelido no desempate quando mais de um casa a mesma transação.
+enum AliasPriority {
+  high
+  medium
+  low
+
+  @@map("alias_priority")
 }
 
 // =========================================

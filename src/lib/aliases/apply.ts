@@ -1,6 +1,7 @@
 // Pura — calcula o patch parcial (DD-04) e a lista de campos que mudam
-// (preview do popover, §2.4) ao aplicar um apelido manualmente sobre os
-// valores atuais de uma linha (NewTransactionRow / TransactionRowEditor).
+// (preview do popover, §2.4) ao aplicar um APELIDO sobre os valores atuais de
+// uma linha (NewTransactionRow / TransactionRowEditor / TransactionRow em modo
+// visualização).
 //
 // Tags ficam fora do escopo aqui: TagEditor persiste tag a tag imediatamente
 // (addTagToTransactionAction/removeTagFromTransactionAction), diferente do
@@ -23,7 +24,7 @@ import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-a
 
 // Pick de TransactionRow em vez de duplicar os tipos à mão — evita divergir
 // silenciosamente se TransactionRow ganhar/mudar campos no futuro.
-export type AliasApplicableFields = Pick<
+export type SuggestionApplicableFields = Pick<
   TransactionRow,
   | "description"
   | "notes"
@@ -37,10 +38,10 @@ export type AliasApplicableFields = Pick<
   | "isPending"
 >;
 
-export type AliasPatch = Partial<AliasApplicableFields>;
+export type SuggestionPatch = Partial<SuggestionApplicableFields>;
 
-export type AliasFieldChange = {
-  field: keyof AliasApplicableFields;
+export type SuggestionFieldChange = {
+  field: keyof SuggestionApplicableFields;
   label: string;
   oldDisplay: string;
   newDisplay: string;
@@ -116,27 +117,34 @@ export function foreignCurrencyDisplay(alias: {
 
 /**
  * Calcula o patch parcial (DD-04) e a lista de campos que mudam (preview do
- * popover, §2.4) ao aplicar `alias` sobre os valores atuais de uma linha.
+ * popover, §2.4) ao aplicar um apelido sobre os valores atuais de uma linha.
+ * `alias=null` (nenhum casou) produz patch/changes vazios.
+ *
+ * Cada campo do apelido só entra quando está preenchido (`!== null`) e difere do
+ * valor atual — um apelido "só de gatilho" (sem campos a definir) não gera nada.
+ *
  * Categoria/subcategoria seguem DD-18: subcategoria explícita do apelido tem
- * prioridade; senão, troca de categoria limpa a subcategoria vigente que
- * deixar de ser filha da nova categoria.
+ * prioridade; senão, troca de categoria limpa a subcategoria vigente que deixar
+ * de ser filha da nova categoria.
  */
-export function computeAliasApplication(
-  alias: SerializedTransactionAlias,
-  current: AliasApplicableFields,
+export function computeSuggestion(
+  alias: SerializedTransactionAlias | null,
+  current: SuggestionApplicableFields,
   sources: LabelSources,
-): { patch: AliasPatch; changes: AliasFieldChange[] } {
-  const patch: AliasPatch = {};
-  const changes: AliasFieldChange[] = [];
+): { patch: SuggestionPatch; changes: SuggestionFieldChange[] } {
+  const patch: SuggestionPatch = {};
+  const changes: SuggestionFieldChange[] = [];
 
   function push(
-    field: keyof AliasApplicableFields,
+    field: keyof SuggestionApplicableFields,
     label: string,
     oldDisplay: string,
     newDisplay: string,
   ) {
     changes.push({ field, label, oldDisplay, newDisplay });
   }
+
+  if (!alias) return { patch, changes };
 
   if (alias.description !== null && alias.description !== current.description) {
     patch.description = alias.description;
@@ -261,15 +269,17 @@ export function computeAliasApplication(
 }
 
 /**
- * Converte o patch de aplicação (AliasPatch) no input parcial de
+ * Converte o patch de aplicação (SuggestionPatch) no input parcial de
  * `updateTransactionAction` — usado pela aplicação em MODO VISUALIZAÇÃO (DD-23),
  * que persiste na hora (não há passo "Salvar"). `amountCents` (string no
  * `TransactionRow`) vira `BigInt`; os demais campos passam como estão. Só inclui
  * as chaves realmente presentes no patch (patch parcial, DD-04). `institutionText`
- * fica de fora porque `computeAliasApplication` não o cobre na aplicação manual
+ * fica de fora porque `computeSuggestion` não o cobre na aplicação manual
  * (mesma lacuna de escopo de tags/investmentType/cardInstallment, §2.4).
  */
-export function aliasPatchToUpdateInput(patch: AliasPatch): Partial<UpdateTransactionInput> {
+export function suggestionPatchToUpdateInput(
+  patch: SuggestionPatch,
+): Partial<UpdateTransactionInput> {
   const input: Partial<UpdateTransactionInput> = {};
   if ("description" in patch) input.description = patch.description;
   if ("notes" in patch) input.notes = patch.notes;

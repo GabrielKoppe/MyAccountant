@@ -16,14 +16,19 @@ export type UserActionContext = {
   userId: string;
 };
 
+// `TInput` é o tipo de SAÍDA do schema (o que `safeParse().data` retorna, com os
+// `.default()` já aplicados) — que é exatamente o que o handler recebe. Desacoplar
+// o parâmetro fantasma de entrada do `ZodType` (fixando-o em `unknown`) força a
+// inferência a usar o lado de saída; sem isso, schemas com `.default()` (input ≠
+// output) inferem `TInput` pelo lado de entrada e divergem do tipo do service.
 type DefineActionConfig<TInput, TOutput> = {
-  schema: z.ZodType<TInput>;
+  schema: z.ZodType<TInput, z.ZodTypeDef, unknown>;
   requireRoles?: AccountMemberRole[];
   handler: (input: TInput, ctx: ActionContext) => Promise<TOutput>;
 };
 
 type DefineUserActionConfig<TInput, TOutput> = {
-  schema: z.ZodType<TInput>;
+  schema: z.ZodType<TInput, z.ZodTypeDef, unknown>;
   handler: (input: TInput, ctx: UserActionContext) => Promise<TOutput>;
 };
 

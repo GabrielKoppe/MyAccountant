@@ -360,7 +360,13 @@ export function applyMappingToRows(
           }
           return { originalAmountCents: fxCents, originalCurrency: currency, exchangeRate: rate };
         })(),
-        appliedAliasId: matchAlias(description, aliases)?.id ?? null,
+        // O parser não resolve `institutionId` (a linha traz só o nome cru do
+        // extrato, sem o mapa de instituições da account) → passa null aqui e no
+        // service, mantendo o dual-run idêntico; condições de instituição do
+        // apelido não casam no import por esta limitação (money nunca é Float).
+        appliedAliasId:
+          matchAlias({ description, amountCents: parsedAmount, institutionId: null }, aliases)?.id ??
+          null,
       },
     });
   }

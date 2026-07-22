@@ -24,6 +24,7 @@ const ALIAS_INCLUDE = {
   category: { select: { name: true } },
   subcategory: { select: { name: true } },
   institution: { select: { name: true } },
+  conditionInstitution: { select: { name: true } },
   responsibleParty: { select: { name: true } },
   tags: { select: { tag: { select: { id: true, name: true } } } },
 } as const;

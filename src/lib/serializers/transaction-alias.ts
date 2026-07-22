@@ -2,7 +2,12 @@
 // ISO, + nomes denormalizados (categoria/subcategoria/instituição/responsável)
 // para o preview WYSIWYG do import, que não recebe listas de opções (P1).
 
-import type { TransactionExpenseType, TransactionPaymentMethod } from "@prisma/client";
+import type {
+  AliasMatchMode,
+  AliasPriority,
+  TransactionExpenseType,
+  TransactionPaymentMethod,
+} from "@prisma/client";
 
 import type { AliasCandidate } from "@/lib/aliases/match";
 import type { InvestmentType } from "@/lib/schemas/transaction";
@@ -11,6 +16,12 @@ type PrismaTransactionAlias = {
   id: string;
   trigger: string;
   triggerNormalized: string;
+  triggerMode: AliasMatchMode;
+  priority: AliasPriority;
+  conditionInstitutionId: string | null;
+  conditionInstitution: { name: string } | null;
+  minCents: bigint | null;
+  maxCents: bigint | null;
   description: string | null;
   notes: string | null;
   amountCents: bigint | null;
@@ -39,9 +50,12 @@ type PrismaTransactionAlias = {
   tags: { tag: { id: string; name: string } }[];
 };
 
-// Superset de AliasCandidate (id/trigger/triggerNormalized/updatedAt) — o
-// mesmo tipo serve o match (client + server) e o preview WYSIWYG do import.
+// Superset de AliasCandidate (id/trigger/triggerNormalized/triggerMode/priority/
+// conditionInstitutionId/minCents/maxCents/updatedAt) — o mesmo tipo serve o
+// match (client + server) e o preview WYSIWYG do import. conditionInstitutionName
+// é o nome denormalizado (a UI de preview não recebe listas de opções, P1).
 export type SerializedTransactionAlias = AliasCandidate & {
+  conditionInstitutionName: string | null;
   description: string | null;
   notes: string | null;
   amountCents: string | null;
@@ -76,6 +90,12 @@ export function serializeTransactionAlias(
     id: alias.id,
     trigger: alias.trigger,
     triggerNormalized: alias.triggerNormalized,
+    triggerMode: alias.triggerMode,
+    priority: alias.priority,
+    conditionInstitutionId: alias.conditionInstitutionId,
+    conditionInstitutionName: alias.conditionInstitution?.name ?? null,
+    minCents: alias.minCents?.toString() ?? null,
+    maxCents: alias.maxCents?.toString() ?? null,
     description: alias.description,
     notes: alias.notes,
     amountCents: alias.amountCents?.toString() ?? null,

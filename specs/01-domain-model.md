@@ -518,6 +518,69 @@ Join many-to-many entre `TransactionAlias` e `Tag` (conjunto de tags que o apeli
 
 > **Delta de domínio pendente (drift Tag/expenseType).** As colunas `Transaction.expenseType`, `Transaction.tags` (relação → `TransactionTag` → `Tag`) e `Transaction.responsiblePartyId` **já existem** em `prisma/schema.prisma`, mas **não estão documentadas** na tabela de `Transaction` em §3.9 — que lista `responsibleUserId`, não `responsiblePartyId` — nem as entidades `Tag`/`TransactionTag` estão descritas aqui (drift pré-existente). Nota: `Transaction.paymentMethod` e `Transaction.isPending` **já estão** documentados em §3.9 (não fazem parte do drift). A Spec 61 depende das colunas em drift (o import passa a gravá-las). Recomenda-se backfill de `Tag`/`TransactionTag` e das três colunas faltantes em §3.9 numa passada dedicada.
 
+### 3.22 `CategorizationRule`
+
+Regra de auto-categorização por Account: um filtro **condição → ação** que, quando **todas** as condições preenchidas casam (AND), aplica um patch parcial de campos a uma transação — no import (server autoritativo) e, como sugestão opt-in, no lançamento manual. Diferente do `TransactionAlias` (intencional e nomeado, casa só por substring da descrição), a regra é um filtro automático que também casa por **instituição** e **faixa de valor**, com **prioridade**, **parar-ao-casar** e acúmulo. Quando apelido e regra tocam o mesmo campo, o apelido vence. Ver `specs/50-regras-auto-categorizacao.md`.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | `String` (cuid) | PK |
+| `accountId` | `String` | FK → Account (Cascade) |
+| `name` | `String?` | rótulo opcional da regra |
+| `priority` | `Int` | default `0`; **menor = avaliada primeiro** |
+| `isActive` | `Boolean` | default `true`; só regras ativas são avaliadas |
+| `applyToManual` | `Boolean` | default `false`; opt-in — a regra **aparece como sugestão** no popover manual (DD-03), nunca aplica silenciosamente |
+| `stopOnMatch` | `Boolean` | default `true`; ao casar, para de avaliar regras de prioridade inferior |
+| `descriptionMode` | `CategorizationMatchMode?` | condição: enum `contains`/`regex` sobre a descrição |
+| `descriptionValue` | `String?` | condição: substring (`contains`) ou padrão (`regex`, validado no salvamento) |
+| `conditionInstitutionId` | `String?` | condição FK → Institution (SetNull) |
+| `minCents` | `BigInt?` | condição: limite inferior da faixa de valor (centavos) — **nunca `Float`** |
+| `maxCents` | `BigInt?` | condição: limite superior da faixa de valor (centavos) |
+| `setDescription` | `String?` | ação — substitui a descrição |
+| `setNotes` | `String?` | ação |
+| `setCategoryId` | `String?` | ação FK → Category (SetNull) |
+| `setSubcategoryId` | `String?` | ação FK → Subcategory (SetNull); requer `setCategoryId` |
+| `setInstitutionId` | `String?` | ação FK → Institution (SetNull); XOR com `setInstitutionText` |
+| `setInstitutionText` | `String?` | ação fallback livre; XOR com `setInstitutionId` |
+| `setResponsiblePartyId` | `String?` | ação FK → ResponsibleParty (SetNull) |
+| `setExpenseType` | `TransactionExpenseType?` | ação (enum) |
+| `setPaymentMethod` | `TransactionPaymentMethod?` | ação (enum) |
+| `setInvestmentType` | `String?` | ação — **só import** |
+| `setCardInstallment` | `String?` | ação — **só import** |
+| `setIsPending` | `Boolean?` | ação |
+| `setIsFavorite` | `Boolean?` | ação — **só import** |
+| `archivedAt` | `DateTime?` | soft-delete (arquivar) |
+| `createdById` | `String` | FK → User (Restrict) |
+| `createdAt` | `DateTime` | default `now()` |
+| `updatedAt` | `DateTime` | auto-update |
+
+**Regras**:
+- Escopada por Account: toda query filtra `accountId`; `@@index([accountId])` + `@@index([accountId, isActive, priority])`.
+- **Condições** combinadas por **AND** — só as preenchidas contam. Slots fixos (descrição+modo, instituição, faixa de valor); sem OR dentro da regra (DD-01).
+- Faixa de valor comparada sempre em `BigInt` centavos — **nunca `Float`** (`skills/money-handling`).
+- `descriptionMode = regex`: a regex é validada **no salvamento** (Zod); o motor assume padrão válido em runtime.
+- **Ações** são patch parcial: só campos não-null aplicam; a regra nunca "limpa" um campo. `amountCents` **nunca** é ação (só condição — DD-06); no import o valor do extrato sempre prevalece.
+- `setInstitutionId` e `setInstitutionText` são **mutuamente exclusivos** (`setInstitutionId` prioritário; `.refine` no Zod).
+- `setSubcategoryId` requer `setCategoryId`; ao aplicar, trocar `setCategoryId` limpa a subcategoria vigente que deixa de ser filha (DD-18 da 61).
+- Cada FK de condição/ação (`conditionInstitutionId`, `setCategoryId`, `setSubcategoryId`, `setInstitutionId`, `setResponsiblePartyId` e cada `tagId` via join) precisa pertencer à **mesma Account** (validar no service).
+- Motor puro `evaluateRules` avalia regras `isActive` por `priority` asc; `stopOnMatch=true` para ao casar, `false` acumula **first-set-wins**.
+- **Precedência**: quando um apelido e uma regra tocam o **mesmo** campo, o **apelido vence** (DD-10; honra DD-11 da 61).
+- Deletar a Account remove as regras em cascata; deletar Category/Subcategory/Institution/ResponsibleParty referenciados → `SetNull` na regra.
+
+### 3.23 `CategorizationRuleTag`
+
+Join many-to-many entre `CategorizationRule` e `Tag` (conjunto de tags que a regra aplica). As tags são uma ação **só de import** (fora do popover manual, DD-12), espelhando `TransactionAliasTag`. Ver `specs/50-regras-auto-categorizacao.md`.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `ruleId` | `String` | FK → CategorizationRule (Cascade) |
+| `tagId` | `String` | FK → Tag (Cascade) |
+
+**Regras**:
+- PK composta `@@id([ruleId, tagId])`; `@@index([tagId])`.
+- Cascade em delete da regra ou da tag.
+- Tabela-ponte (não `Json`) para validar ownership multi-tenant da tag por FK (DD-08).
+
 ## 4. Diagrama (referência visual)
 
 > Vou manter a versão consolidada aqui. Quando ferramentas como `mermaid` forem usadas, este bloco é a referência.
@@ -555,6 +618,15 @@ erDiagram
     Institution ||--o{ TransactionAlias : "payload"
     ResponsibleParty ||--o{ TransactionAlias : "payload"
     User ||--o{ TransactionAlias : "created"
+    Account ||--o{ CategorizationRule : "has"
+    CategorizationRule ||--o{ CategorizationRuleTag : "contains"
+    Tag ||--o{ CategorizationRuleTag : "applied by"
+    Category ||--o{ CategorizationRule : "action"
+    Subcategory ||--o{ CategorizationRule : "action"
+    Institution ||--o{ CategorizationRule : "condition"
+    Institution ||--o{ CategorizationRule : "action"
+    ResponsibleParty ||--o{ CategorizationRule : "action"
+    User ||--o{ CategorizationRule : "created"
 ```
 
 ## 5. Resoluções de inconsistências do MVP antigo
@@ -586,3 +658,4 @@ Para histórico, decisões tomadas em relação aos rascunhos anteriores (`sql_m
 | 2026-07-05 | `ChecklistCompletion.transactionId` (FK opcional → Transaction, `onDelete: SetNull`) — vínculo unilateral de uma transação a um item do checklist (vincular marca concluído). Migração `checklist_completion_transaction_link`. |
 | 2026-07-05 | Novas entidades `TransactionAlias` (apelido reutilizável por Account) + join `TransactionAliasTag`. Gatilho de substring case-insensitive que pré-preenche campos de transação (manual e import). Migração `create_transaction_aliases`. Ver `specs/61-transaction-aliases.md`. |
 | 2026-07-07 | `TransactionAlias` ganha `isFavorite` (DD-21) + moeda estrangeira `originalCurrency`/`originalAmountCents`/`exchangeRate` (DD-22, import fill-if-empty). Migração `alias_favorite_and_foreign_currency`. Ver `specs/61-transaction-aliases.md`. |
+| 2026-07-21 | Novas entidades `CategorizationRule` (motor de regras condição→ação por Account) + join `CategorizationRuleTag` + enum `CategorizationMatchMode` (`contains`/`regex`). Filtro if-then com prioridade, `stopOnMatch` e acúmulo, aplicado no import e como sugestão opt-in no manual; apelido vence na colisão. Migração `add_categorization_rules`. Ver `specs/50-regras-auto-categorizacao.md`. |

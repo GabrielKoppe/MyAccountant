@@ -15,6 +15,12 @@ const CEG_ALIAS: SerializedTransactionAlias = {
   id: "alias-1",
   trigger: "CEG",
   triggerNormalized: "ceg",
+  triggerMode: "contains",
+  priority: "medium",
+  conditionInstitutionId: null,
+  conditionInstitutionName: null,
+  minCents: null,
+  maxCents: null,
   updatedAt: "2026-01-01T00:00:00.000Z",
   description: null,
   notes: null,
@@ -182,7 +188,7 @@ describe("NewTransactionRow — aplicação manual de apelido (Fase 4)", () => {
     renderRow({ aliases: [CEG_ALIAS] });
 
     await userEvent.type(screen.getByPlaceholderText("Descrição"), "pagamento CEG");
-    await userEvent.click(await screen.findByRole("button", { name: 'Aplicar apelido "CEG"' }));
+    await userEvent.click(await screen.findByRole("button", { name: "Apelido" }));
     await userEvent.click(await screen.findByRole("button", { name: "Aplicar" }));
 
     await userEvent.click(screen.getByPlaceholderText("Descrição"));
@@ -198,7 +204,7 @@ describe("NewTransactionRow — aplicação manual de apelido (Fase 4)", () => {
     renderRow({ aliases: [CEG_ALIAS] });
 
     await userEvent.type(screen.getByPlaceholderText("Descrição"), "pagamento CEG");
-    await userEvent.click(await screen.findByRole("button", { name: 'Aplicar apelido "CEG"' }));
+    await userEvent.click(await screen.findByRole("button", { name: "Apelido" }));
     await userEvent.click(await screen.findByRole("button", { name: "Aplicar" }));
     await userEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
 
@@ -215,7 +221,7 @@ describe("NewTransactionRow — aplicação manual de apelido (Fase 4)", () => {
     renderRow({ aliases: [CEG_ALIAS] });
 
     await userEvent.type(screen.getByPlaceholderText("Descrição"), "pagamento CEG");
-    await userEvent.click(await screen.findByRole("button", { name: 'Aplicar apelido "CEG"' }));
+    await userEvent.click(await screen.findByRole("button", { name: "Apelido" }));
     await userEvent.click(await screen.findByRole("button", { name: "Aplicar" }));
     await userEvent.click(screen.getByPlaceholderText("Descrição"));
     await userEvent.keyboard("{Enter}");

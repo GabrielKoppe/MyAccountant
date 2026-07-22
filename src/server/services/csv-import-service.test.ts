@@ -194,6 +194,12 @@ describe("executeImport — apelidos (spec 61 Fase 5)", () => {
       id: "alias-1",
       trigger: "CEG",
       triggerNormalized: "ceg",
+      triggerMode: "contains",
+      priority: "medium",
+      conditionInstitutionId: null,
+      conditionInstitution: null,
+      minCents: null,
+      maxCents: null,
       description: null,
       notes: null,
       amountCents: 999999n, // DD-09: nunca aplicado no import — deve ser ignorado

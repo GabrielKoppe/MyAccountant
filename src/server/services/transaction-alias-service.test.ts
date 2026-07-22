@@ -15,6 +15,11 @@ import {
 
 const BASE_INPUT = {
   trigger: "CEG",
+  triggerMode: "contains" as const,
+  priority: "medium" as const,
+  conditionInstitutionId: null,
+  minCents: null,
+  maxCents: null,
   description: "Sistema de Gás",
   notes: null,
   amountCents: null,
@@ -70,6 +75,44 @@ describe("createTransactionAlias", () => {
     expect(arg.data.originalCurrency).toBe("USD");
     expect(arg.data.originalAmountCents).toBe(1299n);
     expect(arg.data.exchangeRate).toBe(5.12);
+  });
+
+  it("persiste correspondência avançada (triggerMode/priority/condição/faixa)", async () => {
+    prismaMock.transactionAlias.findFirst.mockResolvedValue(null);
+    prismaMock.institution.findFirst.mockResolvedValue({ id: "inst-cond" } as never);
+    prismaMock.transactionAlias.create.mockResolvedValue({ id: "alias-adv" } as never);
+
+    await createTransactionAlias(
+      {
+        ...BASE_INPUT,
+        triggerMode: "regex",
+        trigger: "^UBER",
+        priority: "high",
+        conditionInstitutionId: "inst-cond",
+        minCents: 1000n,
+        maxCents: 5000n,
+      },
+      TEST_CTX,
+    );
+
+    const arg = prismaMock.transactionAlias.create.mock.calls[0][0] as any;
+    expect(arg.data.triggerMode).toBe("regex");
+    expect(arg.data.priority).toBe("high");
+    expect(arg.data.conditionInstitutionId).toBe("inst-cond");
+    expect(arg.data.minCents).toBe(1000n);
+    expect(arg.data.maxCents).toBe(5000n);
+  });
+
+  it("rejeita conditionInstitutionId de outra Account (IDOR)", async () => {
+    prismaMock.transactionAlias.findFirst.mockResolvedValue(null);
+    prismaMock.institution.findFirst.mockResolvedValue(null);
+
+    await expect(
+      createTransactionAlias(
+        { ...BASE_INPUT, conditionInstitutionId: "inst-outra-account" },
+        TEST_CTX,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("cria vínculos de tags quando tagIds não está vazio", async () => {
@@ -238,6 +281,53 @@ describe("updateTransactionAlias", () => {
     expect(arg.data.originalCurrency).toBe("USD");
     expect(arg.data.originalAmountCents).toBe(1299n);
     expect(arg.data.exchangeRate).toBe(5.12);
+  });
+
+  it("persiste correspondência avançada no update (patch parcial)", async () => {
+    prismaMock.transactionAlias.findFirst.mockResolvedValue({
+      categoryId: null,
+      subcategoryId: null,
+      institutionId: null,
+      institutionText: null,
+    } as never);
+    prismaMock.institution.findFirst.mockResolvedValue({ id: "inst-cond" } as never);
+    prismaMock.$transaction.mockImplementation(async (cb: any) => cb(prismaMock));
+
+    await updateTransactionAlias(
+      {
+        aliasId: "alias-1",
+        triggerMode: "regex",
+        priority: "low",
+        conditionInstitutionId: "inst-cond",
+        minCents: 100n,
+        maxCents: 900n,
+      },
+      TEST_CTX,
+    );
+
+    const arg = prismaMock.transactionAlias.update.mock.calls[0][0] as any;
+    expect(arg.data.triggerMode).toBe("regex");
+    expect(arg.data.priority).toBe("low");
+    expect(arg.data.conditionInstitutionId).toBe("inst-cond");
+    expect(arg.data.minCents).toBe(100n);
+    expect(arg.data.maxCents).toBe(900n);
+  });
+
+  it("rejeita conditionInstitutionId de outra Account no update (IDOR)", async () => {
+    prismaMock.transactionAlias.findFirst.mockResolvedValueOnce({
+      categoryId: null,
+      subcategoryId: null,
+      institutionId: null,
+      institutionText: null,
+    } as never);
+    prismaMock.institution.findFirst.mockResolvedValue(null);
+
+    await expect(
+      updateTransactionAlias(
+        { aliasId: "alias-1", conditionInstitutionId: "inst-outra-account" },
+        TEST_CTX,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("rejeita colisão de gatilho com outro apelido da mesma Account", async () => {
@@ -425,5 +515,51 @@ describe("createTransactionAliasSchema", () => {
 
   it("aceita payload todo nulo (patch vazio é válido — só o gatilho é obrigatório)", () => {
     expect(createTransactionAliasSchema.safeParse(BASE_INPUT).success).toBe(true);
+  });
+
+  it("aplica defaults de triggerMode (contains) e priority (medium)", () => {
+    const { triggerMode, ...withoutMode } = BASE_INPUT;
+    const r = createTransactionAliasSchema.safeParse(withoutMode);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.triggerMode).toBe("contains");
+      expect(r.data.priority).toBe("medium");
+    }
+  });
+
+  it("no modo regex, rejeita gatilho que não é regex válida", () => {
+    const r = createTransactionAliasSchema.safeParse({
+      ...BASE_INPUT,
+      triggerMode: "regex",
+      trigger: "(",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("no modo regex, rejeita padrão com backtracking catastrófico (ReDoS)", () => {
+    const r = createTransactionAliasSchema.safeParse({
+      ...BASE_INPUT,
+      triggerMode: "regex",
+      trigger: "(a+)+$",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("no modo regex, aceita gatilho de regex válida e segura", () => {
+    const r = createTransactionAliasSchema.safeParse({
+      ...BASE_INPUT,
+      triggerMode: "regex",
+      trigger: "^UBER \\d+",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("no modo contains, não valida o gatilho como regex (parênteses são literais)", () => {
+    const r = createTransactionAliasSchema.safeParse({
+      ...BASE_INPUT,
+      triggerMode: "contains",
+      trigger: "loja (matriz)",
+    });
+    expect(r.success).toBe(true);
   });
 });

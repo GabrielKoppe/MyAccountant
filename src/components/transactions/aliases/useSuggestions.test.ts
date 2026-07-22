@@ -3,13 +3,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
-import { useAliasMatch } from "./useAliasMatch";
+import { useSuggestions } from "./useSuggestions";
 
 function alias(overrides: Partial<SerializedTransactionAlias> = {}): SerializedTransactionAlias {
   return {
     id: "alias-1",
     trigger: "CEG",
     triggerNormalized: "ceg",
+    triggerMode: "contains",
+    priority: "medium",
+    conditionInstitutionId: null,
+    conditionInstitutionName: null,
+    minCents: null,
+    maxCents: null,
     updatedAt: "2026-01-01T00:00:00.000Z",
     description: null,
     notes: null,
@@ -40,7 +46,7 @@ function alias(overrides: Partial<SerializedTransactionAlias> = {}): SerializedT
   };
 }
 
-describe("useAliasMatch", () => {
+describe("useSuggestions — apelido", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -50,14 +56,16 @@ describe("useAliasMatch", () => {
   });
 
   it("enabled=false nunca retorna match, mesmo após o debounce", () => {
-    const { result } = renderHook(() => useAliasMatch("pagamento CEG", [alias()], false));
+    const { result } = renderHook(() =>
+      useSuggestions("pagamento CEG", null, null, [alias()], false),
+    );
     act(() => vi.advanceTimersByTime(500));
     expect(result.current).toBeNull();
   });
 
   it("enabled=true só retorna match após o debounce (280ms) de uma mudança de descrição", () => {
     const { result, rerender } = renderHook(
-      ({ description }) => useAliasMatch(description, [alias()], true),
+      ({ description }) => useSuggestions(description, null, null, [alias()], true),
       { initialProps: { description: "" } },
     );
     expect(result.current).toBeNull();
@@ -74,7 +82,7 @@ describe("useAliasMatch", () => {
 
   it("reinicia o debounce a cada mudança de descrição (sem match parcial)", () => {
     const { result, rerender } = renderHook(
-      ({ description }) => useAliasMatch(description, [alias()], true),
+      ({ description }) => useSuggestions(description, null, null, [alias()], true),
       { initialProps: { description: "pagamento C" } },
     );
 
@@ -90,7 +98,7 @@ describe("useAliasMatch", () => {
   it("recomputa quando a lista de aliases muda", () => {
     const cegAlias = alias({ id: "ceg", trigger: "CEG", triggerNormalized: "ceg" });
     const { result, rerender } = renderHook(
-      ({ aliases }) => useAliasMatch("pagamento CEG", aliases, true),
+      ({ aliases }) => useSuggestions("pagamento CEG", null, null, aliases, true),
       { initialProps: { aliases: [cegAlias] } },
     );
     act(() => vi.advanceTimersByTime(280));
@@ -98,5 +106,32 @@ describe("useAliasMatch", () => {
 
     rerender({ aliases: [] });
     expect(result.current).toBeNull();
+  });
+
+  it("observa amountCents na condição de faixa do apelido (min/max) sem novo debounce", () => {
+    const rangeAlias = alias({ id: "range", minCents: "10000", maxCents: "50000" });
+    const { result, rerender } = renderHook(
+      ({ amountCents }) => useSuggestions("pagamento CEG", amountCents, null, [rangeAlias], true),
+      { initialProps: { amountCents: 5000n as bigint } },
+    );
+    act(() => vi.advanceTimersByTime(280));
+    expect(result.current).toBeNull(); // fora da faixa
+
+    rerender({ amountCents: 20000n });
+    expect(result.current?.id).toBe("range"); // dentro da faixa, sem novo debounce
+  });
+
+  it("observa a condição de instituição do apelido (AND com o gatilho)", () => {
+    const instAlias = alias({ id: "inst", conditionInstitutionId: "inst-1" });
+    const { result, rerender } = renderHook(
+      ({ institutionId }) =>
+        useSuggestions("pagamento CEG", null, institutionId, [instAlias], true),
+      { initialProps: { institutionId: null as string | null } },
+    );
+    act(() => vi.advanceTimersByTime(280));
+    expect(result.current).toBeNull(); // instituição não bate
+
+    rerender({ institutionId: "inst-1" });
+    expect(result.current?.id).toBe("inst");
   });
 });

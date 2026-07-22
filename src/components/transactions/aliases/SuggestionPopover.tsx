@@ -6,27 +6,25 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Popover from "@mui/material/Popover";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
-import type { AliasFieldChange } from "@/lib/aliases/apply";
+import type { SuggestionFieldChange } from "@/lib/aliases/apply";
 import { m } from "@/lib/messages";
 
 type Props = {
   anchorEl: HTMLElement | null;
-  trigger: string;
-  changes: AliasFieldChange[];
+  changes: SuggestionFieldChange[];
   onApply: () => void;
   onClose: () => void;
 };
 
 /**
- * Preview do que aplicar um apelido faz na linha. Acabamento espelha o popper do
- * CreatableEntitySelect (borda `border.default` + radius md + sem sombra), com três
- * zonas: header off-white (eyebrow "Apelido" + trigger), corpo com os diffs
- * `antigo → novo` por campo, e footer com ações 50/50 separado por borda.
+ * Preview do que aplicar o APELIDO casado faz na linha. Acabamento espelha o
+ * popper do CreatableEntitySelect (borda `border.default` + radius md + sem
+ * sombra), com três zonas: header off-white ("Sugestões"), corpo com os diffs
+ * `antigo → novo` por campo, e footer com ações 50/50.
  */
-export function AliasSuggestionPopover({ anchorEl, trigger, changes, onApply, onClose }: Props) {
+export function SuggestionPopover({ anchorEl, changes, onApply, onClose }: Props) {
   const hasChanges = changes.length > 0;
 
   return (
@@ -38,7 +36,7 @@ export function AliasSuggestionPopover({ anchorEl, trigger, changes, onApply, on
       transformOrigin={{ vertical: "top", horizontal: "left" }}
       slotProps={{
         paper: {
-          "aria-label": m.transactions.aliasSuggestion.tooltip(trigger),
+          "aria-label": m.transactions.aliasSuggestion.header,
           sx: {
             mt: 0.5,
             // Largura dirigida pelo conteúdo (igual ao popper do CreatableEntitySelect):
@@ -63,7 +61,7 @@ export function AliasSuggestionPopover({ anchorEl, trigger, changes, onApply, on
       // e abre a edição indevidamente (DD-23). Cliques internos ficam contidos.
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header — faixa off-white com o gatilho do apelido */}
+      {/* Header — faixa off-white com o rótulo genérico de sugestões */}
       <Stack
         direction="row"
         spacing={1.25}
@@ -77,21 +75,14 @@ export function AliasSuggestionPopover({ anchorEl, trigger, changes, onApply, on
         }}
       >
         <AutoFixHighOutlinedIcon sx={{ fontSize: 20, color: "accent.primary", flexShrink: 0 }} />
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="overline" sx={{ display: "block", lineHeight: 1.3 }}>
-            {m.transactions.aliasSuggestion.header}
-          </Typography>
-          <Tooltip title={trigger}>
-            <Typography variant="subtitle2" noWrap sx={{ lineHeight: 1.3, color: "text.primary" }}>
-              {trigger}
-            </Typography>
-          </Tooltip>
-        </Box>
+        <Typography variant="subtitle2" sx={{ lineHeight: 1.3, color: "text.primary" }}>
+          {m.transactions.aliasSuggestion.header}
+        </Typography>
       </Stack>
 
-      {/* Corpo — diffs por campo, ou aviso de que nada se aplica.
-          Scroll no próprio Box (não no Stack interno): a barra encosta na borda do
-          paper e o padding vira folga entre conteúdo e barra, em vez de recuá-la. */}
+      {/* Corpo — diffs por campo, ou aviso de que nada se aplica. Scroll no
+          próprio Box (não no Stack interno): a barra encosta na borda do paper e
+          o padding vira folga entre conteúdo e barra. */}
       <Box sx={{ px: 2, py: 1.5, maxHeight: 340, overflowY: "auto" }}>
         {hasChanges ? (
           <Stack spacing={1.5}>
@@ -99,7 +90,7 @@ export function AliasSuggestionPopover({ anchorEl, trigger, changes, onApply, on
               <Box key={change.field}>
                 <Typography
                   variant="caption"
-                  sx={{ display: "block", color: "text.tertiary", mb: 0.25 }}
+                  sx={{ color: "text.tertiary", display: "block", mb: 0.25 }}
                 >
                   {change.label}
                 </Typography>

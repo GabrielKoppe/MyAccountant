@@ -388,8 +388,7 @@ export const messages = {
       modeNewHint: "Cria uma conta nova a partir do backup. Nada da conta atual é alterado.",
       modeOverwriteHint:
         "Substitui TODOS os dados desta conta pelos do backup. Não pode ser desfeito.",
-      overwriteAlert:
-        "Isto apaga todos os dados atuais desta conta e substitui pelos do backup.",
+      overwriteAlert: "Isto apaga todos os dados atuais desta conta e substitui pelos do backup.",
       overwriteConfirmLabel: (name: string) => `Digite "${name}" para confirmar`,
       submitButton: "Importar",
       submitButtonLoading: "Importando…",
@@ -496,6 +495,14 @@ export const messages = {
       triggerLabel: "Gatilho",
       triggerHint: "Texto que, ao aparecer na descrição, sugere este apelido.",
       triggerShortWarning: "Gatilho curto pode casar demais.",
+      triggerRegexModeHint:
+        "Modo regex ativado: este campo é a expressão regular usada na descrição.",
+      priorityLabel: "Prioridade",
+      priorityHint:
+        "Usada para decidir qual apelido vence quando mais de um casa a mesma transação.",
+      priorityHigh: "Alta",
+      priorityMedium: "Média",
+      priorityLow: "Baixa",
       descriptionLabel: "Descrição a aplicar",
       descriptionHint:
         "Substitui a descrição do lançamento ao aplicar. Deixe em branco para não alterar.",
@@ -506,6 +513,17 @@ export const messages = {
         "Um apelido guarda um conjunto de campos e os preenche automaticamente quando o gatilho aparece na descrição de um lançamento — na entrada manual e na importação.",
       classificationSectionLabel: "Classificação",
       classificationHint: "Categoria, instituição, responsável e como o lançamento é classificado.",
+      advancedSectionLabel: "Gatilho avançado",
+      advancedSectionHint:
+        "Regras extras para decidir quando este apelido casa. Deixe como está para o comportamento padrão (contém, sem restrições).",
+      triggerModeLabel: "Modo do gatilho",
+      triggerModeContains: "Contém",
+      triggerModeRegex: "Expressão regular (regex)",
+      conditionInstitutionLabel: "Instituição (condição)",
+      conditionInstitutionHint: "Casa apenas transações desta instituição, além do gatilho.",
+      minAmountLabel: "Valor de",
+      maxAmountLabel: "Valor até",
+      amountRangeHint: "Faixa de valor da transação (opcional). Deixe em branco para não limitar.",
       behaviorSectionLabel: "Valor e status",
       behaviorHint:
         "Valor sugerido e marcadores de status. O valor não é aplicado na importação — o do extrato sempre prevalece.",
@@ -1570,7 +1588,8 @@ export const messages = {
     archive: "Arquivar",
     unarchive: "Desarquivar",
     deleteTitle: "Excluir conta",
-    deleteConfirm: "Excluir a conta e todo o histórico de saldos? Esta ação não pode ser desfeita. Prefira arquivar para manter o histórico.",
+    deleteConfirm:
+      "Excluir a conta e todo o histórico de saldos? Esta ação não pode ser desfeita. Prefira arquivar para manter o histórico.",
     created: "Conta criada.",
     updated: "Conta atualizada.",
     archived: "Conta arquivada.",

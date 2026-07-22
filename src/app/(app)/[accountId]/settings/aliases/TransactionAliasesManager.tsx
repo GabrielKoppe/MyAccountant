@@ -17,6 +17,7 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import type { AliasPriority } from "@prisma/client";
 import { useSnackbar } from "notistack";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
@@ -67,6 +68,14 @@ type Props = {
 
 const ta = m.settings.transactionAliases;
 
+// Rótulo amigável da prioridade (badge da linha) — a ordem de desempate entre
+// apelidos concorrentes (spec 50/61) nunca é exposta como número, só Alta/Média/Baixa.
+const PRIORITY_LABEL: Record<AliasPriority, string> = {
+  high: ta.priorityHigh,
+  medium: ta.priorityMedium,
+  low: ta.priorityLow,
+};
+
 // Reconstrói o registro exibido a partir do payload do form + listas de opções já
 // carregadas na página — evita um round-trip só para atualizar a lista local
 // (mesmo padrão de merge otimista das demais Managers de Configurações).
@@ -82,12 +91,19 @@ function toDisplayAlias(
   const category = categories.find((c) => c.id === values.categoryId);
   const subcategory = category?.subcategories.find((s) => s.id === values.subcategoryId);
   const institution = institutions.find((i) => i.id === values.institutionId);
+  const conditionInstitution = institutions.find((i) => i.id === values.conditionInstitutionId);
   const party = parties.find((p) => p.id === values.responsiblePartyId);
 
   return {
     id,
     trigger: values.trigger,
     triggerNormalized: values.trigger.trim().toLowerCase(),
+    triggerMode: values.triggerMode,
+    priority: values.priority,
+    conditionInstitutionId: values.conditionInstitutionId ?? null,
+    conditionInstitutionName: conditionInstitution?.name ?? null,
+    minCents: values.minCents != null ? values.minCents.toString() : null,
+    maxCents: values.maxCents != null ? values.maxCents.toString() : null,
     description: values.description ?? null,
     notes: values.notes ?? null,
     amountCents: values.amountCents != null ? values.amountCents.toString() : null,
@@ -514,6 +530,9 @@ function AliasRow({ alias, tagColorById, isPending, onEdit, onArchive, onDelete 
                 {ta.keepsDescription}
               </Typography>
             )}
+            <Box sx={{ flexShrink: 0, display: "inline-flex" }}>
+              <StatusBadge variant="neutral">{PRIORITY_LABEL[alias.priority]}</StatusBadge>
+            </Box>
             {alias.isArchived && (
               <Box sx={{ flexShrink: 0, display: "inline-flex" }}>
                 <StatusBadge variant="neutral">{ta.archivedBadge}</StatusBadge>

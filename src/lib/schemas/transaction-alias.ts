@@ -1,6 +1,9 @@
+import { AliasMatchMode, AliasPriority } from "@prisma/client";
 import { z } from "zod";
 
+import { isLikelyCatastrophicRegex } from "../rules/safe-regex";
 import { partyIdSchema } from "./responsible-party";
+import { amountCentsSchema } from "./shared";
 import {
   TransactionExpenseType,
   TransactionPaymentMethod,
@@ -17,6 +20,14 @@ const triggerSchema = z.string().trim().min(1, "Gatilho obrigatório").max(80);
 // Payload — todos opcionais (patch parcial; DD-04). `null` = "não define".
 const basePayloadSchema = z.object({
   trigger: triggerSchema,
+  // Correspondência avançada (poderes herdados da Regra, spec 50): modo do
+  // gatilho + prioridade no desempate + condições (AND com o gatilho).
+  triggerMode: z.nativeEnum(AliasMatchMode).default(AliasMatchMode.contains),
+  priority: z.nativeEnum(AliasPriority).default(AliasPriority.medium),
+  conditionInstitutionId: z.string().cuid("ID inválido").optional().nullable(),
+  // Faixa de valor em BigInt centavos — NUNCA Float (money-handling).
+  minCents: amountCentsSchema.optional().nullable(),
+  maxCents: amountCentsSchema.optional().nullable(),
   description: z.string().max(200).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
   amountCents: z.coerce.bigint().optional().nullable(),
@@ -95,10 +106,36 @@ function checkForeignCurrencyPresence(
   }
 }
 
+// Correspondência avançada: no modo regex o próprio GATILHO é a expressão
+// regular. Validamos aqui (no salvamento): precisa compilar E não ter forma de
+// backtracking catastrófico (guarda anti-ReDoS; ver src/lib/rules/safe-regex.ts).
+// O motor (match.ts) assume padrão válido em runtime.
+function checkTriggerRegexValidity(
+  data: { triggerMode?: AliasMatchMode | null; trigger?: string | null },
+  ctx: z.RefinementCtx,
+) {
+  if (data.triggerMode === "regex" && data.trigger) {
+    try {
+      new RegExp(data.trigger);
+    } catch {
+      ctx.addIssue({ code: "custom", message: "Expressão regular inválida", path: ["trigger"] });
+      return;
+    }
+    if (isLikelyCatastrophicRegex(data.trigger)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Expressão regular muito complexa (risco de travamento). Simplifique o padrão.",
+        path: ["trigger"],
+      });
+    }
+  }
+}
+
 export const createTransactionAliasSchema = basePayloadSchema.superRefine((data, ctx) => {
   checkInstitutionExclusivity(data, ctx);
   checkCategorySubcategoryPresence(data, ctx);
   checkForeignCurrencyPresence(data, ctx);
+  checkTriggerRegexValidity(data, ctx);
 });
 
 export const updateTransactionAliasSchema = basePayloadSchema
@@ -106,6 +143,7 @@ export const updateTransactionAliasSchema = basePayloadSchema
   .extend({ aliasId: aliasIdSchema })
   .superRefine((data, ctx) => {
     checkInstitutionExclusivity(data, ctx);
+    checkTriggerRegexValidity(data, ctx);
   });
 
 export const archiveTransactionAliasSchema = z.object({

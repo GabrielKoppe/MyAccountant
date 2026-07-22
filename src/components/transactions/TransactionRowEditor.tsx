@@ -38,7 +38,7 @@ import {
 } from "@/actions/transaction-links";
 import { tagChipSx } from "@/components/tags/tagChipSx";
 import { TagPopover } from "@/components/tags/TagPopover";
-import { computeAliasApplication } from "@/lib/aliases/apply";
+import { computeSuggestion } from "@/lib/aliases/apply";
 import { formatDateBr } from "@/lib/dates";
 import { motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
@@ -48,8 +48,8 @@ import type { InvestmentType } from "@/lib/schemas/transaction";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 import type { TransactionLinkItem } from "@/server/services/transaction-link-service";
 
-import { AliasSuggestionPopover } from "./aliases/AliasSuggestionPopover";
-import { useAliasMatch } from "./aliases/useAliasMatch";
+import { SuggestionPopover } from "./aliases/SuggestionPopover";
+import { useSuggestions } from "./aliases/useSuggestions";
 import { CreatableEntitySelect } from "./CreatableEntitySelect";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import { useOptions } from "./OptionsContext";
@@ -111,15 +111,21 @@ export function TransactionRowEditor({
 
   const sharedInputProps = { size: "small" as const, variant: "standard" as const };
 
-  // Aplicação manual de apelido — o ícone acende sempre que há match, inclusive
+  // Sugestão manual de apelido — o ícone acende sempre que há match, inclusive
   // no mount (DD-23, revê a regra `descriptionDirty` original). Como a aplicação
   // nunca é automática (exige clique em "Aplicar"), acender no mount é affordance.
-  const [aliasAnchorEl, setAliasAnchorEl] = useState<HTMLElement | null>(null);
-  const matchedAlias = useAliasMatch(editValues.description ?? "", aliases, true);
-  const aliasApplication = useMemo(
+  const [suggestionAnchorEl, setSuggestionAnchorEl] = useState<HTMLElement | null>(null);
+  const matchedAlias = useSuggestions(
+    editValues.description ?? "",
+    BigInt(editValues.amountCents),
+    editValues.institutionId,
+    aliases,
+    true,
+  );
+  const suggestion = useMemo(
     () =>
       matchedAlias
-        ? computeAliasApplication(
+        ? computeSuggestion(
             matchedAlias,
             {
               description: editValues.description,
@@ -138,20 +144,20 @@ export function TransactionRowEditor({
         : null,
     [matchedAlias, editValues, categories, institutions, parties],
   );
-  // Ícone acende em qualquer match (mesmo um apelido só-de-tags, que não produz
-  // nenhuma mudança aplicável aqui — tags ficam fora do escopo desta fase); o
-  // popover trata o caso de 0 mudanças com uma mensagem + botão desabilitado.
-  const hasAliasMatch = matchedAlias !== null;
+  // Ícone acende em qualquer match (mesmo um apelido que não produza nenhuma
+  // mudança aplicável aqui — ex.: apelido só-de-tags); o popover trata o caso de
+  // 0 mudanças com uma mensagem + botão desabilitado.
+  const hasSuggestion = matchedAlias !== null;
 
-  function handleApplyAlias() {
-    if (!matchedAlias || !aliasApplication || aliasApplication.changes.length === 0) return;
-    const { patch, changes } = aliasApplication;
+  function handleApplySuggestion() {
+    if (!suggestion || suggestion.changes.length === 0) return;
+    const { patch, changes } = suggestion;
     const snapshot = editValues;
 
     setEditValues((prev) => ({ ...prev, ...patch }));
-    setAliasAnchorEl(null);
+    setSuggestionAnchorEl(null);
 
-    enqueueSnackbar(m.transactions.aliasSuggestion.applied(matchedAlias.trigger, changes.length), {
+    enqueueSnackbar(m.transactions.aliasSuggestion.applied(matchedAlias?.trigger ?? "", changes.length), {
       variant: "info",
       action: (snackKey) => (
         <Button
@@ -213,7 +219,7 @@ export function TransactionRowEditor({
       <TableRow
         sx={{ bgcolor: "action.selected" }}
         onKeyDown={(e) => {
-          if (aliasAnchorEl) return; // guard: popover de apelido trata seu próprio Enter/Escape
+          if (suggestionAnchorEl) return; // guard: popover de sugestão trata seu próprio Enter/Escape
           if (e.key === "Enter") onSave();
           if (e.key === "Escape") onCancel();
         }}
@@ -256,16 +262,12 @@ export function TransactionRowEditor({
                   {/* Slot de largura fixa: só a opacidade anima (Fade), a largura do
                       adornment nunca muda — evita "respiro" no campo ao digitar. */}
                   <Box sx={{ width: 24, display: "flex", justifyContent: "center" }}>
-                    <Fade in={hasAliasMatch} unmountOnExit timeout={motion.duration.normal}>
-                      <Tooltip
-                        title={m.transactions.aliasSuggestion.tooltip(matchedAlias?.trigger ?? "")}
-                      >
+                    <Fade in={hasSuggestion} unmountOnExit timeout={motion.duration.normal}>
+                      <Tooltip title={m.transactions.aliasSuggestion.header}>
                         <IconButton
                           size="small"
-                          onClick={(e) => setAliasAnchorEl(e.currentTarget)}
-                          aria-label={m.transactions.aliasSuggestion.tooltip(
-                            matchedAlias?.trigger ?? "",
-                          )}
+                          onClick={(e) => setSuggestionAnchorEl(e.currentTarget)}
+                          aria-label={m.transactions.aliasSuggestion.header}
                           sx={{ p: 0.25 }}
                         >
                           <AutoFixHighOutlinedIcon sx={{ fontSize: 16, color: "accent.primary" }} />
@@ -277,13 +279,12 @@ export function TransactionRowEditor({
               ),
             }}
           />
-          {matchedAlias && aliasApplication && (
-            <AliasSuggestionPopover
-              anchorEl={aliasAnchorEl}
-              trigger={matchedAlias.trigger}
-              changes={aliasApplication.changes}
-              onApply={handleApplyAlias}
-              onClose={() => setAliasAnchorEl(null)}
+          {suggestion && (
+            <SuggestionPopover
+              anchorEl={suggestionAnchorEl}
+              changes={suggestion.changes}
+              onApply={handleApplySuggestion}
+              onClose={() => setSuggestionAnchorEl(null)}
             />
           )}
         </TableCell>

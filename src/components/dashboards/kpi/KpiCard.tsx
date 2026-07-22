@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Tooltip from "@mui/material/Tooltip";
@@ -247,9 +248,9 @@ export function KpiCard({
           }}
         >
           {breakdown.map((item, i) => (
-            <>
+            <Fragment key={i}>
               <Divider sx={{ borderColor: "divider.subtle" }} />
-              <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
                 {item.dotColor && (
                   <Box
                     sx={{
@@ -287,7 +288,7 @@ export function KpiCard({
                   {item.value}
                 </Typography>
               </Box>
-            </>
+            </Fragment>
           ))}
           <Divider sx={{ my: 0.25, borderColor: "divider.subtle" }} />
         </Box>

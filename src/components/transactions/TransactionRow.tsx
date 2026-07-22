@@ -25,9 +25,9 @@ import { InstallmentGroupPanel } from "@/components/installments/InstallmentGrou
 import { tagChipSx } from "@/components/tags/tagChipSx";
 import { TagPopover } from "@/components/tags/TagPopover";
 import {
-  aliasPatchToUpdateInput,
-  computeAliasApplication,
-  type AliasPatch,
+  computeSuggestion,
+  suggestionPatchToUpdateInput,
+  type SuggestionPatch,
 } from "@/lib/aliases/apply";
 import { matchAlias } from "@/lib/aliases/match";
 import { formatDateShort } from "@/lib/dates";
@@ -36,7 +36,7 @@ import { formatCentsToBrl } from "@/lib/money";
 import type { CreateTransactionAliasInput } from "@/lib/schemas/transaction-alias";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
-import { AliasSuggestionPopover } from "./aliases/AliasSuggestionPopover";
+import { SuggestionPopover } from "./aliases/SuggestionPopover";
 import { TransactionAliasFormDialog } from "./aliases/TransactionAliasFormDialog";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import { useOptions } from "./OptionsContext";
@@ -124,8 +124,8 @@ export function TransactionRowBase({
   const [aliasTags, setAliasTags] = useState<{ id: string; name: string; color: string | null }[]>(
     tx.tags,
   );
-  // Sugestão de apelido no MODO VISUALIZAÇÃO (DD-23) — anchor do popover na descrição.
-  const [aliasAnchorEl, setAliasAnchorEl] = useState<HTMLElement | null>(null);
+  // Sugestão (apelido + regra) no MODO VISUALIZAÇÃO (DD-23) — anchor do popover na descrição.
+  const [suggestionAnchorEl, setSuggestionAnchorEl] = useState<HTMLElement | null>(null);
   const tagCellRef = useRef<HTMLTableCellElement>(null);
 
   const amount = BigInt(tx.amountCents);
@@ -312,16 +312,27 @@ export function TransactionRowBase({
     setAliasDialogOpen(true);
   }
 
-  // Sugestão de apelido no MODO VISUALIZAÇÃO (DD-23). Match estático sobre a
-  // descrição salva (sem debounce — não há digitação aqui). Só para não-viewers.
+  // Sugestão no MODO VISUALIZAÇÃO (DD-23). Match estático de apelido sobre a
+  // transação salva (sem debounce — não há digitação aqui), incluindo as
+  // condições avançadas (faixa de valor / instituição). Só para não-viewers.
   const matchedAlias = useMemo(
-    () => (isReadOnly ? null : matchAlias(tx.description, aliases)),
-    [isReadOnly, tx.description, aliases],
+    () =>
+      isReadOnly
+        ? null
+        : matchAlias(
+            {
+              description: tx.description,
+              amountCents: BigInt(tx.amountCents),
+              institutionId: tx.institutionId,
+            },
+            aliases,
+          ),
+    [isReadOnly, tx.description, tx.amountCents, tx.institutionId, aliases],
   );
-  const aliasApplication = useMemo(
+  const suggestion = useMemo(
     () =>
       matchedAlias
-        ? computeAliasApplication(
+        ? computeSuggestion(
             matchedAlias,
             {
               description: tx.description,
@@ -341,13 +352,16 @@ export function TransactionRowBase({
     [matchedAlias, tx, categories, institutions, parties],
   );
 
-  // Aplica um patch de apelido e persiste na hora (não há "Salvar" na visualização);
-  // reverte otimista para `revert` se o server recusar. Retorna sucesso.
-  async function persistAliasPatch(patch: AliasPatch, revert: Partial<TxRow>): Promise<boolean> {
+  // Aplica um patch de sugestão e persiste na hora (não há "Salvar" na
+  // visualização); reverte otimista para `revert` se o server recusar. Retorna sucesso.
+  async function persistSuggestionPatch(
+    patch: SuggestionPatch,
+    revert: Partial<TxRow>,
+  ): Promise<boolean> {
     onOptimisticUpdate(tx.id, patch as Partial<TxRow>);
     const result = await updateTransactionAction(accountId, {
       transactionId: tx.id,
-      ...aliasPatchToUpdateInput(patch),
+      ...suggestionPatchToUpdateInput(patch),
     });
     if (!result.ok) {
       onOptimisticUpdate(tx.id, revert);
@@ -357,10 +371,10 @@ export function TransactionRowBase({
     return true;
   }
 
-  async function handleApplyAliasView() {
-    if (!matchedAlias || !aliasApplication || aliasApplication.changes.length === 0) return;
-    const { patch, changes } = aliasApplication;
-    setAliasAnchorEl(null);
+  async function handleApplySuggestionView() {
+    if (!suggestion || suggestion.changes.length === 0) return;
+    const { patch, changes } = suggestion;
+    setSuggestionAnchorEl(null);
 
     // Snapshot dos valores antigos só dos campos que mudam (para o undo).
     const revert: Partial<TxRow> = {};
@@ -368,9 +382,9 @@ export function TransactionRowBase({
       (revert as Record<string, unknown>)[c.field] = tx[c.field];
     }
 
-    if (!(await persistAliasPatch(patch, revert))) return;
+    if (!(await persistSuggestionPatch(patch, revert))) return;
 
-    enqueueSnackbar(m.transactions.aliasSuggestion.applied(matchedAlias.trigger, changes.length), {
+    enqueueSnackbar(m.transactions.aliasSuggestion.applied(matchedAlias?.trigger ?? "", changes.length), {
       variant: "info",
       action: (snackKey) => (
         <Button
@@ -378,7 +392,7 @@ export function TransactionRowBase({
           color="inherit"
           onClick={() => {
             closeSnackbar(snackKey);
-            void persistAliasPatch(revert as AliasPatch, patch as Partial<TxRow>);
+            void persistSuggestionPatch(revert as SuggestionPatch, patch as Partial<TxRow>);
           }}
         >
           {m.transactions.aliasSuggestion.undo}
@@ -495,15 +509,15 @@ export function TransactionRowBase({
                 </Typography>
               )}
             </Box>
-            {matchedAlias && aliasApplication && (
-              <Tooltip title={m.transactions.aliasSuggestion.tooltip(matchedAlias.trigger)}>
+            {suggestion && (
+              <Tooltip title={m.transactions.aliasSuggestion.header}>
                 <IconButton
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setAliasAnchorEl(e.currentTarget);
+                    setSuggestionAnchorEl(e.currentTarget);
                   }}
-                  aria-label={m.transactions.aliasSuggestion.tooltip(matchedAlias.trigger)}
+                  aria-label={m.transactions.aliasSuggestion.header}
                   sx={{ p: 0.25, flexShrink: 0 }}
                 >
                   <AutoFixHighOutlinedIcon sx={{ fontSize: 16, color: "accent.primary" }} />
@@ -511,13 +525,12 @@ export function TransactionRowBase({
               </Tooltip>
             )}
           </Box>
-          {matchedAlias && aliasApplication && (
-            <AliasSuggestionPopover
-              anchorEl={aliasAnchorEl}
-              trigger={matchedAlias.trigger}
-              changes={aliasApplication.changes}
-              onApply={handleApplyAliasView}
-              onClose={() => setAliasAnchorEl(null)}
+          {suggestion && (
+            <SuggestionPopover
+              anchorEl={suggestionAnchorEl}
+              changes={suggestion.changes}
+              onApply={handleApplySuggestionView}
+              onClose={() => setSuggestionAnchorEl(null)}
             />
           )}
         </TableCell>
