@@ -88,7 +88,7 @@ Espelha o par **página hero + item no AppBar** já consolidado por Patrimônio 
 - **Rota `/[accountId]/planning`** — hub com **abas** (route-driven): **Metas** (`/planning/goals`) e **Orçamento** (`/planning/budgets`). `/planning` redireciona para `/planning/goals`.
 - **Item no AppBar** "Planejamento" (`AppBarNavButtons.tsx`), inserido entre "Membros" e "Patrimônio", formando o cluster de heros *forward-looking*: **Planejamento · Patrimônio · Projeção**.
 - **Aba Metas**: nova (esta spec) — hero agregado + cards de meta + detalhe por meta.
-- **Aba Orçamento**: superfície de gestão do `Budget` **reconstruída com a linguagem da aba Metas** (cards, hero de KPIs, `StatusBadge`, `PageHeader`), substituindo a tela de `settings/budgets`. **Reusa o comportamento intacto** do Budget (service, queries, schema, dimensões, cálculo); só a **apresentação** é harmonizada e a **rota** muda. Coeso com a aba Metas — uma superfície única de planejamento.
+- **Aba Orçamento**: superfície de gestão do `Budget` **reconstruída com a linguagem da aba Metas** (cards, `StatusBadge`, `PageHeader`), substituindo a tela de `settings/budgets`. Diferente da aba Metas, **não tem hero de KPIs**: é uma config agnóstica de mês, então não há "total gasto do mês vigente" único para exibir (ver §5.9); a história de status mês a mês vive no gráfico de histórico do modal de detalhe. **Reusa o comportamento intacto** do Budget (service, queries, schema, dimensões, cálculo); só a **apresentação** é harmonizada e a **rota** muda. Coeso com a aba Metas — uma superfície única de planejamento.
 
 ### 2.3 Nomenclatura (GOAL-04)
 
@@ -145,7 +145,7 @@ A feature inteira espelha arquivos reais do Patrimônio:
 
 ### 3.4 Aportes sugeridos (GOAL-05) — reuso e limite
 
-`getBudgetTransactions`/`getBudgetsWithProgress` (`budget-service.ts:105`, `budgets.ts:149`) agregam **por dimensão de um orçamento específico** — não existe query genérica reusável. O que se reusa é o **mapeamento dimensão→where** (`budget-service.ts:127-138`: `sectionId`→`where.sectionId`, `categoryId`→`where.categoryId`, gasto = `amountCents > 0n` em `:124`). A query de sugestões é **nova**: `findMany` de transações da dimensão da meta, no mês fiscal corrente, com `amountCents > 0` e **não vinculadas a nenhuma `GoalContribution`**.
+`getBudgetTransactions`/`getBudgetsWithProgress` (`budget-service.ts:105`, `budgets.ts:149`) agregam **por dimensão de um orçamento específico** — não existe query genérica reusável. O que se reusa é o **mapeamento dimensão→where** (`budget-service.ts:127-138`: `sectionId`→`where.sectionId`, `categoryId`→`where.categoryId`, gasto = `amountCents > 0n` em `:124`). A query de sugestões é **nova**: `findMany` de transações da dimensão da meta, dentro de uma **janela dos últimos `SUGGESTION_MONTHS_WINDOW` (=6) meses existentes** da account (não só o mês fiscal corrente — antes a sugestão só olhava o mês vigente, então contas que ainda não abriram o mês corrente nunca sugeriam nada e aportes de meses passados jamais apareciam), com `amountCents > 0`, **não vinculadas a nenhuma `GoalContribution`**, e teto de `SUGGESTION_LIMIT` (=50) resultados (mais recentes primeiro).
 
 > **Semântica**: a dimensão da meta deve apontar para uma section/categoria que representa o **ato de poupar** (transferência para poupança/investimento), não uma categoria de gasto. A sugestão usa a **magnitude** (`abs`) — consistente com a convenção de "gasto positivo" do repo (`calculateMonthTotal`, `month-service.ts:215`; `SectionCountType` `:34`). `byUserId` = usuário logado (editável); `responsiblePartyId` herdado da transação.
 
@@ -154,8 +154,79 @@ A feature inteira espelha arquivos reais do Patrimônio:
 Esta spec (47) passa a ser a **fonte única da superfície de planejamento**. A spec 25 fica *superseded na superfície*.
 
 - **Muda (superfície)**: a gestão do Budget sai de `settings/budgets` e é **reconstruída** como a aba Orçamento em `/planning/budgets`, com a **mesma linguagem visual da aba Metas** (§5.9). A entrada `{ href: "budgets" }` sai de `settings/layout.tsx:35`; rótulos pt-BR "Meta(s)" → "Orçamento(s)" (§11 C13); **3 sites de código** com rota absoluta viram `/planning/budgets` (§11 blast radius).
-- **NÃO muda (comportamento intacto — referência na 25)**: modelo `Budget`, `budget-service.ts`, `src/actions/budgets.ts`, `src/lib/schemas/budget.ts`, cálculo de progresso, dimensões, combinações, `alertThresholdPercent`, `isRecurring`, `showInSummary`, os widgets `budgets`/`kpi-budget-health` (monthly/month_summary), e a criação de orçamento a partir do dashboard mensal. A nova superfície **reusa** service/queries/schema — nada da lógica é reescrito ou duplicado na 47.
-- **Efeito na spec 25**: recebe um header de status "superseded na superfície — ver spec 47" e tem o critério §4 (gerir em settings) reescrito para o hub. As seções de **comportamento** da 25 continuam válidas como referência (§12 Fase 12). Não é só ponteiro — o critério aprovado muda, mas o comportamento não.
+- **NÃO muda (comportamento intacto — referência na 25)**: modelo `Budget` (exceto a **cardinalidade das dimensões** — ver §3.6 — e a **semântica da dimensão de responsável** — ver §3.6.1), cálculo de progresso, o **conjunto** de dimensões (seção, categoria, responsável, instituição, tipo de tabela) e os pares de combinação proibidos, `alertThresholdPercent`, `isRecurring`, `showInSummary`, os widgets `budgets`/`kpi-budget-health` (monthly/month_summary), e a criação de orçamento a partir do dashboard mensal. A nova superfície **reusa** service/queries/schema — nada da lógica de negócio é reescrito ou duplicado na 47.
+- **Muda (comportamento — só Orçamento)**: (a) cada dimensão do `Budget` passa a aceitar **múltiplos valores** com semântica de interseção (E entre dimensões, OU dentro de uma) — **§3.6**; (b) a dimensão antes rotulada "Membro" vira **"Responsável"** e passa a filtrar por `responsiblePartyId` (persona/party) direto, cobrindo `personal`/`group`/`external`, em vez de resolver membro→party pessoal — **§3.6.1**; (c) a superfície `/planning/budgets` deixa de ser presa ao mês fiscal atual e vira **página de config agnóstica de mês** com faixa de histórico por mês — **§5.9**. Tocam `schema.prisma`, `budget-service.ts`, `src/lib/schemas/budget.ts`, o backup (spec 64) e a exibição. Esta spec passa a ser a fonte dessas regras. **Metas (`Goal`) permanecem single-value** e não têm dimensão de responsável — o multi-valor e a dimensão de responsável são exclusivos do Orçamento.
+- **Efeito na spec 25**: recebe um header de status "superseded na superfície — ver spec 47" e tem o critério §4 (gerir em settings) reescrito para o hub. As seções de **comportamento** da 25 continuam válidas como referência (§12 Fase 12), **com a ressalva** de que a cardinalidade das dimensões virou multi-valor (§3.6, fonte na 47). Não é só ponteiro — o critério aprovado muda, e o comportamento muda no ponto específico da cardinalidade.
+
+### 3.6 Orçamento multi-valor por dimensão — interseção (só Orçamento)
+
+Cada uma das cinco dimensões do `Budget` (seção, categoria, responsável, instituição, tipo de tabela) passa de **um valor opcional** para uma **lista de valores** (0..N). Um orçamento é a **interseção** dos filtros de todas as dimensões preenchidas. **Escopo: só Orçamento** — as dimensões de `Goal` (§2.1) continuam escalares (single) e não têm dimensão de responsável.
+
+#### Semântica: E entre dimensões, OU dentro de uma dimensão
+
+- **OU dentro de uma dimensão**: um valor da dimensão casa se a transação bate com **qualquer** dos ids daquela dimensão (`campo IN [...]`).
+- **E entre dimensões**: a transação precisa casar em **todas** as dimensões preenchidas simultaneamente.
+- Dimensão com array **vazio** = "sem filtro nessa dimensão" (não restringe), exatamente como o `null` fazia no modelo escalar.
+
+> **Exemplo**: um orçamento com **Responsáveis {A, B}** + **Categorias {X, Y}** conta o gasto das transações onde `responsiblePartyId ∈ {A, B}` **E** `categoria ∈ {X, Y}` — ou seja, (A ou B) e (X ou Y). Uma transação do responsável A na categoria Z **não** entra; uma do responsável C na categoria X **não** entra.
+
+#### Modelo de dados — arrays `String[]` sem FK
+
+Os cinco campos escalares viram arrays escalares de ids no Postgres (tipo `text[]`), **sem foreign key**:
+
+```prisma
+model Budget {
+  // …
+  sectionIds     String[] @map("section_ids")
+  categoryIds    String[] @map("category_ids")
+  memberUserIds  String[] @map("member_user_ids")   // dimensão "Responsável": guarda partyId (§3.6.1); nome do campo mantido p/ evitar migração
+  institutionIds String[] @map("institution_ids")
+  tableTypeIds   String[] @map("table_type_ids")
+  // relações section/category/member/institution/tableType removidas (eram FK dos escalares)
+}
+```
+
+- **Sem FK / sem `onDelete`**: arrays Prisma não suportam relação referencial. A integridade antes garantida por `onDelete: Cascade`/`SetNull` passa a ser **defensiva na leitura**: ao carregar um orçamento, ids **órfãos** (dimensão apagada depois) são **filtrados** contra os ids válidos da account. Um array que fica vazio após a limpeza volta a significar "sem filtro" naquela dimensão (o orçamento não some; apenas relaxa o filtro). A limpeza é de leitura — não reescreve o array persistido.
+- **Where-mapping** (`budget-service.ts` `getBudgetTransactions` e o cálculo de progresso): cada dimensão preenchida vira um `IN`, mantendo o E entre dimensões. Espelha o mapeamento escalar de hoje (`budget-service.ts:127-138`), trocando igualdade por `in`:
+  - `sectionIds` → `where.sectionId = { in: sectionIds }` (e, quando vazio, mantém o guard `section.countType != "ignore"`);
+  - `categoryIds` → `where.categoryId = { in: categoryIds }`;
+  - `memberUserIds` (dimensão "Responsável") → resolve os valores por `responsiblePartyIdsForFilter(accountId, memberUserIds)` (partyId direto, com fallback de userId legado — §3.6.1) e `where.responsiblePartyId = { in: pids }`;
+  - `institutionIds` → `where.institutionId = { in: institutionIds }`;
+  - `tableTypeIds` → `where.table = { tableTypeId: { in: tableTypeIds } }`.
+  - Gasto = `amountCents > 0n` (inalterado).
+
+#### 3.6.1 Dimensão "Responsável" (antes "Membro") — filtra por `responsiblePartyId` direto
+
+A dimensão antes rotulada **"Membro"** vira **"Responsável"**. A transação é atribuída no app por `responsiblePartyId` (`Transaction.responsiblePartyId` `schema.prisma:449` → `ResponsibleParty`, personas `personal`/`group`/`external` — §3.1), **não** por usuário. O modelo antigo do Budget guardava `userId` de membro e resolvia membro→party pessoal via `personalPartyIdsForUsers` na leitura — o que **não casava nada** para contas cujas personas não estão ligadas a um `User` (ex.: party `group`/`external`, ou `personal` sem link de membro). A dimensão agora seleciona e filtra **`ResponsibleParty` (persona/party) diretamente**, cobrindo todas as kinds.
+
+- **Persistência sem migração**: o campo persistido continua sendo **`memberUserIds`** (`member_user_ids text[]`) — **passa a guardar `partyId`**, não `userId`. O nome do campo é mantido de propósito para **não exigir migração** de schema/dados. Só a *semântica* do conteúdo muda (id de party em vez de id de user).
+- **Leitura**: o where-mapping resolve os valores por **`responsiblePartyIdsForFilter(accountId, memberUserIds)`** (`src/server/queries/responsible-party-filter.ts:32`) — canônico: os valores são `partyId`s (cobrindo todas as kinds, igual ao drawer do mês); **fallback de legado**: valores no formato `userId` de membro são traduzidos para a sua party `personal`. Substitui o antigo `personalPartyIdsForUsers` (que só cobria personal).
+- **Retrocompat de orçamentos antigos**: um orçamento salvo antes desta mudança guarda `userId`(s) em `memberUserIds`. Ele **só casa transações** se houver link party↔user (`ResponsiblePartyMember`) que o fallback consiga resolver para a party `personal` do membro. Sem esse link (persona não ligada a `User`), o orçamento antigo **não casa nada** — o usuário deve **reabrir e reescolher o Responsável** (agora selecionando a party direto). Não há backfill automático de `userId → partyId` (a tradução nem sempre é 1:1 — group/external não têm user; personal pode não ter link). O fallback de leitura cobre o caso comum (personal ligada a membro) sem migração; o resto é reescolha manual.
+- **Form/exibição**: o seletor múltiplo da dimensão Responsável lista **parties** (personas) da account — não membros. Os chips resolvem `partyId → nome de exibição` (via `partyDisplayMap`, `responsible-party-filter.ts`). O rótulo automático usa o nome da party.
+- **Combos proibidos**: inalterados — Responsável combina com categoria/seção/tipo-de-tabela/instituição exatamente como "Membro" combinava (§3.6 "Combinações proibidas"); a mudança é só o *tipo do id* (party, não user) e a resolução na leitura.
+
+#### Combinações proibidas — preservadas no nível de array
+
+As duas combinações proibidas da 25 (seção × categoria e seção × tipo-de-tabela) continuam valendo, agora avaliadas por **array não-vazio**: é inválido ter `sectionIds` **e** `categoryIds` ambos não-vazios, ou `sectionIds` **e** `tableTypeIds` ambos não-vazios. Regra no Zod (`src/lib/schemas/budget.ts`): as cinco chaves viram `z.array(z.string().cuid()).default([])`; o `.superRefine` troca `data.sectionId && data.categoryId` por `data.sectionIds.length > 0 && data.categoryIds.length > 0` (idem para tipo de tabela) e a checagem "pelo menos uma dimensão" por "pelo menos um array não-vazio". Fonte única de validação (client via `zodResolver` + server), sem reimplementar no form.
+
+#### Migração & backfill
+
+Migration `budget_dimensions_multi`:
+1. Adiciona as cinco colunas `*_ids text[] NOT NULL DEFAULT '{}'`.
+2. **Backfill** (escalar → array de 1): para cada linha, `section_ids = CASE WHEN section_id IS NOT NULL THEN ARRAY[section_id] ELSE '{}' END` (idem para as outras quatro colunas escalares).
+3. Remove as cinco colunas escalares (`section_id`, `category_id`, `member_user_id`, `institution_id`, `table_type_id`) e suas FKs.
+
+Backfill preserva 1:1 a semântica dos orçamentos existentes (um valor vira `IN [valor]`, idêntico à igualdade anterior).
+
+#### Retrocompat do backup (spec 64)
+
+- **Export**: passa a serializar os cinco arrays (`sectionIds`, `categoryIds`, …) no bloco `budgets` (spec 64 §nº 22 do manifesto).
+- **Import**: aceita **os dois formatos**. Backups **novos** trazem arrays; backups **antigos** trazem os campos escalares (`sectionId`, …) — o decoder normaliza escalar → array de 1 (`sectionId` presente ⇒ `sectionIds: [sectionId]`; ausente/null ⇒ `[]`), espelhando o backfill. Assim um backup exportado antes desta mudança continua importável. (O re-carimbo de `memberUserId → null` da 64 vira **`memberUserIds → []`**.)
+
+#### Exibição (chips + rótulo automático)
+
+- Os valores de cada dimensão aparecem como **chips** (um chip por id resolvido ao nome; `<StatusBadge variant="neutral">`/`Chip` de leitura, sem cor semântica). O form usa seletor **múltiplo** (MUI `Select multiple` com `renderValue` em chips, ou `Autocomplete multiple`) por dimensão.
+- **Rótulo automático** (fallback quando `name` é null): combina os nomes de todas as dimensões preenchidas. Dentro de uma dimensão, os nomes são unidos por vírgula/"ou"; entre dimensões, por "+". Ex.: `"Alimentação, Lazer + Gabriel, Ana — até R$ 800"`. Órfãos filtrados não entram no rótulo.
 
 ---
 
@@ -304,9 +375,21 @@ Alvo/progresso em **mono tabular-nums** neutro (KPI); a **barra** carrega a cor 
 
 Loading (`ChartSkeleton`/skeleton) · empty (`EmptyState`) · **light + dark** (`getChartColors`) · role (`viewer` read-only, `EDITOR_ROLES` nas mutações).
 
-### 5.9 Aba Orçamento (harmonizada)
+### 5.9 Aba Orçamento — página de CONFIG agnóstica de mês (histórico por mês)
 
-Superfície de gestão do Budget **reconstruída** com a linguagem da aba Metas: `PageHeader` (ação "Novo orçamento"), hero de KPIs (ex.: total orçado, em risco, ultrapassados), **cards de orçamento** com barra de progresso + `StatusBadge` (ok/atenção/ultrapassado, reusando os limiares do Budget), `EmptyState`, dialog criar/editar via `DialogShell` (reusa `BudgetFormDialog`/schema). **Cálculo, dimensões e combinações do Budget intactos** — só a apresentação muda. Rótulos "Meta(s)" → "Orçamento(s)" (§11 C13). Widgets `budgets`/`kpi-budget-health` (monthly/month_summary) seguem intactos, só rótulo.
+A aba Orçamento é uma **página de configuração**, **não** presa ao mês fiscal atual. O que a versão anterior desta spec previa — "hero de KPIs do mês corrente + progresso ao vivo" — **sai daqui**: essa superfície não sabe qual mês exibir (config de orçamentos recorrentes vale para todos os meses), e o **progresso ao vivo do mês** já é a casa do dashboard mensal e da página de resumo do mês (spec 25, §"Exibição no dashboard mensal"/"Página de resumo do mês" — **intactos**). Duplicar aqui um recorte de um único mês seria confuso e redundante.
+
+- **Papel da aba**: gerir os orçamentos (criar/editar/excluir), reusando `PageHeader` (ação "Novo orçamento"), `EmptyState`, dialog criar/editar via `DialogShell` (reusa `BudgetFormDialog`/schema). É a linguagem visual da aba Metas (cards, `StatusBadge`), sem KPIs presos a um mês.
+- **Card de orçamento** (por orçamento): nome (ou rótulo automático) · valor-alvo · **chips das dimensões** (um chip por id resolvido ao nome; dimensão Responsável mostra parties — §3.6.1) · recorrência (recorrente vs. mês específico) · **faixa de HISTÓRICO por mês** (ver abaixo). Sem barra "ao vivo" de um mês único.
+- **Faixa de histórico por mês** (o diferencial da config): para cada orçamento, uma faixa horizontal de **N meses fiscais recentes** (ex.: últimos 6/12), um marcador por mês colorido pelo **status daquele mês** — **ok** (< limiar de alerta), **alerta** (entre limiar e 99%), **estourou** (≥ 100%) — reusando exatamente os limiares/cálculo do Budget (spec 25, `alertThresholdPercent`). Dá a leitura "como este orçamento se comportou ao longo do tempo?" que o dashboard de um mês só não dá. Cor pareada com status/tooltip (§5.11 CLAUDE.md), light+dark. Para orçamento de **mês específico** (`isRecurring=false`), a faixa mostra só aquele mês. Tooltip por marcador: mês + gasto/alvo + %.
+- **Query de histórico**: reusa o cálculo de progresso por dimensão do Budget (`budget-service.ts`) iterando por mês fiscal, **não** um cálculo novo de negócio. Cada mês resolve o `monthId` daquele mês fiscal (respeitando `month_start_day`) e roda o mesmo progresso já existente. `monthId` tolera cuid **e** uuid (dados legados — ver nota §5.9.1).
+- **Fix wave — grid + modal de detalhe**: a lista de orçamentos é um **grid responsivo** de cards compactos (nome, alvo/mês, dimensões em chips truncadas, badge do status do último mês) — a faixa de marcadores inline saiu do card. Cada card abre `BudgetDetailDialog` (`DialogShell`), com `BudgetHistoryChart` (gráfico de **barras** do histórico mensal, uma barra por mês, colorida por status, `ReferenceLine` no valor-alvo), resumo (contagem de meses ok/alerta/estourado + média de gasto + status do último mês) e as dimensões completas em chips.
+
+**Cálculo, conjunto de dimensões e combinações do Budget intactos** — muda (a) a apresentação, (b) a **cardinalidade das dimensões (multi-valor, §3.6)**, (c) a dimensão **Responsável** (§3.6.1), e (d) esta aba ser **config agnóstica de mês com histórico** em vez de progresso ao vivo. Cada dimensão usa seletor **múltiplo** no form e exibe os valores como **chips** no card; o rótulo automático combina os nomes (§3.6). Rótulos "Meta(s)" → "Orçamento(s)" (§11 C13). Widgets `budgets`/`kpi-budget-health` (monthly/month_summary) — a superfície de progresso **ao vivo** do mês — seguem **intactos**, só rótulo.
+
+#### 5.9.1 Nota — `monthId` tolera cuid e uuid (fix)
+
+A faixa de histórico e a query de detalhe de orçamento por mês recebem um `monthId` por mês fiscal. O schema de entrada desse `monthId` (e o de `getBudgetTransactions`, `budget-service.ts:154`) DEVE usar **`cuidSchema`** (`src/lib/schemas/shared.ts:14`, tolera cuid **ou** uuid) — **não** `z.string().cuid()` estrito. Motivo: `Month` de contas migradas do MVP tem `id` no formato **uuid**; o `.cuid()` estrito rejeitava esses ids com "ID inválido" e **quebrava silenciosamente** a leitura do orçamento naquele mês. A posse do id (multi-tenancy) segue garantida pela checagem de ownership por `accountId` no service. Mesmo racional já aplicado em outras dimensões (`shared.ts` comentário). (Fix separado do escopo de metas; registrado aqui por tocar a superfície de Orçamento.)
 
 ### 5.10 Widget `goal-progress` — conteúdo por `renderMode` (≥3 variantes)
 
@@ -357,7 +440,10 @@ Cada variante adiciona conteúdo real (regra do skill `dashboard-widgets`). Comp
 - O AppBar DEVE conter o item "Planejamento".
 - A gestão de `Budget` DEVE ser acessível pela aba Orçamento e NÃO DEVE mais aparecer em `settings` (entrada removida de `settings/layout.tsx`); os 3 sites de código com rota absoluta (`insights-service.ts:175`, `revalidate.ts:56`, e o teste `insights-service.test.ts:13`) DEVEM apontar para `/planning/budgets`.
 - O rótulo pt-BR do `Budget` DEVE ser "Orçamento(s)"; "Metas" DEVE designar apenas as metas de acúmulo (namespace `m.goals.*`). O modelo/código `Budget` NÃO DEVE ser renomeado.
-- A reconstrução da superfície de Orçamento NÃO DEVE alterar o cálculo, as dimensões, as combinações nem os schemas do `Budget` — DEVE reusar o comportamento existente; só a apresentação e a rota mudam.
+- A reconstrução da superfície de Orçamento DEVE reusar o cálculo, o conjunto de combinações e o schema do `Budget`; as **únicas** mudanças de comportamento são as documentadas em §3.6 (multi-valor), §3.6.1 (dimensão Responsável) e §5.9 (config agnóstica de mês).
+- A dimensão de responsável do `Budget` DEVE filtrar por `responsiblePartyId` (via `responsiblePartyIdsForFilter`), cobrindo personas `personal`/`group`/`external`; o campo persistido DEVE continuar `memberUserIds` (agora `partyId`), **sem migração**. Orçamento antigo com `userId` só casa se houver link party↔user resolvível pelo fallback; senão, casa vazio até o usuário reescolher o Responsável.
+- A aba Orçamento (`/planning/budgets`) NÃO DEVE ser presa ao mês fiscal atual: DEVE ser config (CRUD) + **faixa de histórico por mês** (status ok/alerta/estourou por mês, reusando os limiares do Budget). O progresso ao vivo do mês DEVE permanecer nos widgets `budgets`/`kpi-budget-health` (monthly/month_summary), inalterados.
+- O schema do `monthId` usado na faixa de histórico e em `getBudgetTransactions` DEVE tolerar cuid **e** uuid (`cuidSchema`), para não quebrar em contas com `Month.id` legado uuid.
 
 **GOAL-05 — Aportes sugeridos**
 - SE a `Goal` tem dimensão (`sectionId`/`categoryId`), O SISTEMA DEVE sugerir transações relacionadas do mês fiscal corrente, com `amountCents > 0`, ainda não vinculadas a nenhuma `GoalContribution`, reusando o mapeamento de dimensão do `Budget`.
@@ -384,7 +470,7 @@ Cada variante adiciona conteúdo real (regra do skill `dashboard-widgets`). Comp
 - **Lembretes/notificações push de aporte ou de atraso** — spec 29; aqui o badge de ritmo é anotação **passiva**.
 - **Metas de redução de dívida** — spec 51.
 - **Projeção geral de fluxo de caixa** — spec 48; a meta responde só "quando atinjo *este* alvo", que a 48 §8 explicitamente cede à 47.
-- **Mudança de comportamento/modelo do `Budget`** — a spec 47 só **reconstrói a superfície** (apresentação + rota + rótulos) do Budget e reusa a lógica; o comportamento (modelo, cálculo, dimensões, combinações) fica intocado e documentado na spec 25 como referência (25 fica *superseded na superfície*, não no comportamento — §12 Fase 12).
+- **Mudança de comportamento/modelo do `Budget` além do escopado** — a spec 47 reconstrói a superfície (apresentação + rota + rótulos) e reusa a lógica; as **únicas** mudanças de comportamento são as escopadas em §3.6 (multi-valor), §3.6.1 (dimensão Responsável) e §5.9 (config agnóstica de mês + histórico). O restante (cálculo, combinações, recorrência, widgets) fica intocado e documentado na spec 25 como referência (25 fica *superseded na superfície*, com o comportamento como referência ressalvado por esses três pontos — §12 Fase 12).
 - **Metas anuais de orçamento / outras mudanças na 25** — permanecem como a spec 25 define.
 - **Multi-moeda** — assume a `currency` da account (BRL).
 
@@ -417,6 +503,13 @@ Cada variante adiciona conteúdo real (regra do skill `dashboard-widgets`). Comp
 | DD-11 | Superfície do `Budget` | Reconstruída na aba Orçamento com a linguagem da aba Metas; comportamento reusado, não duplicado | Coesão pro usuário (uma superfície de planejamento) sem reescrever/duplicar a lógica estável do Budget |
 | DD-12 | Ritmo ideal | Linear (0→alvo no `deadline`) | Explicável; suficiente para orientar sem modelo estatístico |
 | DD-13 | Centralização | 47 = fonte única da superfície; 25 superseded na superfície, comportamento como referência | Atende "tudo numa coisa só" sem violar DRY nem arriscar divergência do código estável da 25 |
+| DD-14 | Cardinalidade das dimensões do Orçamento | Multi-valor (arrays), interseção: E entre dimensões, OU dentro (§3.6) | Um orçamento como "Alimentação+Lazer para A ou B" antes exigia N orçamentos; multi-valor expressa o recorte em um só. Só Orçamento — Metas seguem single |
+| DD-15 | Armazenamento multi-valor | `String[]` (`text[]`) **sem FK**; órfãos filtrados na leitura | Prisma não suporta relação em array; a integridade de FK vira filtro defensivo de leitura (id apagado some do orçamento sem quebrá-lo). Backfill escalar→array de 1 preserva a semântica existente 1:1 |
+| DD-16 | Combos proibidos com arrays | Avaliados por array não-vazio (seção×categoria, seção×tipo-de-tabela) | Mantém a regra da 25 sem inventar exceção; `.length > 0` substitui a checagem escalar no mesmo `.superRefine` |
+| DD-17 | Retrocompat do backup | Import aceita escalar (antigo) e array (novo); export só array | Backups gerados antes da migração continuam importáveis (escalar→array de 1), espelhando o backfill; export não precisa manter o formato legado |
+| DD-18 | Dimensão "Membro" → "Responsável" | Filtra por `responsiblePartyId` (persona/party: personal/group/external) direto, via `responsiblePartyIdsForFilter`; campo persistido segue `memberUserIds` (agora guarda `partyId`), **sem migração** | Transações são atribuídas a **parties**, não a usuários; o modelo antigo (member→party pessoal via `personalPartyIdsForUsers`) **não casava nada** para personas não-ligadas-a-`User` (group/external, ou personal sem link). Filtrar por party direto cobre todas as kinds. Nome do campo mantido para evitar migração; só a semântica do conteúdo muda (§3.6.1) |
+| DD-19 | Aba Orçamento = config agnóstica de mês | Página de config (CRUD + **faixa de histórico por mês**: status ok/alerta/estourou por mês); progresso **ao vivo** do mês fica nos dashboards mensais / resumo (spec 25, intactos) | A config de orçamentos (recorrentes) não pertence a um mês específico; prender a aba ao mês fiscal atual é arbitrário e duplica o dashboard mensal. O histórico por mês dá a leitura temporal que um único mês não dá; o ao-vivo já tem casa canônica (widgets monthly/summary) |
+| DD-20 | `monthId` tolera cuid e uuid | Schema do `monthId` (histórico + `getBudgetTransactions`) usa `cuidSchema` (cuid∣uuid), não `z.string().cuid()` estrito | `Month` de contas migradas do MVP tem `id` uuid; `.cuid()` estrito rejeitava e quebrava silenciosamente a leitura do orçamento no mês. Posse garantida por ownership no service (§5.9.1) |
 
 ---
 
@@ -432,7 +525,9 @@ Cada variante adiciona conteúdo real (regra do skill `dashboard-widgets`). Comp
 | Actions | `src/actions/goals.ts` (novo) + `revalidateGoals` em `src/server/api/revalidate.ts` |
 | Hub shell | `src/app/(app)/[accountId]/planning/{layout,page}.tsx` + `PlanningNav` (novos) |
 | Aba Metas | `planning/goals/page.tsx` + `GoalsManager.tsx` (novos) |
-| Aba Orçamento | `planning/budgets/page.tsx` (novo) → renderiza `BudgetsManager` (movido) |
+| Aba Orçamento (config agnóstica de mês + histórico) | `planning/budgets/page.tsx` (novo) → renderiza `BudgetsManager` (config, faixa de histórico por mês — §5.9) |
+| Dimensão Responsável (§3.6.1) | `budget-service.ts` where-mapping usa `responsiblePartyIdsForFilter` `src/server/queries/responsible-party-filter.ts:32`; chips/rótulo via `partyDisplayMap` (mesmo arquivo); form lista parties |
+| `monthId` cuid∣uuid (§5.9.1) | `cuidSchema` `src/lib/schemas/shared.ts:14` no schema do `monthId` de histórico e `getBudgetTransactions` (`budget-service.ts:154`) |
 | Gráfico glide-path | `src/components/goals/GoalGlidePathChart.tsx` (novo) |
 | Widget `goal-progress` | `widget-registry.ts` (yearly) · `widget-icons.ts` · `panels/GoalProgressWidget.tsx` · `YearlyDashboardClient.tsx` · `dashboards/yearly/[year]/page.tsx` (gate) · `queries/dashboards.ts` |
 | Nav AppBar | `src/components/ui/AppBarNavButtons.tsx` |
@@ -537,11 +632,14 @@ Adicionar `m.goals.*` (navLabel "Planejamento", title "Metas", cards, dialogs, p
 Registrar `goal-progress` em `widget-registry.ts` (yearly, `defaultVisible:false`, ≥3 `sizeVariants` §5.10) · label+desc em `pt-BR.ts` · ícone (`SavingsIcon`) em `widget-icons.ts` · `queries/dashboards.ts` (`getGoalProgressForYear`) · `panels/GoalProgressWidget.tsx` (adapta por `renderMode`: compact/default/expanded, §5.10) · wiring em `YearlyDashboardClient.tsx` · fetch **gated** em `dashboards/yearly/[year]/page.tsx`. **DoD**: aparece na paleta yearly; some quando não visível (fetch gated); 3 variantes com conteúdo real.
 
 ### Fase 11 — Aba Orçamento harmonizada + rename sweep · *Sonnet*
-1. **Superfície nova** `planning/budgets/page.tsx` + manager harmonizado (linguagem da aba Metas — §5.9), **reusando** `budget-service`, queries de budget, `src/lib/schemas/budget.ts` e `BudgetFormDialog` (restilizar/reusar). **Não** reescrever a lógica do Budget. Aposentar a tela `settings/budgets`.
+1. **Superfície nova** `planning/budgets/page.tsx` + manager **config agnóstica de mês** (§5.9): CRUD + **faixa de histórico por mês** (status ok/alerta/estourou), **sem** hero/progresso ao vivo do mês (segue nos widgets monthly/summary). **Reusa** `budget-service`, queries de budget, `src/lib/schemas/budget.ts` e `BudgetFormDialog` (restilizar/reusar). **Não** reescrever a lógica do Budget. Aposentar a tela `settings/budgets`.
 2. Remover `{ href: "budgets" }` de `settings/layout.tsx:35`.
 3. **Blast radius**: `insights-service.ts:175` (`budgetsHref`), `revalidate.ts:56` (`revalidatePath`) e o teste `insights-service.test.ts:13` → `/planning/budgets`.
 4. **Rename sweep** `pt-BR.ts` (tabela C13): "Meta(s)" → "Orçamento(s)".
-**DoD**: Orçamento gerido na aba (visual coeso com Metas); ausente em settings; `grep` "Metas" nos rótulos do budget zerado; testes do budget (incl. `insights-service.test.ts`) verdes; comportamento do Budget inalterado (mesmos testes de `budget-service` passam sem edição).
+5. **Multi-valor por dimensão (§3.6)**: migration `budget_dimensions_multi` (5 colunas `*_ids text[]`, backfill escalar→array de 1, drop das escalares + FKs); `budget.ts` schema (arrays + combos por `.length`); `budget-service.ts` where-mapping (`in` + filtro de órfãos na leitura); backup (spec 64) export de arrays + import retrocompat escalar; form com seletor múltiplo + chips; rótulo automático combinando nomes.
+6. **Dimensão Responsável (§3.6.1)**: dimensão "Membro" vira "Responsável"; where-mapping de `memberUserIds` passa a usar **`responsiblePartyIdsForFilter`** (não `personalPartyIdsForUsers`); form lista **parties** (personas); chips/rótulo via `partyDisplayMap`. **Sem migração** — `memberUserIds` passa a guardar `partyId`. Sem backfill `userId→partyId` (fallback de leitura cobre personal; resto é reescolha manual).
+7. **`monthId` cuid∣uuid (§5.9.1)**: schema do `monthId` na query de histórico e em `getBudgetTransactions` (`budget-service.ts:154`) usa `cuidSchema`, não `z.string().cuid()`.
+**DoD**: Orçamento gerido na aba como config agnóstica de mês; faixa de histórico por mês com status correto por mês; ausente em settings; `grep` "Metas" nos rótulos do budget zerado; multi-valor funciona (interseção E/OU); dimensão Responsável casa por party (personal/group/external), orçamento legado com userId casa via fallback; backfill preserva orçamentos existentes; backup antigo (escalar) importa; combos proibidos rejeitados por array não-vazio; órfão filtrado na leitura; `monthId` uuid legado não quebra a leitura; testes do budget (incl. `insights-service.test.ts` e novos casos multi-valor/responsável) verdes.
 
 **Tabela C13 — chaves a renomear** (`src/lib/messages/pt-BR.ts`):
 

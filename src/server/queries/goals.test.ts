@@ -291,11 +291,11 @@ describe("getGoalSuggestions", () => {
 
     expect(result).toEqual({ dimensionLabel: null, suggestions: [] });
     expect(prismaMock.transaction.findMany).not.toHaveBeenCalled();
-    // dimensão é checada ANTES de resolver o mês fiscal — nenhuma query extra disparada.
-    expect(prismaMock.month.findUnique).not.toHaveBeenCalled();
+    // dimensão é checada ANTES de resolver os meses — nenhuma query extra disparada.
+    expect(prismaMock.month.findMany).not.toHaveBeenCalled();
   });
 
-  it("preserva o dimensionLabel já resolvido quando o mês fiscal corrente ainda não tem Month criado (conta nova)", async () => {
+  it("preserva o dimensionLabel já resolvido quando a account não tem nenhum Month (conta nova)", async () => {
     prismaMock.goal.findFirst.mockResolvedValue({
       sectionId: "sec-1",
       categoryId: null,
@@ -303,7 +303,7 @@ describe("getGoalSuggestions", () => {
       category: null,
     } as any);
     prismaMock.accountSettings.findUnique.mockResolvedValue(settingsRow() as any);
-    prismaMock.month.findUnique.mockResolvedValue(null);
+    prismaMock.month.findMany.mockResolvedValue([]);
 
     const result = await getGoalSuggestions(ACCOUNT_ID, "goal-1");
 
@@ -319,7 +319,7 @@ describe("getGoalSuggestions", () => {
       category: null,
     } as any);
     prismaMock.accountSettings.findUnique.mockResolvedValue(settingsRow() as any);
-    prismaMock.month.findUnique.mockResolvedValue({ id: "month-1" } as any);
+    prismaMock.month.findMany.mockResolvedValue([{ id: "month-1" }] as any);
     prismaMock.transaction.findMany.mockResolvedValue([]);
 
     const result = await getGoalSuggestions(ACCOUNT_ID, "goal-1");
@@ -329,7 +329,7 @@ describe("getGoalSuggestions", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           accountId: ACCOUNT_ID,
-          monthId: "month-1",
+          monthId: { in: ["month-1"] },
           amountCents: { gt: 0n },
           sectionId: "sec-1",
           goalContributions: { none: {} },
@@ -346,7 +346,7 @@ describe("getGoalSuggestions", () => {
       category: { name: "Lazer" },
     } as any);
     prismaMock.accountSettings.findUnique.mockResolvedValue(settingsRow() as any);
-    prismaMock.month.findUnique.mockResolvedValue({ id: "month-1" } as any);
+    prismaMock.month.findMany.mockResolvedValue([{ id: "month-1" }] as any);
     prismaMock.transaction.findMany.mockResolvedValue([]);
 
     const result = await getGoalSuggestions(ACCOUNT_ID, "goal-1");
@@ -367,7 +367,7 @@ describe("getGoalSuggestions", () => {
       category: null,
     } as any);
     prismaMock.accountSettings.findUnique.mockResolvedValue(settingsRow() as any);
-    prismaMock.month.findUnique.mockResolvedValue({ id: "month-1" } as any);
+    prismaMock.month.findMany.mockResolvedValue([{ id: "month-1" }] as any);
     prismaMock.transaction.findMany.mockResolvedValue([
       {
         id: "tx-1",
@@ -385,6 +385,35 @@ describe("getGoalSuggestions", () => {
         { id: "tx-1", amountCents: "5000", occurredOn: "2026-07-10", description: "Poupança" },
       ],
     });
+  });
+
+  it("varre a janela dos últimos meses existentes (não só o corrente) e limita a quantidade", async () => {
+    prismaMock.goal.findFirst.mockResolvedValue({
+      sectionId: "sec-1",
+      categoryId: null,
+      section: { name: "Poupança" },
+      category: null,
+    } as any);
+    prismaMock.accountSettings.findUnique.mockResolvedValue(settingsRow() as any);
+    // Conta com jun + mai (SEM o mês corrente jul) — a sugestão deve olhar esses meses.
+    prismaMock.month.findMany.mockResolvedValue([{ id: "m-jun" }, { id: "m-mai" }] as any);
+    prismaMock.transaction.findMany.mockResolvedValue([]);
+
+    await getGoalSuggestions(ACCOUNT_ID, "goal-1");
+
+    expect(prismaMock.month.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { accountId: ACCOUNT_ID },
+        orderBy: [{ year: "desc" }, { month: "desc" }],
+        take: 6,
+      }),
+    );
+    expect(prismaMock.transaction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ monthId: { in: ["m-jun", "m-mai"] } }),
+        take: 50,
+      }),
+    );
   });
 });
 

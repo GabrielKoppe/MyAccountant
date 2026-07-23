@@ -14,6 +14,7 @@ export const messages = {
     close: "Fechar",
     none: "Nenhum",
     createNamed: (name: string) => `Criar "${name}"`,
+    removeNamed: (name: string) => `Remover "${name}"`,
     moreActions: "Mais ações",
     pageInfo: {
       ariaLabel: "Sobre esta página",
@@ -1614,12 +1615,48 @@ export const messages = {
     created: "Orçamento criado.",
     updated: "Orçamento atualizado.",
     deleted: "Orçamento excluído.",
+    // Widget mensal (BudgetsWidget) — feedback do fetch de transações no modo full.
+    loadingTransactions: "Carregando transações…",
+    loadError: "Não foi possível carregar as transações.",
+    // Textos dos 3 render modes do BudgetsWidget, centralizados (CLAUDE.md §5.10).
+    // `count` mantém a contagem "N orçamento(s)" SEM o "ativo(s)" de `activeCount`: o
+    // widget pode filtrar por near_limit, então "ativos" seria impreciso.
+    widget: {
+      empty: "Sem orçamentos.",
+      createHint: "Clique em + para criar.",
+      count: (n: number) => `${n} ${n === 1 ? "orçamento" : "orçamentos"}`,
+      noTransactions: "Nenhuma transação encontrada para este orçamento neste mês.",
+      showingLimit: "Exibindo as 100 transações mais recentes.",
+      byCategory: "Por categoria",
+      // Fallback quando o widget é usado fora do contexto de um mês (sem monthId): o
+      // botão de expandir fica desabilitado e este texto explica o porquê no Tooltip.
+      detailUnavailable: "Detalhamento indisponível neste contexto.",
+      table: {
+        date: "Data",
+        description: "Descrição",
+        category: "Categoria",
+        amount: "Valor",
+      },
+    },
+    // Aba Orçamento (planning/budgets) — visão CONFIG agnóstica de mês (Spec 25).
+    targetPerMonth: (amount: string) => `${amount} / mês`,
+    targetForPeriod: (amount: string, period: string) => `${amount} · ${period}`,
+    history: {
+      empty: "Nenhum mês registrado ainda.",
+      noData: "Sem dados",
+      // BudgetHistoryChart (spec 47 §5.9 fix wave): rótulo da ReferenceLine do
+      // valor-alvo e da linha "% do limite" no ChartTooltip. `percentOfLimit` é
+      // função (formatação centralizada, CLAUDE.md §5.10 — o "% do limite: N%" não
+      // é montado por concatenação no componente).
+      limitLabel: "Limite",
+      percentOfLimit: (percent: number) => `% do limite: ${percent}%`,
+    },
     fields: {
       name: "Nome (opcional)",
       namePlaceholder: "Ex: Limite família",
       section: "Seção",
       category: "Categoria",
-      member: "Membro",
+      member: "Responsável",
       institution: "Instituição",
       tableType: "Tipo de tabela",
       amount: "Valor alvo",
@@ -1631,12 +1668,11 @@ export const messages = {
       month: "Mês",
       noDimension: "— Nenhum —",
     },
-    // Hero de KPIs da aba Orçamento (spec 47 §5.9, Fase 11) — harmonizado com o
-    // hero da aba Metas (§4.6/§5.2, m.goals.totalSaved/statusOverview/*Count).
+    // Contagens por status (spec 47 §5.9). A aba Orçamento é uma visão CONFIG
+    // agnóstica de mês (Spec 25) — não há "total gasto do mês vigente" único, então
+    // NÃO há hero de KPIs como na aba Metas; estas frases são reusadas no resumo do
+    // BudgetDetailDialog (contagem de meses ok/atenção/ultrapassado no histórico).
     hero: {
-      totalBudgeted: "Total orçado",
-      totalSpent: "Total gasto",
-      statusOverview: "Status geral",
       okCount: (n: number) => `${n} no controle`,
       attentionCount: (n: number) => `${n} em atenção`,
       exceededCount: (n: number) => `${n} ${n === 1 ? "ultrapassado" : "ultrapassados"}`,
@@ -1672,6 +1708,17 @@ export const messages = {
         yearMonthRequired: "Informe o mês e ano",
         recurringWithPeriod: "Orçamentos recorrentes não devem ter mês/ano específico",
       },
+    },
+    // Modal de detalhe (BudgetDetailDialog, spec 47 §5.9 fix wave) — resumo do
+    // histórico + dimensões. Contagens por status reusam `hero.okCount/attentionCount/
+    // exceededCount` (mesma frase "N no controle/em atenção/ultrapassado(s)", já usada
+    // no hero de KPIs — não duplica).
+    detail: {
+      viewHistory: "Ver histórico",
+      summaryTitle: "Resumo do histórico",
+      dimensionsTitle: "Dimensões",
+      averageSpent: "Média de gasto",
+      lastMonth: "Último mês",
     },
   },
   netWorth: {

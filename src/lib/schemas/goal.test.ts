@@ -371,3 +371,28 @@ describe("deleteContributionSchema", () => {
     expect(deleteContributionSchema.safeParse({}).success).toBe(false);
   });
 });
+
+describe("createGoalSchema — dimensão vazia (regressão do bug 'ID inválido')", () => {
+  const base = { name: "Meta", targetCents: 1000n };
+
+  it('trata sectionId "" (string vazia) como ausência, não como id inválido', () => {
+    const result = createGoalSchema.safeParse({ ...base, sectionId: "" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.sectionId).toBeNull();
+  });
+
+  it('trata categoryId "" como ausência mesmo com sectionId real preenchido', () => {
+    // Cenário exato do bug: usuário seleciona a Seção; a Categoria fica "" e derrubava
+    // o form inteiro com "ID inválido" (silencioso na Meta).
+    const result = createGoalSchema.safeParse({ ...base, sectionId, categoryId: "" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.sectionId).toBe(sectionId);
+      expect(result.data.categoryId).toBeNull();
+    }
+  });
+
+  it("continua rejeitando um id não-vazio malformado", () => {
+    expect(createGoalSchema.safeParse({ ...base, sectionId: "abc" }).success).toBe(false);
+  });
+});

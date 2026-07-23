@@ -9,7 +9,11 @@ const options = [
   { id: "cat-2", name: "Transporte" },
 ];
 
-function renderSelect(props: Partial<Parameters<typeof CreatableEntitySelect>[0]> = {}) {
+function renderSelect(
+  props: Partial<
+    Extract<Parameters<typeof CreatableEntitySelect>[0], { multiple?: false | undefined }>
+  > = {},
+) {
   const onChange = vi.fn();
   const onCreate = vi.fn().mockResolvedValue("new-id");
   render(
@@ -20,6 +24,26 @@ function renderSelect(props: Partial<Parameters<typeof CreatableEntitySelect>[0]
       onCreate={onCreate}
       canCreate
       ariaLabel="Categoria"
+      {...props}
+    />,
+  );
+  return { onChange, onCreate };
+}
+
+function renderMultiSelect(
+  props: Partial<Extract<Parameters<typeof CreatableEntitySelect>[0], { multiple: true }>> = {},
+) {
+  const onChange = vi.fn();
+  const onCreate = vi.fn().mockResolvedValue("new-id");
+  render(
+    <CreatableEntitySelect
+      multiple
+      value={[]}
+      onChange={onChange}
+      options={options}
+      onCreate={onCreate}
+      canCreate
+      ariaLabel="Categorias"
       {...props}
     />,
   );
@@ -77,5 +101,52 @@ describe("CreatableEntitySelect", () => {
     await userEvent.click(input);
     await userEvent.type(input, "Lazer");
     expect(screen.queryByText(/^Criar "/)).not.toBeInTheDocument();
+  });
+
+  describe("modo multi", () => {
+    it("renderiza os ids selecionados como chips deletáveis", () => {
+      renderMultiSelect({ value: ["cat-1", "cat-2"] });
+      expect(screen.getByText("Alimentação")).toBeInTheDocument();
+      expect(screen.getByText("Transporte")).toBeInTheDocument();
+    });
+
+    it("selecionar várias opções acumula os ids no array (sem substituir)", async () => {
+      const { onChange } = renderMultiSelect({ value: ["cat-1"] });
+      const input = screen.getByRole("combobox");
+      await userEvent.click(input);
+      await userEvent.click(screen.getByText("Transporte"));
+
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith(["cat-1", "cat-2"]));
+    });
+
+    it("remover um chip chama onChange sem o id removido", async () => {
+      const { onChange } = renderMultiSelect({ value: ["cat-1", "cat-2"] });
+      // O botão de delete de cada chip tem role de botão (CancelIcon clicável).
+      const deleteButtons = screen.getAllByTestId("CancelIcon");
+      await userEvent.click(deleteButtons[0]);
+
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith(["cat-2"]));
+    });
+
+    it("criar inline no modo multi chama onCreate e adiciona o novo id ao array", async () => {
+      const { onChange, onCreate } = renderMultiSelect({ value: ["cat-1"] });
+      const input = screen.getByRole("combobox");
+      await userEvent.click(input);
+      await userEvent.type(input, "Lazer");
+      await userEvent.click(screen.getByText('Criar "Lazer"'));
+
+      expect(onCreate).toHaveBeenCalledWith("Lazer");
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith(["cat-1", "new-id"]));
+    });
+
+    it("digitar um nome existente resolve para o id existente sem chamar onCreate (dedupe)", async () => {
+      const { onChange, onCreate } = renderMultiSelect({ value: ["cat-2"] });
+      const input = screen.getByRole("combobox");
+      await userEvent.click(input);
+      await userEvent.type(input, "Alimentação{Enter}");
+
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith(["cat-2", "cat-1"]));
+      expect(onCreate).not.toHaveBeenCalled();
+    });
   });
 });

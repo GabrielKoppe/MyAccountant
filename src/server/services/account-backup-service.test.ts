@@ -543,11 +543,11 @@ function budget(over: Partial<BudgetRow> & { id: string }): BudgetRow {
   return {
     accountId: "src",
     name: "Meta",
-    sectionId: null,
-    categoryId: null,
-    memberUserId: null,
-    institutionId: null,
-    tableTypeId: null,
+    sectionIds: [],
+    categoryIds: [],
+    memberUserIds: [],
+    institutionIds: [],
+    tableTypeIds: [],
     amountCents: 500n,
     alertThresholdPercent: 80,
     isRecurring: true,
@@ -672,19 +672,25 @@ describe("planImport — deep-remap de ids em JSON", () => {
 });
 
 describe("planImport — re-carimbo de usuário + drops (DD-10)", () => {
-  it("re-carimba createdById para o importador, dropa ResponsiblePartyMember e zera Budget.memberUserId", () => {
+  it("re-carimba createdById para o importador, dropa ResponsiblePartyMember e zera Budget.memberUserIds", () => {
     const snapshot = makeSnapshot({
       responsibleParties: [responsibleParty({ id: "p-old" })],
       responsiblePartyMembers: [{ partyId: "p-old", userId: "other-user" } as ResponsiblePartyMemberRow],
       categories: [category({ id: "c-old", createdById: "other-user" })],
-      budgets: [budget({ id: "b-old", memberUserId: "other-user" })],
+      // O budget precisa de uma dimensão que SOBREVIVA ao remap (categoryIds → c-old) além do
+      // membro: se só tivesse memberUserIds, o DD-10 zeraria a única dimensão e o guard de import
+      // descartaria o budget inteiro (dimensão vazia = casaria TODAS as transações). Com uma
+      // categoria real, o budget sobrevive e conseguimos assertar que memberUserIds foi zerado.
+      budgets: [budget({ id: "b-old", categoryIds: ["c-old"], memberUserIds: ["other-user"] })],
     });
 
     const plan = planImport(snapshot, "target-acc", IMPORTER);
 
     expect(plan.inserts.categories[0]!.createdById).toBe(IMPORTER);
     expect(plan.inserts.responsiblePartyMembers).toEqual([]);
-    expect(plan.inserts.budgets[0]!.memberUserId).toBeNull();
+    // Budget sobrevive (tem categoria), mas o membro (usuário não atravessa contas) foi zerado.
+    expect(plan.inserts.budgets[0]!.memberUserIds).toEqual([]);
+    expect(plan.inserts.budgets[0]!.categoryIds).toEqual([plan.idMap.categories.get("c-old")]);
   });
 });
 

@@ -123,7 +123,6 @@ model User {
   templatesCreated            CsvTemplate[]            @relation("TemplateCreatedBy")
   tableModelsCreated          TableTemplate[]          @relation("TableTemplateCreatedBy")
   monthsCreated               Month[]                  @relation("MonthCreatedBy")
-  budgetsAsMember             Budget[]                 @relation("BudgetMember")
   notificationsReceived       Notification[]           @relation("NotificationRecipient")
   notificationsSent           Notification[]           @relation("NotificationActor")
   checklistItemsCreated       ChecklistItem[]          @relation("ChecklistItemCreatedBy")
@@ -339,7 +338,6 @@ model TableType {
   account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   financeTables     FinanceTable[]
   tableTemplates    TableTemplate[]
-  budgets           Budget[]
   installmentGroups InstallmentGroup[]
 
   @@unique([accountId, name])
@@ -395,7 +393,6 @@ model Section {
   account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   tables            FinanceTable[]
   transactions      Transaction[]
-  budgets           Budget[]
   installmentGroups InstallmentGroup[]
   goals             Goal[]
 
@@ -509,7 +506,6 @@ model Category {
   createdBy          User               @relation("CategoryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   subcategories      Subcategory[]
   transactions       Transaction[]
-  budgets            Budget[]
   transactionAliases TransactionAlias[]
   goals              Goal[]
 
@@ -543,7 +539,6 @@ model Institution {
   account                    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdBy                  User               @relation("InstitutionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   transactions               Transaction[]
-  budgets                    Budget[]
   transactionAliases         TransactionAlias[] @relation("AliasSetInstitution")
   transactionAliasConditions TransactionAlias[] @relation("AliasConditionInstitution")
   balanceAccounts            BalanceAccount[]
@@ -630,11 +625,11 @@ model Budget {
   id                    String   @id @default(cuid())
   accountId             String   @map("account_id")
   name                  String?
-  sectionId             String?  @map("section_id")
-  categoryId            String?  @map("category_id")
-  memberUserId          String?  @map("member_user_id")
-  institutionId         String?  @map("institution_id")
-  tableTypeId           String?  @map("table_type_id")
+  sectionIds            String[] @map("section_ids")
+  categoryIds           String[] @map("category_ids")
+  memberUserIds         String[] @map("member_user_ids")
+  institutionIds        String[] @map("institution_ids")
+  tableTypeIds          String[] @map("table_type_ids")
   amountCents           BigInt   @map("amount_cents")
   alertThresholdPercent Int      @default(80) @map("alert_threshold_percent")
   isRecurring           Boolean  @default(true) @map("is_recurring")
@@ -644,12 +639,7 @@ model Budget {
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
-  account     Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  section     Section?     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  category    Category?    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  member      User?        @relation("BudgetMember", fields: [memberUserId], references: [id], onDelete: SetNull)
-  institution Institution? @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  tableType   TableType?   @relation(fields: [tableTypeId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
   @@index([accountId, isRecurring])

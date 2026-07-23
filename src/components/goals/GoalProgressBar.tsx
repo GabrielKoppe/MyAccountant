@@ -96,17 +96,20 @@ export function GoalProgressBar({ progressCents, targetCents, percent, compact =
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         {/* U8 (fix wave): variant="mono" do tema — fontSize.sm já bate com body2,
             então nenhum override de tamanho é necessário aqui. */}
-        <Typography variant="mono" sx={{ color: "text.primary" }}>
+        <Typography variant="mono" sx={{ color: "text.primary", fontSize: "0.875rem" }} noWrap>
           {saved} / {goal}
         </Typography>
-        <Typography variant="mono" sx={{ fontWeight: 600, color: "success.main" }}>
+        <Typography
+          variant="mono"
+          sx={{ fontWeight: 600, color: "success.main", fontSize: "0.875rem" }}
+        >
           {roundedPercent}%
         </Typography>
       </Stack>
       {overCents > 0n && (
         <Typography
           variant="caption"
-          sx={{ color: "success.main", display: "block", mt: layout.micro }}
+          sx={{ color: "success.main", display: "block", mt: layout.micro, fontSize: "0.875rem" }}
         >
           {m.goals.overTarget(formatCentsToBrl(overCents))}
         </Typography>

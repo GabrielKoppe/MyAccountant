@@ -399,7 +399,7 @@ export function GoalsManager({ accountId, overview, archived, dimensionOptions, 
 
   return (
     <Box sx={{ p: layout.page, maxWidth: containers.lg, mx: "auto" }}>
-      <Stack spacing={layout.section}>
+      <Stack spacing={layout.cluster}>
         {/* ── Barra de ação (o PageHeader do hub já vem do layout — só o botão contextual) ── */}
         {canEdit && (
           <Stack direction="row" alignItems="center" justifyContent="flex-end">
@@ -432,7 +432,7 @@ export function GoalsManager({ accountId, overview, archived, dimensionOptions, 
             }
           />
         ) : (
-          <Stack spacing={layout.page}>
+          <Stack spacing={layout.cluster}>
             {/* ── Hero KPIs ── */}
             <Box
               sx={{
@@ -743,8 +743,9 @@ export function GoalsManager({ accountId, overview, archived, dimensionOptions, 
               control={form.control}
               render={({ field }) => (
                 <FormControl fullWidth>
-                  <InputLabel>{m.goals.fields.section}</InputLabel>
+                  <InputLabel id="goal-section-label">{m.goals.fields.section}</InputLabel>
                   <Select
+                    labelId="goal-section-label"
                     label={m.goals.fields.section}
                     value={field.value ?? ""}
                     onChange={(e) => field.onChange(e.target.value === "" ? null : e.target.value)}
@@ -913,27 +914,27 @@ function GoalCard({ goal, canEdit, onContribute, onOpenMenu }: GoalCardProps) {
   return (
     <Paper
       variant="outlined"
-      sx={{ p: layout.card, display: "flex", flexDirection: "column", gap: layout.stack }}
+      sx={{ p: layout.card, display: "flex", flexDirection: "column", gap: layout.card }}
     >
-      <Tooltip title={goal.name}>
+      <Stack direction="column" gap={layout.inline} sx={{ flex: 1, minWidth: 0 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }} noWrap>
           {goal.name}
         </Typography>
-      </Tooltip>
 
-      <GoalProgressBar
-        progressCents={goal.progressCents}
-        targetCents={goal.targetCents}
-        percent={goal.percent}
-      />
+        <GoalProgressBar
+          progressCents={goal.progressCents}
+          targetCents={goal.targetCents}
+          percent={goal.percent}
+        />
 
-      <Stack direction="row" alignItems="center" gap={layout.inline} flexWrap="wrap">
-        <StatusBadge variant={PACE_VARIANT[goal.pace]}>{m.goals.pace[goal.pace]}</StatusBadge>
-        {!goal.isAchieved && goal.requiredMonthlyCents !== null && (
-          <Typography variant="caption" sx={{ color: "text.tertiary" }}>
-            {m.goals.monthlyNeeded(formatCentsToBrl(BigInt(goal.requiredMonthlyCents)))}
-          </Typography>
-        )}
+        <Stack direction="row" alignItems="center" gap={layout.inline} flexWrap="wrap">
+          <StatusBadge variant={PACE_VARIANT[goal.pace]}>{m.goals.pace[goal.pace]}</StatusBadge>
+          {!goal.isAchieved && goal.requiredMonthlyCents !== null && (
+            <Typography variant="caption" sx={{ color: "text.tertiary" }}>
+              {m.goals.monthlyNeeded(formatCentsToBrl(BigInt(goal.requiredMonthlyCents)))}
+            </Typography>
+          )}
+        </Stack>
       </Stack>
 
       {/* "Aportar" só para quem edita; o ⋮ fica sempre visível — viewer usa só a

@@ -259,6 +259,12 @@ docker compose exec app pnpm dev               # (já roda como CMD, normalmente
 docker compose exec app pnpm prisma migrate dev --name <descritivo_em_snake_case>
 docker compose exec app pnpm prisma migrate deploy
 docker compose exec app pnpm prisma generate
+# ⚠️ Após migrate/generate, REINICIE o dev app: `docker compose restart app`.
+# O `next dev` mantém o Prisma Client (singleton em src/server/prisma.ts) carregado em
+# memória desde o boot. `migrate dev`/`generate` atualizam o client no disco (typecheck vê),
+# mas o processo em execução segue com o client ANTIGO → queries em runtime pedem colunas
+# dropadas (ex.: PrismaClientKnownRequestError "column budgets.section_id does not exist")
+# mesmo com typecheck limpo. Reiniciar recria o singleton com o client novo.
 docker compose exec app pnpm prisma studio --browser none --hostname 0.0.0.0
 docker compose exec app pnpm prisma validate
 docker compose exec app pnpm prisma format

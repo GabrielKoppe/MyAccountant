@@ -401,11 +401,11 @@ export async function buildAccountSnapshot(accountId: string): Promise<AccountSn
         id: b.id,
         accountId: b.accountId,
         name: b.name,
-        sectionId: b.sectionId,
-        categoryId: b.categoryId,
-        memberUserId: b.memberUserId,
-        institutionId: b.institutionId,
-        tableTypeId: b.tableTypeId,
+        sectionIds: b.sectionIds,
+        categoryIds: b.categoryIds,
+        memberUserIds: b.memberUserIds,
+        institutionIds: b.institutionIds,
+        tableTypeIds: b.tableTypeIds,
         amountCents: money(b.amountCents),
         alertThresholdPercent: b.alertThresholdPercent,
         isRecurring: b.isRecurring,
@@ -755,6 +755,16 @@ function optId(map: Map<string, string>, oldId: string | null): string | null {
   return map.get(oldId) ?? null;
 }
 
+/** Array de soft-refs (Spec 25, Budget): remapeia cada id, descartando os órfãos. */
+function mapIds(map: Map<string, string>, oldIds: string[]): string[] {
+  const out: string[] = [];
+  for (const oldId of oldIds) {
+    const mapped = map.get(oldId);
+    if (mapped) out.push(mapped);
+  }
+  return out;
+}
+
 /**
  * Deep-remap dos widgets de um DashboardLayout: itera o array e delega o `config`
  * de cada widget a `remapWidgetConfig` (registro central no módulo de remap, DD-11/16).
@@ -779,7 +789,7 @@ function remapWidgets(widgets: unknown, maps: IdMaps): unknown {
  *   ids em blobs JSON (dashboard/mapping/metadata, via módulo de remap) + self-relation
  *   `FinanceTable.sourceTableId` (2ª passada).
  * - Re-carimba `createdById/updatedById/completedById` para `userId` (DD-10).
- * - Dropa `ResponsiblePartyMember` (DD-10) e zera `Budget.memberUserId` (DD-10).
+ * - Dropa `ResponsiblePartyMember` (DD-10) e zera `Budget.memberUserIds` (DD-10).
  */
 export function planImport(
   snapshot: AccountSnapshot,
@@ -1093,25 +1103,49 @@ export function planImport(
       tagId: reqId(idMap.tags, t.tagId),
     })),
 
-    budgets: data.budgets.map((b) => ({
-      id: reqId(idMap.budgets, b.id),
-      accountId,
-      name: b.name,
-      sectionId: optId(idMap.sections, b.sectionId),
-      categoryId: optId(idMap.categories, b.categoryId),
-      // DD-10: referência a usuário-membro é zerada (usuário não atravessa contas).
-      memberUserId: null,
-      institutionId: optId(idMap.institutions, b.institutionId),
-      tableTypeId: optId(idMap.tableTypes, b.tableTypeId),
-      amountCents: b.amountCents,
-      alertThresholdPercent: b.alertThresholdPercent,
-      isRecurring: b.isRecurring,
-      showInSummary: b.showInSummary,
-      year: b.year,
-      month: b.month,
-      createdAt: date(b.createdAt),
-      updatedAt: date(b.updatedAt),
-    })),
+    budgets: data.budgets
+      .map((b) => ({
+        id: reqId(idMap.budgets, b.id),
+        accountId,
+        name: b.name,
+        // Soft-refs (§7): arrays de ids remapeados; órfãos (entidade ausente) são descartados.
+        sectionIds: mapIds(idMap.sections, b.sectionIds),
+        categoryIds: mapIds(idMap.categories, b.categoryIds),
+        // DD-10: referências a usuário-membro são zeradas (usuário não atravessa contas).
+        memberUserIds: [] as string[],
+        institutionIds: mapIds(idMap.institutions, b.institutionIds),
+        tableTypeIds: mapIds(idMap.tableTypes, b.tableTypeIds),
+        amountCents: b.amountCents,
+        alertThresholdPercent: b.alertThresholdPercent,
+        isRecurring: b.isRecurring,
+        showInSummary: b.showInSummary,
+        year: b.year,
+        month: b.month,
+        createdAt: date(b.createdAt),
+        updatedAt: date(b.updatedAt),
+      }))
+      // DD-10 guard: `memberUserIds` é zerado no import cross-account e `mapIds`
+      // descarta ids órfãos das demais dimensões. Um Budget cujas 5 dimensões ficaram
+      // vazias jamais passaria pelo `createBudgetSchema.superRefine` (exige ≥1 dimensão)
+      // e — pela semântica "array vazio = sem filtro" (spec 47 §3.6) — passaria a casar
+      // com TODAS as transações da account: um orçamento silenciosamente mais amplo que
+      // o original. Como o import escreve via `createMany` (sem passar pelo Zod),
+      // descartamos esses budgets aqui em vez de deixar a leitura reinterpretá-los.
+      .filter((b) => {
+        const hasDimension =
+          b.sectionIds.length > 0 ||
+          b.categoryIds.length > 0 ||
+          b.memberUserIds.length > 0 ||
+          b.institutionIds.length > 0 ||
+          b.tableTypeIds.length > 0;
+        if (!hasDimension) {
+          log.warn(
+            { accountId, budgetId: b.id, name: b.name },
+            "planImport: budget descartado — todas as dimensões ficaram vazias após o remap (DD-10)",
+          );
+        }
+        return hasDimension;
+      }),
 
     dashboardLayouts: data.dashboardLayouts.map((d) => ({
       id: reqId(idMap.dashboardLayouts, d.id),

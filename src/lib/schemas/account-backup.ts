@@ -331,24 +331,48 @@ export type TransactionAliasTagRow = z.infer<typeof transactionAliasTagRowSchema
 
 // ─── Metas ───────────────────────────────────────────────────────────
 
-export const budgetRowSchema = z.object({
-  id: z.string(),
-  accountId: z.string(),
-  name: z.string().nullable(),
-  sectionId: z.string().nullable(),
-  categoryId: z.string().nullable(),
-  memberUserId: z.string().nullable(),
-  institutionId: z.string().nullable(),
-  tableTypeId: z.string().nullable(),
-  amountCents: z.coerce.bigint(),
-  alertThresholdPercent: z.number().int(),
-  isRecurring: z.boolean(),
-  showInSummary: z.boolean(),
-  year: z.number().int().nullable(),
-  month: z.number().int().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
+// Retrocompat (Spec 25): backups antigos gravavam as 5 dimensões como FKs ESCALARES
+// (sectionId/categoryId/memberUserId/institutionId/tableTypeId). O formato novo grava
+// ARRAYS (sectionIds/...). Este `preprocess` normaliza escalar → array de 1 (ou [] se
+// null/ausente) ANTES de validar, então o schema canônico abaixo só conhece os arrays.
+// Se o array novo já estiver presente, ele vence.
+function legacyDimToArray(scalar: unknown, array: unknown): string[] {
+  if (Array.isArray(array)) return array.filter((v): v is string => typeof v === "string");
+  return typeof scalar === "string" ? [scalar] : [];
+}
+
+export const budgetRowSchema = z.preprocess(
+  (val) => {
+    if (!val || typeof val !== "object" || Array.isArray(val)) return val;
+    const b = val as Record<string, unknown>;
+    return {
+      ...b,
+      sectionIds: legacyDimToArray(b.sectionId, b.sectionIds),
+      categoryIds: legacyDimToArray(b.categoryId, b.categoryIds),
+      memberUserIds: legacyDimToArray(b.memberUserId, b.memberUserIds),
+      institutionIds: legacyDimToArray(b.institutionId, b.institutionIds),
+      tableTypeIds: legacyDimToArray(b.tableTypeId, b.tableTypeIds),
+    };
+  },
+  z.object({
+    id: z.string(),
+    accountId: z.string(),
+    name: z.string().nullable(),
+    sectionIds: z.array(z.string()),
+    categoryIds: z.array(z.string()),
+    memberUserIds: z.array(z.string()),
+    institutionIds: z.array(z.string()),
+    tableTypeIds: z.array(z.string()),
+    amountCents: z.coerce.bigint(),
+    alertThresholdPercent: z.number().int(),
+    isRecurring: z.boolean(),
+    showInSummary: z.boolean(),
+    year: z.number().int().nullable(),
+    month: z.number().int().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }),
+);
 export type BudgetRow = z.infer<typeof budgetRowSchema>;
 
 // ─── Visualizações (dashboards) ─────────────────────────────────────

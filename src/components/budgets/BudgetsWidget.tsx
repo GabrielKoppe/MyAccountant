@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
@@ -25,6 +26,7 @@ import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import { BudgetProgressBar } from "@/components/budgets/BudgetProgressBar";
 import { BudgetFormDialog } from "@/components/budgets/BudgetFormDialog";
+import { getBudgetStatus, BUDGET_STATUS_COLOR } from "@/components/budgets/budget-status";
 import { PieBreakdown } from "@/components/dashboards/charts/PieBreakdown";
 import { WidgetContainer } from "@/components/ui/WidgetContainer";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
@@ -47,16 +49,27 @@ type Props = {
   renderMode?: RenderMode;
 };
 
-type Status = "ok" | "alert" | "exceeded";
-const STATUS_COLOR: Record<Status, "success" | "warning" | "error"> = {
-  ok: "success",
-  alert: "warning",
-  exceeded: "error",
-};
-function getStatus(percent: number, threshold: number): Status {
-  if (percent >= 100) return "exceeded";
-  if (percent >= threshold) return "alert";
-  return "ok";
+// Status/cor do orçamento vêm de `budget-status.ts` (fonte única, reusada pelo
+// BudgetProgressBar, hero de KPIs e aba Orçamento) — não duplicar o cálculo aqui.
+
+// Chips da dimensão RESPONSÁVEL (antes "membro") — usa o novo shape do serializer:
+// `members` são responsibleParties `{ id, name }` (name pode ser null → fallback).
+// Um chip por responsável; nada renderiza quando o orçamento não restringe a dimensão.
+function ResponsibleChips({ members }: { members: { id: string; name: string | null }[] }) {
+  if (members.length === 0) return null;
+  return (
+    <Stack direction="row" gap={0.5} flexWrap="wrap" sx={{ mt: 0.75 }}>
+      {members.map((mb) => (
+        <Chip
+          key={mb.id}
+          label={mb.name ?? m.budgets.fields.member}
+          size="small"
+          variant="outlined"
+          sx={{ maxWidth: "100%" }}
+        />
+      ))}
+    </Stack>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,6 +86,9 @@ export function BudgetsWidget({
   const [page, setPage] = useState(0);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [txDetails, setTxDetails] = useState<Record<string, BudgetTxDetail>>({});
+  // Ids cujo fetch de transações FALHOU — sentinela de erro para parar o "Carregando…"
+  // e exibir uma mensagem curta em vez de girar pra sempre.
+  const [txErrors, setTxErrors] = useState<Set<string>>(new Set());
   const [, startFetch] = useTransition();
 
   const shown =
@@ -96,11 +112,20 @@ export function BudgetsWidget({
 
     // Busca transações na primeira abertura — fora do updater do state
     if (isExpanding && renderMode === "full" && monthId && !txDetails[id]) {
+      // Reabrir após um erro deve tentar de novo: limpa o sentinela antes do fetch.
+      setTxErrors((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       startFetch(async () => {
         const { getBudgetTransactionsAction } = await import("@/actions/budgets");
         const result = await getBudgetTransactionsAction(accountId, { budgetId: id, monthId });
         if (result.ok) {
           setTxDetails((prev) => ({ ...prev, [id]: result.data }));
+        } else {
+          setTxErrors((prev) => new Set(prev).add(id));
         }
       });
     }
@@ -127,8 +152,8 @@ export function BudgetsWidget({
   // ── Compact (small 2×1): paginated single-budget view ───────────────────────
   if (renderMode === "compact") {
     const current = shown[page] ?? null;
-    const status = current ? getStatus(current.percent, current.alertThresholdPercent) : "ok";
-    const mColor = current ? STATUS_COLOR[status] : "success";
+    const status = current ? getBudgetStatus(current.percent, current.alertThresholdPercent) : "ok";
+    const mColor = current ? BUDGET_STATUS_COLOR[status] : "success";
     const clampedPct = current ? Math.min(current.percent, 100) : 0;
 
     return (
@@ -147,7 +172,7 @@ export function BudgetsWidget({
         >
           {total === 0 ? (
             <Typography variant="caption" color="text.secondary" align="center" display="block">
-              Sem orçamentos.
+              {m.budgets.widget.empty}
             </Typography>
           ) : (
             <Stack direction="row" alignItems="center" gap={2} sx={{ mt: 1.5 }}>
@@ -223,7 +248,7 @@ export function BudgetsWidget({
       <>
         <WidgetContainer
           title={m.budgets.title}
-          subtitle={total > 0 ? `${total} ${total === 1 ? "orçamento" : "orçamentos"}` : undefined}
+          subtitle={total > 0 ? m.budgets.widget.count(total) : undefined}
           icon={WIDGET_ICONS["budgets"]}
           secondary={addButton}
           contentSx={{ overflow: "auto" }}
@@ -231,7 +256,7 @@ export function BudgetsWidget({
           {total === 0 ? (
             <Stack alignItems="center" sx={{ py: 2 }}>
               <Typography variant="caption" color="text.secondary">
-                Sem orçamentos. {formOptions ? "Clique em + para criar." : ""}
+                {m.budgets.widget.empty} {formOptions ? m.budgets.widget.createHint : ""}
               </Typography>
             </Stack>
           ) : (
@@ -240,11 +265,13 @@ export function BudgetsWidget({
                 const isExpanded = expandedIds.has(b.id);
                 const detail = txDetails[b.id];
 
+                const hasError = txErrors.has(b.id);
+
                 return (
                   <Box key={b.id} sx={{ py: 1.5 }}>
                     {/* Barra + botão expand */}
                     <Stack direction="row" alignItems="flex-start" gap={1}>
-                      <Box sx={{ flex: 1 }}>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
                         <BudgetProgressBar
                           label={b.label}
                           amountCents={b.amountCents}
@@ -252,29 +279,45 @@ export function BudgetsWidget({
                           percent={b.percent}
                           alertThresholdPercent={b.alertThresholdPercent}
                         />
+                        <ResponsibleChips members={b.members} />
                       </Box>
-                      <IconButton
-                        size="small"
-                        onClick={() => toggleExpand(b.id)}
-                        sx={{ mt: 0.5, flexShrink: 0 }}
-                      >
-                        {isExpanded ? (
-                          <ExpandLessIcon sx={{ fontSize: 16 }} />
-                        ) : (
-                          <ExpandMoreIcon sx={{ fontSize: 16 }} />
-                        )}
-                      </IconButton>
+                      {/* Sem monthId (widget fora do contexto de um mês) o botão fica
+                          desabilitado — evita expandir para um beco sem saída. */}
+                      <Tooltip title={monthId ? "" : m.budgets.widget.detailUnavailable}>
+                        <Box component="span" sx={{ display: "inline-flex", flexShrink: 0 }}>
+                          <IconButton
+                            size="small"
+                            disabled={!monthId}
+                            onClick={() => toggleExpand(b.id)}
+                            sx={{ mt: 0.5 }}
+                          >
+                            {isExpanded ? (
+                              <ExpandLessIcon sx={{ fontSize: 16 }} />
+                            ) : (
+                              <ExpandMoreIcon sx={{ fontSize: 16 }} />
+                            )}
+                          </IconButton>
+                        </Box>
+                      </Tooltip>
                     </Stack>
 
                     {/* Detalhe colapsável */}
                     <Collapse in={isExpanded} unmountOnExit>
-                      {!detail ? (
+                      {hasError ? (
+                        <Typography
+                          variant="caption"
+                          color="danger.main"
+                          sx={{ mt: 1.5, display: "block" }}
+                        >
+                          {m.budgets.loadError}
+                        </Typography>
+                      ) : !detail ? (
                         <Typography
                           variant="caption"
                           color="text.tertiary"
                           sx={{ mt: 1.5, display: "block" }}
                         >
-                          {monthId ? "Carregando transações…" : "monthId não disponível."}
+                          {m.budgets.loadingTransactions}
                         </Typography>
                       ) : (
                         <Box
@@ -291,7 +334,7 @@ export function BudgetsWidget({
                           <Box>
                             {detail.transactions.length === 0 ? (
                               <Typography variant="caption" color="text.tertiary">
-                                Nenhuma transação encontrada para este orçamento neste mês.
+                                {m.budgets.widget.noTransactions}
                               </Typography>
                             ) : (
                               <TableContainer
@@ -310,19 +353,19 @@ export function BudgetsWidget({
                                   <TableHead>
                                     <TableRow>
                                       <TableCell sx={{ fontSize: "0.65rem", py: 0.5, width: 72 }}>
-                                        Data
+                                        {m.budgets.widget.table.date}
                                       </TableCell>
                                       <TableCell sx={{ fontSize: "0.65rem", py: 0.5, width: 128 }}>
-                                        Descrição
+                                        {m.budgets.widget.table.description}
                                       </TableCell>
                                       <TableCell sx={{ fontSize: "0.65rem", py: 0.5, width: 84 }}>
-                                        Categoria
+                                        {m.budgets.widget.table.category}
                                       </TableCell>
                                       <TableCell
                                         align="right"
                                         sx={{ fontSize: "0.65rem", py: 0.5, width: 88 }}
                                       >
-                                        Valor
+                                        {m.budgets.widget.table.amount}
                                       </TableCell>
                                     </TableRow>
                                   </TableHead>
@@ -390,7 +433,7 @@ export function BudgetsWidget({
                                 color="text.tertiary"
                                 sx={{ mt: 0.5, display: "block" }}
                               >
-                                Exibindo as 100 transações mais recentes.
+                                {m.budgets.widget.showingLimit}
                               </Typography>
                             )}
                           </Box>
@@ -403,7 +446,7 @@ export function BudgetsWidget({
                                 color="text.tertiary"
                                 sx={{ fontSize: "0.65rem", mb: 0.5, textAlign: "center" }}
                               >
-                                Por categoria
+                                {m.budgets.widget.byCategory}
                               </Typography>
                               <Box
                                 sx={{

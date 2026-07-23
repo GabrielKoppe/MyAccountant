@@ -2,6 +2,8 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
+import { m } from "@/lib/messages";
+
 /**
  * Status de um `Budget` (spec 25) por limiar de uso — semântica INTACTA (spec 47
  * §3.5/§5.9: "reconstrução da superfície NÃO altera o cálculo/limiares do Budget").
@@ -43,4 +45,16 @@ export const BUDGET_STATUS_VARIANT: Record<BudgetStatus, "success" | "warning" |
   ok: "success",
   alert: "warning",
   exceeded: "danger",
+};
+
+/**
+ * Rótulo pt-BR do status (spec 47 §5.9 fix wave) — mesmas 3 palavras já usadas na
+ * legenda antiga da faixa de histórico (`m.budgets.progress.*`), agora centralizadas
+ * aqui para serem consumidas também por `BudgetHistoryChart` (tooltip) e
+ * `BudgetDetailDialog`/`BudgetConfigCard` (badge do último mês) sem duplicar o mapa.
+ */
+export const BUDGET_STATUS_LABEL: Record<BudgetStatus, string> = {
+  ok: m.budgets.progress.onTrack,
+  alert: m.budgets.progress.attention,
+  exceeded: m.budgets.progress.exceeded,
 };

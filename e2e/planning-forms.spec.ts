@@ -86,10 +86,11 @@ test("criar Orçamento com valor + dimensão (categoria) grava amountCents corre
   const created = await db.budget.findFirstOrThrow({
     where: { accountId: m.mainAccountId, name: budgetName },
     orderBy: { createdAt: "desc" },
-    select: { amountCents: true, categoryId: true },
+    // Budget migrou para dimensões multi-valor (spec 47 §3.6): categoryId escalar → categoryIds array.
+    select: { amountCents: true, categoryIds: true },
   });
   expect(created.amountCents).toBe(EXPECTED_CENTS);
-  expect(created.categoryId).toBe(category.id);
+  expect(created.categoryIds).toContain(category.id);
 });
 
 test("criar categoria inline (CreatableEntitySelect) no dialog de Meta e vincular", async ({

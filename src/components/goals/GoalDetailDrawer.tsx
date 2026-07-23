@@ -170,13 +170,14 @@ export function GoalDetailDrawer({
             </Typography>
           )
         ) : (
-          <Stack spacing={layout.section}>
+          <Stack spacing={layout.card}>
             <Stack spacing={layout.stack}>
               <SectionHeader>{m.goals.glidePathTitle}</SectionHeader>
               <GoalGlidePathChart series={detail.glidePath} height={220} />
             </Stack>
 
             <Divider />
+            
             <SplitSection split={detail.split} />
 
             {/* Sugestões só para quem edita (§5.2 — "sugestões ocultas" para viewer);

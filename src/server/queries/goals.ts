@@ -382,18 +382,25 @@ export type GoalSuggestionsResult = {
   suggestions: GoalSuggestion[];
 };
 
+/** Janela dos aportes sugeridos: os últimos N MESES EXISTENTES da account (não só o mês
+ * fiscal corrente). Antes a sugestão olhava só o mês vigente — então uma conta que ainda não
+ * abriu o mês corrente NUNCA sugeria nada, e aportes de meses passados jamais apareciam. Usar
+ * os `Month` reais (ordenados desc) é robusto quando o mês corrente ainda não foi criado. */
+const SUGGESTION_MONTHS_WINDOW = 6;
+/** Teto de transações sugeridas exibidas (as mais recentes). Evita uma lista gigante quando a
+ * seção/categoria da meta tem muitos lançamentos ao longo da janela. */
+const SUGGESTION_LIMIT = 50;
+
 /**
  * Aportes sugeridos (GOAL-05, §3.4/§11) — query NOVA (NÃO reusa getBudgetsWithProgress,
  * que agrega por orçamento específico). Reusa só o MAPEAMENTO dimensão→where
- * (budget-service.ts:127-138): `sectionId`/`categoryId` da meta. Transações do mês
- * fiscal corrente, `amountCents > 0` (magnitude = "gasto positivo", convenção do repo —
- * `calculateMonthTotal`, month-service.ts), ainda NÃO vinculadas a nenhuma
- * `GoalContribution` (`goalContributions: { none: {} }`). `suggestions` vem `[]` quando:
- * a meta não existe/não é da account; a meta não tem dimensão (GOAL-05 — sugestão
- * inerte); ou o mês fiscal corrente ainda não tem `Month` criado (conta nova) — só nos
- * dois primeiros casos `dimensionLabel` também é `null`. No 3º caso a meta TEM dimensão
- * (só não há `Month` ainda), então o nome já resolvido é preservado — é o caso mais
- * comum de "sugestões vazias" e o mais importante pra explicar o vazio na UI.
+ * (budget-service.ts): `sectionId`/`categoryId` da meta. Transações dos últimos
+ * `SUGGESTION_MONTHS_WINDOW` meses existentes, `amountCents > 0` (magnitude = "gasto positivo",
+ * convenção do repo — `calculateMonthTotal`, month-service.ts), ainda NÃO vinculadas a nenhuma
+ * `GoalContribution` (`goalContributions: { none: {} }`), no máximo `SUGGESTION_LIMIT` (mais
+ * recentes primeiro). `suggestions` vem `[]` quando: a meta não existe/não é da account; a meta
+ * não tem dimensão (GOAL-05 — sugestão inerte, `dimensionLabel` também `null`); ou a account não
+ * tem NENHUM `Month` (conta nova — `dimensionLabel` preservado, é o caso comum de vazio na UI).
  */
 export const getGoalSuggestions = cache(async function getGoalSuggestions(
   accountId: string,
@@ -415,19 +422,18 @@ export const getGoalSuggestions = cache(async function getGoalSuggestions(
 
   const dimensionLabel = goal.section?.name ?? goal.category?.name ?? null;
 
-  const monthStartDay = await monthStartDayOf(accountId);
-  const currentFiscal = getCurrentFiscalMonth(new Date(), monthStartDay);
-  const monthRecord = await prisma.month.findUnique({
-    where: {
-      accountId_year_month: { accountId, year: currentFiscal.year, month: currentFiscal.month },
-    },
+  // Últimos N meses existentes da account (não só o corrente) — ver comentário de SUGGESTION_MONTHS_WINDOW.
+  const recentMonths = await prisma.month.findMany({
+    where: { accountId }, // ✅ multi-tenancy
+    orderBy: [{ year: "desc" }, { month: "desc" }],
+    take: SUGGESTION_MONTHS_WINDOW,
     select: { id: true },
   });
-  if (!monthRecord) return { dimensionLabel, suggestions: [] }; // mês fiscal corrente ainda sem Month criado
+  if (recentMonths.length === 0) return { dimensionLabel, suggestions: [] }; // account sem nenhum Month
 
   const where: Prisma.TransactionWhereInput = {
     accountId, // ✅ multi-tenancy
-    monthId: monthRecord.id,
+    monthId: { in: recentMonths.map((mo) => mo.id) },
     amountCents: { gt: 0n },
     goalContributions: { none: {} }, // ainda não vinculada a NENHUM aporte de meta
     ...(goal.sectionId ? { sectionId: goal.sectionId } : {}),
@@ -437,6 +443,7 @@ export const getGoalSuggestions = cache(async function getGoalSuggestions(
   const txs = await prisma.transaction.findMany({
     where,
     orderBy: { occurredOn: "desc" },
+    take: SUGGESTION_LIMIT,
     select: { id: true, amountCents: true, occurredOn: true, description: true },
   });
 

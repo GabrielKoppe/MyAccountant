@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { defineAction } from "@/server/api/define-action";
 import { createBudgetSchema, updateBudgetSchema, deleteBudgetSchema } from "@/lib/schemas/budget";
+import { cuidSchema } from "@/lib/schemas/shared";
 import * as budgetService from "@/server/services/budget-service";
 import { getBudgetsForSettings } from "@/server/queries/budgets";
 
@@ -54,7 +55,10 @@ export const listBudgetsAction = defineAction({
 export type { BudgetTxRow, BudgetTxDetail } from "@/server/services/budget-service";
 
 export const getBudgetTransactionsAction = defineAction({
-  schema: z.object({ budgetId: z.string().cuid(), monthId: z.string().cuid() }),
+  // cuidSchema tolera cuid|uuid: `monthId` pode ser uuid de dados legados do MVP (o `.cuid()`
+  // estrito rejeitava silenciosamente e quebrava o widget de detalhes). `budgetId` sempre é cuid
+  // (Budget nasceu no Spec 25, sem MVP anterior) — usa cuidSchema por consistência, sem prejuízo.
+  schema: z.object({ budgetId: cuidSchema, monthId: cuidSchema }),
   handler: async ({ budgetId, monthId }, ctx) =>
     budgetService.getBudgetTransactions({ budgetId, monthId }, ctx),
 });

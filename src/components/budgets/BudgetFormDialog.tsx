@@ -13,8 +13,8 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useSnackbar } from "notistack";
-import { useEffect, useState, useTransition } from "react";
-import { Controller, useForm, type DefaultValues } from "react-hook-form";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Controller, useForm, type Control, type DefaultValues } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
 
 import { createCategoryAction, createInstitutionAction } from "@/actions/account-settings";
@@ -39,26 +39,83 @@ type Props = {
 
 type DimOption = BudgetFormOptions["categories"][number];
 
-// Dimensões (sectionId/categoryId/.../tableTypeId) são `string | undefined` no schema
-// (createBudgetSchema usa só `.optional()`, sem `.nullable()` — diferente de Goal/NetWorth,
-// que usam `null` pra "nenhuma"). `CreatableEntitySelect` fala `string | null`; estes dois
-// helpers fazem a ponte sem espalhar `?? undefined`/`?? null` pelo JSX abaixo.
-function toSelectValue(id: string | undefined): string | null {
-  return id ?? null;
+/** Nomes das dimensões (chaves do form que são arrays de ids). */
+type DimField =
+  | "sectionIds"
+  | "categoryIds"
+  | "memberUserIds"
+  | "institutionIds"
+  | "tableTypeIds";
+
+/**
+ * Uma dimensão do orçamento como MULTI-select (Spec 25 — cada dimensão é um ARRAY de
+ * ids). Encapsula o `Controller` + `CreatableEntitySelect multiple` + a caption de erro
+ * (o schema aponta os erros para `sectionIds`/`categoryIds`/`tableTypeIds`), evitando
+ * repetir o mesmo boilerplate cinco vezes no JSX. Seção/Membro/Tipo de tabela passam
+ * `canCreate={false}` (não se cria essas entidades inline); Categoria/Instituição
+ * passam `canCreate` + o `onCreate` real.
+ */
+function MultiDimField({
+  control,
+  name,
+  label,
+  options,
+  canCreate,
+  onCreate,
+  gridColumn,
+}: {
+  control: Control<CreateBudgetInput>;
+  name: DimField;
+  label: string;
+  options: DimOption[];
+  canCreate: boolean;
+  onCreate: (value: string) => Promise<string | null>;
+  gridColumn?: string;
+}) {
+  return (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field, fieldState }) => (
+        <Box sx={{ gridColumn }}>
+          <CreatableEntitySelect
+            multiple
+            value={field.value ?? []}
+            onChange={field.onChange}
+            options={options}
+            onCreate={onCreate}
+            canCreate={canCreate}
+            variant="outlined"
+            label={label}
+            ariaLabel={label}
+            placeholderNone={m.budgets.fields.noDimension}
+            sx={{ width: "100%" }}
+          />
+          {fieldState.error && (
+            <Typography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+              {fieldState.error.message}
+            </Typography>
+          )}
+        </Box>
+      )}
+    />
+  );
 }
-function fromSelectValue(id: string | null): string | undefined {
-  return id ?? undefined;
-}
+
+// Dimensões não-criáveis (seção, membro, tipo de tabela) ainda precisam de um `onCreate`
+// pela assinatura do componente, mas ele nunca é chamado: com `canCreate={false}` a opção
+// "＋ Criar" não é injetada e `resolveName` devolve null antes de tentar criar.
+const noCreate = (): Promise<string | null> => Promise.resolve(null);
 
 function initDefaults(budget?: BudgetWithDetails): DefaultValues<CreateBudgetInput> {
   if (!budget) {
     return {
       name: "",
-      sectionId: undefined,
-      categoryId: undefined,
-      memberUserId: undefined,
-      institutionId: undefined,
-      tableTypeId: undefined,
+      sectionIds: [],
+      categoryIds: [],
+      memberUserIds: [],
+      institutionIds: [],
+      tableTypeIds: [],
       // Vazio (não 0n): com valor fixo, o NumericFormat mostraria "R$ 0,00" e, junto de
       // fixedDecimalScale, os dígitos digitados no fim seriam descartados — mesma nota de
       // GoalsManager.tsx (campo targetCents). `DefaultValues<T>` do RHF é `DeepPartial<T>`,
@@ -73,11 +130,11 @@ function initDefaults(budget?: BudgetWithDetails): DefaultValues<CreateBudgetInp
   }
   return {
     name: budget.name ?? "",
-    sectionId: budget.sectionId ?? undefined,
-    categoryId: budget.categoryId ?? undefined,
-    memberUserId: budget.memberUserId ?? undefined,
-    institutionId: budget.institutionId ?? undefined,
-    tableTypeId: budget.tableTypeId ?? undefined,
+    sectionIds: budget.sectionIds,
+    categoryIds: budget.categoryIds,
+    memberUserIds: budget.memberUserIds,
+    institutionIds: budget.institutionIds,
+    tableTypeIds: budget.tableTypeIds,
     amountCents: BigInt(budget.amountCents),
     alertThresholdPercent: budget.alertThresholdPercent,
     isRecurring: budget.isRecurring,
@@ -101,14 +158,17 @@ function initDefaults(budget?: BudgetWithDetails): DefaultValues<CreateBudgetInp
  * tabela — os erros aparecem via `fieldState.error`/`formState.errors`, zero regra
  * duplicada no componente.
  *
- * Categoria e Instituição usam `CreatableEntitySelect` (mesmo mecanismo de
- * `GoalsManager`/`NetWorthManager`: state local de opções + injeção otimista no
- * `onCreate`, resincronizado durante o render se `formOptions` mudar). As outras três
- * dimensões (seção, membro, tipo de tabela) continuam `<TextField select>` comum.
- * `canCreate` é sempre `true` — diferente daqueles dois managers, este dialog não
- * recebe prop de papel porque os dois call-sites só o renderizam/abrem para quem já
- * tem papel editor (o botão "+" some quando `!canEdit`); o server
- * (`createCategoryAction`/`createInstitutionAction`) re-valida o papel de qualquer forma.
+ * As 5 dimensões (seção, categoria, membro, instituição, tipo de tabela) são
+ * MULTI-select via `CreatableEntitySelect multiple` (Spec 25 — cada dimensão é um
+ * ARRAY de ids; a semântica de interseção AND-entre/OR-dentro vive em
+ * `queries/budgets.ts`). Categoria e Instituição têm `canCreate` + criação inline
+ * (mesmo mecanismo de `GoalsManager`/`NetWorthManager`: state local de opções +
+ * injeção otimista no `onCreate`, resincronizado durante o render se `formOptions`
+ * mudar). Seção, Membro e Tipo de tabela usam `canCreate={false}` — não se cria essas
+ * entidades a partir daqui. Categoria/Instituição não recebem prop de papel porque os
+ * dois call-sites só renderizam/abrem o dialog para quem já tem papel editor (o botão
+ * "+" some quando `!canEdit`); o server (`createCategoryAction`/`createInstitutionAction`)
+ * re-valida o papel de qualquer forma.
  */
 export function BudgetFormDialog({
   open,
@@ -144,6 +204,13 @@ export function BudgetFormDialog({
     setCategoryOptions(formOptions.categories);
     setInstitutionOptions(formOptions.institutions);
   }
+
+  // Responsáveis não são criáveis (sem state local): só normaliza o shape para o
+  // `CreatableEntitySelect` (`{ id, name }`). `name` já vem resolvido (partyDisplayMap).
+  const memberOptions = useMemo<DimOption[]>(
+    () => formOptions.members.map((mb) => ({ id: mb.id, name: mb.name })),
+    [formOptions.members],
+  );
 
   const form = useForm<CreateBudgetInput>({
     resolver: zodResolver(createBudgetSchema),
@@ -241,139 +308,55 @@ export function BudgetFormDialog({
         <Stack spacing={2.5}>
           {/* ── Dimensões ── */}
           <Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                mb: 1,
-                display: "block",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                fontSize: "0.65rem",
-              }}
-            >
+            <Typography variant="overline" sx={{ mb: 1, display: "block" }}>
               {m.budgets.form.dimensionsTitle}
             </Typography>
-            {form.formState.errors.sectionId && (
+            {form.formState.errors.sectionIds && (
               <Typography variant="caption" color="error" sx={{ mb: 1, display: "block" }}>
-                {form.formState.errors.sectionId.message}
+                {form.formState.errors.sectionIds.message}
               </Typography>
             )}
             <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
-              <Controller
-                name="sectionId"
+              <MultiDimField
                 control={form.control}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    select
-                    size="small"
-                    label={m.budgets.fields.section}
-                    value={field.value ?? ""}
-                    onChange={(e) => field.onChange(e.target.value || undefined)}
-                    error={!!fieldState.error}
-                  >
-                    <MenuItem value="">{m.budgets.fields.noDimension}</MenuItem>
-                    {formOptions.sections.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>
-                        {s.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
+                name="sectionIds"
+                label={m.budgets.fields.section}
+                options={formOptions.sections}
+                canCreate={false}
+                onCreate={noCreate}
               />
-
-              <Controller
-                name="categoryId"
+              <MultiDimField
                 control={form.control}
-                render={({ field, fieldState }) => (
-                  <Box>
-                    <CreatableEntitySelect
-                      value={toSelectValue(field.value)}
-                      onChange={(id) => field.onChange(fromSelectValue(id))}
-                      options={categoryOptions}
-                      onCreate={onCreateCategory}
-                      canCreate
-                      variant="outlined"
-                      label={m.budgets.fields.category}
-                      ariaLabel={m.budgets.fields.category}
-                      placeholderNone={m.budgets.fields.noDimension}
-                      sx={{ width: "100%" }}
-                    />
-                    {fieldState.error && (
-                      <Typography
-                        variant="caption"
-                        color="error"
-                        sx={{ mt: 0.5, display: "block" }}
-                      >
-                        {fieldState.error.message}
-                      </Typography>
-                    )}
-                  </Box>
-                )}
+                name="categoryIds"
+                label={m.budgets.fields.category}
+                options={categoryOptions}
+                canCreate
+                onCreate={onCreateCategory}
               />
-
-              <Controller
-                name="memberUserId"
+              <MultiDimField
                 control={form.control}
-                render={({ field }) => (
-                  <TextField
-                    select
-                    size="small"
-                    label={m.budgets.fields.member}
-                    value={field.value ?? ""}
-                    onChange={(e) => field.onChange(e.target.value || undefined)}
-                  >
-                    <MenuItem value="">{m.budgets.fields.noDimension}</MenuItem>
-                    {formOptions.members.map((mb) => (
-                      <MenuItem key={mb.id} value={mb.id}>
-                        {mb.name ?? mb.email}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
+                name="memberUserIds"
+                label={m.budgets.fields.member}
+                options={memberOptions}
+                canCreate={false}
+                onCreate={noCreate}
               />
-
-              <Controller
-                name="institutionId"
+              <MultiDimField
                 control={form.control}
-                render={({ field }) => (
-                  <CreatableEntitySelect
-                    value={toSelectValue(field.value)}
-                    onChange={(id) => field.onChange(fromSelectValue(id))}
-                    options={institutionOptions}
-                    onCreate={onCreateInstitution}
-                    canCreate
-                    variant="outlined"
-                    label={m.budgets.fields.institution}
-                    ariaLabel={m.budgets.fields.institution}
-                    placeholderNone={m.budgets.fields.noDimension}
-                    sx={{ width: "100%" }}
-                  />
-                )}
+                name="institutionIds"
+                label={m.budgets.fields.institution}
+                options={institutionOptions}
+                canCreate
+                onCreate={onCreateInstitution}
               />
-
-              <Controller
-                name="tableTypeId"
+              <MultiDimField
                 control={form.control}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    select
-                    size="small"
-                    label={m.budgets.fields.tableType}
-                    value={field.value ?? ""}
-                    onChange={(e) => field.onChange(e.target.value || undefined)}
-                    error={!!fieldState.error}
-                    helperText={fieldState.error?.message}
-                    sx={{ gridColumn: "span 2" }}
-                  >
-                    <MenuItem value="">{m.budgets.fields.noDimension}</MenuItem>
-                    {formOptions.tableTypes.map((t) => (
-                      <MenuItem key={t.id} value={t.id}>
-                        {t.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
+                name="tableTypeIds"
+                label={m.budgets.fields.tableType}
+                options={formOptions.tableTypes}
+                canCreate={false}
+                onCreate={noCreate}
+                gridColumn="span 2"
               />
             </Box>
           </Box>
@@ -382,17 +365,7 @@ export function BudgetFormDialog({
 
           {/* ── Meta ── */}
           <Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                mb: 1.5,
-                display: "block",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                fontSize: "0.65rem",
-              }}
-            >
+            <Typography variant="overline" sx={{ mb: 1.5, display: "block" }}>
               {m.budgets.form.goalTitle}
             </Typography>
             <Stack spacing={1.5}>
@@ -465,17 +438,7 @@ export function BudgetFormDialog({
 
           {/* ── Quando ── */}
           <Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                mb: 0.5,
-                display: "block",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                fontSize: "0.65rem",
-              }}
-            >
+            <Typography variant="overline" sx={{ mb: 0.5, display: "block" }}>
               {m.budgets.form.periodTitle}
             </Typography>
             <Controller

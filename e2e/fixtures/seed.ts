@@ -63,6 +63,15 @@ async function seedConfig(accountId: string, ownerId: string) {
       data: subs.map((n) => ({ accountId, categoryId: cat.id, name: n })),
     });
   }
+  // Responsável (Spec 60): a dimensão "member" do Budget virou "Responsável" e suas opções
+  // vêm de `responsibleParty` (partyDisplayMap), NÃO dos account members. O seed cria os
+  // membros via Prisma direto (sem passar pelo service que auto-cria as personal parties),
+  // então sem esta linha a combobox "Responsável" ficaria vazia e não haveria o que
+  // selecionar em planning-dimensions.spec.ts. `external` usa o próprio `name` como
+  // display (sem resolução por User), garantindo um rótulo determinístico p/ o teste.
+  await prisma.responsibleParty.create({
+    data: { accountId, name: "Responsável E2E", kind: "external" },
+  });
 }
 
 async function main() {

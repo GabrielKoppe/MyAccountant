@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 import { partyIdSchema } from "./responsible-party";
-import { amountCentsSchema, cuidSchema, dateSchema } from "./shared";
+import {
+  amountCentsSchema,
+  cuidSchema,
+  dateSchema,
+  optionalDimensionIdNullable,
+} from "./shared";
 
 const nameSchema = z.string().min(1, "Nome obrigatório").max(80).trim();
 
@@ -47,8 +52,11 @@ const goalFieldsSchema = z.object({
     .refine(notTooFarFuture, tooFarMsg)
     .optional()
     .nullable(),
-  sectionId: cuidSchema.optional().nullable(),
-  categoryId: cuidSchema.optional().nullable(),
+  // undefined | null | "" → "sem dimensão" antes do `.cuid()` (ver shared.ts). Sem isso, o
+  // form emitindo "" faria o `.cuid()` falhar com "ID inválido" (silencioso na Meta, pois os
+  // campos Seção/Categoria não têm slot de erro visível).
+  sectionId: optionalDimensionIdNullable,
+  categoryId: optionalDimensionIdNullable,
 });
 
 export const createGoalSchema = goalFieldsSchema;

@@ -2,20 +2,34 @@ import { z } from "zod";
 
 import { m } from "@/lib/messages";
 
-const optionalId = z.string().cuid("ID inválido").optional();
+import { cuidSchema } from "./shared";
+
+// ─── Dimensões multi-valor (Spec 25) ────────────────────────────────────────
+// Cada dimensão do orçamento (seção/categoria/membro/instituição/tipo de tabela)
+// virou um ARRAY de ids. O helper `dimIds` normaliza a entrada ANTES de validar:
+//   - `undefined`/não-array (form sem seleção)                    → []
+//   - remove "" (opção "Nenhum" de um <Select>) e valores falsy   → filter(Boolean)
+//   - remove duplicados                                            → new Set
+//   - default([]) garante array mesmo quando a chave está ausente
+// Só então cada elemento restante é validado como cuid (`cuidSchema`). Isto é a
+// fonte única de validação (CLAUDE.md §5.4): vale para o client (zodResolver em
+// BudgetFormDialog) e para o server (defineAction), sem regra duplicada no form.
+const dimIds = z.preprocess(
+  (v) => (Array.isArray(v) ? [...new Set(v.filter(Boolean))] : []),
+  z.array(cuidSchema).default([]),
+);
 
 // Mensagens de erro vêm de `m.budgets.form.errors.*` (CLAUDE.md §5.10 — mensagens de UI
 // centralizadas, sem exceção pra Zod): este `.superRefine`/os `.min`/`.max` abaixo são a
-// ÚNICA fonte de validação (client via zodResolver em BudgetFormDialog.tsx + server);
-// nada disso é reimplementado no form.
+// ÚNICA fonte de validação (client via zodResolver em BudgetFormDialog.tsx + server).
 export const createBudgetSchema = z
   .object({
     name: z.string().max(80).trim().nullable().optional(),
-    sectionId: optionalId,
-    categoryId: optionalId,
-    memberUserId: optionalId,
-    institutionId: optionalId,
-    tableTypeId: optionalId,
+    sectionIds: dimIds,
+    categoryIds: dimIds,
+    memberUserIds: dimIds,
+    institutionIds: dimIds,
+    tableTypeIds: dimIds,
     amountCents: z.coerce.bigint().positive(m.budgets.form.errors.amountPositive),
     alertThresholdPercent: z
       .number()
@@ -29,31 +43,34 @@ export const createBudgetSchema = z
   })
   .superRefine((data, ctx) => {
     const hasDimension =
-      data.sectionId ||
-      data.categoryId ||
-      data.memberUserId ||
-      data.institutionId ||
-      data.tableTypeId;
+      data.sectionIds.length > 0 ||
+      data.categoryIds.length > 0 ||
+      data.memberUserIds.length > 0 ||
+      data.institutionIds.length > 0 ||
+      data.tableTypeIds.length > 0;
     if (!hasDimension) {
       ctx.addIssue({
         code: "custom",
         message: m.budgets.form.errors.noDimension,
-        path: ["sectionId"],
+        path: ["sectionIds"],
       });
     }
 
-    if (data.sectionId && data.categoryId) {
+    // Seção e categoria são hierarquicamente sobrepostas (categoria vive dentro de
+    // seções) — combiná-las produziria uma interseção quase sempre vazia. Idem
+    // seção × tipo de tabela. Mantido da regra escalar, agora sobre "tem ao menos 1".
+    if (data.sectionIds.length > 0 && data.categoryIds.length > 0) {
       ctx.addIssue({
         code: "custom",
         message: m.budgets.form.errors.sectionCategoryConflict,
-        path: ["categoryId"],
+        path: ["categoryIds"],
       });
     }
-    if (data.sectionId && data.tableTypeId) {
+    if (data.sectionIds.length > 0 && data.tableTypeIds.length > 0) {
       ctx.addIssue({
         code: "custom",
         message: m.budgets.form.errors.sectionTableTypeConflict,
-        path: ["tableTypeId"],
+        path: ["tableTypeIds"],
       });
     }
 

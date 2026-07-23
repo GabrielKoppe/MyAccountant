@@ -282,8 +282,42 @@ async function handleCellEdit(transactionId: string, field: string, value: unkno
 }
 ```
 
+## Id opcional vindo de `<Select>`/Autocomplete → aceite `""` como "ausente"
+
+`z.string().cuid().optional()` **só ignora `undefined`**. Um `<Select>` do MUI com
+uma opção "Nenhum" (`<MenuItem value="">`) ou um Autocomplete limpo entrega **`""`**
+(string vazia) — que cai no `.cuid()` e falha com **"ID inválido"**. Sintoma: o form
+não submete (silencioso se o campo não tem slot de erro visível) ou mostra "ID inválido"
+numa dimensão que o usuário nem preencheu. Bug real nos forms de Meta/Orçamento.
+
+Normalize "vazio" → ausência **no schema** (fonte única — vale client + server), nunca
+só no `onChange` do componente. Helpers prontos em `src/lib/schemas/shared.ts`:
+
+```ts
+// string | undefined  (quando "sem valor" = undefined)
+export const optionalDimensionId = z.preprocess(
+  (v) => (v === "" || v === null ? undefined : v),
+  cuidSchema.optional(),
+);
+// string | null | undefined  (quando "sem valor" = null)
+export const optionalDimensionIdNullable = z.preprocess(
+  (v) => (v === "" ? null : v),
+  cuidSchema.optional().nullable(),
+);
+```
+
+Para **arrays** de ids (multi-select), normalize antes de validar cada elemento:
+
+```ts
+const dimIds = z.preprocess(
+  (v) => (Array.isArray(v) ? [...new Set(v.filter(Boolean))] : []), // tira "" e duplicados
+  z.array(cuidSchema).default([]),
+);
+```
+
 ## Anti-patterns
 
+❌ `z.string().cuid().optional()` num id que vem de `<Select>` — `""` vira "ID inválido" (use os helpers acima)
 ❌ Duplicar tipos: criar uma interface manual + schema Zod separados
 ❌ Validar só no client (server confia no input)
 ❌ Validar só no server (UX ruim, sem feedback inline)

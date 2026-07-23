@@ -54,6 +54,12 @@ export function revalidateGeneralSettings(accountId: string) {
 /** Revalida a aba Orçamento do hub de planejamento (spec 47 §11 — antes settings/budgets). */
 export function revalidateBudgets(accountId: string) {
   revalidatePath(`/${accountId}/planning/budgets`);
+  // O `BudgetsWidget` também vive nos dashboards mensais e no resumo do mês (`/months/[monthId]`
+  // e `/dashboards/monthly/[monthId]`). Sem revalidar essas árvores, um orçamento criado/editado
+  // só aparecia no widget após um reload manual (o RSC servia dado em cache). "layout" revalida as
+  // páginas [monthId] aninhadas sem precisar do id concreto. Dispara só em mutação de budget (raro).
+  revalidatePath(`/${accountId}/dashboards`, "layout");
+  revalidatePath(`/${accountId}/months`, "layout");
 }
 
 /** Revalida a gestão de responsáveis (personas). */
