@@ -49,6 +49,7 @@ import { DialogShell } from "@/components/ui/DialogShell";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MoneyValue } from "@/components/ui/MoneyValue";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageInfoButton } from "@/components/ui/PageInfoButton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDateBr, parseLocalDate } from "@/lib/dates";
 import { containers, layout } from "@/lib/design-tokens";
@@ -348,21 +349,24 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
       <PageHeader
         title={m.netWorth.title}
         actions={
-          canEdit ? (
-            <Stack direction="row" spacing={layout.inline}>
-              <Button
-                variant="outlined"
-                startIcon={<SyncIcon />}
-                disabled={activeAccounts.length === 0}
-                onClick={() => openBalancesDialog(activeAccounts.map((a) => a.id))}
-              >
-                {m.netWorth.updateBalances}
-              </Button>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-                {m.netWorth.newAccount}
-              </Button>
-            </Stack>
-          ) : undefined
+          <Stack direction="row" spacing={layout.inline}>
+            <PageInfoButton guide={m.netWorth.guide} />
+            {canEdit && (
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<SyncIcon />}
+                  disabled={activeAccounts.length === 0}
+                  onClick={() => openBalancesDialog(activeAccounts.map((a) => a.id))}
+                >
+                  {m.netWorth.updateBalances}
+                </Button>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+                  {m.netWorth.newAccount}
+                </Button>
+              </>
+            )}
+          </Stack>
         }
       />
 

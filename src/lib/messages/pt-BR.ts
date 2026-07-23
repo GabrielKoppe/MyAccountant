@@ -1,3 +1,5 @@
+import type { PageGuide } from "@/lib/page-guide";
+
 export const messages = {
   common: {
     save: "Salvar",
@@ -13,6 +15,12 @@ export const messages = {
     none: "Nenhum",
     createNamed: (name: string) => `Criar "${name}"`,
     moreActions: "Mais ações",
+    pageInfo: {
+      ariaLabel: "Sobre esta página",
+      prev: "Voltar",
+      next: "Próximo",
+      done: "Entendi",
+    },
   },
   auth: {
     login: "Entrar",
@@ -1692,6 +1700,118 @@ export const messages = {
     staleSince: "Atualizado {when}",
     navLabel: "Patrimônio",
     vsPrevMonth: "vs. mês anterior",
+    guide: {
+      title: "Guia: Patrimônio",
+      pages: [
+        {
+          heading: "O que é",
+          blocks: [
+            {
+              kind: "text",
+              text: "A página Patrimônio mostra, num único número, quanto você tem hoje: seu patrimônio líquido. Ele é o total dos seus ativos menos o total dos seus passivos.",
+            },
+            {
+              kind: "list",
+              items: [
+                "Ativos: tudo o que soma a seu favor — conta corrente, poupança, investimentos, um imóvel.",
+                "Passivos: tudo o que você deve — saldo de cartão de crédito, financiamento, empréstimo.",
+                "Patrimônio líquido: ativos menos passivos, o número em destaque no topo da página.",
+              ],
+            },
+            {
+              kind: "text",
+              text: "Enquanto o resto do app acompanha o fluxo do mês (entradas e saídas), esta página acompanha o estoque: a foto do que você possui e do que deve, e como isso evolui ao longo do tempo.",
+            },
+          ],
+        },
+        {
+          heading: "Configuração",
+          blocks: [
+            {
+              kind: "text",
+              text: "Antes de ver seu patrimônio, cadastre as contas que compõem ativos e passivos. É rápido:",
+            },
+            {
+              kind: "steps",
+              items: [
+                'Clique em "Nova conta".',
+                "Escolha o tipo: Ativo ou Passivo. Atenção: o tipo não pode ser alterado depois de salvar.",
+                'Dê um nome claro (ex.: "Conta Nubank", "Financiamento do carro").',
+                "Opcionalmente, escolha a instituição. Se ela ainda não existir, dá para criar na hora pelo próprio campo.",
+                "Salve. Repita para cada conta, investimento ou dívida que quiser acompanhar.",
+              ],
+            },
+            {
+              kind: "tip",
+              tone: "warning",
+              title: "O tipo é definitivo",
+              text: "Ativo e passivo não podem ser trocados depois de criados, porque isso reescreveria todo o histórico. Se errar, arquive a conta e crie outra.",
+            },
+          ],
+        },
+        {
+          heading: "Como usar",
+          blocks: [
+            {
+              kind: "text",
+              text: "Com as contas cadastradas, mantenha os saldos atualizados para que o patrimônio reflita a realidade.",
+            },
+            {
+              kind: "list",
+              items: [
+                "Atualizar saldos: registra de uma vez o saldo de todas as contas ativas numa mesma data. É o fluxo ideal do fechamento do mês.",
+                "Atualizar uma conta só: pelo menu (três pontos) de cada linha, você registra ou corrige o saldo de uma conta específica.",
+                "Um saldo por data: se registrar de novo na mesma data, o valor anterior é substituído — sem duplicar.",
+                "Aviso de saldo antigo: se um saldo passar de cerca de 35 dias sem atualização, aparece um selo alertando que ele está desatualizado.",
+                "Variação do mês: o topo mostra quanto o patrimônio subiu ou caiu em relação ao mês anterior, com seta e cor.",
+                "Gráfico de evolução: acompanha seu patrimônio líquido mês a mês ao longo do último ano.",
+                "Arquivar em vez de excluir: ao vender um bem ou quitar uma dívida, arquive a conta — ela sai do cálculo atual mas o histórico do gráfico continua honesto. Excluir apaga tudo, sem volta.",
+              ],
+            },
+            {
+              kind: "tip",
+              tone: "info",
+              text: "Visualizadores (viewer) veem o patrimônio e o gráfico, mas só quem é owner ou editor pode cadastrar contas e atualizar saldos.",
+            },
+          ],
+        },
+        {
+          heading: "Exemplos",
+          blocks: [
+            {
+              kind: "example",
+              title: "Montando o patrimônio",
+              text: "Você cadastra como ativos: Conta corrente R$ 4.500,00, Tesouro Direto R$ 22.000,00 e um carro avaliado em R$ 38.000,00. Como passivos: fatura do cartão R$ 3.200,00 e financiamento do carro R$ 19.000,00. O patrimônio líquido fica: 64.500 menos 22.200 = R$ 42.300,00.",
+            },
+            {
+              kind: "example",
+              title: "Fechamento do mês",
+              text: 'No fim de julho você clica em "Atualizar saldos", confere a data, e digita o saldo de cada conta (o último valor já vem preenchido). Salvando, todos os saldos daquele dia são gravados de uma vez e o gráfico ganha mais um ponto na curva.',
+            },
+            {
+              kind: "example",
+              title: "Quitou uma dívida",
+              text: "Você terminou de pagar o financiamento do carro. Em vez de excluir, você arquiva o passivo. Ele deixa de pesar no patrimônio de hoje, mas os meses em que a dívida existia continuam corretos no gráfico.",
+            },
+          ],
+        },
+        {
+          heading: "Dica final",
+          blocks: [
+            {
+              kind: "tip",
+              tone: "success",
+              title: "Constância vale mais que precisão",
+              text: "Atualize os saldos sempre na mesma época do mês, mesmo que alguns valores sejam aproximados. É a regularidade que faz o gráfico de evolução contar uma história útil sobre o seu progresso.",
+            },
+            {
+              kind: "text",
+              text: "Os saldos aqui são informados por você — o app não busca valores no banco automaticamente. Passivos aparecem sempre com valor positivo (o quanto você deve) e são destacados como dívida, nunca como ganho.",
+            },
+          ],
+        },
+      ],
+    } satisfies PageGuide,
   },
   cashflowForecast: {
     navLabel: "Projeção",
@@ -1726,6 +1846,233 @@ export const messages = {
     emptyTitle: "Sem dados para projetar",
     emptyDescription: "Cadastre recorrentes e parcelas para ver sua projeção.",
     configureLink: "Configurar projeção",
+    guide: {
+      title: "Guia: Projeção de Fluxo de Caixa",
+      pages: [
+        {
+          heading: "O que é",
+          blocks: [
+            {
+              kind: "text",
+              text: "A Projeção de Fluxo de Caixa estima como seu saldo vai evoluir nos próximos meses, mês a mês, a partir de hoje. Em vez de só olhar o passado, ela projeta o futuro.",
+            },
+            {
+              kind: "text",
+              text: "A projeção parte de um saldo de partida e soma, para cada mês adiante, três coisas: seus lançamentos recorrentes (entradas e saídas), as parcelas já previstas e uma estimativa dos seus hábitos de gasto recentes.",
+            },
+            {
+              kind: "list",
+              items: [
+                "Ponto de ruptura: aponta o mês em que o saldo ficaria negativo, se houver.",
+                "Menor saldo (vale): o ponto mais baixo do período e quando ele acontece.",
+                "Saldo de partida: de onde a projeção começa a contar.",
+              ],
+            },
+            {
+              kind: "tip",
+              tone: "info",
+              text: "A projeção é sempre recalculada na hora. Ela não fica salva: sempre reflete seus dados e configurações mais recentes.",
+            },
+          ],
+        },
+        {
+          heading: "Configuração",
+          blocks: [
+            {
+              kind: "text",
+              text: 'A qualidade da projeção depende das preferências em Configurações → Projeção. Use o botão "Configurar projeção" no topo da página. Ajuste antes de confiar nos números.',
+            },
+            {
+              kind: "steps",
+              items: [
+                "Horizonte: escolha quantos meses à frente projetar (3, 6, 12 ou 24).",
+                "Cenário padrão: qual cenário aparece ao abrir a página (Otimista, Realista ou Conservador).",
+                "Fator otimista (%): quanto reduzir a estimativa de gastos no cenário otimista.",
+                "Fator conservador (%): quanto aumentar a estimativa de gastos no cenário conservador.",
+                "Janela de estimativa: quantos meses já fechados entram na média dos seus hábitos de gasto (3, 6 ou 12).",
+                "Saldo de partida (opcional): informe um valor manual ou deixe vazio para usar o acumulado dos meses já lançados.",
+              ],
+            },
+            {
+              kind: "tip",
+              tone: "warning",
+              text: 'Sem dados suficientes a projeção fica vazia ou pobre. Cadastre seus lançamentos recorrentes e parcelas, e tenha ao menos alguns meses lançados, para que a estimativa faça sentido. Um aviso de "Estimativa com poucos dados" aparece quando o histórico é curto.',
+            },
+          ],
+        },
+        {
+          heading: "Como usar",
+          blocks: [
+            {
+              kind: "text",
+              text: "Na página você vê os cards de resumo no topo e o gráfico de saldo ao longo do tempo. Explore assim:",
+            },
+            {
+              kind: "list",
+              items: [
+                "Alterne entre Otimista, Realista e Conservador pelo seletor de cenário. É só para visualizar: não altera sua configuração salva.",
+                "Acompanhe o ponto de ruptura para antecipar meses de aperto de caixa.",
+                "Observe o menor saldo para saber qual será seu momento mais apertado e quando.",
+                'Confira o saldo de partida: se estiver como "Saldo informado", vem do valor manual; se "Saldo acumulado", vem dos meses lançados.',
+              ],
+            },
+            {
+              kind: "tip",
+              tone: "info",
+              text: "O cenário escolhido no seletor recalcula o ponto de ruptura e o menor saldo na hora, para baterem com a linha exibida no gráfico.",
+            },
+          ],
+        },
+        {
+          heading: "Exemplos",
+          blocks: [
+            {
+              kind: "example",
+              title: "Mês de aperto à vista",
+              text: 'Saldo de partida de R$ 4.200,00. Nos próximos meses entram R$ 6.500,00 de recorrentes e saem R$ 5.900,00, mas em março cai a parcela final de uma viagem (R$ 3.100,00). O card de ponto de ruptura aponta "Fica negativo em março" no cenário conservador, avisando com antecedência.',
+            },
+            {
+              kind: "example",
+              title: "Comparando cenários",
+              text: "No realista o menor saldo do período é R$ 900,00 em abril. Ao trocar para o conservador (fator de 15%), a estimativa de gastos sobe e o menor saldo cai para -R$ 450,00. Isso mostra a margem de segurança que você tem se os gastos vierem acima da média.",
+            },
+          ],
+        },
+        {
+          heading: "Dica final",
+          blocks: [
+            {
+              kind: "tip",
+              tone: "success",
+              text: "Use o cenário conservador para planejar com folga e o otimista para enxergar o teto. Se a projeção parecer distante da realidade, ajuste a janela de estimativa e mantenha recorrentes e parcelas em dia: quanto melhor o cadastro, mais fiel a previsão.",
+            },
+          ],
+        },
+      ],
+    } satisfies PageGuide,
+  },
+  planning: {
+    guide: {
+      title: "Guia: Planejamento",
+      pages: [
+        {
+          heading: "Visão geral",
+          blocks: [
+            {
+              kind: "text",
+              text: "O Planejamento é a página onde você define para onde seu dinheiro vai daqui pra frente. Ele reúne duas coisas diferentes em abas separadas: Metas e Orçamento.",
+            },
+            {
+              kind: "list",
+              items: [
+                "Metas: objetivos de poupança. Você define quanto quer juntar e até quando, e acompanha o progresso conforme faz aportes.",
+                "Orçamento: limites de gasto por mês. Você define um teto (ex.: gastar no máximo X em Alimentação) e vê quanto já consumiu.",
+              ],
+            },
+            {
+              kind: "tip",
+              tone: "info",
+              title: "Como escolher a aba",
+              text: "Regra simples: se você quer JUNTAR dinheiro, use Metas. Se você quer NÃO PASSAR de um valor, use Orçamento. Metas medem acúmulo; Orçamento mede consumo.",
+            },
+            {
+              kind: "text",
+              text: "O Planejamento é compartilhado entre todos os membros da conta. Quem tem papel de leitor (viewer) enxerga tudo, mas não cria nem edita.",
+            },
+          ],
+        },
+        {
+          heading: "Metas",
+          blocks: [
+            {
+              kind: "text",
+              text: "Uma meta é um objetivo de poupança com valor-alvo e, opcionalmente, um prazo. O progresso vem dos aportes que você registra ao longo do tempo.",
+            },
+            {
+              kind: "steps",
+              items: [
+                "Clique em Nova meta e informe um nome (ex.: Reserva de emergência).",
+                "Defina o valor-alvo em reais (quanto você quer juntar).",
+                "Opcional: escolha um prazo (data-limite) para atingir a meta.",
+                "Opcional: associe uma seção ou categoria de poupança para receber sugestões de aporte.",
+              ],
+            },
+            {
+              kind: "list",
+              items: [
+                "Aportar: registre um valor guardado, com data e uma observação opcional. A barra de progresso sobe.",
+                "Ritmo: cada meta mostra um selo — No prazo, Adiantado, Atrasado, Sem aportes ou Atingida.",
+                "Aporte mensal necessário: se a meta tem prazo, o app mostra quanto guardar por mês para chegar lá.",
+                "Detalhes: abra a meta para ver o gráfico de evolução (real x ritmo ideal), o quanto cada membro contribuiu e o histórico de aportes.",
+                "Arquivar: guarde metas concluídas ou abandonadas sem apagar o histórico — elas saem do resumo mas podem voltar.",
+              ],
+            },
+            {
+              kind: "tip",
+              tone: "info",
+              text: "Registrar um aporte é apenas uma anotação de progresso na meta. Não move saldo de conta nem cria lançamento — serve para acompanhar quanto você já juntou.",
+            },
+          ],
+        },
+        {
+          heading: "Orçamento",
+          blocks: [
+            {
+              kind: "text",
+              text: "Um orçamento é um limite de gasto mensal. Você escolhe uma dimensão para controlar e um valor máximo; o app compara com o que já foi gasto no mês.",
+            },
+            {
+              kind: "steps",
+              items: [
+                "Clique em Novo orçamento.",
+                "Escolha a dimensão a controlar: seção, categoria, membro, instituição ou tipo de tabela.",
+                "Defina o valor-limite mensal.",
+                "Opcional: ajuste o limiar de alerta (padrão 80%) e escolha se o orçamento se repete todo mês.",
+              ],
+            },
+            {
+              kind: "list",
+              items: [
+                "Barra de progresso: mostra gasto vs. limite e o percentual usado.",
+                "Status por cor: No limite (ok), Atenção (ao passar do limiar de alerta) e Ultrapassado (chegou a 100% ou mais).",
+                "Hero de resumo: total orçado, total gasto e a contagem de orçamentos ok / em atenção / ultrapassados.",
+                "Também no dashboard: os orçamentos aparecem no dashboard mensal, junto às linhas de gasto e num bloco dedicado.",
+              ],
+            },
+            {
+              kind: "tip",
+              tone: "info",
+              text: "O orçamento considera apenas os gastos (saídas) do mês. Ele controla limite de gasto — não é usado para metas de receita ou de poupança.",
+            },
+          ],
+        },
+        {
+          heading: "Exemplos e dicas",
+          blocks: [
+            {
+              kind: "example",
+              title: "Uma meta de poupança",
+              text: "Reserva de emergência: alvo de R$ 10.000 até dez/2026. Você aporta R$ 800 num mês, R$ 1.200 no outro. A barra sobe e o selo mostra se você está No prazo ou Atrasado. Se estiver faltando, o app indica algo como guardar R$ 1.500/mês para chegar no prazo.",
+            },
+            {
+              kind: "example",
+              title: "Um orçamento de gasto",
+              text: "Alimentação: limite de R$ 1.200/mês. Ao chegar em R$ 960 (80%), a barra fica em atenção. Passando de R$ 1.200, ela marca Ultrapassado — sinal de que você estourou o teto naquele mês.",
+            },
+            {
+              kind: "tip",
+              tone: "success",
+              text: "Use as duas juntas: Orçamento segura os gastos do mês e libera sobra; Metas transformam essa sobra em objetivos concretos (viagem, reserva, entrada de imóvel).",
+            },
+            {
+              kind: "tip",
+              tone: "warning",
+              text: "As sugestões de aporte de uma meta só aparecem se você associar a ela uma seção ou categoria que represente poupança. Sem essa dimensão, o recurso fica inativo.",
+            },
+          ],
+        },
+      ],
+    } satisfies PageGuide,
   },
   goals: {
     // Hub "Planejamento" (§2.2/§5.1, spec 47) — AppBar + PageHeader do shell.

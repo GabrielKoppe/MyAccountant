@@ -16,6 +16,7 @@ import { LazyCashflowForecastChart } from "@/components/dashboards/charts/lazy";
 import { AppLink } from "@/components/ui/AppLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageInfoButton } from "@/components/ui/PageInfoButton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { containers, layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
@@ -99,14 +100,17 @@ export function ForecastManager({ accountId, forecast }: Props) {
         title={m.cashflowForecast.title}
         description={m.cashflowForecast.fromToday}
         actions={
-          <Button
-            component={AppLink}
-            href={`/${accountId}/settings/forecast`}
-            variant="outlined"
-            startIcon={<SettingsIcon />}
-          >
-            {m.cashflowForecast.configureLink}
-          </Button>
+          <Stack direction="row" spacing={layout.inline}>
+            <PageInfoButton guide={m.cashflowForecast.guide} />
+            <Button
+              component={AppLink}
+              href={`/${accountId}/settings/forecast`}
+              variant="outlined"
+              startIcon={<SettingsIcon />}
+            >
+              {m.cashflowForecast.configureLink}
+            </Button>
+          </Stack>
         }
       />
 
