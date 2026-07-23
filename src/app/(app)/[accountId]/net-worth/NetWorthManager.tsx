@@ -18,14 +18,11 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
-import FormControl from "@mui/material/FormControl";
 import IconButton from "@mui/material/IconButton";
-import InputLabel from "@mui/material/InputLabel";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import ToggleButton from "@mui/material/ToggleButton";
@@ -38,6 +35,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
 
+import { createInstitutionAction } from "@/actions/account-settings";
 import {
   archiveBalanceAccountAction,
   createBalanceAccountAction,
@@ -46,6 +44,7 @@ import {
   upsertBalanceSnapshotsAction,
 } from "@/actions/net-worth";
 import { ChartSkeleton } from "@/components/dashboards/charts/ChartSkeleton";
+import { CreatableEntitySelect } from "@/components/transactions/CreatableEntitySelect";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MoneyValue } from "@/components/ui/MoneyValue";
@@ -108,6 +107,25 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
   const [isPending, startTransition] = useTransition();
 
   const [accounts, setAccounts] = useState<BalanceAccountRow[]>(overview.accounts);
+  // Opções de instituição do dialog criar/editar conta — em state local (não lidas
+  // direto da prop `institutions`) porque o "＋ Criar" do CreatableEntitySelect
+  // (onCreateInstitution abaixo) precisa injetar a opção recém-criada sem esperar
+  // o round-trip de router.refresh(). Mesmo mecanismo de GoalsManager.tsx
+  // (categoryOptions) e TransactionAliasesManager.tsx: a Manager é dona da lista,
+  // a action só persiste.
+  const [institutionOptions, setInstitutionOptions] = useState<InstitutionOption[]>(institutions);
+
+  // Re-sincroniza com o servidor sempre que o RSC pai refizer o fetch (após
+  // router.refresh()) — cobre o caso de outra sessão/aba ter criado uma instituição
+  // nesse meio tempo. Ajuste feito DURANTE o render, não em `useEffect` (evita a
+  // cascata de re-render extra que o efeito causaria — padrão "Adjusting state
+  // when a prop changes", react.dev/learn/you-might-not-need-an-effect; mesmo
+  // idioma de GoalsManager.tsx).
+  const [prevInstitutions, setPrevInstitutions] = useState(institutions);
+  if (institutions !== prevInstitutions) {
+    setPrevInstitutions(institutions);
+    setInstitutionOptions(institutions);
+  }
 
   // Dialog: criar/editar conta
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
@@ -149,6 +167,23 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
   });
   const { fields } = useFieldArray({ control: balancesForm.control, name: "entries" });
 
+  // Criação inline de instituição no campo do dialog (CreatableEntitySelect, "＋
+  // Criar 'X'") — mesmo mecanismo de GoalsManager.tsx (onCreateCategory): cria no
+  // server e injeta em `institutionOptions` (state local acima), então a opção
+  // nova aparece e fica selecionada assim que o id volta.
+  async function onCreateInstitution(name: string): Promise<string | null> {
+    const result = await createInstitutionAction(accountId, { name });
+    const ok = handle(result);
+    if (!ok || !result.ok) return null;
+    setInstitutionOptions((prev) =>
+      [...prev, { id: result.data.institutionId, name }].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
+    );
+    enqueueSnackbar(m.transactions.options.created, { variant: "success" });
+    return result.data.institutionId;
+  }
+
   function openCreate() {
     setEditTarget(null);
     form.reset({ kind: "asset", name: "", institutionId: null });
@@ -179,7 +214,7 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
         const ok = handle(result);
         if (!ok) return;
         const institutionName =
-          institutions.find((i) => i.id === values.institutionId)?.name ?? null;
+          institutionOptions.find((i) => i.id === values.institutionId)?.name ?? null;
         setAccounts((prev) =>
           prev.map((a) =>
             a.id === editTarget.id
@@ -200,7 +235,7 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
         const ok = handle(result);
         if (!ok || !result.ok) return;
         const institutionName =
-          institutions.find((i) => i.id === values.institutionId)?.name ?? null;
+          institutionOptions.find((i) => i.id === values.institutionId)?.name ?? null;
         setAccounts((prev) => [
           ...prev,
           {
@@ -574,21 +609,18 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
               name="institutionId"
               control={form.control}
               render={({ field }) => (
-                <FormControl fullWidth>
-                  <InputLabel>{m.netWorth.institutionLabel}</InputLabel>
-                  <Select
-                    label={m.netWorth.institutionLabel}
-                    value={field.value ?? ""}
-                    onChange={(e) => field.onChange(e.target.value === "" ? null : e.target.value)}
-                  >
-                    <MenuItem value="">{m.common.none}</MenuItem>
-                    {institutions.map((inst) => (
-                      <MenuItem key={inst.id} value={inst.id}>
-                        {inst.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <CreatableEntitySelect
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                  options={institutionOptions}
+                  onCreate={onCreateInstitution}
+                  canCreate={canEdit}
+                  variant="outlined"
+                  label={m.netWorth.institutionLabel}
+                  ariaLabel={m.netWorth.institutionLabel}
+                  placeholderNone={m.common.none}
+                  sx={{ width: "100%" }}
+                />
               )}
             />
           </Stack>

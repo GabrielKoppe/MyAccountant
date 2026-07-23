@@ -64,3 +64,32 @@ suíte completa (jsdom, ~890 testes) estoura timeouts de espera de forma não-de
 para confirmar verde. Fix real (futuro): usar fake timers (`vi.useFakeTimers`) e
 `findBy*`/`waitFor` com timeout explícito em vez de esperas implícitas; ou marcar
 `{ retry: 2 }` nesses casos. Não relacionado à Spec 23.
+
+---
+
+## `next typegen` após rota top-level nova (Next 16)
+
+**Sintoma**: `pnpm typecheck` falha com erro de tipo de rota (`.next/types/routes.d.ts`
+stale) ao adicionar uma rota top-level nova (ex.: `/planning`).
+
+**Causa**: Next 16 gera tipos de rota em build; o cache não conhece a rota nova
+mid-session.
+
+**Como evitar**: rodar `docker compose exec app npx next typegen` antes do
+`typecheck` ao criar rota nova (regenera sem `next build` completo).
+
+---
+
+## `eslint --fix` / `import/order` quebra teste com mock indireto
+
+**Sintoma**: teste que dependia de `vi.mock` registrado num helper (ex.:
+`tests/mocks/prisma.ts` importado como `prismaMock`) passa a tentar conexão real
+(Postgres) e falha após um `eslint --fix`.
+
+**Causa**: `import/order` reordenou o import do helper de mock para depois do
+módulo testado; como o `vi.mock` mora no helper (não é hoisted pelo Vitest como um
+`vi.mock` no próprio arquivo), o mock não é registrado a tempo.
+
+**Como evitar**: NÃO rodar `eslint --fix`/`import/order` em arquivos de teste com
+mock indireto; a ordem de import é semanticamente significativa. Blindar com
+`// eslint-disable-next-line import/order` + comentário na linha do import do helper.

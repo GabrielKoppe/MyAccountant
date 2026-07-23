@@ -99,4 +99,7 @@ export const WIDGET_ICONS: Record<string, ComponentType<SvgIconProps>> = {
 
   // Spec 48
   "cashflow-forecast": TrendingUpIcon, // já importado acima (kpi-income)
+
+  // Spec 47
+  "goal-progress": SavingsIcon, // já importado acima (kpi-savings-rate)
 };

@@ -19,6 +19,7 @@ import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
 import { CashflowForecastWidget } from "@/components/dashboards/panels/CashflowForecastWidget";
+import { GoalProgressWidget } from "@/components/dashboards/panels/GoalProgressWidget";
 import { MemberYearlyWidget } from "@/components/dashboards/panels/MemberYearlyWidget";
 import { NetWorthEvolutionWidget } from "@/components/dashboards/panels/NetWorthEvolutionWidget";
 import { TopCategoriesWidget } from "@/components/dashboards/panels/TopCategoriesWidget";
@@ -29,6 +30,7 @@ import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import { kpiCustomConfigSchema, type TopCategoriesConfig } from "@/lib/schemas/widget-config";
 import type { CashflowForecast } from "@/server/queries/cashflow-forecast";
 import type { SectionMeta, CategorySum, MonthSummary } from "@/server/queries/dashboards";
+import type { GoalsWidgetData } from "@/server/queries/goals";
 import type { KpiCustomResult } from "@/server/queries/kpi-custom";
 import type { MemberTrendSeries, MemberBreakdownRow } from "@/server/queries/member-analytics";
 import type { SerializedSandboxResult } from "@/server/queries/sandbox";
@@ -73,6 +75,8 @@ type Props = {
   }[];
   // Spec 48 — null quando o widget "cashflow-forecast" não está visível (fetch gated na page).
   forecast: CashflowForecast | null;
+  // Spec 47 — null quando o widget "goal-progress" não está visível (fetch gated na page).
+  goalsData: GoalsWidgetData | null;
 };
 
 export function YearlyDashboardClient({
@@ -105,6 +109,8 @@ export function YearlyDashboardClient({
   netWorthSeries,
   // Spec 48
   forecast,
+  // Spec 47
+  goalsData,
 }: Props) {
   const yearTotalBigInt = BigInt(yearTotal);
   const yearlyIncomeBigInt = BigInt(yearlyIncome);
@@ -267,6 +273,13 @@ export function YearlyDashboardClient({
             | "default"
             | "expanded"
         }
+      />
+    ) : null,
+    // Spec 47
+    "goal-progress": goalsData ? (
+      <GoalProgressWidget
+        data={goalsData}
+        renderMode={getRenderMode(widgets, "yearly", "goal-progress")}
       />
     ) : null,
   };

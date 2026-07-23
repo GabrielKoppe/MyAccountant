@@ -14,7 +14,7 @@ const variantStyles: Record<Variant, { bgcolor: string; color: string }> = {
   success: { bgcolor: "success.light", color: "success.main" },
   warning: { bgcolor: "warning.light", color: "warning.main" },
   danger: { bgcolor: "danger.subtle", color: "danger.main" },
-  neutral: { bgcolor: "neutral.subtle", color: "neutral.main" },
+  neutral: { bgcolor: "neutral.subtle", color: "text.secondary" },
 };
 
 export function StatusBadge({ variant, children }: Props) {

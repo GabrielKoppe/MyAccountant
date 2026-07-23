@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+// prismaMock precisa ser importado (e seu vi.mock("@/server/prisma", ...) registrado)
+// ANTES de qualquer módulo que importe @/server/prisma transitivamente — por isso este
+// import fica antes de getInsightsData, apesar do que import/order pediria. Não deixar
+// o eslint --fix reordenar isto de novo (regressão observada na Fase 11 da spec 47).
 import { prismaMock } from "@/../tests/mocks/prisma";
+
+// eslint-disable-next-line import/order -- ordem proposital, ver comentário acima
 import { getInsightsData } from "@/server/queries/insights";
 import {
   detectCategorySpikes,
@@ -10,7 +16,7 @@ import {
   orchestrate,
 } from "./insights-service";
 
-const HREF = "/acc-test-1/settings/budgets";
+const HREF = "/acc-test-1/planning/budgets";
 
 // ─── INS-01 — Pico de gasto por categoria ─────────────────────────
 

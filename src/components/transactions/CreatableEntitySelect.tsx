@@ -37,6 +37,12 @@ type Props = {
   /** Variante do controle. Nas linhas de transação use "standard" para casar com as demais colunas. */
   variant?: "standard" | "outlined";
   autoFocus?: boolean;
+  /** Label flutuante do MUI (mesmo comportamento de um TextField comum). Opcional e
+   * retrocompatível: os call-sites de linha/inline (tabela, popover, Alias) não passam
+   * esse prop e continuam sem label flutuante, só `ariaLabel` + placeholder. Os dialogs
+   * (Meta/Orçamento/Patrimônio) passam `label` para o campo ficar visualmente igual aos
+   * demais TextField do form, em vez da caption solta que existia antes. */
+  label?: string;
   ariaLabel?: string;
   placeholderNone?: string;
   sx?: SxProps<Theme>;
@@ -58,6 +64,7 @@ export function CreatableEntitySelect({
   disabled,
   variant = "standard",
   autoFocus,
+  label,
   ariaLabel,
   placeholderNone,
   sx,
@@ -227,6 +234,7 @@ export function CreatableEntitySelect({
           {...params}
           variant={variant}
           autoFocus={autoFocus}
+          label={label}
           placeholder={placeholderNone ?? m.common.none}
           inputProps={{ ...params.inputProps, "aria-label": ariaLabel }}
           InputProps={{

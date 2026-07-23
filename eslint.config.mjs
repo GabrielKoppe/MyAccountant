@@ -8,7 +8,20 @@ import unusedImports from "eslint-plugin-unused-imports";
 // regras customizadas do eslintrc anterior. `import` e os plugins react/a11y já vêm dos
 // configs do Next; aqui só adicionamos `unused-imports` e ajustes de regra.
 const config = [
-  { ignores: [".next/**", "node_modules/**", "coverage/**", "next-env.d.ts"] },
+  {
+    ignores: [
+      ".next/**",
+      "node_modules/**",
+      "coverage/**",
+      "next-env.d.ts",
+      // Artefatos de E2E (Playwright), gitignored (ver .gitignore) — JS vendorizado/minificado
+      // do trace viewer (ex.: sw.bundle.js, codeMirrorModule-*.js) disparava dezenas de
+      // "error" (@typescript-eslint/no-this-alias etc.) quando um run local deixava a pasta
+      // presente; nada a ver com código-fonte do projeto.
+      "playwright-report/**",
+      "test-results/**",
+    ],
+  },
   ...nextCoreWebVitals,
   ...nextTypescript,
   prettier,

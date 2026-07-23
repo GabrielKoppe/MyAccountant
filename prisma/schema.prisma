@@ -132,6 +132,7 @@ model User {
   mcpGrants                   McpGrant[]
   passwordResetTokens         PasswordResetToken[]
   auditLogsActed              AuditLog[]               @relation("AuditLogActor")
+  goalContributions           GoalContribution[]       @relation("GoalContributor")
 
   @@map("users")
 }
@@ -215,6 +216,8 @@ model Account {
   auditLogs            AuditLog[]
   balanceAccounts      BalanceAccount[]
   balanceSnapshots     BalanceSnapshot[]
+  goals                Goal[]
+  goalContributions    GoalContribution[]
 
   @@map("accounts")
 }
@@ -306,6 +309,7 @@ model ResponsibleParty {
   templateItems      TableTemplateItem[]      @relation("TemplateItemResponsibleParty")
   settingsDefaultOf  AccountSettings[]        @relation("SettingsDefaultResponsibleParty")
   transactionAliases TransactionAlias[]
+  goalContributions  GoalContribution[]
 
   @@unique([accountId, name])
   @@index([accountId])
@@ -393,6 +397,7 @@ model Section {
   transactions      Transaction[]
   budgets           Budget[]
   installmentGroups InstallmentGroup[]
+  goals             Goal[]
 
   @@unique([accountId, name])
   @@map("sections")
@@ -480,6 +485,9 @@ model Transaction {
   // Back-relation do vínculo unilateral do checklist (FK vive em checklist_completions;
   // nenhuma coluna é adicionada em transactions). onDelete: SetNull limpa o vínculo.
   checklistCompletions ChecklistCompletion[]
+  // Back-relation do vínculo opcional do aporte de meta (FK vive em goal_contributions;
+  // nenhuma coluna é adicionada em transactions). onDelete: SetNull limpa o vínculo.
+  goalContributions    GoalContribution[]
 
   @@index([tableId])
   @@index([accountId, monthId])
@@ -503,6 +511,7 @@ model Category {
   transactions       Transaction[]
   budgets            Budget[]
   transactionAliases TransactionAlias[]
+  goals              Goal[]
 
   @@unique([accountId, name])
   @@map("categories")
@@ -1089,4 +1098,54 @@ model BalanceSnapshot {
   @@index([accountId])
   @@index([balanceAccountId, capturedOn])
   @@map("balance_snapshots")
+}
+
+// =========================================
+// Goals (Spec 47)
+// =========================================
+
+model Goal {
+  id          String    @id @default(cuid())
+  accountId   String    @map("account_id")
+  name        String // "Viagem ao Japão", "Reserva de emergência"
+  targetCents BigInt    @map("target_cents")
+  deadline    DateTime? @db.Date // prazo opcional
+  sectionId   String?   @map("section_id") // dimensão opcional p/ sugerir aportes (GOAL-05)
+  categoryId  String?   @map("category_id")
+  isAchieved  Boolean   @default(false) @map("is_achieved") // auto-flag ao cruzar o alvo (DD-06)
+  archivedAt  DateTime? @map("archived_at") // null = ativa; preenchido = fora do agregado, histórico preservado (DD-02)
+  createdById String    @map("created_by_id") // scalar (padrão BalanceAccount, spec 46) — sem relação
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  account       Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  section       Section?           @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  category      Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  contributions GoalContribution[]
+
+  @@index([accountId])
+  @@map("goals")
+}
+
+model GoalContribution {
+  id                 String   @id @default(cuid())
+  accountId          String   @map("account_id")
+  goalId             String   @map("goal_id")
+  amountCents        BigInt   @map("amount_cents")
+  contributedOn      DateTime @map("contributed_on") @db.Date
+  byUserId           String   @map("by_user_id") // membro que aportou (base do split, GOAL-03)
+  responsiblePartyId String?  @map("responsible_party_id") // persona/party opcional (herda da tx vinculada — spec 60)
+  transactionId      String?  @map("transaction_id") // vínculo opcional ao lançamento
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  account          Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  goal             Goal              @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  byUser           User              @relation("GoalContributor", fields: [byUserId], references: [id], onDelete: Restrict)
+  responsibleParty ResponsibleParty? @relation(fields: [responsiblePartyId], references: [id], onDelete: SetNull)
+  transaction      Transaction?      @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([accountId])
+  @@index([goalId])
+  @@map("goal_contributions")
 }

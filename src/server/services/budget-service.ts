@@ -44,7 +44,7 @@ export async function updateBudget(input: UpdateBudgetInput, ctx: ActionContext)
     where: { id: input.budgetId },
     select: { accountId: true },
   });
-  if (!existing || existing.accountId !== ctx.accountId) throw new NotFoundError("Meta");
+  if (!existing || existing.accountId !== ctx.accountId) throw new NotFoundError("Orçamento");
 
   if (input.memberUserId) {
     const member = await prisma.accountMember.findUnique({
@@ -79,7 +79,7 @@ export async function deleteBudget(input: DeleteBudgetInput, ctx: ActionContext)
     where: { id: input.budgetId },
     select: { accountId: true },
   });
-  if (!existing || existing.accountId !== ctx.accountId) throw new NotFoundError("Meta");
+  if (!existing || existing.accountId !== ctx.accountId) throw new NotFoundError("Orçamento");
 
   await prisma.budget.delete({ where: { id: input.budgetId } });
 
@@ -116,7 +116,7 @@ export async function getBudgetTransactions(
       tableTypeId: true,
     },
   });
-  if (!budget) throw new NotFoundError("Meta");
+  if (!budget) throw new NotFoundError("Orçamento");
 
   const where: Prisma.TransactionWhereInput = {
     accountId: ctx.accountId,

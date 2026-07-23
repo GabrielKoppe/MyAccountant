@@ -9,6 +9,7 @@ import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { getCashflowForecast } from "@/server/queries/cashflow-forecast";
 import { getYearOverview, getTransactionCount } from "@/server/queries/dashboards";
+import { getGoalsWidgetData } from "@/server/queries/goals";
 import { getKpiCustomDataMap } from "@/server/queries/kpi-custom";
 import { getMemberYearlyTrend, getMemberYearlyBreakdown } from "@/server/queries/member-analytics";
 import { getNetWorthSeriesForYear } from "@/server/queries/net-worth";
@@ -98,25 +99,35 @@ export default async function YearlyDashboardPage({ params }: Props) {
   const hasNw = widgets.some((w) => w.widgetId === "net-worth-evolution" && w.visible);
   // Spec 48 — fetch gated: só roda a projeção de fluxo de caixa quando o widget está visível.
   const hasForecast = widgets.some((w) => w.widgetId === "cashflow-forecast" && w.visible);
+  // Spec 47 — fetch gated: só roda as metas de poupança quando o widget está visível.
+  const hasGoals = widgets.some((w) => w.widgetId === "goal-progress" && w.visible);
 
-  const [memberYearly, transactionCount, expenseCount, incomeCount, netWorthSeries, forecast] =
-    await Promise.all([
-      getMemberYearlyBreakdown(accountId, year),
-      getTransactionCount(
-        accountId,
-        { monthIds: yearMonthIds },
-        {
-          countInMonth: (transactionCountConfig?.countInMonth ?? "all") as "all" | "only",
-          sectionType: (transactionCountConfig?.sectionType ?? "all") as "all" | "subtract" | "add",
-          includePending: transactionCountConfig?.includePending ?? true,
-        },
-      ),
-      // breakdown para o wide variant
-      getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "subtract" }),
-      getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "add" }),
-      hasNw ? getNetWorthSeriesForYear(accountId, year) : Promise.resolve([]),
-      hasForecast ? getCashflowForecast(accountId) : Promise.resolve(null),
-    ]);
+  const [
+    memberYearly,
+    transactionCount,
+    expenseCount,
+    incomeCount,
+    netWorthSeries,
+    forecast,
+    goalsData,
+  ] = await Promise.all([
+    getMemberYearlyBreakdown(accountId, year),
+    getTransactionCount(
+      accountId,
+      { monthIds: yearMonthIds },
+      {
+        countInMonth: (transactionCountConfig?.countInMonth ?? "all") as "all" | "only",
+        sectionType: (transactionCountConfig?.sectionType ?? "all") as "all" | "subtract" | "add",
+        includePending: transactionCountConfig?.includePending ?? true,
+      },
+    ),
+    // breakdown para o wide variant
+    getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "subtract" }),
+    getTransactionCount(accountId, { monthIds: yearMonthIds }, { sectionType: "add" }),
+    hasNw ? getNetWorthSeriesForYear(accountId, year) : Promise.resolve([]),
+    hasForecast ? getCashflowForecast(accountId) : Promise.resolve(null),
+    hasGoals ? getGoalsWidgetData(accountId) : Promise.resolve(null),
+  ]);
 
   return (
     <YearlyDashboardClient
@@ -146,6 +157,7 @@ export default async function YearlyDashboardPage({ params }: Props) {
       incomeCount={incomeCount}
       netWorthSeries={netWorthSeries}
       forecast={forecast}
+      goalsData={goalsData}
     />
   );
 }

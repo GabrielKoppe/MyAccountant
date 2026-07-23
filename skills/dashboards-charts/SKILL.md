@@ -416,7 +416,35 @@ A linha do sparkline usa `getChartColors(mode)[PALETTE_IDX[color]]` para manter 
 
 ---
 
-## 9. Anti-patterns
+## 9. Glide-path (progresso real vs. ritmo ideal)
+
+Padrão usado em metas com prazo (`GoalGlidePathChart.tsx`, spec 47 §4.4/§5.4): compara o
+acúmulo real contra o ritmo ideal necessário para bater o alvo no prazo.
+
+```tsx
+<Area type="monotone" dataKey="actual" stroke={chartPalette[0]} fill={chartPalette[0]}
+  fillOpacity={0.16} strokeWidth={2.5} dot={false} />   {/* acúmulo real — sólida */}
+
+{hasIdeal && (
+  <Line type="monotone" dataKey="ideal" stroke={chartPalette[1]} strokeWidth={1.5}
+    strokeDasharray="5 4" dot={false} connectNulls={false} />
+  /* ritmo ideal — tracejada; só existe quando a meta TEM prazo. `ideal` vem `null` nos
+     pontos sem prazo ou além dele (goal-service.ts) — `connectNulls={false}` vira um
+     buraco em vez de reta; `hasIdeal` omite a Line inteira (+ legenda) quando a série
+     não tem NENHUM ponto ideal (meta sem deadline), em vez de plotar série invisível. */
+)}
+
+<ReferenceLine y={targetValue} stroke={theme.palette.divider} strokeDasharray="4 4"
+  label={{ value: "Alvo", position: "insideTopRight" }} />   {/* alvo — linha horizontal constante */}
+```
+
+Cores das duas séries via `getChartColors(mode)` (`chartPalette[0]`/`chartPalette[1]`), nunca
+hex. `Number(BigInt(str))/100` só na montagem do `data` do chart (borda de renderização,
+regra §1 deste skill).
+
+---
+
+## 10. Anti-patterns
 
 ❌ **Hex hardcoded em charts**: `fill="#1565c0"`. Sempre `getChartColors(mode)` ou `theme.palette.*`.
 

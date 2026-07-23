@@ -3,6 +3,8 @@
 > Status: implemented (BudgetsWidget, BudgetProgressBar, BudgetWidgetContent, settings/budgets, budget-service, budgets.ts action — 2026-07-11)
 > Insumo: docs/v2-analysis.md §6 F-04
 > Skills: [`multitenancy`](../skills/multitenancy/SKILL.md) · [`money-handling`](../skills/money-handling/SKILL.md) · [`server-actions`](../skills/server-actions/SKILL.md) · [`forms-zod-rhf`](../skills/forms-zod-rhf/SKILL.md) · [`prisma-conventions`](../skills/prisma-conventions/SKILL.md) · [`mui-patterns`](../skills/mui-patterns/SKILL.md) · [`design-system`](../skills/design-system/SKILL.md) · [`testing`](../skills/testing/SKILL.md)
+>
+> **⚠️ Superseded na superfície (spec 47, 2026-07-23):** a gestão de orçamentos migrou de `settings/budgets` para o hub **Planejamento** — `src/app/(app)/[accountId]/planning/budgets/` (aba "Orçamento") — e o rótulo de UI passou de "Metas" para **"Orçamento"**. O **comportamento** do `Budget` (modelo, cálculo, dimensões, combinações, progresso, widgets) documentado abaixo **permanece a fonte da verdade** — só a superfície e os rótulos mudaram. Ver spec 47 §2.2/§3.5. (O caminho `[locale]` citado em §6 é histórico; o app usa `(app)/[accountId]`.)
 
 ---
 
@@ -36,7 +38,7 @@ A meta é sempre definida em **nível de account** (visível e compartilhada por
 
 ### Configuração de metas
 
-- O SISTEMA DEVE permitir criar/editar/deletar metas na página de configurações (nova sub-seção "Metas").
+- O SISTEMA DEVE permitir criar/editar/deletar orçamentos na aba **Orçamento** do hub `/[accountId]/planning` (superseded pela spec 47 — antes ficava em `settings`, sub-seção "Metas"; realocado e renomeado). O componente de form (`BudgetFormDialog`) é reusado tanto na aba quanto no dashboard mensal.
 - O SISTEMA DEVE permitir criar uma meta diretamente do dashboard mensal via botão que abre um dialog — o mesmo componente de form usado na página de configurações deve ser reutilizado.
 - UMA META DEVE poder ser associada a exatamente uma das cinco dimensões: **seção**, **categoria**, **membro**, **instituição** ou **tipo de tabela**.
 - **Combinações de dimensões permitidas** (quando faz sentido cruzar dois critérios):

@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 
-import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
 import { getInsightsData, type AdherenceHistory, type BudgetRisk } from "@/server/queries/insights";
 
 // ─── Tipos ────────────────────────────────────────────────────────
@@ -172,7 +172,8 @@ async function computeInsights(
     Object.entries(data.priorCategoryExpenses).map(([id, arr]) => [id, arr.map((v) => BigInt(v))]),
   );
 
-  const budgetsHref = `/${accountId}/settings/budgets`;
+  // Spec 47 §11 (blast radius): gestão do Budget migrou de settings para o hub Planejamento.
+  const budgetsHref = `/${accountId}/planning/budgets`;
 
   const ranked: Ranked[] = [
     ...detectCategorySpikes({ current, prior }),

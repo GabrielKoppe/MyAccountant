@@ -546,6 +546,15 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
     },
+    // ─── Spec 47 ────────────────────────────────────────────────────────────
+    // Opt-in: reflete as metas de poupança ativas da account, sem config por instância.
+    {
+      id: "goal-progress",
+      labelKey: "goalProgress",
+      kind: "panel",
+      sizeVariants: WIDE_CHART_VARIANTS,
+      defaultVisible: false,
+    },
   ],
   month_summary: [
     {

@@ -287,6 +287,8 @@ docker compose exec app-e2e pnpm exec tsx e2e/fixtures/seed.ts
 ```
 
 > ⚠️ **Aviso de dados**: `docker compose down -v` é **global** — remove todos os volumes top-level do projeto, incluindo `postgres-data` (dev), independente de `--profile`. Para limpar só o DB de teste, use os comandos acima (`down` sem `-v` + `docker volume rm my-accountant_postgres-e2e-data`). O seed E2E (`e2e/fixtures/seed.ts`) faz um **reset global** das tabelas (deleta todas as linhas) — só deve rodar contra o container `app-e2e` (banco `myaccountant_e2e`), **nunca** contra `app` (dev), sob risco de apagar os dados de desenvolvimento.
+>
+> ⚠️ **`docker compose --profile e2e down` (sem `-v`) também para/remove os containers `app`/`postgres` do dev** (confirmado na prática) — serviços sem `profiles:` no compose são sempre considerados ativos, então entram no escopo do `down` junto com `postgres-e2e`/`app-e2e`/`e2e-runner`. Os dados do dev **não são perdidos** (o volume `postgres-data` não é tocado sem `-v`), mas o stack de dev fica fora do ar até você rodar `docker compose up -d` de novo. Se estiver com o dev rodando e só quiser limpar o e2e, rode `docker compose up -d` logo em seguida para restaurar o `app`/`postgres` do dev.
 
 ```bash
 # Email preview (React Email)

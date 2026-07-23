@@ -3,12 +3,11 @@ import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
-import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
+
+import { BUDGET_STATUS_COLOR, BUDGET_STATUS_ICON, getBudgetStatus } from "./budget-status";
 
 type Props = {
   label: string;
@@ -19,26 +18,6 @@ type Props = {
   compact?: boolean;
 };
 
-type Status = "ok" | "alert" | "exceeded";
-
-function getStatus(percent: number, threshold: number): Status {
-  if (percent >= 100) return "exceeded";
-  if (percent >= threshold) return "alert";
-  return "ok";
-}
-
-const STATUS_COLORS: Record<Status, "success" | "warning" | "error"> = {
-  ok: "success",
-  alert: "warning",
-  exceeded: "error",
-};
-
-const STATUS_ICONS: Record<Status, typeof CheckCircleOutlineIcon> = {
-  ok: CheckCircleOutlineIcon,
-  alert: WarningAmberIcon,
-  exceeded: ErrorOutlineIcon,
-};
-
 export function BudgetProgressBar({
   label,
   amountCents,
@@ -47,9 +26,9 @@ export function BudgetProgressBar({
   alertThresholdPercent,
   compact = false,
 }: Props) {
-  const status = getStatus(percent, alertThresholdPercent);
-  const color = STATUS_COLORS[status];
-  const Icon = STATUS_ICONS[status];
+  const status = getBudgetStatus(percent, alertThresholdPercent);
+  const color = BUDGET_STATUS_COLOR[status];
+  const Icon = BUDGET_STATUS_ICON[status];
   const clampedPercent = Math.min(percent, 100);
 
   const spent = formatCentsToBrl(BigInt(spentCents));
@@ -69,11 +48,13 @@ export function BudgetProgressBar({
               {label}
             </Typography>
           </Stack>
+          {/* U8 (fix wave): variant="mono" do tema (fontFamily+tabular-nums) — mesmo
+              caminho de GoalProgressBar.tsx, antes divergia (sem tabular-nums aqui). */}
           <Typography
-            variant="caption"
+            variant="mono"
             sx={{
               fontSize: "0.7rem",
-              fontFamily: "var(--font-jetbrains-mono), monospace",
+              fontWeight: 600,
               color: `${color}.main`,
               whiteSpace: "nowrap",
               ml: 1,
@@ -97,21 +78,21 @@ export function BudgetProgressBar({
   return (
     <Box sx={{ width: "100%" }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-        <Stack direction="row" alignItems="center" gap={0.75}>
-          <Icon sx={{ fontSize: 14, color: `${color}.main` }} />
-          <Typography variant="body2" fontWeight={500} noWrap>
-            {label}
-          </Typography>
+        <Stack direction="row" alignItems="center" gap={0.75} sx={{ minWidth: 0 }}>
+          <Icon sx={{ fontSize: 14, color: `${color}.main`, flexShrink: 0 }} />
+          {/* U9 (fix wave): Tooltip no nome — Metas (GoalCard) já tem, faltava aqui
+              quando o `label` trunca (noWrap) num card estreito. */}
+          <Tooltip title={label}>
+            <Typography variant="body2" fontWeight={500} noWrap>
+              {label}
+            </Typography>
+          </Tooltip>
         </Stack>
+        {/* U8 (fix wave): variant="mono" do tema + fontWeight:600 — paridade com
+            GoalProgressBar.tsx (lá já usava 600; aqui era 500, divergia). */}
         <Typography
-          variant="body2"
-          sx={{
-            fontFamily: "var(--font-jetbrains-mono), monospace",
-            fontWeight: 500,
-            color: `${color}.main`,
-            whiteSpace: "nowrap",
-            ml: 1,
-          }}
+          variant="mono"
+          sx={{ fontWeight: 600, color: `${color}.main`, whiteSpace: "nowrap", ml: 1 }}
         >
           {percent}%
         </Typography>
@@ -124,14 +105,20 @@ export function BudgetProgressBar({
         sx={{ height: 6, borderRadius: 3, mb: 0.5 }}
       />
 
+      {/* U8 (fix wave): <span style={}> trocado por Typography variant="mono" — mesmo
+          caminho tipográfico do resto do componente, sem style inline (CLAUDE.md §5.11). */}
       <Stack direction="row" justifyContent="space-between">
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
           {m.budgets.progress.spent}:{" "}
-          <span style={{ fontFamily: "var(--font-jetbrains-mono), monospace" }}>{spent}</span>
+          <Typography component="span" variant="mono" sx={{ fontSize: "0.7rem" }}>
+            {spent}
+          </Typography>
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
           {m.budgets.progress.goal}:{" "}
-          <span style={{ fontFamily: "var(--font-jetbrains-mono), monospace" }}>{goal}</span>
+          <Typography component="span" variant="mono" sx={{ fontSize: "0.7rem" }}>
+            {goal}
+          </Typography>
         </Typography>
       </Stack>
     </Box>

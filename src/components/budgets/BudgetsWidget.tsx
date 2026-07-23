@@ -147,7 +147,7 @@ export function BudgetsWidget({
         >
           {total === 0 ? (
             <Typography variant="caption" color="text.secondary" align="center" display="block">
-              Sem metas.
+              Sem orçamentos.
             </Typography>
           ) : (
             <Stack direction="row" alignItems="center" gap={2} sx={{ mt: 1.5 }}>
@@ -223,7 +223,7 @@ export function BudgetsWidget({
       <>
         <WidgetContainer
           title={m.budgets.title}
-          subtitle={total > 0 ? `${total} ${total === 1 ? "meta" : "metas"}` : undefined}
+          subtitle={total > 0 ? `${total} ${total === 1 ? "orçamento" : "orçamentos"}` : undefined}
           icon={WIDGET_ICONS["budgets"]}
           secondary={addButton}
           contentSx={{ overflow: "auto" }}
@@ -231,7 +231,7 @@ export function BudgetsWidget({
           {total === 0 ? (
             <Stack alignItems="center" sx={{ py: 2 }}>
               <Typography variant="caption" color="text.secondary">
-                Sem metas. {formOptions ? "Clique em + para criar." : ""}
+                Sem orçamentos. {formOptions ? "Clique em + para criar." : ""}
               </Typography>
             </Stack>
           ) : (
@@ -291,7 +291,7 @@ export function BudgetsWidget({
                           <Box>
                             {detail.transactions.length === 0 ? (
                               <Typography variant="caption" color="text.tertiary">
-                                Nenhuma transação encontrada para esta meta neste mês.
+                                Nenhuma transação encontrada para este orçamento neste mês.
                               </Typography>
                             ) : (
                               <TableContainer
@@ -442,7 +442,7 @@ export function BudgetsWidget({
     <>
       <WidgetContainer
         title={m.budgets.title}
-        subtitle={total > 0 ? `${total} ${total === 1 ? "meta" : "metas"}` : undefined}
+        subtitle={total > 0 ? `${total} ${total === 1 ? "orçamento" : "orçamentos"}` : undefined}
         icon={WIDGET_ICONS["budgets"]}
         secondary={addButton}
         contentSx={{ overflow: "auto" }}
@@ -450,7 +450,7 @@ export function BudgetsWidget({
         {total === 0 ? (
           <Stack alignItems="center" sx={{ py: 2 }}>
             <Typography variant="caption" color="text.secondary">
-              Sem metas. {formOptions ? "Clique em + para criar." : ""}
+              Sem orçamentos. {formOptions ? "Clique em + para criar." : ""}
             </Typography>
           </Stack>
         ) : (

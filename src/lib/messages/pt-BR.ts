@@ -12,6 +12,7 @@ export const messages = {
     close: "Fechar",
     none: "Nenhum",
     createNamed: (name: string) => `Criar "${name}"`,
+    moreActions: "Mais ações",
   },
   auth: {
     login: "Entrar",
@@ -238,7 +239,7 @@ export const messages = {
         topNValue: (n: number) => `Top ${n}`,
         // budgets
         showOnlyLabel: "Exibir",
-        showOnlyAll: "Todas as metas",
+        showOnlyAll: "Todos os orçamentos",
         showOnlyNearLimit: "Apenas próximas do limite",
         // top-transactions / filtered-transactions
         limitLabel: "Quantidade",
@@ -1135,14 +1136,14 @@ export const messages = {
         `Você gastou ${current} este mês — ${pct}% acima da média recente (${avg}).`,
       newCategoryTitle: (category: string) => `Nova categoria: ${category}`,
       newCategoryBody: (amount: string) => `Primeira vez com gastos nesta categoria: ${amount}.`,
-      budgetRiskTitle: (label: string) => `Meta perto do limite: ${label}`,
+      budgetRiskTitle: (label: string) => `Orçamento perto do limite: ${label}`,
       budgetRiskBodyCurrent: (percent: number, days: number) =>
-        `Você já usou ${percent}% da meta e ${
+        `Você já usou ${percent}% do orçamento e ${
           days === 1 ? "falta 1 dia" : `faltam ${days} dias`
         } no mês.`,
-      budgetRiskBodyHistoric: (percent: number) => `Atingiu ${percent}% da meta neste mês.`,
-      viewBudgetAction: "Ver metas",
-      adherenceTitle: (label: string) => `Meta sob controle: ${label}`,
+      budgetRiskBodyHistoric: (percent: number) => `Atingiu ${percent}% do orçamento neste mês.`,
+      viewBudgetAction: "Ver orçamentos",
+      adherenceTitle: (label: string) => `Orçamento sob controle: ${label}`,
       adherenceBody: (months: number) =>
         `Você ficou dentro do limite por ${months} meses seguidos. Continue assim!`,
     },
@@ -1158,7 +1159,7 @@ export const messages = {
         "kpi-savings-rate": "Taxa de Poupança",
         "kpi-top-category": "Maior Categoria",
         "kpi-pending": "Transações Pendentes",
-        budgets: "Metas de Orçamento",
+        budgets: "Orçamentos",
         "daily-heatmap": "Gastos por Dia",
         "category-treemap": "Distribuição por Categoria",
         "money-flow": "Fluxo de Dinheiro",
@@ -1199,12 +1200,14 @@ export const messages = {
         "net-worth-evolution": "Evolução do Patrimônio",
         // Spec 48
         "cashflow-forecast": "Projeção de Caixa",
+        // Spec 47
+        "goal-progress": "Progresso das Metas",
       },
       month_summary: {
         "kpi-income": "Entradas",
         "kpi-expenses": "Saídas",
         "kpi-balance": "Saldo",
-        budgets: "Metas de Orçamento",
+        budgets: "Orçamentos",
         "section-cards": "Resumo por Seção",
         "activity-lists": "Atividade Recente",
         "pending-transactions": "Pendentes",
@@ -1226,21 +1229,21 @@ export const messages = {
           "kpi-savings-rate": "Percentual da renda poupada",
           "kpi-top-category": "Categoria com maior gasto",
           "kpi-pending": "Transações pendentes no mês",
-          budgets: "Progresso das metas de orçamento",
+          budgets: "Progresso dos orçamentos",
           "daily-heatmap": "Intensidade de gastos por dia",
           "category-treemap": "Distribuição visual por categoria",
           "money-flow": "Diagrama Sankey de entradas e saídas",
           "section-breakdown": "Proporção de gastos por seção",
           "category-breakdown": "Proporção de gastos por categoria",
           "top-transactions": "Maiores transações do período",
-          insights: "Destaques automáticos: picos, metas em risco e categorias novas",
+          insights: "Destaques automáticos: picos, orçamentos em risco e categorias novas",
           "member-breakdown": "Distribuição e ranking de despesas por pessoa no mês",
           "member-list": "Ranking de membros por valor gasto no mês",
           "member-radar": "Gráfico de radar comparando gastos por categoria entre membros",
           analysis: "Gráfico configurável a partir de uma análise",
           "kpi-custom": "Indicador de uma métrica à sua escolha",
           // Spec 38
-          "kpi-budget-health": "Percentual médio de utilização das metas de orçamento",
+          "kpi-budget-health": "Percentual médio de utilização dos orçamentos",
           "kpi-transaction-count": "Quantidade de transações no período",
           "institution-breakdown": "Distribuição de saídas por instituição financeira",
           "week-chart": "Gastos agregados por semana do período do mês",
@@ -1267,18 +1270,20 @@ export const messages = {
           "net-worth-evolution": "Evolução do patrimônio líquido ao longo do ano",
           // Spec 48
           "cashflow-forecast": "Projeção do seu saldo para os próximos meses, a partir de hoje.",
+          // Spec 47
+          "goal-progress": "Progresso e ritmo das suas metas de poupança ativas",
         },
         month_summary: {
           "kpi-income": "Total de entradas no período",
           "kpi-expenses": "Total de saídas no período",
           "kpi-balance": "Saldo do mês",
-          budgets: "Progresso das metas de orçamento",
+          budgets: "Progresso dos orçamentos",
           "section-cards": "Totais e tabelas por seção",
           "activity-lists": "Transações pendentes, favoritas e recentes",
           "pending-transactions": "Transações aguardando confirmação",
           "favorite-transactions": "Transações marcadas como favoritas",
           "recent-transactions": "Últimas transações registradas no mês",
-          insights: "Destaques automáticos: picos, metas em risco e categorias novas",
+          insights: "Destaques automáticos: picos, orçamentos em risco e categorias novas",
           "kpi-custom": "Indicador de uma métrica à sua escolha",
           "filtered-transactions": "Lista de transações de um recorte filtrado",
           checklist: "Tarefas recorrentes a concluir no mês",
@@ -1582,18 +1587,25 @@ export const messages = {
     error: "Erro ao exportar. Tente novamente.",
   },
   budgets: {
-    title: "Metas de Orçamento",
-    nav: "Metas",
-    createButton: "Nova meta",
-    createTitle: "Nova meta",
-    editTitle: "Editar meta",
-    deleteTitle: "Excluir meta",
-    deleteConfirm: "Tem certeza que deseja excluir esta meta? Esta ação não pode ser desfeita.",
-    noMetas: "Nenhuma meta configurada.",
-    noMetasHint: "Defina metas para acompanhar seus gastos mensais.",
-    created: "Meta criada.",
-    updated: "Meta atualizada.",
-    deleted: "Meta excluída.",
+    // Spec 47 §2.3/§11 (tabela C13): rótulo migrou de Meta(s) para Orçamento(s)
+    // — Metas agora designa exclusivamente as metas de acúmulo (m.goals.*).
+    // Namespace/chaves mantidos (código não muda), só os VALORES pt-BR.
+    title: "Orçamentos",
+    nav: "Orçamento",
+    createButton: "Novo orçamento",
+    createTitle: "Novo orçamento",
+    editTitle: "Editar orçamento",
+    deleteTitle: "Excluir orçamento",
+    deleteConfirm:
+      "Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.",
+    noMetas: "Nenhum orçamento configurado.",
+    noMetasHint: "Defina orçamentos para acompanhar seus gastos mensais.",
+    // U10 (fix wave spec 47): caption na barra de ação — espelha m.goals.activeCount
+    // (GoalsManager.tsx, mr:"auto").
+    activeCount: (n: number) => `${n} ${n === 1 ? "orçamento ativo" : "orçamentos ativos"}`,
+    created: "Orçamento criado.",
+    updated: "Orçamento atualizado.",
+    deleted: "Orçamento excluído.",
     fields: {
       name: "Nome (opcional)",
       namePlaceholder: "Ex: Limite família",
@@ -1611,18 +1623,47 @@ export const messages = {
       month: "Mês",
       noDimension: "— Nenhum —",
     },
+    // Hero de KPIs da aba Orçamento (spec 47 §5.9, Fase 11) — harmonizado com o
+    // hero da aba Metas (§4.6/§5.2, m.goals.totalSaved/statusOverview/*Count).
+    hero: {
+      totalBudgeted: "Total orçado",
+      totalSpent: "Total gasto",
+      statusOverview: "Status geral",
+      okCount: (n: number) => `${n} no controle`,
+      attentionCount: (n: number) => `${n} em atenção`,
+      exceededCount: (n: number) => `${n} ${n === 1 ? "ultrapassado" : "ultrapassados"}`,
+    },
     progress: {
       spent: "Gasto",
-      goal: "Meta",
+      goal: "Orçamento",
       exceeded: "Ultrapassado",
       attention: "Atenção",
       onTrack: "No controle",
-      goalsTitle: "Metas do mês",
-      summaryTitle: "Metas",
-      noGoals: "Nenhuma meta ativa para este mês.",
-      addGoal: "Adicionar meta",
-      collapseGoals: "Ocultar metas",
-      expandGoals: "Ver metas",
+      goalsTitle: "Orçamentos do mês",
+      summaryTitle: "Orçamentos",
+      noGoals: "Nenhum orçamento ativo para este mês.",
+      addGoal: "Adicionar orçamento",
+      collapseGoals: "Ocultar orçamentos",
+      expandGoals: "Ver orçamentos",
+    },
+    // U13 (fix wave, spec 47): BudgetFormDialog.tsx tinha títulos de seção e
+    // mensagens de validação hardcoded (CLAUDE.md §5.10) — extraídos aqui. Follow-up
+    // (migração pra RHF+Zod) entregue depois: `errors.*` agora é a fonte única
+    // consumida pelo `.superRefine`/validações de `schemas/budget.ts` (fieldState.error
+    // do form só exibe o que o schema já valida — zero duplicação de regra).
+    form: {
+      dimensionsTitle: "Dimensões",
+      goalTitle: "Meta",
+      periodTitle: "Período",
+      errors: {
+        noDimension: "Selecione pelo menos uma dimensão",
+        sectionCategoryConflict: "Seção e categoria não podem ser combinadas",
+        sectionTableTypeConflict: "Seção e tipo de tabela não podem ser combinados",
+        amountPositive: "Valor deve ser positivo",
+        thresholdRange: "Informe um valor entre 1 e 99",
+        yearMonthRequired: "Informe o mês e ano",
+        recurringWithPeriod: "Orçamentos recorrentes não devem ter mês/ano específico",
+      },
     },
   },
   netWorth: {
@@ -1685,6 +1726,128 @@ export const messages = {
     emptyTitle: "Sem dados para projetar",
     emptyDescription: "Cadastre recorrentes e parcelas para ver sua projeção.",
     configureLink: "Configurar projeção",
+  },
+  goals: {
+    // Hub "Planejamento" (§2.2/§5.1, spec 47) — AppBar + PageHeader do shell.
+    navLabel: "Planejamento",
+    hubTitle: "Planejamento",
+    tabs: {
+      goals: "Metas",
+      budgets: "Orçamento",
+    },
+
+    // Aba Metas (§5.2)
+    title: "Metas",
+    newGoal: "Nova meta",
+    editGoal: "Editar meta",
+    // Entrada para o drawer de detalhe (§5.3, Fase 9) — mesma nomenclatura/ícone
+    // (VisibilityIcon) do "Ver detalhes" da transação (spec 27, TransactionRow.tsx).
+    viewDetails: "Ver detalhes",
+    deleteGoal: "Excluir meta",
+    deleteConfirm: (name: string) =>
+      `Tem certeza que deseja excluir a meta "${name}"? Esta ação não pode ser desfeita.`,
+    empty: "Nenhuma meta cadastrada.",
+    emptyHint: "Crie metas de poupança para acompanhar seu progresso rumo aos seus objetivos.",
+    // Zero metas ATIVAS, mas há metas arquivadas — a seção "Arquivadas" continua visível
+    // logo abaixo, então o EmptyState não pode soar como se o dado tivesse sumido.
+    emptyArchivedOnly: "Nenhuma meta ativa no momento.",
+    emptyArchivedOnlyHint:
+      "Você tem metas arquivadas — desarquive uma para retomar o acompanhamento, ou crie uma nova meta.",
+    activeCount: (n: number) => `${n} ${n === 1 ? "meta ativa" : "metas ativas"}`,
+
+    // Hero KPIs (§4.6/§5.2) — agregado só das metas ativas.
+    totalSaved: "Guardado",
+    totalTarget: "Alvo total",
+    contributedThisMonth: "Aportado este mês",
+    nextDeadline: "Próxima meta",
+    noUpcomingDeadline: "Nenhum prazo definido",
+    statusOverview: "Status das metas",
+    onTrackCount: (n: number) => `${n} no prazo`,
+    behindCount: (n: number) => `${n} ${n === 1 ? "atrasada" : "atrasadas"}`,
+    achievedCount: (n: number) => `${n} ${n === 1 ? "atingida" : "atingidas"}`,
+
+    // Card de meta (§5.2)
+    target: "Alvo",
+    saved: "Guardado",
+    monthlyNeeded: (v: string) => `Faltam ${v}/mês`,
+    overTarget: (v: string) => `${v} acima do alvo`,
+
+    // Badge de ritmo (GOAL-06, §5.5) — chaves = union `Pace` de goal-service.ts.
+    pace: {
+      achieved: "Atingida",
+      on_track: "No prazo",
+      ahead: "Adiantado",
+      behind: "Atrasado",
+      no_contribution: "Sem aportes",
+    },
+
+    // Dialog "Aportar" (§5.6)
+    contribute: "Aportar",
+    contributeTitle: "Registrar aporte",
+    contributed: "Aporte registrado.",
+    deleteContribution: "Excluir aporte",
+    // Função (não string fixa) — o drawer de histórico (§5.3) mostra vários aportes;
+    // o alvo precisa aparecer na confirmação para o usuário saber qual está excluindo.
+    deleteContributionConfirm: (target: string) =>
+      `Tem certeza que deseja excluir o aporte de ${target}? Esta ação não pode ser desfeita.`,
+    contributionDeleted: "Aporte excluído.",
+
+    // Campos de formulário — criar/editar meta e registrar aporte (§5.6)
+    fields: {
+      name: "Nome",
+      namePlaceholder: "Ex: Viagem ao Japão",
+      targetCents: "Valor alvo",
+      deadline: "Prazo (opcional)",
+      section: "Seção (opcional)",
+      category: "Categoria (opcional)",
+      noDimension: "— Nenhuma —",
+      amount: "Valor",
+      date: "Data",
+      notes: "Notas (opcional)",
+    },
+
+    // Detalhe da meta — drawer (§5.3)
+    deadlineLabel: (date: string) => `Vence em ${date}`,
+    glidePathTitle: "Progresso vs. ritmo ideal",
+    glidePath: {
+      actual: "Acúmulo real",
+      ideal: "Ritmo ideal",
+      target: "Alvo",
+    },
+    splitTitle: "Split por membro",
+    suggestionsTitle: "Aportes sugeridos",
+    // Título qualificado com a dimensão da meta (Fase 12, §5.3) — usado quando
+    // `dimensionLabel` vem preenchido (meta tem sectionId/categoryId resolvido pela
+    // query, goals.ts:getGoalSuggestions); cai para `suggestionsTitle` quando `null`.
+    suggestionsTitleWithDimension: (dimension: string) => `Aportes sugeridos em ${dimension}`,
+    suggestionsEmpty: "Nenhum aporte sugerido no momento.",
+    suggestionLink: "Vincular",
+    suggestionConfirm: "Vincular esta transação como aporte à meta?",
+    suggestionLinked: "Aporte vinculado à meta.",
+    historyTitle: "Histórico de aportes",
+    historyEmpty: "Nenhum aporte registrado ainda.",
+    // Fallbacks de exibição (§5.3) — mesma redação de m.transactions.removedUser/
+    // links.linkedNoDescription, namespace próprio (cada área mantém suas strings).
+    noDescription: "Sem descrição",
+    removedUser: "Usuário removido",
+    linkedToTransaction: "Vinculado a uma transação",
+
+    // Arquivar (§5.2, DD-02)
+    archive: "Arquivar",
+    unarchive: "Desarquivar",
+    archivedSection: "Arquivadas",
+    // Badge neutro no header do drawer de detalhe (Fase 12) — substitui o badge de
+    // ritmo (pace) quando a meta está arquivada: "Atrasada"/"Adiantada" não faz
+    // sentido fora do acompanhamento ativo. Singular (badge é por-meta), diferente
+    // de `archivedSection` (plural, label da seção/lista).
+    archivedBadge: "Arquivada",
+    archived: "Meta arquivada.",
+    unarchived: "Meta desarquivada.",
+
+    // Mensagens de sucesso (CRUD da meta)
+    created: "Meta criada.",
+    updated: "Meta atualizada.",
+    deleted: "Meta excluída.",
   },
   mcpConsent: {
     errorTitle: "Não foi possível continuar",

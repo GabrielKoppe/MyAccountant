@@ -51,9 +51,9 @@ export function revalidateGeneralSettings(accountId: string) {
   revalidatePath(`/${accountId}`);
 }
 
-/** Revalida configurações de metas/budgets. */
+/** Revalida a aba Orçamento do hub de planejamento (spec 47 §11 — antes settings/budgets). */
 export function revalidateBudgets(accountId: string) {
-  revalidatePath(`/${accountId}/settings/budgets`);
+  revalidatePath(`/${accountId}/planning/budgets`);
 }
 
 /** Revalida a gestão de responsáveis (personas). */
@@ -82,4 +82,9 @@ export function revalidateNetWorth(accountId: string) {
 export function revalidateForecastSettings(accountId: string) {
   revalidatePath(`/${accountId}/forecast`);
   revalidatePath(`/${accountId}/dashboards/yearly`, "layout");
+}
+
+/** Revalida a aba Metas do hub de planejamento (spec 47). */
+export function revalidateGoals(accountId: string) {
+  revalidatePath(`/${accountId}/planning/goals`);
 }

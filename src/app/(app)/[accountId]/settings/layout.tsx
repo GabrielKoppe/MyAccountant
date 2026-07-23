@@ -32,7 +32,6 @@ const editorLinks = [
   { href: "table-types", label: m.settings.nav.tableTypes },
   { href: "models", label: "Modelos de tabela" },
   { href: "templates", label: m.settings.nav.templates },
-  { href: "budgets", label: m.budgets.nav },
   { href: "forecast", label: m.settings.nav.forecast },
   visualizationEntry,
   { href: "connectors", label: m.settings.nav.connectors },
