@@ -1,37 +1,42 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import Badge from "@mui/material/Badge";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import NotificationsIcon from "@mui/icons-material/Notifications";
+import PersonAddAlt1Icon from "@mui/icons-material/PersonAddAlt1";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
-import Popover from "@mui/material/Popover";
-import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import { default as NotificationsNoneIcon } from "@mui/icons-material/Notifications";
-import PersonAddAlt1Icon from "@mui/icons-material/PersonAddAlt1";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { listAndMarkAllReadAction } from "@/actions/notifications";
+import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import type { NotificationItem } from "@/server/services/notification-service";
 
-const POLL_INTERVAL_MS = 5 * 60_000; // 5 minutos
-const FOCUS_DEBOUNCE_MS = 30_000; // 30 segundos
+/** Altura máxima da região de scroll da lista dentro do Menu (o Popover antigo era 480px;
+ * dentro do Menu de 240px a lista precisa do seu próprio scroll, mais compacto). */
+const NOTIFICATIONS_SCROLL_MAX_HEIGHT = 320;
 
 type Props = {
   accountId: string;
-  initialUnreadCount: number;
+  /** Chamado quando a lista é carregada e marcada como lida (host zera o badge). */
+  onAllRead: () => void;
+  /** Fecha o Menu do usuário inteiro antes de navegar (NAV-02b). */
+  onCloseMenu: () => void;
 };
 
 function NotificationIcon({ type }: { type: string }) {
@@ -43,108 +48,93 @@ function NotificationIcon({ type }: { type: string }) {
     case "invite_accepted":
       return <PersonAddAlt1Icon fontSize="small" sx={{ color: "accent.primary" }} />;
     default:
-      return <NotificationsNoneIcon fontSize="small" sx={{ color: "text.secondary" }} />;
+      return <NotificationsIcon fontSize="small" sx={{ color: "text.secondary" }} />;
   }
 }
 
-export function NotificationBell({ accountId, initialUnreadCount }: Props) {
+/**
+ * Seção "Notificações" que vive DENTRO do Menu do usuário (rodapé da sidebar / AppBar interina).
+ *
+ * Fronteira (NAV-02b): a contagem/badge/polling vivem no host sempre-montado (UserMenuButton),
+ * FORA do Menu que desmonta ao fechar. Aqui moram apenas a LISTA e o estado de expansão.
+ *
+ * Marcação como lida dispara SÓ ao expandir a seção (`onChange`-expand) — abrir o Menu para
+ * outro fim (tema/cor/conta/logout) não pode zerar o badge sem o usuário ver as notificações.
+ */
+export function NotificationsMenuSection({ accountId, onAllRead, onCloseMenu }: Props) {
   const router = useRouter();
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const lastFetchRef = useRef<number>(0);
+  const [loaded, setLoaded] = useState(false);
 
-  const refreshCount = useCallback(async () => {
-    // Não faz fetch se a aba está oculta
-    if (document.visibilityState === "hidden") return;
-    try {
-      const res = await fetch(`/api/v1/accounts/${accountId}/notifications`);
-      if (res.ok) {
-        const data = (await res.json()) as { unreadCount: number };
-        setUnreadCount(data.unreadCount);
-        lastFetchRef.current = Date.now();
-      }
-    } catch {
-      // polling — falha silenciosa
-    }
-  }, [accountId]);
-
-  useEffect(() => {
-    const id = setInterval(() => void refreshCount(), POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [refreshCount]);
-
-  useEffect(() => {
-    const onFocus = () => {
-      // Só refetch se último fetch tem mais de 30 segundos
-      if (Date.now() - lastFetchRef.current > FOCUS_DEBOUNCE_MS) {
-        void refreshCount();
-      }
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [refreshCount]);
-
-  async function handleOpen(event: React.MouseEvent<HTMLButtonElement>) {
-    setAnchorEl(event.currentTarget);
+  async function handleChange(_event: React.SyntheticEvent, expanded: boolean) {
+    // Carrega + marca como lido apenas na primeira expansão desta sessão de Menu.
+    if (!expanded || loaded) return;
     setLoading(true);
     const result = await listAndMarkAllReadAction(accountId, {});
     setLoading(false);
+    setLoaded(true);
     if (result.ok) {
       setNotifications(result.data);
-      setUnreadCount(0);
+      onAllRead();
     }
-  }
-
-  function handleClose() {
-    setAnchorEl(null);
   }
 
   function handleNotificationClick(notification: NotificationItem) {
-    handleClose();
-    if (notification.link) {
-      router.push(`/${accountId}/months/${notification.link}`);
-    }
+    if (!notification.link) return;
+    // NAV-02b: fecha o Menu inteiro ANTES do push. `link` É o monthId (sem `?tab`).
+    onCloseMenu();
+    router.push(`/${accountId}/months/${notification.link}`);
   }
 
-  const open = Boolean(anchorEl);
-
   return (
-    <>
-      <Tooltip title={m.notifications.title}>
-        <IconButton color="inherit" aria-label={m.notifications.title} onClick={handleOpen}>
-          <Badge badgeContent={unreadCount > 0 ? unreadCount : undefined} color="error" max={99}>
-            <NotificationsNoneIcon />
-          </Badge>
-        </IconButton>
-      </Tooltip>
-
-      <Popover
-        open={open}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        disableScrollLock
-        slotProps={{ paper: { sx: { width: 360, maxHeight: 480 } } }}
+    <Accordion
+      elevation={0}
+      disableGutters
+      onChange={handleChange}
+      sx={{
+        bgcolor: "transparent",
+        "&:before": { display: "none" },
+        "&.Mui-expanded": { margin: 0 },
+      }}
+    >
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon sx={{ fontSize: 16, color: "text.disabled" }} />}
+        aria-label={m.notifications.title}
+        sx={{
+          px: layout.inline,
+          minHeight: 44,
+          "&.Mui-expanded": { minHeight: 44 },
+          "& .MuiAccordionSummary-content": {
+            my: layout.micro,
+            "&.Mui-expanded": { my: layout.micro },
+          },
+        }}
       >
-        {/* Header */}
-        <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider" }}>
-          <Typography variant="subtitle2">{m.notifications.title}</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: layout.inline }}>
+          <NotificationsIcon fontSize="small" sx={{ color: "text.secondary" }} />
+          <Typography variant="body2">{m.notifications.title}</Typography>
         </Box>
+      </AccordionSummary>
 
-        {/* Content */}
+      <AccordionDetails
+        sx={{ p: 0, maxHeight: NOTIFICATIONS_SCROLL_MAX_HEIGHT, overflowY: "auto" }}
+      >
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", py: layout.card }}>
             <CircularProgress size={24} />
           </Box>
         ) : notifications.length === 0 ? (
-          <Box sx={{ py: 4, px: 2, textAlign: "center" }}>
+          <Box sx={{ py: layout.card, px: layout.inline, textAlign: "center" }}>
             <Typography variant="body2" color="text.secondary">
               {m.notifications.empty}
             </Typography>
-            <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 0.5 }}>
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              display="block"
+              sx={{ mt: layout.micro }}
+            >
               {m.notifications.emptyHint}
             </Typography>
           </Box>
@@ -169,7 +159,7 @@ export function NotificationBell({ accountId, initialUnreadCount }: Props) {
                     primaryTypographyProps={{
                       variant: "body2",
                       fontWeight: unreadDot ? 600 : 400,
-                      sx: { pr: unreadDot ? 1.5 : 0 },
+                      sx: { pr: unreadDot ? layout.inline : 0 },
                     }}
                     secondaryTypographyProps={{ variant: "caption" }}
                   />
@@ -194,19 +184,19 @@ export function NotificationBell({ accountId, initialUnreadCount }: Props) {
                   {hasLink ? (
                     <ListItemButton
                       onClick={() => handleNotificationClick(notification)}
-                      sx={{ py: 1.5, px: 2 }}
+                      sx={{ py: layout.inline, px: layout.inline }}
                     >
                       {itemContent}
                     </ListItemButton>
                   ) : (
-                    <ListItem sx={{ py: 1.5, px: 2 }}>{itemContent}</ListItem>
+                    <ListItem sx={{ py: layout.inline, px: layout.inline }}>{itemContent}</ListItem>
                   )}
                 </Box>
               );
             })}
           </List>
         )}
-      </Popover>
-    </>
+      </AccordionDetails>
+    </Accordion>
   );
 }

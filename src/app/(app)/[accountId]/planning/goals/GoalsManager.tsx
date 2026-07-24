@@ -52,7 +52,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { MoneyValue } from "@/components/ui/MoneyValue";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDateBr } from "@/lib/dates";
-import { containers, layout } from "@/lib/design-tokens";
+import { layout } from "@/lib/design-tokens";
 import { useActionFeedback } from "@/lib/hooks/use-action-feedback";
 import { m } from "@/lib/messages";
 import { centsToReais, formatCentsToBrl, reaisToCents } from "@/lib/money";
@@ -398,7 +398,7 @@ export function GoalsManager({ accountId, overview, archived, dimensionOptions, 
   }
 
   return (
-    <Box sx={{ p: layout.page, maxWidth: containers.lg, mx: "auto" }}>
+    <Box sx={{ p: layout.page }}>
       <Stack spacing={layout.cluster}>
         {/* ── Barra de ação (o PageHeader do hub já vem do layout — só o botão contextual) ── */}
         {canEdit && (

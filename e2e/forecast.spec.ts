@@ -1,5 +1,6 @@
 // e2e/forecast.spec.ts
 import { test, expect } from "@playwright/test";
+
 import { manifest } from "./fixtures/manifest";
 
 test.use({ storageState: "e2e/.auth/owner.json" });
@@ -9,7 +10,7 @@ test("projeção de fluxo de caixa: hero, configurações e alternância de cen�
 }) => {
   const m = manifest();
 
-  // 1. Abrir a Projeção pelo ícone "Projeção" do AppBar, a partir de uma página conhecida
+  // 1. Abrir a Projeção pelo item "Projeção" da AppSidebar (spec 65), a partir de uma página conhecida
   // (precedente solo-flow/csv-import: o root da conta pode redirecionar; /months/{id} é
   // uma página estável já semeada).
   await page.goto(`/${m.mainAccountId}/months/${m.roMonthId}`);
@@ -37,7 +38,7 @@ test("projeção de fluxo de caixa: hero, configurações e alternância de cen�
   // tira a projeção do estado vazio — com override > 0 e sem recorrentes/parcelas/histórico,
   // todo ponto futuro fica constante = saldo informado — permitindo testar de fato o toggle
   // de cenário no passo 4 (o toggle não é renderizado dentro do EmptyState).
-  // Dispensa o tooltip de hover da nav do AppBar (o popper fica sobre o header e
+  // Dispensa o tooltip de hover da AppSidebar (o popper fica sobre o header e
   // intercepta o clique — actionability do Playwright; clique real do usuário passa).
   await page.mouse.move(0, 0);
   await page.getByRole("link", { name: "Configurar projeção" }).click();
@@ -55,7 +56,7 @@ test("projeção de fluxo de caixa: hero, configurações e alternância de cen�
   await expect(page.getByText("Configurações de projeção salvas.")).toBeVisible();
 
   // 3. Voltar à Projeção — navegação DIRETA: na tela de Settings o link "Projeção" é ambíguo
-  // (nav do AppBar + item da sidebar de SettingsNav → strict mode violation). Agora com saldo
+  // (item da AppSidebar + item da sidebar de SettingsNav → strict mode violation). Agora com saldo
   // de partida > 0 e sem recorrentes/parcelas/estimativa para movê-lo, a série projetada fica
   // constante e positiva — sai do EmptyState, nunca rompe e mostra aviso de poucos dados.
   await page.goto(`/${m.mainAccountId}/forecast`);

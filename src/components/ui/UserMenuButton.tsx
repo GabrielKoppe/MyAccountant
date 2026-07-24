@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import CheckIcon from "@mui/icons-material/Check";
+import ComputerIcon from "@mui/icons-material/Computer";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import LogoutIcon from "@mui/icons-material/Logout";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import Avatar from "@mui/material/Avatar";
+import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
@@ -14,22 +21,29 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import CheckIcon from "@mui/icons-material/Check";
-import ComputerIcon from "@mui/icons-material/Computer";
-import DarkModeIcon from "@mui/icons-material/DarkMode";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import LightModeIcon from "@mui/icons-material/LightMode";
-import LogoutIcon from "@mui/icons-material/Logout";
-import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { logoutAction } from "@/actions/auth";
 import { useThemeMode, type ThemeMode } from "@/components/providers/ThemeContext";
+import { NotificationsMenuSection } from "@/components/ui/NotificationsMenuSection";
 import { ACCENT_COLORS, type AccentColorKey } from "@/lib/accent-colors";
+
+const POLL_INTERVAL_MS = 5 * 60_000; // 5 minutos
+const FOCUS_DEBOUNCE_MS = 30_000; // 30 segundos
 
 type Props = {
   userName: string | null | undefined;
   userImage: string | null | undefined;
+  /** Quando presente, o host passa a hospedar as notificações (badge/polling + seção-lista). */
+  accountId?: string;
+  initialUnreadCount?: number;
+  /**
+   * Direção de abertura do menu. `"top"` abre para CIMA (uso no rodapé da
+   * `AppSidebar`, onde não há espaço abaixo); `"bottom"` (default) para baixo
+   * (uso em barras de topo — accounts/select-account).
+   */
+  menuPlacement?: "top" | "bottom";
 };
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; icon: React.ReactNode }[] = [
@@ -38,12 +52,58 @@ const THEME_OPTIONS: { value: ThemeMode; label: string; icon: React.ReactNode }[
   { value: "system", label: "Automático (sistema)", icon: <ComputerIcon fontSize="small" /> },
 ];
 
-export function UserMenuButton({ userName, userImage }: Props) {
+export function UserMenuButton({
+  userName,
+  userImage,
+  accountId,
+  initialUnreadCount,
+  menuPlacement = "bottom",
+}: Props) {
+  const opensUp = menuPlacement === "top";
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const router = useRouter();
   const { mode, setMode, accentColor, setAccentColor } = useThemeMode();
 
   const initials = userName?.charAt(0).toUpperCase() ?? "?";
+
+  // ─── Notificações: contagem/badge/polling vivem AQUI (host sempre-montado), fora do Menu
+  //     que desmonta ao fechar e pararia o polling (NAV-02b). A lista mora na seção do Menu. ──
+  const [unreadCount, setUnreadCount] = useState(initialUnreadCount ?? 0);
+  const lastFetchRef = useRef(0);
+
+  const refreshCount = useCallback(async () => {
+    if (!accountId) return;
+    // Não faz fetch se a aba está oculta.
+    if (document.visibilityState === "hidden") return;
+    try {
+      const res = await fetch(`/api/v1/accounts/${accountId}/notifications`);
+      if (res.ok) {
+        // A rota responde { ok, data: { unreadCount } } — ler json.data.unreadCount
+        // (o bell antigo lia json.unreadCount → sempre undefined; bug corrigido aqui).
+        const json = (await res.json()) as { data: { unreadCount: number } };
+        setUnreadCount(json.data.unreadCount);
+        lastFetchRef.current = Date.now();
+      }
+    } catch {
+      // polling — falha silenciosa
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    if (!accountId) return;
+    const id = setInterval(() => void refreshCount(), POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [accountId, refreshCount]);
+
+  useEffect(() => {
+    if (!accountId) return;
+    const onFocus = () => {
+      // Só refetch se o último fetch tem mais de 30 segundos.
+      if (Date.now() - lastFetchRef.current > FOCUS_DEBOUNCE_MS) void refreshCount();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [accountId, refreshCount]);
 
   async function handleLogout() {
     setAnchorEl(null);
@@ -58,17 +118,27 @@ export function UserMenuButton({ userName, userImage }: Props) {
   return (
     <>
       <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small">
-        <Avatar src={userImage ?? undefined} sx={{ width: 32, height: 32, fontSize: 14 }}>
-          {initials}
-        </Avatar>
+        <Badge badgeContent={unreadCount > 0 ? unreadCount : undefined} color="error" max={99}>
+          <Avatar src={userImage ?? undefined} sx={{ width: 32, height: 32, fontSize: 14 }}>
+            {initials}
+          </Avatar>
+        </Badge>
       </IconButton>
 
       <Menu
         anchorEl={anchorEl}
         open={!!anchorEl}
         onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        anchorOrigin={
+          opensUp
+            ? { vertical: "top", horizontal: "left" }
+            : { vertical: "bottom", horizontal: "right" }
+        }
+        transformOrigin={
+          opensUp
+            ? { vertical: "bottom", horizontal: "left" }
+            : { vertical: "top", horizontal: "right" }
+        }
         disableScrollLock
         slotProps={{ paper: { sx: { minWidth: 240 } } }}
       >
@@ -80,6 +150,18 @@ export function UserMenuButton({ userName, userImage }: Props) {
             </Typography>
           </MenuItem>
         )}
+
+        {/* Notificações — logo ABAIXO do nome do usuário. Só quando há conta em
+            contexto (layouts sem conta não recebem accountId). */}
+        {accountId && [
+          <Divider key="notifications-divider" />,
+          <NotificationsMenuSection
+            key="notifications"
+            accountId={accountId}
+            onAllRead={() => setUnreadCount(0)}
+            onCloseMenu={() => setAnchorEl(null)}
+          />,
+        ]}
 
         <Divider />
 

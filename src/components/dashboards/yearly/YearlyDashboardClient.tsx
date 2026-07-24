@@ -307,7 +307,7 @@ export function YearlyDashboardClient({
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
+    <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box
         sx={{

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&amp;display=swap" rel="stylesheet">
+<style>
+:root{
+--sans:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',Menlo,monospace;
+--canvas:#1A1815;--surface:#221F1B;--subtle:#2A2620;--muted:#322D26;
+--bsubtle:#322D26;--bdefault:#44403A;--bstrong:#5C574E;
+--tprimary:#F0EDE5;--tsec:#C4BDB0;--ttert:#8B847A;--tdis:#5C574E;
+--accent:#7E8DE5;--accenthover:#94A1EC;--accentsub:#252840;
+--success:#7AAE83;--successsub:#1F2D24;--warning:#D4A551;--warningsub:#2E2818;--danger:#D47373;--dangersub:#2E1F1F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#161412;color:var(--tprimary);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--accenthover)}
+.ms{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;line-height:1;display:inline-block;vertical-align:middle;flex-shrink:0}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--bstrong);border-radius:9999px}::-webkit-scrollbar-track{background:transparent}
+.lbl{margin:0 0 12px;font:600 12px/1.4 var(--mono);color:var(--ttert);letter-spacing:.03em}
+.lbl span{color:var(--tdis)}
+.navlbl{font:500 0.82rem var(--sans)}
+.grp{font:600 0.62rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--tdis);padding:0 14px;margin:16px 0 6px}
+.ni{display:flex;align-items:center;gap:10px;padding:9px 14px;color:var(--tsec)}
+.ni.on{color:var(--accent);background:var(--subtle);border-right:2px solid var(--accent)}
+.ni.on .navlbl{font-weight:600}
+.frame{width:1280px;border:1px solid var(--bdefault);border-radius:12px;overflow:hidden;background:var(--canvas)}
+.step{background:var(--surface);border:1px solid var(--bsubtle);border-radius:10px;padding:12px 16px;min-width:132px}
+.step .k{font:600 0.6rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.step .t{font:600 0.85rem var(--sans);color:var(--tprimary)}
+.step .d{font:400 0.72rem/1.4 var(--sans);color:var(--ttert);margin-top:3px}
+.arw{color:var(--tdis);align-self:center}
+</style>
+</helmet>
+
+<div style="padding:52px 60px 120px;max-width:1480px;margin:0 auto">
+
+  <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+    <span style="font:600 2rem/1.1 var(--sans);letter-spacing:-0.02em;color:var(--accent)">Opção 1a — Telas &amp; Fluxo</span>
+  </div>
+  <p style="margin:0 0 8px;max-width:760px;font:400 0.95rem/1.6 var(--sans);color:var(--tsec)">Navegação em <strong style="color:var(--tprimary)">sidebar rotulada e agrupada</strong>, com <strong style="color:var(--tprimary)">"Nova transação"</strong> sempre acessível. Abaixo, o fluxo de utilização e cada tela em tamanho real.</p>
+
+  <!-- ═══ FLUXO ═══ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:44px 0 22px">
+    <span style="font:700 0.7rem var(--mono);letter-spacing:0.14em;color:var(--accent);border:1px solid var(--accentsub);background:var(--accentsub);padding:5px 10px;border-radius:6px">FLUXO DE UTILIZAÇÃO</span>
+    <span style="flex:1;height:1px;background:var(--bsubtle)"></span>
+  </div>
+
+  <!-- entrada -->
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px">
+    <div class="step"><div class="k">entrada</div><div class="t">Login</div><div class="d">e-mail/senha ou Google</div></div>
+    <span class="ms arw" style="font-size:22px">arrow_forward</span>
+    <div class="step"><div class="k">contexto</div><div class="t">Selecionar conta</div><div class="d">papel owner/editor/viewer</div></div>
+    <span class="ms arw" style="font-size:22px">arrow_forward</span>
+    <div class="step" style="border-color:var(--accent)"><div class="k">base</div><div class="t">Meses · Resumo</div><div class="d">tela inicial do trabalho</div></div>
+  </div>
+
+  <!-- ramos a partir de Meses -->
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+    <div style="border:1px dashed var(--bstrong);border-radius:12px;padding:16px 18px;flex:1;min-width:520px">
+      <div style="font:600 0.72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--tsec);margin-bottom:12px">A partir de "Meses" o usuário ramifica →</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="step" style="background:var(--accentsub);border-color:var(--accent)"><div class="k">captura</div><div class="t">+ Nova transação</div><div class="d">modal global, de qualquer tela</div></div>
+          <span class="ms arw" style="font-size:20px">arrow_forward</span>
+          <div class="step"><div class="t">Escolhe Seção/Tabela</div><div class="d">categoria · valor · data</div></div>
+          <span class="ms arw" style="font-size:20px">arrow_forward</span>
+          <div class="step"><div class="t">Salva → volta ao mês</div><div class="d">total atualizado</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="step"><div class="k">detalhe</div><div class="t">Aba de Seção</div><div class="d">tabela de transações</div></div>
+          <span class="ms arw" style="font-size:20px">arrow_forward</span>
+          <div class="step"><div class="t">Importar CSV/XLSX</div><div class="d">ou edição inline / em massa</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="step"><div class="k">análise</div><div class="t">Dashboards</div><div class="d">mensal · anual · sandbox</div></div>
+          <span class="ms arw" style="font-size:20px">arrow_forward</span>
+          <div class="step"><div class="t">Patrimônio</div><div class="d">ativos, passivos, evolução</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="border:1px dashed var(--bstrode,var(--bstrong));border-radius:12px;padding:16px 18px;min-width:280px">
+      <div style="font:600 0.72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--tsec);margin-bottom:12px">Gestão (grupo separado)</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="step"><div class="k">colaboração</div><div class="t">Membros</div><div class="d">convites e papéis</div></div>
+        <div class="step"><div class="k">estrutura</div><div class="t">Configurações</div><div class="d">seções, categorias, orçamentos…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TELAS ═══ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:56px 0 22px">
+    <span style="font:700 0.7rem var(--mono);letter-spacing:0.14em;color:var(--accent);border:1px solid var(--accentsub);background:var(--accentsub);padding:5px 10px;border-radius:6px">TELAS EM TAMANHO REAL</span>
+    <span style="flex:1;height:1px;background:var(--bsubtle)"></span>
+  </div>
+
+  <!-- ── 1. MESES / RESUMO ── -->
+  <div class="lbl">1 · Meses — Resumo do mês&nbsp;&nbsp;·&nbsp;&nbsp;<span>tela inicial</span></div>
+  <div class="frame" style="margin-bottom:44px">
+    <div style="display:flex;min-height:600px">
+      <div style="width:210px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface);display:flex;flex-direction:column">
+        <div style="padding:14px 14px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bsubtle)"><span style="font:600 0.95rem var(--sans)">Família Koppe</span><span class="ms" style="font-size:18px;color:var(--ttert)">unfold_more</span></div>
+        <div style="padding:12px 12px 4px"><div style="height:36px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center;gap:6px;font:600 0.82rem var(--sans)"><span class="ms" style="font-size:18px">add</span>Nova transação</div></div>
+        <div class="grp">Principal</div>
+        <div class="ni on"><span class="ms" style="font-size:19px">calendar_month</span><span class="navlbl">Meses</span></div>
+        <div class="ni"><span class="ms" style="font-size:19px">bar_chart</span><span class="navlbl">Dashboards</span></div>
+        <div class="ni"><span class="ms" style="font-size:19px">account_balance_wallet</span><span class="navlbl">Patrimônio</span></div>
+        <div class="grp">Gestão</div>
+        <div class="ni"><span class="ms" style="font-size:19px">group</span><span class="navlbl">Membros</span></div>
+        <div class="ni"><span class="ms" style="font-size:19px">settings</span><span class="navlbl">Configurações</span></div>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--bsubtle)"><span style="width:28px;height:28px;border-radius:50%;background:var(--accentsub);color:var(--accent);display:flex;align-items:center;justify-content:center;font:600 0.75rem var(--sans)">G</span><span class="navlbl" style="color:var(--tsec);flex:1">Gabriel</span><span class="ms" style="font-size:18px;color:var(--ttert)">expand_less</span></div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid var(--bsubtle);background:var(--surface)">
+          <span class="ms" style="font-size:20px;color:var(--tsec)">chevron_left</span><span style="font:600 1rem var(--sans)">Junho 2026</span><span class="ms" style="font-size:20px;color:var(--tsec)">chevron_right</span>
+          <span style="font:500 1rem var(--mono);color:var(--success);margin-left:6px">R$ 2.552,58</span>
+          <span style="flex:1"></span>
+          <span style="position:relative"><span class="ms" style="font-size:20px;color:var(--tsec)">filter_alt</span><span style="position:absolute;top:-3px;right:-4px;width:13px;height:13px;border-radius:50%;background:var(--accent);color:#15121f;font:600 0.55rem/13px var(--sans);text-align:center">2</span></span>
+          <span style="margin-left:8px;height:30px;border-radius:8px;border:1px solid var(--bdefault);color:var(--tsec);display:flex;align-items:center;gap:5px;padding:0 12px;font:500 0.78rem var(--sans)"><span class="ms" style="font-size:16px">file_download</span>Exportar</span>
+        </div>
+        <div style="display:flex;gap:0;padding:0 16px;border-bottom:1px solid var(--bsubtle);background:var(--surface)">
+          <span style="padding:11px 14px;font:500 0.85rem var(--sans);color:var(--tprimary);border-bottom:2px solid var(--accent)">Resumo</span>
+          <span style="padding:11px 14px;font:500 0.85rem var(--sans);color:var(--ttert)">Moradia</span>
+          <span style="padding:11px 14px;font:500 0.85rem var(--sans);color:var(--ttert)">Alimentação</span>
+          <span style="padding:11px 14px;font:500 0.85rem var(--sans);color:var(--ttert)">Transporte</span>
+          <span style="padding:11px 14px;font:500 0.85rem var(--sans);color:var(--ttert)">Receitas</span>
+        </div>
+        <div style="padding:20px">
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+            <div style="grid-column:span 1;background:var(--successsub);border:1px solid var(--bsubtle);border-radius:12px;padding:14px"><div style="display:flex;justify-content:space-between"><span style="font:500 0.6rem var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ttert)">Receitas</span><span class="ms" style="font-size:15px;color:var(--success);opacity:.55">trending_up</span></div><div style="font:500 0.95rem var(--mono);color:var(--success);margin-top:4px">R$ 8.450,00</div><div style="font:400 0.64rem var(--sans);color:var(--success);margin-top:2px">+12,3%</div></div>
+            <div style="grid-column:span 1;background:var(--dangersub);border:1px solid var(--bsubtle);border-radius:12px;padding:14px"><div style="display:flex;justify-content:space-between"><span style="font:500 0.6rem var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ttert)">Despesas</span><span class="ms" style="font-size:15px;color:var(--danger);opacity:.55">trending_down</span></div><div style="font:500 0.95rem var(--mono);color:var(--danger);margin-top:4px">R$ 5.897,42</div></div>
+            <div style="grid-column:span 1;background:var(--successsub);border:1px solid var(--bsubtle);border-radius:12px;padding:14px"><div style="display:flex;justify-content:space-between"><span style="font:500 0.6rem var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ttert)">Saldo</span><span class="ms" style="font-size:15px;color:var(--success);opacity:.55">savings</span></div><div style="font:500 0.95rem var(--mono);color:var(--success);margin-top:4px">R$ 2.552,58</div><div style="font:400 0.64rem var(--sans);color:var(--success);margin-top:2px">+18,1%</div></div>
+            <div style="grid-column:span 1;background:var(--warningsub);border:1px solid var(--bsubtle);border-radius:12px;padding:14px"><div style="display:flex;justify-content:space-between"><span style="font:500 0.6rem var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ttert)">Pendências</span><span class="ms" style="font-size:15px;color:var(--warning);opacity:.55">access_time</span></div><div style="font:500 0.95rem var(--mono);color:var(--warning);margin-top:4px">4</div></div>
+            <div style="grid-column:span 2;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;padding:14px"><div style="display:flex;justify-content:space-between"><span style="font:500 0.6rem var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ttert)">Nº de transações</span><span class="ms" style="font-size:15px;color:var(--accent);opacity:.55">format_list_numbered</span></div><div style="font:500 0.95rem var(--mono);margin-top:4px">87</div><div style="display:flex;gap:14px;margin-top:5px"><span style="font:400 0.63rem var(--sans);color:var(--tsec)"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--danger);margin-right:4px"></span>Saídas 62</span><span style="font:400 0.63rem var(--sans);color:var(--tsec)"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--success);margin-right:4px"></span>Entradas 25</span></div></div>
+            <div style="grid-column:span 3;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;padding:14px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:10px"><span class="ms" style="font-size:14px;color:var(--ttert)">savings</span><span style="font:600 0.7rem var(--sans)">Metas de Orçamento</span></div><div style="display:flex;flex-direction:column;gap:10px"><div><div style="display:flex;justify-content:space-between;margin-bottom:4px;font:400 0.75rem var(--sans)"><span>Mercado</span><span style="font-family:var(--mono);color:var(--tsec)">R$ 1.180 / 1.400</span></div><div style="height:6px;border-radius:3px;background:var(--muted)"><div style="width:84%;height:100%;border-radius:3px;background:var(--warning)"></div></div></div><div><div style="display:flex;justify-content:space-between;margin-bottom:4px;font:400 0.75rem var(--sans)"><span>Lazer</span><span style="font-family:var(--mono);color:var(--tsec)">R$ 480 / 400</span></div><div style="height:6px;border-radius:3px;background:var(--muted)"><div style="width:100%;height:100%;border-radius:3px;background:var(--danger)"></div></div></div></div></div>
+            <div style="grid-column:span 3;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;padding:14px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:10px"><span class="ms" style="font-size:14px;color:var(--ttert)">tips_and_updates</span><span style="font:600 0.7rem var(--sans)">Insights</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="border-left:3px solid var(--warning);border-radius:0 6px 6px 0;padding:6px 10px;display:flex;gap:8px"><span class="ms" style="font-size:14px;color:var(--warning)">warning</span><div><div style="font:600 0.7rem var(--sans)">Lazer acima da meta</div><div style="font:400 0.66rem var(--sans);color:var(--tsec)">120% do orçamento consumido.</div></div></div><div style="border-left:3px solid var(--success);border-radius:0 6px 6px 0;padding:6px 10px;display:flex;gap:8px"><span class="ms" style="font-size:14px;color:var(--success)">emoji_events</span><div><div style="font:600 0.7rem var(--sans)">Melhor mês em Alimentação</div><div style="font:400 0.66rem var(--sans);color:var(--tsec)">Menor gasto em 6 meses.</div></div></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 2. NOVA TRANSAÇÃO (modal global) ── -->
+  <div class="lbl">2 · "Nova transação" — modal de captura rápida (disponível em qualquer tela)</div>
+  <div class="frame" style="margin-bottom:44px;position:relative">
+    <div style="display:flex;min-height:520px;filter:brightness(.55)">
+      <div style="width:210px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface)">
+        <div style="padding:14px 14px 12px;border-bottom:1px solid var(--bsubtle);font:600 0.95rem var(--sans)">Família Koppe</div>
+        <div style="padding:12px 12px 4px"><div style="height:36px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center;gap:6px;font:600 0.82rem var(--sans)"><span class="ms" style="font-size:18px">add</span>Nova transação</div></div>
+        <div class="grp">Principal</div><div class="ni on"><span class="ms" style="font-size:19px">calendar_month</span><span class="navlbl">Meses</span></div><div class="ni"><span class="ms" style="font-size:19px">bar_chart</span><span class="navlbl">Dashboards</span></div><div class="ni"><span class="ms" style="font-size:19px">account_balance_wallet</span><span class="navlbl">Patrimônio</span></div>
+      </div>
+      <div style="flex:1"></div>
+    </div>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+      <div style="width:460px;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.5);overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bsubtle)"><span style="font:600 1rem var(--sans)">Nova transação</span><span class="ms" style="font-size:20px;color:var(--tsec)">close</span></div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+          <div><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Descrição</label><div style="height:36px;border:1px solid var(--accent);border-radius:8px;display:flex;align-items:center;padding:0 12px;font:400 0.85rem var(--sans)">Supermercado BH</div></div>
+          <div style="display:flex;gap:12px"><div style="flex:1"><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Valor</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;padding:0 12px;font:400 0.85rem var(--mono);color:var(--danger)">R$ 342,18</div></div><div style="flex:1"><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Data</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:400 0.85rem var(--sans)">03/06/2026<span class="ms" style="font-size:16px;color:var(--tsec)">calendar_today</span></div></div></div>
+          <div style="display:flex;gap:12px"><div style="flex:1"><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Seção / Tabela</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:400 0.82rem var(--sans)">Alimentação · Nubank<span class="ms" style="font-size:16px;color:var(--tsec)">expand_more</span></div></div><div style="flex:1"><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Categoria</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:400 0.82rem var(--sans)">Mercado<span class="ms" style="font-size:16px;color:var(--tsec)">expand_more</span></div></div></div>
+          <div style="display:flex;gap:12px"><div style="flex:1"><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Responsável</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:400 0.82rem var(--sans)">Gabriel<span class="ms" style="font-size:16px;color:var(--tsec)">expand_more</span></div></div><div style="flex:1;display:flex;align-items:flex-end"><div style="display:flex;align-items:center;gap:8px;height:36px"><span style="width:34px;height:20px;border-radius:10px;background:var(--muted);position:relative"><span style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--tsec)"></span></span><span style="font:400 0.8rem var(--sans);color:var(--tsec)">Pendente</span></div></div></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--bsubtle)"><span style="height:34px;border-radius:8px;color:var(--tsec);display:flex;align-items:center;padding:0 14px;font:500 0.82rem var(--sans)">Cancelar</span><span style="height:34px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;padding:0 16px;font:600 0.82rem var(--sans)">Salvar transação</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. ABA DE SEÇÃO / TRANSAÇÕES ── -->
+  <div class="lbl">3 · Aba de Seção — Tabela Financeira + Transações</div>
+  <div class="frame" style="margin-bottom:44px">
+    <div style="display:flex;min-height:520px">
+      <div style="width:210px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface)">
+        <div style="padding:14px 14px 12px;border-bottom:1px solid var(--bsubtle);display:flex;align-items:center;justify-content:space-between"><span style="font:600 0.95rem var(--sans)">Família Koppe</span><span class="ms" style="font-size:18px;color:var(--ttert)">unfold_more</span></div>
+        <div style="padding:12px 12px 4px"><div style="height:36px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center;gap:6px;font:600 0.82rem var(--sans)"><span class="ms" style="font-size:18px">add</span>Nova transação</div></div>
+        <div class="grp">Principal</div><div class="ni on"><span class="ms" style="font-size:19px">calendar_month</span><span class="navlbl">Meses</span></div><div class="ni"><span class="ms" style="font-size:19px">bar_chart</span><span class="navlbl">Dashboards</span></div><div class="ni"><span class="ms" style="font-size:19px">account_balance_wallet</span><span class="navlbl">Patrimônio</span></div>
+        <div class="grp">Gestão</div><div class="ni"><span class="ms" style="font-size:19px">group</span><span class="navlbl">Membros</span></div><div class="ni"><span class="ms" style="font-size:19px">settings</span><span class="navlbl">Configurações</span></div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;gap:0;padding:0 16px;border-bottom:1px solid var(--bsubtle);background:var(--surface)">
+          <span style="padding:11px 14px;font:500 0.85rem var(--sans);color:var(--ttert)">Resumo</span>
+          <span style="padding:11px 14px;font:500 0.85rem var(--sans);color:var(--ttert)">Moradia</span>
+          <span style="padding:11px 14px;font:500 0.85rem var(--sans);color:var(--tprimary);border-bottom:2px solid var(--accent)">Alimentação</span>
+          <span style="padding:11px 14px;font:500 0.85rem var(--sans);color:var(--ttert)">Transporte</span>
+        </div>
+        <div style="padding:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="font:600 1.1rem var(--sans)">Cartão Nubank</span><span style="height:20px;padding:0 8px;border-radius:4px;background:var(--muted);color:var(--tsec);font:500 0.68rem/20px var(--sans)">Fatura</span><span style="font:400 0.8rem var(--mono);color:var(--danger)">R$ 1.340,50</span></div>
+            <div style="display:flex;gap:8px"><span style="height:32px;border-radius:8px;border:1px solid var(--bdefault);color:var(--tprimary);display:flex;align-items:center;gap:5px;padding:0 12px;font:500 0.8rem var(--sans)"><span class="ms" style="font-size:17px">upload</span>Importar</span><span style="height:32px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;gap:5px;padding:0 12px;font:500 0.8rem var(--sans)"><span class="ms" style="font-size:17px">add</span>Transação</span></div>
+          </div>
+          <div style="border:1px solid var(--bsubtle);border-radius:10px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:36px 90px 1fr 150px 120px 110px 130px 40px;background:var(--subtle);padding:10px 14px;font:500 0.66rem var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ttert)"><span><span style="display:inline-block;width:14px;height:14px;border:1px solid var(--bstrong);border-radius:3px"></span></span><span>Data</span><span>Descrição</span><span>Categoria</span><span>Instituição</span><span>Resp.</span><span style="text-align:right">Valor</span><span></span></div>
+            <div style="display:grid;grid-template-columns:36px 90px 1fr 150px 120px 110px 130px 40px;padding:11px 14px;border-top:1px solid var(--bsubtle);align-items:center;font:400 0.82rem var(--sans)"><span><span style="display:inline-block;width:14px;height:14px;border:1px solid var(--bstrong);border-radius:3px"></span></span><span style="font-family:var(--mono);color:var(--tsec)">03/06</span><span>Supermercado BH</span><span><span style="height:22px;padding:0 8px;border-radius:4px;background:var(--muted);font:500 0.72rem/22px var(--sans)">Mercado</span></span><span style="color:var(--tsec)">Nubank</span><span style="color:var(--tsec)">Gabriel</span><span style="text-align:right;font-family:var(--mono);color:var(--danger)">R$ 342,18</span><span class="ms" style="font-size:18px;color:var(--tsec)">more_vert</span></div>
+            <div style="display:grid;grid-template-columns:36px 90px 1fr 150px 120px 110px 130px 40px;padding:11px 14px;border-top:1px solid var(--bsubtle);align-items:center;font:400 0.82rem var(--sans);background:var(--subtle)"><span><span style="display:inline-block;width:14px;height:14px;border:1px solid var(--bstrong);border-radius:3px"></span></span><span style="font-family:var(--mono);color:var(--tsec)">07/06</span><span>iFood · Sabor <span style="display:inline-flex;height:18px;padding:0 5px;border:1px solid var(--bdefault);border-radius:4px;font:500 0.62rem/18px var(--mono);color:var(--tsec);margin-left:4px">2/3</span></span><span><span style="height:22px;padding:0 8px;border-radius:4px;background:var(--muted);font:500 0.72rem/22px var(--sans)">Delivery</span></span><span style="color:var(--tsec)">Nubank</span><span style="color:var(--tsec)">Ana</span><span style="text-align:right;font-family:var(--mono);color:var(--danger)">R$ 64,90</span><span class="ms" style="font-size:18px;color:var(--tsec)">more_vert</span></div>
+            <div style="display:grid;grid-template-columns:36px 90px 1fr 150px 120px 110px 130px 40px;padding:11px 14px;border-top:1px solid var(--bsubtle);align-items:center;font:400 0.82rem var(--sans)"><span><span style="display:inline-block;width:14px;height:14px;border:1px solid var(--warning);border-radius:3px;background:var(--warningsub)"></span></span><span style="font-family:var(--mono);color:var(--tsec)">15/06</span><span>Outback <span style="color:var(--warning);font:500 0.68rem var(--sans);margin-left:4px">• pendente</span></span><span><span style="height:22px;padding:0 8px;border-radius:4px;background:var(--muted);font:500 0.72rem/22px var(--sans)">Restaurante</span></span><span style="color:var(--tsec)">Nubank</span><span style="color:var(--tsec)">Ana</span><span style="text-align:right;font-family:var(--mono);color:var(--danger)">R$ 187,00</span><span class="ms" style="font-size:18px;color:var(--tsec)">more_vert</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:14px;padding:10px 14px;border:1px solid var(--accentsub);background:var(--accentsub);border-radius:8px"><span style="font:500 0.8rem var(--sans);color:var(--accent)">2 selecionadas</span><span style="font:400 0.8rem var(--sans);color:var(--tsec)">Editar em massa · Mover · Marcar pago · Excluir</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 4. DASHBOARDS ── -->
+  <div class="lbl">4 · Dashboards — Mensal</div>
+  <div class="frame" style="margin-bottom:44px">
+    <div style="display:flex;min-height:520px">
+      <div style="width:210px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface)">
+        <div style="padding:14px 14px 12px;border-bottom:1px solid var(--bsubtle);display:flex;align-items:center;justify-content:space-between"><span style="font:600 0.95rem var(--sans)">Família Koppe</span><span class="ms" style="font-size:18px;color:var(--ttert)">unfold_more</span></div>
+        <div style="padding:12px 12px 4px"><div style="height:36px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center;gap:6px;font:600 0.82rem var(--sans)"><span class="ms" style="font-size:18px">add</span>Nova transação</div></div>
+        <div class="grp">Principal</div><div class="ni"><span class="ms" style="font-size:19px">calendar_month</span><span class="navlbl">Meses</span></div><div class="ni on"><span class="ms" style="font-size:19px">bar_chart</span><span class="navlbl">Dashboards</span></div><div class="ni"><span class="ms" style="font-size:19px">account_balance_wallet</span><span class="navlbl">Patrimônio</span></div>
+        <div class="grp">Gestão</div><div class="ni"><span class="ms" style="font-size:19px">group</span><span class="navlbl">Membros</span></div><div class="ni"><span class="ms" style="font-size:19px">settings</span><span class="navlbl">Configurações</span></div>
+      </div>
+      <div style="flex:1;min-width:0;padding:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font:400 0.85rem var(--sans);color:var(--tsec)">Dashboards · 2026</span><span style="color:var(--tdis)">/</span><span class="ms" style="font-size:18px;color:var(--tsec)">chevron_left</span><span style="font:600 0.95rem var(--sans)">Junho 2026</span><span class="ms" style="font-size:18px;color:var(--tsec)">chevron_right</span></div>
+          <div style="display:inline-flex;border:1px solid var(--bdefault);border-radius:8px;overflow:hidden"><span style="padding:6px 11px;font:500 0.76rem var(--sans);background:var(--accentsub);color:var(--accent)">vs mês anterior</span><span style="padding:6px 11px;font:500 0.76rem var(--sans);color:var(--tsec);border-left:1px solid var(--bdefault)">ano anterior</span><span style="padding:6px 11px;font:500 0.76rem var(--sans);color:var(--tsec);border-left:1px solid var(--bdefault)">média 3m</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+          <div style="background:var(--successsub);border:1px solid var(--bsubtle);border-radius:12px;padding:13px"><div style="font:500 0.58rem var(--sans);text-transform:uppercase;color:var(--ttert)">Total do mês</div><div style="font:500 0.9rem var(--mono);color:var(--success);margin-top:3px">R$ 2.552</div><svg viewBox="0 0 120 24" preserveAspectRatio="none" style="width:100%;height:22px;margin-top:5px"><polyline points="0,18 30,15 60,11 90,7 120,5" fill="none" stroke="#7AAE83" stroke-width="1.5"></polyline></svg></div>
+          <div style="background:var(--successsub);border:1px solid var(--bsubtle);border-radius:12px;padding:13px"><div style="font:500 0.58rem var(--sans);text-transform:uppercase;color:var(--ttert)">Receitas</div><div style="font:500 0.9rem var(--mono);color:var(--success);margin-top:3px">R$ 8.450</div></div>
+          <div style="background:var(--dangersub);border:1px solid var(--bsubtle);border-radius:12px;padding:13px"><div style="font:500 0.58rem var(--sans);text-transform:uppercase;color:var(--ttert)">Despesas</div><div style="font:500 0.9rem var(--mono);color:var(--danger);margin-top:3px">R$ 5.897</div></div>
+          <div style="background:var(--warningsub);border:1px solid var(--bsubtle);border-radius:12px;padding:13px"><div style="font:500 0.58rem var(--sans);text-transform:uppercase;color:var(--ttert)">Poupança</div><div style="font:500 0.9rem var(--mono);color:var(--warning);margin-top:3px">30%</div></div>
+          <div style="background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;padding:13px"><div style="font:500 0.58rem var(--sans);text-transform:uppercase;color:var(--ttert)">Maior categoria</div><div style="font:500 0.9rem var(--mono);color:var(--accent);margin-top:3px">R$ 2.100</div><div style="font:400 0.62rem var(--sans);color:var(--ttert)">Moradia</div></div>
+          <div style="background:var(--warningsub);border:1px solid var(--bsubtle);border-radius:12px;padding:13px"><div style="font:500 0.58rem var(--sans);text-transform:uppercase;color:var(--ttert)">Pendências</div><div style="font:500 0.9rem var(--mono);color:var(--warning);margin-top:3px">4</div></div>
+          <div style="grid-column:span 3;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;padding:14px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:10px"><span class="ms" style="font-size:14px;color:var(--ttert)">donut_large</span><span style="font:600 0.7rem var(--sans)">Distribuição por Categoria</span></div><div style="display:flex;align-items:center;gap:16px"><div style="width:90px;height:90px;border-radius:50%;background:conic-gradient(#7E8DE5 0 36%,#7AAE83 36% 59%,#D4A551 59% 77%,#D47373 77% 90%,#AE96C8 90% 100%)"></div><div style="flex:1;display:flex;flex-direction:column;gap:5px"><div style="display:flex;gap:6px;font:400 0.73rem var(--sans)"><span style="width:9px;height:9px;border-radius:2px;background:#7E8DE5"></span><span style="flex:1;color:var(--tsec)">Moradia</span><span style="font-family:var(--mono)">36%</span></div><div style="display:flex;gap:6px;font:400 0.73rem var(--sans)"><span style="width:9px;height:9px;border-radius:2px;background:#7AAE83"></span><span style="flex:1;color:var(--tsec)">Alimentação</span><span style="font-family:var(--mono)">23%</span></div><div style="display:flex;gap:6px;font:400 0.73rem var(--sans)"><span style="width:9px;height:9px;border-radius:2px;background:#D4A551"></span><span style="flex:1;color:var(--tsec)">Transporte</span><span style="font-family:var(--mono)">18%</span></div></div></div></div>
+          <div style="grid-column:span 3;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;padding:14px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:10px"><span class="ms" style="font-size:14px;color:var(--ttert)">bar_chart</span><span style="font:600 0.7rem var(--sans)">Por Seção</span></div><div style="display:flex;flex-direction:column;gap:10px"><div><div style="display:flex;justify-content:space-between;margin-bottom:4px;font:400 0.75rem var(--sans)"><span>Moradia</span><span style="font-family:var(--mono);color:var(--tsec)">R$ 2.100</span></div><div style="height:6px;border-radius:3px;background:var(--muted)"><div style="width:100%;height:100%;border-radius:3px;background:#7E8DE5"></div></div></div><div><div style="display:flex;justify-content:space-between;margin-bottom:4px;font:400 0.75rem var(--sans)"><span>Alimentação</span><span style="font-family:var(--mono);color:var(--tsec)">R$ 1.340</span></div><div style="height:6px;border-radius:3px;background:var(--muted)"><div style="width:64%;height:100%;border-radius:3px;background:#7AAE83"></div></div></div><div><div style="display:flex;justify-content:space-between;margin-bottom:4px;font:400 0.75rem var(--sans)"><span>Transporte</span><span style="font-family:var(--mono);color:var(--tsec)">R$ 620</span></div><div style="height:6px;border-radius:3px;background:var(--muted)"><div style="width:30%;height:100%;border-radius:3px;background:#D4A551"></div></div></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 5. PATRIMÔNIO ── -->
+  <div class="lbl">5 · Patrimônio Líquido</div>
+  <div class="frame" style="margin-bottom:44px">
+    <div style="display:flex;min-height:460px">
+      <div style="width:210px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface)">
+        <div style="padding:14px 14px 12px;border-bottom:1px solid var(--bsubtle);display:flex;align-items:center;justify-content:space-between"><span style="font:600 0.95rem var(--sans)">Família Koppe</span><span class="ms" style="font-size:18px;color:var(--ttert)">unfold_more</span></div>
+        <div style="padding:12px 12px 4px"><div style="height:36px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center;gap:6px;font:600 0.82rem var(--sans)"><span class="ms" style="font-size:18px">add</span>Nova transação</div></div>
+        <div class="grp">Principal</div><div class="ni"><span class="ms" style="font-size:19px">calendar_month</span><span class="navlbl">Meses</span></div><div class="ni"><span class="ms" style="font-size:19px">bar_chart</span><span class="navlbl">Dashboards</span></div><div class="ni on"><span class="ms" style="font-size:19px">account_balance_wallet</span><span class="navlbl">Patrimônio</span></div>
+        <div class="grp">Gestão</div><div class="ni"><span class="ms" style="font-size:19px">group</span><span class="navlbl">Membros</span></div><div class="ni"><span class="ms" style="font-size:19px">settings</span><span class="navlbl">Configurações</span></div>
+      </div>
+      <div style="flex:1;min-width:0;padding:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px"><span style="font:600 1.4rem var(--sans);letter-spacing:-0.02em">Patrimônio Líquido</span><div style="display:flex;gap:8px"><span style="height:34px;border-radius:8px;border:1px solid var(--bdefault);color:var(--tprimary);display:flex;align-items:center;gap:6px;padding:0 14px;font:500 0.8rem var(--sans)"><span class="ms" style="font-size:17px">sync</span>Atualizar saldos</span><span style="height:34px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;gap:6px;padding:0 14px;font:500 0.8rem var(--sans)"><span class="ms" style="font-size:17px">add</span>Nova conta</span></div></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;margin-bottom:24px">
+          <div style="border:1px solid var(--bsubtle);border-radius:12px;padding:20px;background:var(--surface)"><div style="font:500 0.62rem var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ttert)">Patrimônio Líquido</div><div style="font:600 1.7rem var(--mono);margin-top:4px">R$ 184.320</div><div style="display:flex;align-items:center;gap:6px;margin-top:5px"><span class="ms" style="font-size:16px;color:var(--success)">trending_up</span><span style="font:500 0.8rem var(--sans);color:var(--success)">+4,2%</span><span style="font:400 0.72rem var(--sans);color:var(--ttert)">vs mês anterior</span></div></div>
+          <div style="border:1px solid var(--bsubtle);border-radius:12px;padding:20px;background:var(--successsub)"><div style="font:500 0.62rem var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ttert)">Ativos</div><div style="font:600 1.3rem var(--mono);color:var(--success);margin-top:4px">R$ 212.800</div></div>
+          <div style="border:1px solid var(--bsubtle);border-radius:12px;padding:20px;background:var(--dangersub)"><div style="font:500 0.62rem var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--ttert)">Passivos</div><div style="font:600 1.3rem var(--mono);color:var(--danger);margin-top:4px">R$ 28.480</div></div>
+        </div>
+        <div style="border:1px solid var(--bsubtle);border-radius:12px;padding:20px;background:var(--surface)"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="ms" style="font-size:17px;color:var(--tsec)">show_chart</span><span style="font:600 0.95rem var(--sans)">Evolução do Patrimônio</span></div><svg viewBox="0 0 800 150" preserveAspectRatio="none" style="width:100%;height:150px"><polygon points="0,120 100,110 200,105 300,95 400,88 500,72 600,60 700,44 800,36 800,150 0,150" fill="#7E8DE5" opacity="0.12"></polygon><polyline points="0,120 100,110 200,105 300,95 400,88 500,72 600,60 700,44 800,36" fill="none" stroke="#7E8DE5" stroke-width="2.5"></polyline></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 6. CONFIGURAÇÕES ── -->
+  <div class="lbl">Sidebar recolhível — recolhido (rail 64px) &amp; expandido&nbsp;&nbsp;·&nbsp;&nbsp;<span>toggle no rodapé</span></div>
+  <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;margin-bottom:20px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font:500 12px var(--sans);color:var(--tsec)">Recolhido · só ícones (tooltip no hover)</div>
+      <div style="width:640px;border:1px solid var(--bdefault);border-radius:12px;overflow:hidden;background:var(--canvas)">
+        <div style="display:flex;min-height:340px">
+          <div style="width:64px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface);display:flex;flex-direction:column;align-items:center">
+            <div style="width:100%;padding:12px 0;display:flex;justify-content:center;border-bottom:1px solid var(--bsubtle)"><span style="width:34px;height:34px;border-radius:9px;background:var(--accentsub);color:var(--accent);display:flex;align-items:center;justify-content:center;font:700 0.72rem var(--sans)">FK</span></div>
+            <div style="padding:12px 0 8px"><span style="width:38px;height:38px;border-radius:9px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px">add</span></span></div>
+            <span style="width:38px;height:38px;border-radius:9px;background:var(--subtle);color:var(--accent);display:flex;align-items:center;justify-content:center;position:relative"><span class="ms" style="font-size:20px">calendar_month</span><span style="position:absolute;left:0;top:8px;bottom:8px;width:2px;background:var(--accent);border-radius:2px"></span></span>
+            <span style="width:38px;height:38px;border-radius:9px;color:var(--tsec);display:flex;align-items:center;justify-content:center;margin-top:4px"><span class="ms" style="font-size:20px">bar_chart</span></span>
+            <span style="width:38px;height:38px;border-radius:9px;color:var(--tsec);display:flex;align-items:center;justify-content:center;margin-top:4px"><span class="ms" style="font-size:20px">account_balance_wallet</span></span>
+            <span style="width:24px;height:1px;background:var(--bsubtle);margin:6px 0"></span>
+            <span style="width:38px;height:38px;border-radius:9px;color:var(--tsec);display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px">group</span></span>
+            <span style="width:38px;height:38px;border-radius:9px;color:var(--tsec);display:flex;align-items:center;justify-content:center;margin-top:4px"><span class="ms" style="font-size:20px">settings</span></span>
+            <div style="flex:1"></div>
+            <div style="width:100%;padding:10px 0;display:flex;justify-content:center;border-top:1px solid var(--bsubtle)"><span style="width:30px;height:30px;border-radius:8px;color:var(--ttert);display:flex;align-items:center;justify-content:center;border:1px solid var(--bdefault)"><span class="ms" style="font-size:18px">chevron_right</span></span></div>
+          </div>
+          <div style="flex:1;min-width:0;position:relative">
+            <div style="display:flex;align-items:center;gap:8px;padding:12px 18px;border-bottom:1px solid var(--bsubtle);background:var(--surface)"><span class="ms" style="font-size:18px;color:var(--tsec)">chevron_left</span><span style="font:600 0.9rem var(--sans)">Junho 2026</span><span class="ms" style="font-size:18px;color:var(--tsec)">chevron_right</span><span style="font:500 0.85rem var(--mono);color:var(--success);margin-left:4px">R$ 2.552,58</span></div>
+            <div style="padding:16px"><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><div style="background:var(--successsub);border:1px solid var(--bsubtle);border-radius:10px;padding:11px"><div style="font:500 0.56rem var(--sans);text-transform:uppercase;color:var(--ttert)">Receitas</div><div style="font:500 0.8rem var(--mono);color:var(--success);margin-top:3px">R$ 8.450</div></div><div style="background:var(--dangersub);border:1px solid var(--bsubtle);border-radius:10px;padding:11px"><div style="font:500 0.56rem var(--sans);text-transform:uppercase;color:var(--ttert)">Despesas</div><div style="font:500 0.8rem var(--mono);color:var(--danger);margin-top:3px">R$ 5.897</div></div><div style="background:var(--successsub);border:1px solid var(--bsubtle);border-radius:10px;padding:11px"><div style="font:500 0.56rem var(--sans);text-transform:uppercase;color:var(--ttert)">Saldo</div><div style="font:500 0.8rem var(--mono);color:var(--success);margin-top:3px">R$ 2.552</div></div></div></div>
+            <div style="position:absolute;left:12px;top:118px;background:var(--tprimary);color:var(--canvas);font:500 0.72rem var(--sans);padding:4px 8px;border-radius:6px">Dashboards</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font:500 12px var(--sans);color:var(--tsec)">Expandido · ícone + rótulo</div>
+      <div style="width:640px;border:1px solid var(--bdefault);border-radius:12px;overflow:hidden;background:var(--canvas)">
+        <div style="display:flex;min-height:340px">
+          <div style="width:200px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface);display:flex;flex-direction:column">
+            <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bsubtle)"><span style="font:600 0.9rem var(--sans)">Família Koppe</span><span class="ms" style="font-size:17px;color:var(--ttert)">unfold_more</span></div>
+            <div style="padding:12px 12px 4px"><div style="height:34px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center;gap:6px;font:600 0.8rem var(--sans)"><span class="ms" style="font-size:17px">add</span>Nova transação</div></div>
+            <div class="grp">Principal</div>
+            <div class="ni on"><span class="ms" style="font-size:18px">calendar_month</span><span class="navlbl">Meses</span></div>
+            <div class="ni"><span class="ms" style="font-size:18px">bar_chart</span><span class="navlbl">Dashboards</span></div>
+            <div class="ni"><span class="ms" style="font-size:18px">account_balance_wallet</span><span class="navlbl">Patrimônio</span></div>
+            <div class="grp">Gestão</div>
+            <div class="ni"><span class="ms" style="font-size:18px">group</span><span class="navlbl">Membros</span></div>
+            <div class="ni"><span class="ms" style="font-size:18px">settings</span><span class="navlbl">Configurações</span></div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--bsubtle)"><span style="flex:1;font:400 0.76rem var(--sans);color:var(--ttert)">Recolher</span><span style="width:26px;height:26px;border-radius:8px;color:var(--ttert);display:flex;align-items:center;justify-content:center;border:1px solid var(--bdefault)"><span class="ms" style="font-size:16px">chevron_left</span></span></div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;padding:12px 18px;border-bottom:1px solid var(--bsubtle);background:var(--surface)"><span class="ms" style="font-size:18px;color:var(--tsec)">chevron_left</span><span style="font:600 0.9rem var(--sans)">Junho 2026</span><span class="ms" style="font-size:18px;color:var(--tsec)">chevron_right</span><span style="font:500 0.85rem var(--mono);color:var(--success);margin-left:4px">R$ 2.552,58</span></div>
+            <div style="padding:16px"><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><div style="background:var(--successsub);border:1px solid var(--bsubtle);border-radius:10px;padding:11px"><div style="font:500 0.56rem var(--sans);text-transform:uppercase;color:var(--ttert)">Receitas</div><div style="font:500 0.8rem var(--mono);color:var(--success);margin-top:3px">R$ 8.450</div></div><div style="background:var(--dangersub);border:1px solid var(--bsubtle);border-radius:10px;padding:11px"><div style="font:500 0.56rem var(--sans);text-transform:uppercase;color:var(--ttert)">Despesas</div><div style="font:500 0.8rem var(--mono);color:var(--danger);margin-top:3px">R$ 5.897</div></div><div style="background:var(--successsub);border:1px solid var(--bsubtle);border-radius:10px;padding:11px"><div style="font:500 0.56rem var(--sans);text-transform:uppercase;color:var(--ttert)">Saldo</div><div style="font:500 0.8rem var(--mono);color:var(--success);margin-top:3px">R$ 2.552</div></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="max-width:900px;margin-bottom:44px;background:var(--surface);border:1px solid var(--bsubtle);border-radius:10px;padding:14px 16px">
+    <div style="margin:0 0 8px;font:600 11px var(--mono);letter-spacing:.06em;color:var(--accent);text-transform:uppercase">Como funciona</div>
+    <div style="font:400 12.5px/1.7 var(--sans);color:var(--tsec)">→ Botão no rodapé alterna <b style="color:var(--tprimary)">200px ↔ 64px</b>; a preferência fica salva e persiste entre sessões.<br>→ Recolhido mostra só ícones com <b style="color:var(--tprimary)">tooltip</b> no hover — mais área para tabelas e dashboards.<br>→ Em telas estreitas recolhe sozinho; abaixo de ~900px vira drawer sobreposto.</div>
+  </div>
+
+  <div class="lbl">6 · Configurações (sub-navegação interna)</div>
+  <div class="frame">
+    <div style="display:flex;min-height:460px">
+      <div style="width:210px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface)">
+        <div style="padding:14px 14px 12px;border-bottom:1px solid var(--bsubtle);display:flex;align-items:center;justify-content:space-between"><span style="font:600 0.95rem var(--sans)">Família Koppe</span><span class="ms" style="font-size:18px;color:var(--ttert)">unfold_more</span></div>
+        <div style="padding:12px 12px 4px"><div style="height:36px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center;gap:6px;font:600 0.82rem var(--sans)"><span class="ms" style="font-size:18px">add</span>Nova transação</div></div>
+        <div class="grp">Principal</div><div class="ni"><span class="ms" style="font-size:19px">calendar_month</span><span class="navlbl">Meses</span></div><div class="ni"><span class="ms" style="font-size:19px">bar_chart</span><span class="navlbl">Dashboards</span></div><div class="ni"><span class="ms" style="font-size:19px">account_balance_wallet</span><span class="navlbl">Patrimônio</span></div>
+        <div class="grp">Gestão</div><div class="ni"><span class="ms" style="font-size:19px">group</span><span class="navlbl">Membros</span></div><div class="ni on"><span class="ms" style="font-size:19px">settings</span><span class="navlbl">Configurações</span></div>
+      </div>
+      <!-- settings sub-nav -->
+      <div style="width:180px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--canvas);padding-top:14px">
+        <div style="padding:0 14px 8px;font:600 0.62rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--tdis)">Estrutura</div>
+        <div style="padding:6px 14px;font:600 0.8rem var(--sans);color:var(--accent);background:var(--subtle);border-right:2px solid var(--accent)">Categorias</div>
+        <div style="padding:6px 14px;font:400 0.8rem var(--sans);color:var(--tsec)">Seções</div>
+        <div style="padding:6px 14px;font:400 0.8rem var(--sans);color:var(--tsec)">Instituições</div>
+        <div style="padding:0 14px 8px;margin-top:12px;font:600 0.62rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--tdis)">Importação</div>
+        <div style="padding:6px 14px;font:400 0.8rem var(--sans);color:var(--tsec)">Modelos · Templates</div>
+        <div style="padding:6px 14px;font:400 0.8rem var(--sans);color:var(--tsec)">Aliases</div>
+        <div style="padding:0 14px 8px;margin-top:12px;font:600 0.62rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--tdis)">Planejamento</div>
+        <div style="padding:6px 14px;font:400 0.8rem var(--sans);color:var(--tsec)">Orçamentos</div>
+        <div style="padding:6px 14px;font:400 0.8rem var(--sans);color:var(--tsec)">Checklist</div>
+      </div>
+      <div style="flex:1;min-width:0;padding:28px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px"><span style="font:600 1.4rem var(--sans);letter-spacing:-0.02em">Categorias</span><span style="height:32px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;gap:5px;padding:0 12px;font:500 0.8rem var(--sans)"><span class="ms" style="font-size:17px">add</span>Nova categoria</span></div>
+        <div style="display:flex;flex-direction:column;gap:8px;max-width:520px">
+          <div style="border:1px solid var(--bsubtle);border-radius:8px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--surface)"><span style="font:500 0.85rem var(--sans)">Mercado</span><span class="ms" style="font-size:18px;color:var(--tsec)">expand_more</span></div>
+          <div style="border:1px solid var(--bsubtle);border-radius:8px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--surface)"><span style="font:500 0.85rem var(--sans)">Transporte</span><span class="ms" style="font-size:18px;color:var(--tsec)">expand_more</span></div>
+          <div style="border:1px solid var(--bsubtle);border-radius:8px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--surface)"><span style="font:500 0.85rem var(--sans)">Moradia</span><span class="ms" style="font-size:18px;color:var(--tsec)">expand_more</span></div>
+          <div style="border:1px solid var(--bsubtle);border-radius:8px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--surface)"><span style="font:500 0.85rem var(--sans)">Lazer</span><span class="ms" style="font-size:18px;color:var(--tsec)">expand_more</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

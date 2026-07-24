@@ -52,7 +52,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageInfoButton } from "@/components/ui/PageInfoButton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDateBr, parseLocalDate } from "@/lib/dates";
-import { containers, layout } from "@/lib/design-tokens";
+import { layout } from "@/lib/design-tokens";
 import { useActionFeedback } from "@/lib/hooks/use-action-feedback";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl, parseBrlMaskToCents, centsToBrlInput } from "@/lib/money";
@@ -345,7 +345,7 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
   }
 
   return (
-    <Box sx={{ p: layout.page, maxWidth: containers.lg, mx: "auto" }}>
+    <Box sx={{ p: layout.page }}>
       <PageHeader
         title={m.netWorth.title}
         actions={

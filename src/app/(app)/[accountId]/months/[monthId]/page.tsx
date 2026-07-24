@@ -157,7 +157,9 @@ export default async function MonthPage({ params, searchParams }: Props) {
 
   return (
     <MonthFilterProvider initialFilters={initialFilters} options={filterOptions}>
-      <Box>
+      {/* Preenche a altura do `<main>` e mantém MonthHeader + MonthTabs fixos;
+          só o corpo (seções) rola (Spec 65 — scroll interno por página). */}
+      <Box sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
         <MonthHeader
           accountId={accountId}
           currentMonth={currentMonth}
@@ -167,30 +169,32 @@ export default async function MonthPage({ params, searchParams }: Props) {
 
         <MonthTabs accountId={accountId} monthId={monthId} sections={sections} activeTab={tab} />
 
-        <ActiveFilterChips />
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <ActiveFilterChips />
 
-        {tab === "summary" || !activeSection ? (
-          <Suspense fallback={<TabContentSkeleton />}>
-            <MonthSummaryTab
-              accountId={accountId}
-              monthId={monthId}
-              monthYear={monthYear}
-              monthMonth={monthMonth}
-              prevMonthId={prevMonthId}
-              allMonthIds={allMonthIds}
-              canEdit={canEdit}
-            />
-          </Suspense>
-        ) : (
-          <Suspense key={activeSection.id} fallback={<TabContentSkeleton />}>
-            <SectionTab
-              accountId={accountId}
-              monthId={monthId}
-              sectionId={activeSection.id}
-              canEdit={canEdit}
-            />
-          </Suspense>
-        )}
+          {tab === "summary" || !activeSection ? (
+            <Suspense fallback={<TabContentSkeleton />}>
+              <MonthSummaryTab
+                accountId={accountId}
+                monthId={monthId}
+                monthYear={monthYear}
+                monthMonth={monthMonth}
+                prevMonthId={prevMonthId}
+                allMonthIds={allMonthIds}
+                canEdit={canEdit}
+              />
+            </Suspense>
+          ) : (
+            <Suspense key={activeSection.id} fallback={<TabContentSkeleton />}>
+              <SectionTab
+                accountId={accountId}
+                monthId={monthId}
+                sectionId={activeSection.id}
+                canEdit={canEdit}
+              />
+            </Suspense>
+          )}
+        </Box>
       </Box>
     </MonthFilterProvider>
   );

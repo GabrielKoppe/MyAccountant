@@ -29,7 +29,7 @@ import { DialogShell } from "@/components/ui/DialogShell";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MONTH_NAMES } from "@/lib/dates";
-import { containers, layout } from "@/lib/design-tokens";
+import { layout } from "@/lib/design-tokens";
 import { useActionFeedback } from "@/lib/hooks/use-action-feedback";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
@@ -133,7 +133,7 @@ export function BudgetsPlanningManager({ accountId, initialBudgets, formOptions,
   }
 
   return (
-    <Box sx={{ p: layout.page, maxWidth: containers.lg, mx: "auto" }}>
+    <Box sx={{ p: layout.page }}>
       <Stack spacing={layout.section}>
         {/* ── Barra de ação (o PageHeader do hub vem do layout — só o botão contextual) ── */}
         {canEdit && (

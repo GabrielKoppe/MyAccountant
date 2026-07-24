@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { PlanningNav } from "@/components/planning/PlanningNav";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageInfoButton } from "@/components/ui/PageInfoButton";
-import { containers, layout } from "@/lib/design-tokens";
+import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { requireAccountAccess } from "@/server/auth/session";
 
@@ -32,8 +32,8 @@ type Props = {
  * dentro do client component de cada aba (que ainda não existe nesta fase).
  *
  * Sem padding embaixo (só `px`/`pt`): cada página filha já aplica seu próprio
- * `Box sx={{ p: layout.page, maxWidth: containers.lg, mx: "auto" }}` (mesmo
- * padrão de `NetWorthManager`/`ForecastManager`) — evita dobrar o padding.
+ * `Box sx={{ p: layout.page }}` (mesmo padrão de `NetWorthManager`/
+ * `ForecastManager`) — evita dobrar o padding. Largura total (sem `maxWidth`).
  */
 export default async function PlanningLayout({ children, params }: Props) {
   const { accountId } = await params;
@@ -41,7 +41,7 @@ export default async function PlanningLayout({ children, params }: Props) {
 
   return (
     <>
-      <Box sx={{ px: layout.page, pt: layout.page, maxWidth: containers.lg, mx: "auto" }}>
+      <Box sx={{ px: layout.page, pt: layout.page }}>
         <PageHeader
           title={m.goals.hubTitle}
           actions={<PageInfoButton guide={m.planning.guide} />}

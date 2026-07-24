@@ -18,7 +18,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageInfoButton } from "@/components/ui/PageInfoButton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { containers, layout } from "@/lib/design-tokens";
+import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
 import { SCENARIOS, type Scenario } from "@/lib/schemas/forecast";
@@ -95,7 +95,7 @@ export function ForecastManager({ accountId, forecast }: Props) {
   );
 
   return (
-    <Box sx={{ p: layout.page, maxWidth: containers.lg, mx: "auto" }}>
+    <Box sx={{ p: layout.page }}>
       <PageHeader
         title={m.cashflowForecast.title}
         description={m.cashflowForecast.fromToday}

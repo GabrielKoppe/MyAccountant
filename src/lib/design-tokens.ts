@@ -227,6 +227,13 @@ export const containers = {
   xl: 1440,
 } as const;
 
+/**
+ * Altura da barra de cabeçalho do app (px). Compartilhada entre o cabeçalho da
+ * conta na `AppSidebar` e o cabeçalho de página (ex.: `MonthHeader`) para que
+ * os `borderBottom` alinhem na mesma linha horizontal. Ver Spec 65 §7.
+ */
+export const APP_HEADER_HEIGHT = 56;
+
 // ============================================================================
 // MOTION
 // ============================================================================

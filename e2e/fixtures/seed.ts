@@ -1,8 +1,10 @@
 // e2e/fixtures/seed.ts
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+
 import { assertSafeSeedTarget } from "../../prisma/seed-guard";
 
 const prisma = new PrismaClient();
@@ -22,6 +24,11 @@ const BASE_CATEGORIES = [
   { name: "Transporte", subs: ["Combustível", "Uber/Táxi"] },
 ];
 const BASE_INSTITUTIONS = ["Banco A", "Banco B"];
+
+// Títulos das notificações semeadas (Spec 65 P5). Mantidos como literais estáveis para o
+// e2e localizar os itens — se mudar aqui, atualize e2e/notifications-menu.spec.ts.
+const NOTIF_LINKED_TITLE = "E2E Editor adicionou 1 transação em Dezembro 2099";
+const NOTIF_UNLINKED_TITLE = "E2E Editor entrou na conta como editor";
 
 async function reset() {
   // Reset via cascade: account.deleteMany() apaga (onDelete: Cascade) todo dado account-scoped
@@ -156,6 +163,35 @@ async function main() {
       description: "Aluguel",
       createdById: owner.id,
     },
+  });
+
+  // Notificações não lidas p/ o cenário NAV-02b (Spec 65 P5): sem elas os e2e de
+  // badge/lista/navegação não têm dados. Destinatário = owner (tem storageState),
+  // ator = editor. Uma COM link (link É o monthId → navega p/ /months/{roMonth})
+  // e uma SEM link (invite_accepted). `isRead:false` alimenta getUnreadCount=2.
+  await prisma.notification.createMany({
+    data: [
+      {
+        userId: owner.id,
+        accountId: main.id,
+        actorId: editor.id,
+        type: "transactions_added",
+        title: NOTIF_LINKED_TITLE,
+        link: roMonth.id,
+        count: 1,
+        isRead: false,
+      },
+      {
+        userId: owner.id,
+        accountId: main.id,
+        actorId: editor.id,
+        type: "invite_accepted",
+        title: NOTIF_UNLINKED_TITLE,
+        link: null,
+        count: 1,
+        isRead: false,
+      },
+    ],
   });
 
   const manifest = {

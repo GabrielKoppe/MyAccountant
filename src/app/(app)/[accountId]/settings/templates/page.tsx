@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
 
+import { TemplatesManager } from "@/app/(app)/[accountId]/settings/templates/TemplatesManager";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
+import type { ImportMapping } from "@/lib/schemas/csv-import";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
-import { TemplatesManager } from "@/app/(app)/[accountId]/settings/templates/TemplatesManager";
-import type { ImportMapping } from "@/lib/schemas/csv-import";
 
 type Props = { params: Promise<{ accountId: string }> };
 
@@ -17,7 +17,11 @@ export async function generateMetadata({ params }: MetaProps): Promise<Metadata>
 
 export default async function TemplatesPage({ params }: Props) {
   const { accountId } = await params;
-  await requireAccountAccess(accountId).catch(() => redirect("/home"));
+  const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
+
+  // Carve-out do viewer (Spec 65 §10.5): esta página não tem guard próprio no
+  // layout — só "Membros" fica aberto a todos os papéis.
+  if (member.role === "viewer") redirect(`/${accountId}`);
 
   const templates = await prisma.csvTemplate.findMany({
     where: { accountId },

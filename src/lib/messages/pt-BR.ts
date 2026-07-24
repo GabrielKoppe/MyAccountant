@@ -164,6 +164,16 @@ export const messages = {
         yearly: "Dashboard Anual",
         monthSummary: "Resumo do Mês",
       },
+      // Spec 65 §7.2/§10.3 (P7) — famílias do sidebar de Configurações.
+      groups: {
+        structure: "Estrutura",
+        import: "Importação",
+        planning: "Planejamento",
+        visualization: "Visualização",
+        integrations: "Integrações",
+        account: "Conta",
+        dashboardsLabel: "Dashboards",
+      },
     },
     audit: {
       emptyTitle: "Nenhum evento registrado",
@@ -1053,6 +1063,9 @@ export const messages = {
       createError: "Não foi possível criar a opção.",
       noOptions: "Nenhuma opção encontrada",
     },
+    // Captura rápida global (Spec 65 NAV-03). Só as strings exclusivas do
+    // quick-add moram aqui; título/valor/data/categoria etc. reusam
+    // `m.transactions.newTransaction`/`fields.*`/`common.*` (zero duplicação).
   },
   dashboards: {
     title: "Dashboards",
@@ -2288,6 +2301,25 @@ export const messages = {
         `${name} deletou ${count} ${count === 1 ? "transação" : "transações"} em ${month}`,
       invite_accepted: (name: string, role: string) => `${name} entrou na conta como ${role}`,
     },
+  },
+  // Spec 65 §7.1/§10.3 (P1) — AppSidebar. Alguns destinos reusam mensagens já
+  // existentes (não duplicadas aqui): m.transactions.newTransaction (Nova
+  // transação), m.netWorth.navLabel (Patrimônio), m.goals.navLabel
+  // (Planejamento), m.cashflowForecast.navLabel (Projeção),
+  // m.settings.nav.members (Membros).
+  nav: {
+    ariaLabel: "Navegação principal",
+    groupPrincipal: "Principal",
+    groupManagement: "Gestão",
+    months: "Meses",
+    dashboards: "Dashboards",
+    settings: "Configurações",
+    recentMonths: "Meses recentes",
+    collapse: "Recolher navegação",
+    expand: "Expandir navegação",
+    // Spec 65 §10.3 (P4) — Drawer mobile (NAV-05): ícone hambúrguer que abre
+    // a sidebar como `Drawer` temporário abaixo do breakpoint `md`.
+    openMenu: "Abrir menu de navegação",
   },
   errors: {
     unauthorized: "Você precisa estar logado.",

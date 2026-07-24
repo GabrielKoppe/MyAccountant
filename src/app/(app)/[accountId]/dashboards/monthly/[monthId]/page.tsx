@@ -1,14 +1,20 @@
-import type { Metadata } from "next";
-import type { TransactionExpenseType } from "@prisma/client";
-import { redirect } from "next/navigation";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import type { TransactionExpenseType } from "@prisma/client";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
+import { MonthlyDashboardClient } from "@/components/dashboards/monthly/MonthlyDashboardClient";
+import { MonthlyDashboardMenu } from "@/components/dashboards/monthly/MonthlyDashboardMenu";
+import { AppLink } from "@/components/ui/AppLink";
+import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
+import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
+import { getBudgetsWithProgress, getBudgetFormOptions } from "@/server/queries/budgets";
 import {
   getMonthDeepDive,
   getMonthSparklineData,
@@ -21,17 +27,11 @@ import {
   getWeeklySpending,
   getTransactionCount,
 } from "@/server/queries/dashboards";
-import { getMemberMonthlyBreakdown } from "@/server/queries/member-analytics";
-import { getBudgetsWithProgress, getBudgetFormOptions } from "@/server/queries/budgets";
-import { getLayout } from "@/server/services/dashboard-layout-service";
 import { getKpiCustomDataMap } from "@/server/queries/kpi-custom";
-import { generateInsights } from "@/server/services/insights-service";
-import { formatMonthLabel, getCurrentFiscalMonth, MONTH_NAMES } from "@/lib/dates";
+import { getMemberMonthlyBreakdown } from "@/server/queries/member-analytics";
 import { getSandboxDataMap } from "@/server/queries/sandbox";
-import { AppLink } from "@/components/ui/AppLink";
-import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
-import { MonthlyDashboardMenu } from "@/components/dashboards/monthly/MonthlyDashboardMenu";
-import { MonthlyDashboardClient } from "@/components/dashboards/monthly/MonthlyDashboardClient";
+import { getLayout } from "@/server/services/dashboard-layout-service";
+import { generateInsights } from "@/server/services/insights-service";
 
 type Props = { params: Promise<{ accountId: string; monthId: string }> };
 
@@ -220,7 +220,7 @@ export default async function MonthlyDashboardPage({ params }: Props) {
     ]);
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1400, mx: "auto" }}>
+    <Box sx={{ p: 3 }}>
       {/* Navigation header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
         <Stack direction="row" alignItems="center" gap={1}>

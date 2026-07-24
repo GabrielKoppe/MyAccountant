@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap" rel="stylesheet">
+<style>
+:root{
+--sans:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',Menlo,monospace;
+--canvas:#1A1815;--surface:#221F1B;--subtle:#2A2620;--muted:#322D26;
+--bsubtle:#322D26;--bdefault:#44403A;--bstrong:#5C574E;
+--tprimary:#F0EDE5;--tsec:#C4BDB0;--ttert:#8B847A;--tdis:#5C574E;
+--accent:#7E8DE5;--accenthover:#94A1EC;--accentsub:#252840;
+--success:#7AAE83;--successsub:#1F2D24;--warning:#D4A551;--warningsub:#2E2818;--danger:#D47373;--dangersub:#2E1F1F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#161412;color:var(--tprimary);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.ms{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;line-height:1;display:inline-block;vertical-align:middle;flex-shrink:0}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--bstrong);border-radius:9999px}::-webkit-scrollbar-track{background:transparent}
+.h2{font:700 0.7rem var(--mono);letter-spacing:0.14em;color:var(--accent);border:1px solid var(--accentsub);background:var(--accentsub);padding:5px 10px;border-radius:6px}
+.lbl{margin:0 0 10px;font:600 12px/1.4 var(--mono);color:var(--ttert);letter-spacing:.03em}
+.note{margin:6px 0 0;font:400 0.8rem/1.5 var(--sans);color:var(--ttert);max-width:900px}
+.chip{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border-radius:5px;font:500 0.68rem var(--sans);white-space:nowrap}
+.frame{border:1px solid var(--bdefault);border-radius:12px;overflow:hidden;background:var(--canvas)}
+/* tabela */
+.thead,.trow{display:grid;align-items:center;grid-template-columns:34px 58px minmax(96px,1fr) 88px 80px 76px 24px 52px 52px 92px;gap:0}
+.trow>span:last-child,.thead>span:last-child{display:flex;align-items:center;justify-content:flex-end;gap:2px}
+.thead>span,.trow>span{padding:10px 10px;min-width:0}
+.thead{background:var(--subtle);font:500 0.62rem var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ttert)}
+.trow{border-top:1px solid var(--bsubtle);font:400 0.8rem var(--sans)}
+.dt{font-family:var(--mono);color:var(--tsec);white-space:nowrap}
+.amt{font-family:var(--mono);text-align:right;white-space:nowrap}
+.neg{color:var(--danger)}.pos{color:var(--success)}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cbox{width:15px;height:15px;border:1px solid var(--bstrong);border-radius:3px;display:inline-block}
+.av{width:24px;height:24px;border-radius:50%;background:var(--accentsub);color:var(--accent);display:flex;align-items:center;justify-content:center;font:600 0.68rem var(--sans)}
+.why{background:var(--surface);border:1px solid var(--bsubtle);border-radius:10px;padding:13px 15px;margin-top:12px}
+.why h4{margin:0 0 7px;font:600 11px var(--mono);letter-spacing:.06em;color:var(--accent);text-transform:uppercase}
+.why li{font:400 12px/1.5 var(--sans);color:var(--tsec);margin-bottom:4px;list-style:none;padding-left:16px;position:relative}
+.why li::before{content:"→";position:absolute;left:0;color:var(--accent)}
+.why b{color:var(--tprimary);font-weight:600}
+.oid{font:600 10.5px var(--mono);padding:3px 7px;background:var(--muted);color:var(--tprimary);border-radius:5px}
+.cap{font:600 0.62rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ttert)}
+</style>
+</helmet>
+
+<div style="padding:52px 60px 120px;max-width:1560px;margin:0 auto">
+
+  <div style="font:600 2rem/1.1 var(--sans);letter-spacing:-0.02em;color:var(--accent);margin-bottom:8px">Transação — Modelos de Interação (completo)</div>
+  <p style="margin:0 0 6px;max-width:860px;font:400 0.95rem/1.6 var(--sans);color:var(--tsec)">Catálogo de todos os estados da transação para servir de referência de implementação: a linha em cada densidade e estado, o modo de edição inline, a criação (linha e modal), as gavetas (nota, moeda, vínculos, tags), o menu de ações, o modal de detalhes (direção <strong style="color:var(--tprimary)">1b</strong>) e o painel de parcelas unificado. Fiel aos componentes reais (<code style="font-family:var(--mono);font-size:.85em;color:var(--warning)">TransactionRow</code>, <code style="font-family:var(--mono);font-size:.85em;color:var(--warning)">TransactionRowEditor</code>, <code style="font-family:var(--mono);font-size:.85em;color:var(--warning)">hiddenColumns</code>).</p>
+
+  <!-- ═══════ SEÇÃO 1 · OPÇÕES DE ORGANIZAÇÃO DA LINHA ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:44px 0 10px"><span class="h2">1 · ORGANIZAÇÃO DA LINHA — 2 OPÇÕES</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <p class="note" style="margin-bottom:22px">Como a linha distribui os campos. Escolha uma como base do catálogo (posso combinar). Ambas respeitam o <code style="font-family:var(--mono);color:var(--warning)">hiddenColumns</code> por tipo de tabela.</p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;margin-bottom:16px">
+    <!-- Opção A: colunas -->
+    <div id="A" style="width:820px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="oid">A</span><span style="font:500 12px var(--sans);color:var(--tsec)">Colunas explícitas (modelo atual, refinado)</span></div>
+      <div class="frame">
+        <div class="thead"><span><span class="cbox"></span></span><span>Data</span><span>Descrição</span><span>Categoria</span><span>Instituição</span><span class="amt">Valor</span><span></span><span>Parcela</span><span>Tags</span><span></span></div>
+        <div class="trow"><span><span class="cbox"></span></span><span class="dt">07/06</span><span class="ell">iFood · Sabor</span><span class="ell" style="color:var(--tsec)">Delivery</span><span class="ell" style="color:var(--tsec)">Nubank</span><span class="amt neg">R$ 64,90</span><span><span class="av">A</span></span><span><span class="chip" style="border:1px solid var(--bdefault);color:var(--tsec)">2/3</span></span><span><span class="chip" style="background:var(--muted);color:var(--tsec)">jantar</span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+        <div class="trow"><span><span class="cbox"></span></span><span class="dt">03/06</span><span class="ell">Supermercado BH</span><span class="ell" style="color:var(--tsec)">Mercado</span><span class="ell" style="color:var(--tsec)">Itaú</span><span class="amt neg">R$ 342,18</span><span><span class="av">G</span></span><span></span><span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+      </div>
+      <div class="why"><h4>Por quê / trade-offs</h4><ul style="margin:0;padding:0">
+        <li><b>Escaneabilidade vertical</b>: comparar valores/categorias entre linhas é fácil (colunas alinhadas).</li>
+        <li>Familiar — é o modelo de hoje; menor esforço de migração.</li>
+        <li><b>Custo:</b> muitas colunas competem por largura; campos ricos somem quando o tipo de tabela oculta a coluna, sem pista de que existem.</li>
+      </ul></div>
+    </div>
+
+    <!-- Opção B: descrição rica -->
+    <div id="B" style="width:720px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="oid">B</span><span style="font:500 12px var(--sans);color:var(--tsec)">Descrição rica + metadados como pílulas</span></div>
+      <div class="frame">
+        <div style="display:grid;grid-template-columns:34px 64px 1fr 120px 40px;background:var(--subtle);font:500 0.62rem var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ttert)"><span style="padding:10px"><span class="cbox"></span></span><span style="padding:10px">Data</span><span style="padding:10px">Transação</span><span style="padding:10px" class="amt">Valor</span><span></span></div>
+        <div style="display:grid;grid-template-columns:34px 64px 1fr 120px 40px;border-top:1px solid var(--bsubtle);align-items:center"><span style="padding:10px"><span class="cbox"></span></span><span style="padding:10px" class="dt">07/06</span><span style="padding:8px 10px"><div style="font:500 0.82rem var(--sans)">iFood · Restaurante Sabor</div><div style="display:flex;gap:5px;margin-top:4px"><span class="chip" style="background:var(--muted);color:var(--tsec)"><span class="ms" style="font-size:12px">sell</span>Delivery</span><span class="chip" style="background:var(--muted);color:var(--tsec)"><span class="av" style="width:13px;height:13px;font-size:.5rem">A</span>Ana</span><span class="chip" style="border:1px solid var(--bdefault);color:var(--tsec)"><span class="ms" style="font-size:12px">splitscreen</span>2/3</span><span class="chip" style="background:var(--muted);color:var(--tsec)">jantar</span></div></span><span style="padding:10px" class="amt neg">R$ 64,90</span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+        <div style="display:grid;grid-template-columns:34px 64px 1fr 120px 40px;border-top:1px solid var(--bsubtle);align-items:center"><span style="padding:10px"><span class="cbox"></span></span><span style="padding:10px" class="dt">03/06</span><span style="padding:8px 10px"><div style="font:500 0.82rem var(--sans)">Supermercado BH</div><div style="display:flex;gap:5px;margin-top:4px"><span class="chip" style="background:var(--muted);color:var(--tsec)"><span class="ms" style="font-size:12px">sell</span>Mercado</span><span class="chip" style="background:var(--muted);color:var(--tsec)"><span class="av" style="width:13px;height:13px;font-size:.5rem">G</span>Gabriel</span></div></span><span style="padding:10px" class="amt neg">R$ 342,18</span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+      </div>
+      <div class="why"><h4>Por quê / trade-offs</h4><ul style="margin:0;padding:0">
+        <li><b>Todo campo rico fica visível</b> como pílula, independente do tipo de tabela — nada some silenciosamente.</li>
+        <li>Menos colunas = respira melhor em telas estreitas / mobile; descrição ganha protagonismo.</li>
+        <li><b>Custo:</b> comparação coluna-a-coluna entre linhas piora; densidade vertical maior por linha.</li>
+        <li>O <code style="font-family:var(--mono);font-size:.9em">hiddenColumns</code> passa a decidir <b>quais pílulas</b> aparecem, não colunas.</li>
+      </ul></div>
+    </div>
+  </div>
+  <p class="note">Recomendação: <b style="color:var(--tprimary)">A como padrão</b> (continuidade + escaneabilidade) com um <b style="color:var(--tprimary)">modo compacto opcional estilo B</b> para telas estreitas. O catálogo abaixo usa <span class="oid">A</span>.</p>
+
+  <!-- ═══════ SEÇÃO 2 · A LINHA EM CADA DENSIDADE (por tipo de tabela) ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">2 · DENSIDADE POR TIPO DE TABELA</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <p class="note" style="margin-bottom:20px">Mesma transação, três tipos de tabela com <code style="font-family:var(--mono);color:var(--warning)">hiddenColumns</code> diferentes. É o mecanismo que existe hoje — o catálogo o documenta explicitamente.</p>
+
+  <div style="display:flex;flex-direction:column;gap:22px">
+    <div>
+      <div class="lbl">Mínima — <span style="color:var(--tdis)">Extrato simples (oculta: categoria, instituição, responsável, parcela, tags)</span></div>
+      <div class="frame" style="max-width:720px">
+        <div style="display:grid;grid-template-columns:34px 74px 1fr 130px 40px;background:var(--subtle);font:500 0.62rem var(--sans);text-transform:uppercase;color:var(--ttert)"><span style="padding:10px"><span class="cbox"></span></span><span style="padding:10px">Data</span><span style="padding:10px">Descrição</span><span style="padding:10px" class="amt">Valor</span><span></span></div>
+        <div style="display:grid;grid-template-columns:34px 74px 1fr 130px 40px;border-top:1px solid var(--bsubtle);align-items:center;font:400 0.8rem var(--sans)"><span style="padding:11px"><span class="cbox"></span></span><span style="padding:11px" class="dt">07/06</span><span style="padding:11px" class="ell">iFood · Sabor</span><span style="padding:11px" class="amt neg">R$ 64,90</span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+      </div>
+    </div>
+    <div>
+      <div class="lbl">Padrão — <span style="color:var(--tdis)">Cartão de crédito (categoria, instituição, responsável, parcela, tags)</span></div>
+      <div class="frame" style="max-width:980px">
+        <div class="thead"><span><span class="cbox"></span></span><span>Data</span><span>Descrição</span><span>Categoria</span><span>Instituição</span><span class="amt">Valor</span><span></span><span>Parcela</span><span>Tags</span><span></span></div>
+        <div class="trow"><span><span class="cbox"></span></span><span class="dt">07/06</span><span class="ell">iFood · Sabor</span><span class="ell" style="color:var(--tsec)">Delivery</span><span class="ell" style="color:var(--tsec)">Nubank</span><span class="amt neg">R$ 64,90</span><span><span class="av">A</span></span><span><span class="chip" style="border:1px solid var(--bdefault);color:var(--tsec)">2/3</span></span><span><span class="chip" style="background:var(--muted);color:var(--tsec)">jantar</span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+      </div>
+    </div>
+    <div>
+      <div class="lbl">Completa — <span style="color:var(--tdis)">Investimentos (+ subcategoria, tipo de investimento, forma de pagamento, tipo de gasto)</span></div>
+      <div class="frame" style="max-width:1180px">
+        <div style="display:grid;grid-template-columns:34px 54px minmax(110px,1fr) 88px 80px 84px 78px 78px 26px 54px 34px;background:var(--subtle);font:500 0.58rem var(--sans);text-transform:uppercase;color:var(--ttert)"><span style="padding:9px 8px"><span class="cbox"></span></span><span style="padding:9px 8px">Data</span><span style="padding:9px 8px">Descrição</span><span style="padding:9px 8px">Categoria</span><span style="padding:9px 8px">Subcat.</span><span style="padding:9px 8px">Instituição</span><span style="padding:9px 8px">Investim.</span><span style="padding:9px 8px" class="amt">Valor</span><span></span><span style="padding:9px 8px">Pagto</span><span></span></div>
+        <div style="display:grid;grid-template-columns:34px 54px minmax(110px,1fr) 88px 80px 84px 78px 78px 26px 54px 34px;border-top:1px solid var(--bsubtle);align-items:center;font:400 0.76rem var(--sans)"><span style="padding:9px 8px"><span class="cbox"></span></span><span style="padding:9px 8px" class="dt">05/06</span><span style="padding:9px 8px" class="ell">Compra ITSA4</span><span style="padding:9px 8px;color:var(--tsec)" class="ell">Ações</span><span style="padding:9px 8px;color:var(--tsec)" class="ell">B3</span><span style="padding:9px 8px;color:var(--tsec)" class="ell">Nubank</span><span style="padding:9px 8px;color:var(--tsec)" class="ell">Ações</span><span style="padding:9px 8px" class="amt pos">R$ 1.200,00</span><span style="text-align:center" title="pontual"><span class="ms" style="font-size:15px;color:var(--tsec)">flash_on</span></span><span style="padding:9px 8px;color:var(--tsec)" class="ell">Pix</span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SEÇÃO 3 · ESTADOS DA LINHA ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">3 · ESTADOS DA LINHA</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <p class="note" style="margin-bottom:20px">Todos sobre o modelo A (Padrão). Estados combináveis.</p>
+  <div class="frame" style="max-width:980px">
+    <div class="thead"><span><span class="cbox"></span></span><span>Data</span><span>Descrição</span><span>Categoria</span><span>Instituição</span><span class="amt">Valor</span><span></span><span>Parcela</span><span>Tags</span><span></span></div>
+    <!-- normal -->
+    <div class="trow"><span><span class="cbox"></span></span><span class="dt">03/06</span><span class="ell">Supermercado BH</span><span class="ell" style="color:var(--tsec)">Mercado</span><span class="ell" style="color:var(--tsec)">Itaú</span><span class="amt neg">R$ 342,18</span><span><span class="av">G</span></span><span></span><span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+    <!-- pendente (esmaecida) -->
+    <div class="trow" style="opacity:.6"><span><span class="cbox"></span></span><span class="dt">15/06</span><span class="ell">Outback <span class="chip" style="background:var(--warningsub);color:var(--warning);margin-left:4px">pendente</span></span><span class="ell" style="color:var(--tsec)">Restaurante</span><span class="ell" style="color:var(--tsec)">Nubank</span><span class="amt neg">R$ 187,00</span><span><span class="av">A</span></span><span></span><span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+    <!-- favorita + estorno (verde) -->
+    <div class="trow"><span><span class="cbox"></span></span><span class="dt">10/06</span><span class="ell"><span class="ms" style="font-size:14px;color:var(--warning);margin-right:4px">star</span>Estorno Amazon</span><span class="ell" style="color:var(--tsec)">Compras</span><span class="ell" style="color:var(--tsec)">Nubank</span><span class="amt pos">+ R$ 89,90</span><span><span class="av">G</span></span><span></span><span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+    <!-- parcela + moeda estrangeira + alias -->
+    <div class="trow"><span><span class="cbox"></span></span><span class="dt">07/06</span><span style="display:flex;align-items:center;gap:6px;min-width:0"><span class="ell">Netflix</span><span class="ms" style="font-size:15px;color:var(--accent)" title="sugestão de apelido">auto_fix_high</span></span><span class="ell" style="color:var(--tsec)">Assinaturas</span><span class="ell" style="color:var(--tsec)">Nubank</span><span class="amt neg" title="US$ 11.99 · câmbio R$5,40" style="border-bottom:1px dotted var(--bstrong)">R$ 64,90</span><span><span class="av">A</span></span><span><span class="chip" style="border:1px solid var(--bdefault);color:var(--tsec)">2/3</span></span><span style="display:flex;gap:3px"><span class="chip" style="background:var(--muted);color:var(--tsec)">stream</span><span class="chip" style="background:var(--muted);color:var(--tsec)">+2</span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+    <!-- hover (ações reveladas) -->
+    <div class="trow" style="background:var(--subtle)"><span><span class="cbox"></span></span><span class="dt">01/06</span><span class="ell">Aluguel</span><span class="ell" style="color:var(--tsec)">Moradia</span><span class="ell" style="color:var(--tsec)">Itaú</span><span class="amt neg">R$ 1.800,00</span><span><span class="av">G</span></span><span></span><span></span><span style="display:flex;align-items:center;gap:2px;color:var(--tsec)"><span class="ms" style="font-size:16px;color:var(--warning)">star</span><span class="ms" style="font-size:16px">schedule</span><span class="ms" style="font-size:16px">expand_more</span><span class="ms" style="font-size:16px">more_vert</span></span></div>
+    <!-- selecionada -->
+    <div class="trow" style="background:var(--accentsub)"><span><span style="width:15px;height:15px;border-radius:3px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:12px">check</span></span></span><span class="dt">02/06</span><span class="ell" style="color:var(--accent)">Energia CEMIG</span><span class="ell" style="color:var(--tsec)">Moradia</span><span class="ell" style="color:var(--tsec)">Itaú</span><span class="amt neg">R$ 213,40</span><span><span class="av">G</span></span><span></span><span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+  </div>
+  <div style="max-width:980px;margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
+    <span class="chip" style="background:var(--surface);border:1px solid var(--bsubtle);color:var(--tsec);height:24px">Pendente = linha esmaecida + chip</span>
+    <span class="chip" style="background:var(--surface);border:1px solid var(--bsubtle);color:var(--tsec);height:24px">Favorita = ★ na descrição</span>
+    <span class="chip" style="background:var(--surface);border:1px solid var(--bsubtle);color:var(--tsec);height:24px">Estorno = valor verde com sinal</span>
+    <span class="chip" style="background:var(--surface);border:1px solid var(--bsubtle);color:var(--tsec);height:24px">Moeda = valor pontilhado + tooltip</span>
+    <span class="chip" style="background:var(--surface);border:1px solid var(--bsubtle);color:var(--tsec);height:24px">Alias = ✨ clicável</span>
+    <span class="chip" style="background:var(--surface);border:1px solid var(--bsubtle);color:var(--tsec);height:24px">Parcela = chip que abre o painel</span>
+  </div>
+
+  <!-- ═══════ SEÇÃO 4 · SELEÇÃO EM MASSA ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">4 · SELEÇÃO EM MASSA</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <div class="frame" style="max-width:980px">
+    <div style="display:flex;align-items:center;gap:14px;padding:10px 14px;background:var(--accentsub);border-bottom:1px solid var(--bsubtle)">
+      <span style="width:15px;height:15px;border-radius:3px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:12px">check</span></span>
+      <span style="font:600 0.82rem var(--sans);color:var(--accent)">3 selecionadas</span>
+      <span style="flex:1"></span>
+      <span style="display:flex;align-items:center;gap:5px;font:500 0.78rem var(--sans);color:var(--tsec)"><span class="ms" style="font-size:16px">edit</span>Editar em massa</span>
+      <span style="display:flex;align-items:center;gap:5px;font:500 0.78rem var(--sans);color:var(--tsec)"><span class="ms" style="font-size:16px">drive_file_move</span>Mover</span>
+      <span style="display:flex;align-items:center;gap:5px;font:500 0.78rem var(--sans);color:var(--tsec)"><span class="ms" style="font-size:16px">schedule</span>Marcar pago</span>
+      <span style="display:flex;align-items:center;gap:5px;font:500 0.78rem var(--sans);color:var(--tsec)"><span class="ms" style="font-size:16px">label</span>Tags</span>
+      <span style="display:flex;align-items:center;gap:5px;font:500 0.78rem var(--sans);color:var(--danger)"><span class="ms" style="font-size:16px">delete</span>Excluir</span>
+    </div>
+    <div class="thead"><span><span style="width:15px;height:15px;border-radius:3px;background:var(--accent);display:inline-block"></span></span><span>Data</span><span>Descrição</span><span>Categoria</span><span>Instituição</span><span class="amt">Valor</span><span></span><span>Parcela</span><span>Tags</span><span></span></div>
+    <div class="trow" style="background:var(--accentsub)"><span><span style="width:15px;height:15px;border-radius:3px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:12px">check</span></span></span><span class="dt">03/06</span><span class="ell" style="color:var(--accent)">Supermercado BH</span><span class="ell" style="color:var(--tsec)">Mercado</span><span class="ell" style="color:var(--tsec)">Itaú</span><span class="amt neg">R$ 342,18</span><span><span class="av">G</span></span><span></span><span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+    <div class="trow" style="background:var(--accentsub)"><span><span style="width:15px;height:15px;border-radius:3px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:12px">check</span></span></span><span class="dt">02/06</span><span class="ell" style="color:var(--accent)">Energia CEMIG</span><span class="ell" style="color:var(--tsec)">Moradia</span><span class="ell" style="color:var(--tsec)">Itaú</span><span class="amt neg">R$ 213,40</span><span><span class="av">G</span></span><span></span><span></span><span style="color:var(--tdis)"><span class="ms" style="font-size:16px">more_vert</span></span></div>
+  </div>
+
+  <!-- ═══════ SEÇÃO 5 · MODO EDIÇÃO (inline) ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">5 · MODO EDIÇÃO (inline)</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <p class="note" style="margin-bottom:20px">A linha vira campos editáveis no lugar (<code style="font-family:var(--mono);color:var(--warning)">TransactionRowEditor</code>). Abaixo, a barra de ferramentas da gaveta (nota · moeda · vínculos · tags · criar apelido) e Salvar/Cancelar. Clicar numa célula na leitura entra em edição já focando aquele campo.</p>
+  <div class="frame" style="max-width:980px">
+    <div class="thead"><span><span class="cbox"></span></span><span>Data</span><span>Descrição</span><span>Categoria</span><span>Instituição</span><span class="amt">Valor</span><span></span><span>Parcela</span><span>Tags</span><span></span></div>
+    <!-- edit row -->
+    <div class="trow" style="background:var(--subtle);align-items:center">
+      <span><span class="cbox"></span></span>
+      <span><span style="display:flex;align-items:center;height:30px;border:1px solid var(--bdefault);border-radius:6px;padding:0 6px;font:400 0.74rem var(--mono);color:var(--tsec)">07/06</span></span>
+      <span><span style="display:flex;align-items:center;height:30px;border:2px solid var(--accent);border-radius:6px;padding:0 8px;font:400 0.78rem var(--sans)">iFood · Sabor</span></span>
+      <span><span style="display:flex;align-items:center;justify-content:space-between;height:30px;border:1px solid var(--bdefault);border-radius:6px;padding:0 8px;font:400 0.76rem var(--sans);color:var(--tsec)">Delivery<span class="ms" style="font-size:15px">expand_more</span></span></span>
+      <span><span style="display:flex;align-items:center;justify-content:space-between;height:30px;border:1px solid var(--bdefault);border-radius:6px;padding:0 8px;font:400 0.76rem var(--sans);color:var(--tsec)">Nubank<span class="ms" style="font-size:15px">expand_more</span></span></span>
+      <span><span style="display:flex;align-items:center;justify-content:flex-end;height:30px;border:1px solid var(--bdefault);border-radius:6px;padding:0 8px;font:400 0.78rem var(--mono);color:var(--danger)">64,90</span></span>
+      <span><span class="av">A</span></span>
+      <span><span class="chip" style="border:1px solid var(--bdefault);color:var(--tsec)">2/3</span></span>
+      <span><span class="chip" style="background:var(--muted);color:var(--tsec)">jantar</span></span>
+      <span></span>
+    </div>
+    <!-- toolbar row -->
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--subtle);border-top:1px solid var(--bsubtle)">
+      <span style="width:32px;height:32px;border-radius:8px;color:var(--accent);display:flex;align-items:center;justify-content:center" title="Nota"><span class="ms" style="font-size:17px">note</span></span>
+      <span style="width:32px;height:32px;border-radius:8px;color:var(--tsec);display:flex;align-items:center;justify-content:center" title="Moeda estrangeira"><span class="ms" style="font-size:17px">currency_exchange</span></span>
+      <span style="width:32px;height:32px;border-radius:8px;color:var(--tsec);display:flex;align-items:center;justify-content:center" title="Vínculos"><span class="ms" style="font-size:17px">link</span></span>
+      <span style="width:32px;height:32px;border-radius:8px;color:var(--tsec);display:flex;align-items:center;justify-content:center" title="Tags"><span class="ms" style="font-size:17px">label</span></span>
+      <span style="flex:1"></span>
+      <span style="display:flex;align-items:center;gap:5px;font:400 0.76rem var(--sans);color:var(--tsec);padding:0 8px"><span class="ms" style="font-size:15px">bookmark_add</span>Criar apelido</span>
+      <span style="height:30px;border-radius:8px;color:var(--tsec);display:flex;align-items:center;padding:0 12px;font:500 0.78rem var(--sans)">Cancelar</span>
+      <span style="height:30px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;padding:0 14px;font:600 0.78rem var(--sans)">Salvar</span>
+    </div>
+    <!-- open note section -->
+    <div style="padding:12px 16px;background:var(--surface);border-top:1px solid var(--bsubtle)">
+      <div class="cap" style="margin-bottom:6px">Nota</div>
+      <div style="min-height:56px;border:1px solid var(--bdefault);border-radius:8px;background:var(--canvas);padding:10px 12px;font:400 0.8rem/1.5 var(--sans);color:var(--tsec)">Jantar de aniversário — dividir com a Ana depois.</div>
+    </div>
+  </div>
+
+  <!-- ═══════ SEÇÃO 6 · CRIAÇÃO ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">6 · CRIAÇÃO DE TRANSAÇÃO</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+    <div style="flex:1;min-width:560px">
+      <div class="lbl">6.1 — Linha de criação inline (dentro da tabela)</div>
+      <div class="frame">
+        <div class="thead"><span><span class="cbox" style="opacity:.4"></span></span><span>Data</span><span>Descrição</span><span>Categoria</span><span>Instituição</span><span class="amt">Valor</span><span></span><span>Parcela</span><span>Tags</span><span></span></div>
+        <div class="trow" style="opacity:.55"><span><span class="cbox"></span></span><span class="dt">03/06</span><span class="ell">Supermercado BH</span><span class="ell" style="color:var(--tsec)">Mercado</span><span class="ell" style="color:var(--tsec)">Itaú</span><span class="amt neg">R$ 342,18</span><span><span class="av">G</span></span><span></span><span></span><span></span></div>
+        <!-- new row -->
+        <div class="trow" style="background:var(--accentsub)">
+          <span><span class="ms" style="font-size:18px;color:var(--accent)">add</span></span>
+          <span><span style="display:flex;align-items:center;height:30px;border:1px solid var(--bdefault);border-radius:6px;padding:0 6px;font:400 0.74rem var(--mono);color:var(--tdis)">dd/mm</span></span>
+          <span><span style="display:flex;align-items:center;height:30px;border:2px solid var(--accent);border-radius:6px;padding:0 8px;font:400 0.78rem var(--sans);color:var(--tdis)">Descrição…</span></span>
+          <span><span style="display:flex;align-items:center;justify-content:space-between;height:30px;border:1px solid var(--bdefault);border-radius:6px;padding:0 8px;font:400 0.76rem var(--sans);color:var(--tdis)">—<span class="ms" style="font-size:15px">expand_more</span></span></span>
+          <span><span style="display:flex;align-items:center;justify-content:space-between;height:30px;border:1px solid var(--bdefault);border-radius:6px;padding:0 8px;font:400 0.76rem var(--sans);color:var(--tdis)">—<span class="ms" style="font-size:15px">expand_more</span></span></span>
+          <span><span style="display:flex;align-items:center;justify-content:flex-end;height:30px;border:1px solid var(--bdefault);border-radius:6px;padding:0 8px;font:400 0.78rem var(--mono);color:var(--tdis)">0,00</span></span>
+          <span></span><span></span><span></span>
+          <span><span style="width:28px;height:28px;border-radius:7px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:16px">check</span></span></span>
+        </div>
+      </div>
+      <p class="note">Enter salva e abre nova linha em branco (entrada em lote rápida). Herda a tabela/seção do contexto.</p>
+    </div>
+    <div style="width:460px">
+      <div class="lbl">6.2 — Modal de captura rápida (global, da Spec 65)</div>
+      <div style="background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.5);overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bsubtle)"><span style="font:600 1rem var(--sans)">Nova transação</span><span class="ms" style="font-size:20px;color:var(--tsec)">close</span></div>
+        <div style="padding:18px 20px;display:flex;flex-direction:column;gap:13px">
+          <div><div class="cap" style="margin-bottom:5px">Descrição</div><div style="height:36px;border:2px solid var(--accent);border-radius:8px;display:flex;align-items:center;padding:0 12px;font:400 0.85rem var(--sans)">Supermercado BH</div></div>
+          <div style="display:flex;gap:12px"><div style="flex:1"><div class="cap" style="margin-bottom:5px">Valor</div><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;padding:0 12px;font:400 0.85rem var(--mono);color:var(--danger)">R$ 342,18</div></div><div style="flex:1"><div class="cap" style="margin-bottom:5px">Data</div><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:400 0.85rem var(--sans)">03/06/2026<span class="ms" style="font-size:16px;color:var(--tsec)">calendar_today</span></div></div></div>
+          <div><div class="cap" style="margin-bottom:5px">Tabela-alvo</div><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:400 0.82rem var(--sans);color:var(--tsec)">Junho · Alimentação · Nubank<span class="ms" style="font-size:16px">expand_more</span></div></div>
+          <div style="display:flex;gap:12px"><div style="flex:1"><div class="cap" style="margin-bottom:5px">Categoria</div><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:400 0.82rem var(--sans);color:var(--tsec)">Mercado<span class="ms" style="font-size:16px">expand_more</span></div></div><div style="flex:1"><div class="cap" style="margin-bottom:5px">Responsável</div><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:400 0.82rem var(--sans);color:var(--tsec)">Gabriel<span class="ms" style="font-size:16px">expand_more</span></div></div></div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:34px;height:20px;border-radius:10px;background:var(--muted);position:relative"><span style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--tsec)"></span></span><span style="font:400 0.8rem var(--sans);color:var(--tsec)">Pendente</span></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--bsubtle)"><span style="height:34px;border-radius:8px;color:var(--tsec);display:flex;align-items:center;padding:0 14px;font:500 0.82rem var(--sans)">Cancelar</span><span style="height:34px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;padding:0 16px;font:600 0.82rem var(--sans)">Salvar transação</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SEÇÃO 7 · GAVETAS & POPOVERS ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">7 · GAVETAS &amp; POPOVERS DA LINHA</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+    <div style="width:360px"><div class="lbl">Nota</div><div class="frame" style="padding:14px 16px"><div class="cap" style="margin-bottom:6px">Nota</div><div style="min-height:64px;border:1px solid var(--bdefault);border-radius:8px;background:var(--surface);padding:10px 12px;font:400 0.8rem/1.5 var(--sans);color:var(--tsec)">Reembolsável pela empresa — anexar recibo.</div></div></div>
+    <div style="width:360px"><div class="lbl">Moeda estrangeira</div><div class="frame" style="padding:14px 16px"><div class="cap" style="margin-bottom:8px">Moeda estrangeira</div><div style="display:flex;gap:10px"><div style="flex:1"><div style="font:400 0.68rem var(--sans);color:var(--ttert);margin-bottom:4px">Moeda</div><div style="height:32px;border:1px solid var(--bdefault);border-radius:7px;display:flex;align-items:center;padding:0 10px;font:400 0.8rem var(--mono)">USD</div></div><div style="flex:1"><div style="font:400 0.68rem var(--sans);color:var(--ttert);margin-bottom:4px">Valor orig.</div><div style="height:32px;border:1px solid var(--bdefault);border-radius:7px;display:flex;align-items:center;padding:0 10px;font:400 0.8rem var(--mono)">11.99</div></div><div style="flex:1"><div style="font:400 0.68rem var(--sans);color:var(--ttert);margin-bottom:4px">Câmbio</div><div style="height:32px;border:1px solid var(--bdefault);border-radius:7px;display:flex;align-items:center;padding:0 10px;font:400 0.8rem var(--mono)">5,40</div></div></div></div></div>
+    <div style="width:360px"><div class="lbl">Tags (popover)</div><div class="frame" style="padding:14px 16px;background:var(--surface)"><div style="display:flex;align-items:center;height:32px;border:1px solid var(--bdefault);border-radius:7px;padding:0 10px;margin-bottom:10px;font:400 0.78rem var(--sans);color:var(--tdis)"><span class="ms" style="font-size:15px;margin-right:6px">search</span>Buscar ou criar tag…</div><div style="display:flex;flex-wrap:wrap;gap:6px"><span class="chip" style="background:var(--accent);color:#15121f;height:24px"><span class="ms" style="font-size:12px">check</span>jantar</span><span class="chip" style="background:var(--muted);color:var(--tsec);height:24px">stream</span><span class="chip" style="background:var(--muted);color:var(--tsec);height:24px">reembolsável</span><span class="chip" style="background:var(--muted);color:var(--tsec);height:24px">viagem</span></div></div></div>
+    <div style="width:500px"><div class="lbl">Vínculos entre transações</div><div class="frame" style="padding:14px 16px;background:var(--surface)"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span class="cap">Vínculos</span><span style="display:flex;align-items:center;gap:4px;font:500 0.72rem var(--sans);color:var(--accent)"><span class="ms" style="font-size:14px">add_link</span>Vincular</span></div><div style="border:1px solid var(--bsubtle);border-radius:8px;background:var(--canvas);padding:10px 12px;display:flex;align-items:flex-start;gap:10px"><div style="flex:1"><div style="font:400 0.68rem var(--sans);color:var(--ttert)">Reembolsado por</div><div style="font:500 0.82rem var(--sans)">Transferência Ana</div><div style="font:400 0.72rem var(--sans);color:var(--tsec)">12/06 · <span style="font-family:var(--mono)">R$ 32,45</span></div></div><span class="ms" style="font-size:15px;color:var(--danger)">remove_circle_outline</span><span class="ms" style="font-size:15px;color:var(--tsec)">open_in_new</span></div></div></div>
+  </div>
+
+  <!-- ═══════ SEÇÃO 8 · MENU DE AÇÕES (⋮) ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">8 · MENU DE AÇÕES DA LINHA</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <div style="display:flex;gap:24px;align-items:flex-start">
+    <div><div class="lbl">Editor / Owner</div><div style="width:220px;background:var(--surface);border:1px solid var(--bsubtle);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5);padding:6px">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font:400 0.82rem var(--sans)"><span class="ms" style="font-size:16px;color:var(--tsec)">edit</span>Editar</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font:400 0.82rem var(--sans)"><span class="ms" style="font-size:16px;color:var(--tsec)">content_copy</span>Duplicar</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font:400 0.82rem var(--sans)"><span class="ms" style="font-size:16px;color:var(--tsec)">drive_file_move</span>Mover para…</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font:400 0.82rem var(--sans)"><span class="ms" style="font-size:16px;color:var(--tsec)">visibility</span>Ver detalhes</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font:400 0.82rem var(--sans)"><span class="ms" style="font-size:16px;color:var(--tsec)">bookmark_add</span>Criar apelido</div>
+      <div style="height:1px;background:var(--bsubtle);margin:4px 8px"></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font:400 0.82rem var(--sans);color:var(--danger)"><span class="ms" style="font-size:16px">delete</span>Excluir</div>
+    </div></div>
+    <div><div class="lbl">Viewer (somente leitura)</div><div style="width:220px;background:var(--surface);border:1px solid var(--bsubtle);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5);padding:6px">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font:400 0.82rem var(--sans)"><span class="ms" style="font-size:16px;color:var(--tsec)">visibility</span>Ver detalhes</div>
+    </div></div>
+  </div>
+
+  <!-- ═══════ SEÇÃO 9 · MODAL DE DETALHES (1b, abas) ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">9 · MODAL DE DETALHES — direção 1b (abas)</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <p class="note" style="margin-bottom:20px">Cabeçalho de destaque (valor · descrição · status) fixo; conteúdo em 4 abas. As quatro estão mostradas lado a lado — no app é um só modal com a aba ativa.</p>
+  <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+    <!-- Aba Resumo -->
+    <div style="width:440px;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;overflow:hidden">
+      <div style="padding:18px 20px;border-bottom:1px solid var(--bsubtle);display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font:600 1.5rem var(--mono);color:var(--danger)">− R$ 64,90</div><div style="font:500 0.9rem var(--sans);margin-top:3px">iFood · Restaurante Sabor</div><div style="font:400 0.76rem var(--sans);color:var(--ttert);margin-top:2px">07 de junho de 2026</div></div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"><span class="chip" style="background:var(--warningsub);color:var(--warning)"><span class="ms" style="font-size:12px">star</span>Favorita</span><span class="chip" style="background:var(--accentsub);color:var(--accent)"><span class="ms" style="font-size:12px">splitscreen</span>2/3</span></div></div>
+      <div style="display:flex;padding:0 14px;border-bottom:1px solid var(--bsubtle)"><span style="padding:10px 11px;font:600 0.78rem var(--sans);color:var(--tprimary);border-bottom:2px solid var(--accent)">Resumo</span><span style="padding:10px 11px;font:500 0.78rem var(--sans);color:var(--ttert)">Classificação</span><span style="padding:10px 11px;font:500 0.78rem var(--sans);color:var(--ttert)">Parcelas</span><span style="padding:10px 11px;font:500 0.78rem var(--sans);color:var(--ttert)">Histórico</span></div>
+      <div style="padding:12px 20px">
+        <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bsubtle)"><span style="width:120px;font:400 0.78rem var(--sans);color:var(--ttert)">Categoria</span><span style="font:400 0.82rem var(--sans)">Alimentação › Delivery</span></div>
+        <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bsubtle)"><span style="width:120px;font:400 0.78rem var(--sans);color:var(--ttert)">Instituição</span><span style="font:400 0.82rem var(--sans)">Nubank · Crédito</span></div>
+        <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bsubtle)"><span style="width:120px;font:400 0.78rem var(--sans);color:var(--ttert)">Responsável</span><span style="font:400 0.82rem var(--sans)">Ana</span></div>
+        <div style="display:flex;gap:10px;padding:7px 0"><span style="width:120px;font:400 0.78rem var(--sans);color:var(--ttert)">Moeda</span><span style="font:400 0.82rem var(--mono)">US$ 11.99 · R$5,40</span></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--bsubtle)"><span style="height:32px;border-radius:8px;color:var(--tsec);display:flex;align-items:center;padding:0 12px;font:500 0.8rem var(--sans)">Fechar</span><span style="height:32px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;padding:0 14px;font:600 0.8rem var(--sans)">Editar</span></div>
+    </div>
+    <!-- Aba Classificação -->
+    <div style="width:360px;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;overflow:hidden">
+      <div style="padding:11px 18px;border-bottom:1px solid var(--bsubtle);font:500 0.78rem var(--sans);color:var(--tsec)">Aba · Classificação</div>
+      <div style="padding:12px 18px">
+        <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bsubtle)"><span style="width:120px;font:400 0.78rem var(--sans);color:var(--ttert)">Tipo de gasto</span><span style="font:400 0.82rem var(--sans);display:flex;align-items:center;gap:5px"><span class="ms" style="font-size:14px;color:var(--tsec)">waves</span>Variável</span></div>
+        <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bsubtle)"><span style="width:120px;font:400 0.78rem var(--sans);color:var(--ttert)">Forma pagto</span><span style="font:400 0.82rem var(--sans)">Cartão de crédito</span></div>
+        <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bsubtle)"><span style="width:120px;font:400 0.78rem var(--sans);color:var(--ttert)">Investimento</span><span style="font:400 0.82rem var(--sans);color:var(--tdis)">—</span></div>
+        <div style="display:flex;gap:10px;padding:7px 0"><span style="width:120px;font:400 0.78rem var(--sans);color:var(--ttert)">Tags</span><span style="display:flex;gap:5px;flex-wrap:wrap"><span class="chip" style="background:var(--muted);color:var(--tsec)">jantar</span><span class="chip" style="background:var(--muted);color:var(--tsec)">stream</span></span></div>
+      </div>
+    </div>
+    <!-- Aba Parcelas & Vínculos -->
+    <div style="width:360px;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;overflow:hidden">
+      <div style="padding:11px 18px;border-bottom:1px solid var(--bsubtle);font:500 0.78rem var(--sans);color:var(--tsec)">Aba · Parcelas &amp; Vínculos</div>
+      <div style="padding:12px 18px">
+        <div class="cap" style="margin-bottom:8px">Parcela 2 de 3 · total R$ 194,70</div>
+        <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;font:400 0.76rem var(--sans);color:var(--tsec)"><span><span class="ms" style="font-size:13px;color:var(--success);margin-right:4px">check_circle</span>1/3 · maio</span><span style="font-family:var(--mono)">R$ 64,90</span></div>
+          <div style="display:flex;justify-content:space-between;font:400 0.76rem var(--sans);color:var(--tprimary)"><span><span class="ms" style="font-size:13px;color:var(--accent);margin-right:4px">radio_button_checked</span>2/3 · junho</span><span style="font-family:var(--mono)">R$ 64,90</span></div>
+          <div style="display:flex;justify-content:space-between;font:400 0.76rem var(--sans);color:var(--ttert)"><span><span class="ms" style="font-size:13px;margin-right:4px">schedule</span>3/3 · julho</span><span style="font-family:var(--mono)">prevista</span></div>
+        </div>
+        <div class="cap" style="margin-bottom:6px">Vínculos</div>
+        <div style="border:1px solid var(--bsubtle);border-radius:8px;background:var(--canvas);padding:8px 10px;font:400 0.76rem var(--sans)"><span style="color:var(--ttert);font-size:.68rem">Reembolsado por</span><div>Transferência Ana · <span style="font-family:var(--mono);color:var(--tsec)">R$ 32,45</span></div></div>
+      </div>
+    </div>
+    <!-- Aba Histórico -->
+    <div style="width:360px;background:var(--surface);border:1px solid var(--bsubtle);border-radius:12px;overflow:hidden">
+      <div style="padding:11px 18px;border-bottom:1px solid var(--bsubtle);font:500 0.78rem var(--sans);color:var(--tsec)">Aba · Histórico</div>
+      <div style="padding:12px 18px">
+        <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bsubtle)"><span style="width:100px;font:400 0.78rem var(--sans);color:var(--ttert)">Origem</span><span style="font:400 0.82rem var(--sans);color:var(--tsec)">Importação CSV</span></div>
+        <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bsubtle)"><span style="width:100px;font:400 0.78rem var(--sans);color:var(--ttert)">Criada por</span><div style="display:flex;align-items:center;gap:7px"><span class="av" style="width:22px;height:22px;font-size:.62rem">G</span><div><div style="font:400 0.82rem var(--sans)">Gabriel</div><div style="font:400 0.68rem var(--mono);color:var(--ttert)">03/06 14:32</div></div></div></div>
+        <div style="display:flex;gap:10px;padding:9px 0"><span style="width:100px;font:400 0.78rem var(--sans);color:var(--ttert)">Editada por</span><div style="display:flex;align-items:center;gap:7px"><span class="av" style="width:22px;height:22px;font-size:.62rem">A</span><div><div style="font:400 0.82rem var(--sans)">Ana</div><div style="font:400 0.68rem var(--mono);color:var(--ttert)">07/06 09:10</div></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SEÇÃO 10 · PAINEL DE PARCELAS UNIFICADO ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">10 · PAINEL DE PARCELAS (unificado)</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <p class="note" style="margin-bottom:20px">O <code style="font-family:var(--mono);color:var(--warning)">InstallmentGroupPanel</code> redesenhado para seguir o mesmo padrão de painel lateral do resto do app (resolve o "menu de parcelas despadronizado"). Abre pelo chip <span class="chip" style="border:1px solid var(--bdefault);color:var(--tsec)">2/3</span> na linha.</p>
+  <div class="frame" style="max-width:1100px;display:flex;min-height:360px">
+    <div style="flex:1;padding:16px;opacity:.45">
+      <div class="cap" style="margin-bottom:8px">Tabela · Cartão Nubank</div>
+      <div style="display:flex;gap:8px;padding:9px 10px;font:400 0.78rem var(--sans)"><span class="dt">07/06</span><span style="flex:1">Notebook Dell <span class="chip" style="border:1px solid var(--bdefault);color:var(--tsec);margin-left:4px">2/3</span></span><span class="amt neg">R$ 1.666,33</span></div>
+    </div>
+    <div style="width:380px;flex-shrink:0;border-left:1px solid var(--bdefault);background:var(--surface);display:flex;flex-direction:column">
+      <div style="padding:16px;border-bottom:1px solid var(--bsubtle)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start"><span class="cap">Parcelamento</span><span class="ms" style="font-size:18px;color:var(--tsec)">close</span></div>
+        <div style="font:600 1.05rem var(--sans);margin-top:6px">Notebook Dell</div>
+        <div style="display:flex;gap:16px;margin-top:8px"><div><div style="font:400 0.66rem var(--sans);color:var(--ttert)">Total</div><div style="font:500 0.9rem var(--mono)">R$ 4.999,00</div></div><div><div style="font:400 0.66rem var(--sans);color:var(--ttert)">Parcelas</div><div style="font:500 0.9rem var(--mono)">3× R$ 1.666,33</div></div><div><div style="font:400 0.66rem var(--sans);color:var(--ttert)">Entrada</div><div style="font:500 0.9rem var(--mono)">—</div></div></div>
+        <div style="height:6px;border-radius:3px;background:var(--muted);margin-top:12px"><div style="width:66%;height:100%;border-radius:3px;background:var(--accent)"></div></div>
+        <div style="font:400 0.7rem var(--sans);color:var(--ttert);margin-top:5px">2 de 3 lançadas · R$ 3.332,66 pagos</div>
+      </div>
+      <div style="flex:1;padding:6px 0">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--bsubtle)"><span class="ms" style="font-size:17px;color:var(--success)">check_circle</span><div style="flex:1"><div style="font:500 0.8rem var(--sans)">Parcela 1/3</div><div style="font:400 0.68rem var(--sans);color:var(--ttert)">maio 2026 · Cartão Nubank</div></div><span style="font:400 0.8rem var(--mono);color:var(--tsec)">R$ 1.666,33</span><span class="ms" style="font-size:15px;color:var(--tsec)">open_in_new</span></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--bsubtle);background:var(--accentsub)"><span class="ms" style="font-size:17px;color:var(--accent)">radio_button_checked</span><div style="flex:1"><div style="font:500 0.8rem var(--sans);color:var(--accent)">Parcela 2/3 · atual</div><div style="font:400 0.68rem var(--sans);color:var(--ttert)">junho 2026 · Cartão Nubank</div></div><span style="font:400 0.8rem var(--mono)">R$ 1.666,33</span><span class="ms" style="font-size:15px;color:var(--tsec)">open_in_new</span></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 16px"><span class="ms" style="font-size:17px;color:var(--ttert)">schedule</span><div style="flex:1"><div style="font:500 0.8rem var(--sans);color:var(--tsec)">Parcela 3/3 · prevista</div><div style="font:400 0.68rem var(--sans);color:var(--ttert)">julho 2026 · ainda não lançada</div></div><span style="font:400 0.8rem var(--mono);color:var(--ttert)">R$ 1.666,34</span></div>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--bsubtle);display:flex;gap:8px"><span style="flex:1;height:32px;border:1px solid var(--bdefault);border-radius:8px;color:var(--tsec);display:flex;align-items:center;justify-content:center;gap:5px;font:500 0.78rem var(--sans)"><span class="ms" style="font-size:15px">add</span>Lançar próxima</span><span style="height:32px;border-radius:8px;border:1px solid var(--bdefault);color:var(--danger);display:flex;align-items:center;padding:0 12px;font:500 0.78rem var(--sans)">Desfazer grupo</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════ SEÇÃO 11 · SUGESTÃO DE APELIDO ═══════ -->
+  <div style="display:flex;align-items:center;gap:14px;margin:52px 0 10px"><span class="h2">11 · SUGESTÃO DE APELIDO (popover)</span><span style="flex:1;height:1px;background:var(--bsubtle)"></span></div>
+  <p class="note" style="margin-bottom:16px">Ao detectar um apelido que casa com a descrição, o ✨ na linha abre este popover propondo os campos que o apelido preencheria (aplicação com 1 clique + desfazer).</p>
+  <div style="width:340px;background:var(--surface);border:1px solid var(--bsubtle);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5);overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--bsubtle)"><span class="ms" style="font-size:17px;color:var(--accent)">auto_fix_high</span><span style="font:600 0.82rem var(--sans)">Apelido "NETFLIX"</span></div>
+    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:7px">
+      <div style="display:flex;align-items:center;gap:8px;font:400 0.78rem var(--sans)"><span style="color:var(--ttert);width:80px">Categoria</span><span class="ms" style="font-size:14px;color:var(--tdis)">arrow_forward</span><span style="color:var(--tprimary)">Assinaturas</span></div>
+      <div style="display:flex;align-items:center;gap:8px;font:400 0.78rem var(--sans)"><span style="color:var(--ttert);width:80px">Tipo</span><span class="ms" style="font-size:14px;color:var(--tdis)">arrow_forward</span><span style="color:var(--tprimary)">Fixo</span></div>
+      <div style="display:flex;align-items:center;gap:8px;font:400 0.78rem var(--sans)"><span style="color:var(--ttert);width:80px">Tags</span><span class="ms" style="font-size:14px;color:var(--tdis)">arrow_forward</span><span class="chip" style="background:var(--muted);color:var(--tsec)">stream</span></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding:10px 16px;border-top:1px solid var(--bsubtle)"><span style="height:30px;border-radius:8px;color:var(--tsec);display:flex;align-items:center;padding:0 12px;font:500 0.78rem var(--sans)">Agora não</span><span style="height:30px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;padding:0 14px;font:600 0.78rem var(--sans)">Aplicar</span></div>
+  </div>
+
+  <div style="margin-top:52px;padding:18px 20px;border:1px solid var(--bsubtle);border-radius:12px;background:var(--surface);max-width:1100px">
+    <div style="font:600 0.95rem var(--sans);margin-bottom:6px">Próximo passo</div>
+    <div style="font:400 0.86rem/1.6 var(--sans);color:var(--tsec)">Com este catálogo fechado, posso escrever a <strong style="color:var(--tprimary)">spec V2+</strong> da reestruturação da linha de transação (no mesmo formato da 65) — problemas, critérios QUANDO/DEVE, mapa de componentes a tocar (<code style="font-family:var(--mono);font-size:.9em">TransactionRow</code>, <code style="font-family:var(--mono);font-size:.9em">TransactionDetailDialog</code>→abas, <code style="font-family:var(--mono);font-size:.9em">InstallmentGroupPanel</code>) e plano de migração incremental. É só pedir.</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

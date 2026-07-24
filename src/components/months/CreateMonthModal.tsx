@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import AddIcon from "@mui/icons-material/Add";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -11,23 +10,26 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import AddIcon from "@mui/icons-material/Add";
+import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
+import { useState, type ReactNode } from "react";
 
 import { createMonthAction } from "@/actions/months";
-import { MONTH_NAMES, getNextMonthSuggestion } from "@/lib/dates";
-import { m } from "@/lib/messages";
-import { layout } from "@/lib/design-tokens";
-import { DialogShell } from "@/components/ui/DialogShell";
 import { AutoApplyResultSnackbar } from "@/components/ui/AutoApplyResultSnackbar";
+import { DialogShell } from "@/components/ui/DialogShell";
+import { MONTH_NAMES, getNextMonthSuggestion } from "@/lib/dates";
+import { layout } from "@/lib/design-tokens";
+import { m } from "@/lib/messages";
 
 type Props = {
   accountId: string;
   lastMonth: { year: number; month: number } | null;
   variant?: "button" | "text";
+  /** Trigger customizado (recebe `open`); quando presente, ignora `variant`. Ex.: botão da AppSidebar. */
+  renderTrigger?: (open: () => void) => ReactNode;
 };
 
-export function CreateMonthModal({ accountId, lastMonth, variant = "button" }: Props) {
+export function CreateMonthModal({ accountId, lastMonth, variant = "button", renderTrigger }: Props) {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const [open, setOpen] = useState(false);
@@ -110,7 +112,9 @@ export function CreateMonthModal({ accountId, lastMonth, variant = "button" }: P
 
   return (
     <>
-      {variant === "button" ? (
+      {renderTrigger ? (
+        renderTrigger(openModal)
+      ) : variant === "button" ? (
         <Button variant="contained" startIcon={<AddIcon />} onClick={openModal} size="small">
           {m.months.newMonth}
         </Button>

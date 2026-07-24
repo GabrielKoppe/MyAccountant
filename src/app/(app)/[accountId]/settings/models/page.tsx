@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
 
-import { requireAccountAccess } from "@/server/auth/session";
-import * as svc from "@/server/services/table-template-service";
-import { prisma } from "@/server/prisma";
+import { TableModelsManager } from "@/app/(app)/[accountId]/settings/models/TableModelsManager";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { m } from "@/lib/messages";
 import { toResponsiblePartyOption } from "@/lib/party-display";
 import type { InvestmentType } from "@/lib/schemas/transaction";
-import { TableModelsManager } from "@/app/(app)/[accountId]/settings/models/TableModelsManager";
+import { requireAccountAccess } from "@/server/auth/session";
+import { prisma } from "@/server/prisma";
+import * as svc from "@/server/services/table-template-service";
 
 type Props = { params: Promise<{ accountId: string }> };
 
@@ -20,7 +20,11 @@ export async function generateMetadata({ params }: MetaProps): Promise<Metadata>
 
 export default async function TableModelsPage({ params }: Props) {
   const { accountId } = await params;
-  await requireAccountAccess(accountId).catch(() => redirect("/home"));
+  const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
+
+  // Carve-out do viewer (Spec 65 §10.5): esta página não tem guard próprio no
+  // layout — só "Membros" fica aberto a todos os papéis.
+  if (member.role === "viewer") redirect(`/${accountId}`);
 
   const [templates, categories, institutions, members, partiesRaw, tableTypes, sections] =
     await Promise.all([

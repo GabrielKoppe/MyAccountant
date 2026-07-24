@@ -1,40 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import type { AccountMemberRole } from "@prisma/client";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import Alert from "@mui/material/Alert";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import FilterAltIcon from "@mui/icons-material/FilterAlt";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import Divider from "@mui/material/Divider";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
+import type { AccountMemberRole } from "@prisma/client";
+import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
+import { useState } from "react";
 
 import { deleteMonthAction } from "@/actions/months";
-import { formatMonthLabel } from "@/lib/dates";
-import { m } from "@/lib/messages";
-import { layout } from "@/lib/design-tokens";
-import { useExportDownload } from "@/lib/hooks/use-export-download";
-import { useMonthFilters } from "./MonthFilterContext";
-import { CreateMonthModal } from "./CreateMonthModal";
 import { TransactionFilterDrawer } from "@/components/transactions/TransactionFilterDrawer";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { MoneyValue } from "@/components/ui/MoneyValue";
 import { MonthPickerNav } from "@/components/ui/MonthPickerNav";
+import { formatMonthLabel } from "@/lib/dates";
+import { APP_HEADER_HEIGHT, layout } from "@/lib/design-tokens";
+import { useExportDownload } from "@/lib/hooks/use-export-download";
+import { m } from "@/lib/messages";
+
+import { useMonthFilters } from "./MonthFilterContext";
 
 type MonthItem = { id: string; year: number; month: number };
 
@@ -59,6 +58,7 @@ export function MonthHeader({
   const { enqueueSnackbar } = useSnackbar();
   const { download: exportDownload, loading: exportLoading } = useExportDownload();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [exportAnchor, setExportAnchor] = useState<null | HTMLElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -69,8 +69,6 @@ export function MonthHeader({
   const sortedMonths = [...months].sort((a, b) =>
     a.year !== b.year ? a.year - b.year : a.month - b.month,
   );
-  const lastMonth = sortedMonths[sortedMonths.length - 1];
-
   const currentLabel = formatMonthLabel(currentMonth.year, currentMonth.month);
   const isOwner = role === "owner";
 
@@ -78,7 +76,7 @@ export function MonthHeader({
   const pdfUrl = `/api/v1/accounts/${accountId}/months/${currentMonth.id}/export/pdf`;
 
   async function handleExport(url: string) {
-    setMenuAnchor(null);
+    setExportAnchor(null);
     await exportDownload(url);
   }
 
@@ -112,6 +110,9 @@ export function MonthHeader({
         gap: 1,
         px: 3,
         py: 1.5,
+        // Mesma altura do cabeçalho da conta na AppSidebar → `borderBottom`
+        // alinhado na mesma linha horizontal (Spec 65 §7).
+        minHeight: APP_HEADER_HEIGHT,
         borderBottom: 1,
         borderColor: "divider",
         bgcolor: "background.paper",
@@ -147,27 +148,27 @@ export function MonthHeader({
 
       <TransactionFilterDrawer anchorEl={filterAnchorEl} onClose={() => setFilterAnchorEl(null)} />
 
-      {/* Botão novo mês */}
-      <CreateMonthModal accountId={accountId} lastMonth={lastMonth ?? null} variant="button" />
-
-      {/* Menu ellipsis — exportar para todos, deletar apenas para owner */}
-      <IconButton
+      {/* Exportar — botão explícito (CSV/PDF), como no frame */}
+      <Button
+        variant="outlined"
         size="small"
-        aria-label="Mais opções"
-        onClick={(e) => setMenuAnchor(e.currentTarget)}
+        startIcon={
+          exportLoading ? (
+            <CircularProgress size={16} color="inherit" />
+          ) : (
+            <FileDownloadIcon fontSize="small" />
+          )
+        }
+        onClick={(e) => setExportAnchor(e.currentTarget)}
         disabled={exportLoading}
       >
-        {exportLoading ? (
-          <CircularProgress size={16} color="inherit" />
-        ) : (
-          <MoreVertIcon fontSize="small" />
-        )}
-      </IconButton>
+        {m.export.buttonLabel}
+      </Button>
       <Menu
-        anchorEl={menuAnchor}
-        open={!!menuAnchor}
-        onClose={() => setMenuAnchor(null)}
-        slotProps={{ paper: { sx: { minWidth: 180 } } }}
+        anchorEl={exportAnchor}
+        open={!!exportAnchor}
+        onClose={() => setExportAnchor(null)}
+        slotProps={{ paper: { sx: { minWidth: 160 } } }}
       >
         <MenuItem
           onClick={() => handleExport(csvUrl)}
@@ -189,23 +190,40 @@ export function MonthHeader({
           </ListItemIcon>
           {m.export.pdfOption}
         </MenuItem>
-        {isOwner && <Divider />}
-        {isOwner && (
-          <MenuItem
-            onClick={() => {
-              setMenuAnchor(null);
-              setDeleteConfirm("");
-              setDeleteOpen(true);
-            }}
-            sx={{ py: 0.75, fontSize: 13, color: "error.main" }}
-          >
-            <ListItemIcon sx={{ minWidth: 32 }}>
-              <DeleteOutlineIcon sx={{ fontSize: 16, color: "error.main" }} />
-            </ListItemIcon>
-            {m.months.deleteTitle}
-          </MenuItem>
-        )}
       </Menu>
+
+      {/* Excluir mês — apenas owner (menu de ações discreto; fora do frame simplificado) */}
+      {isOwner && (
+        <>
+          <IconButton
+            size="small"
+            aria-label={m.months.deleteTitle}
+            onClick={(e) => setMenuAnchor(e.currentTarget)}
+          >
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+          <Menu
+            anchorEl={menuAnchor}
+            open={!!menuAnchor}
+            onClose={() => setMenuAnchor(null)}
+            slotProps={{ paper: { sx: { minWidth: 160 } } }}
+          >
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null);
+                setDeleteConfirm("");
+                setDeleteOpen(true);
+              }}
+              sx={{ py: 0.75, fontSize: 13, color: "error.main" }}
+            >
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <DeleteOutlineIcon sx={{ fontSize: 16, color: "error.main" }} />
+              </ListItemIcon>
+              {m.months.deleteTitle}
+            </MenuItem>
+          </Menu>
+        </>
+      )}
 
       {/* Delete confirmation */}
       <DialogShell

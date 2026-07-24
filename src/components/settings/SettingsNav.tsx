@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import MenuIcon from "@mui/icons-material/Menu";
 import Box from "@mui/material/Box";
-import Divider from "@mui/material/Divider";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
 import List from "@mui/material/List";
@@ -11,121 +9,101 @@ import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
-import MenuIcon from "@mui/icons-material/Menu";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 
-import { AppLink } from "@/components/ui/AppLink";
 import { CollapsibleNavItem } from "@/components/settings/CollapsibleNavItem";
+import { isCollapsibleNavEntry } from "@/components/settings/settings-nav-groups";
+import type { NavEntry, NavGroup } from "@/components/settings/settings-nav-groups";
+import { AppLink } from "@/components/ui/AppLink";
+
+export type {
+  CollapsibleNavEntry,
+  NavEntry,
+  NavGroup,
+  NavLink,
+} from "@/components/settings/settings-nav-groups";
 
 const DRAWER_WIDTH = 220;
 
-type NavLink = { href: string; label: string };
-export type CollapsibleNavEntry = {
-  type: "collapsible";
-  label: string;
-  subLinks: NavLink[];
-};
-
-type NavEntry = NavLink | CollapsibleNavEntry;
-
 type Props = {
   accountId: string;
-  editorLinks: NavEntry[];
-  ownerLinks: NavLink[];
+  groups: NavGroup[];
 };
+
+function renderEntry(
+  entry: NavEntry,
+  accountId: string,
+  pathname: string,
+  onNavigate?: () => void,
+) {
+  if (isCollapsibleNavEntry(entry)) {
+    const isAnySubActive = entry.subLinks.some((sub) => {
+      const fullHref = `/${accountId}/settings/${sub.href}`;
+      return pathname === fullHref || pathname.startsWith(`${fullHref}/`);
+    });
+    return (
+      <CollapsibleNavItem
+        key={entry.label}
+        label={entry.label}
+        subLinks={entry.subLinks}
+        accountId={accountId}
+        pathname={pathname}
+        defaultOpen={isAnySubActive}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  const { href, label } = entry;
+  const fullHref = `/${accountId}/settings/${href}`;
+  const isActive = pathname === fullHref || pathname.startsWith(`${fullHref}/`);
+  return (
+    <ListItem key={href} disablePadding>
+      <ListItemButton
+        component={AppLink}
+        href={fullHref}
+        selected={isActive}
+        onClick={onNavigate}
+        sx={{
+          borderRadius: 0,
+          "&.Mui-selected": {
+            bgcolor: "background.subtle",
+            borderRight: 2,
+            borderColor: "primary.main",
+            "& .MuiListItemText-primary": { color: "primary.main", fontWeight: 600 },
+          },
+        }}
+      >
+        <ListItemText primary={label} />
+      </ListItemButton>
+    </ListItem>
+  );
+}
 
 function NavItems({
   accountId,
-  editorLinks,
-  ownerLinks,
+  groups,
   pathname,
   onNavigate,
 }: Props & { pathname: string; onNavigate?: () => void }) {
   return (
     <Box sx={{ pt: 2 }}>
-      <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
-        Configurações
-      </Typography>
-      <List dense disablePadding sx={{ mt: 1 }}>
-        {editorLinks.map((entry) => {
-          if ("type" in entry && entry.type === "collapsible") {
-            const isAnySubActive = entry.subLinks.some((sub) => {
-              const fullHref = `/${accountId}/settings/${sub.href}`;
-              return pathname === fullHref || pathname.startsWith(`${fullHref}/`);
-            });
-            return (
-              <CollapsibleNavItem
-                key={entry.label}
-                label={entry.label}
-                subLinks={entry.subLinks}
-                accountId={accountId}
-                pathname={pathname}
-                defaultOpen={isAnySubActive}
-                onNavigate={onNavigate}
-              />
-            );
-          }
-          const { href, label } = entry as NavLink;
-          const fullHref = `/${accountId}/settings/${href}`;
-          const isActive = pathname === fullHref || pathname.startsWith(`${fullHref}/`);
-          return (
-            <ListItem key={href} disablePadding>
-              <ListItemButton
-                component={AppLink}
-                href={fullHref}
-                selected={isActive}
-                onClick={onNavigate}
-                sx={{
-                  borderRadius: 0,
-                  "&.Mui-selected": {
-                    bgcolor: "background.subtle",
-                    borderRight: 2,
-                    borderColor: "primary.main",
-                    "& .MuiListItemText-primary": { color: "primary.main", fontWeight: 600 },
-                  },
-                }}
-              >
-                <ListItemText primary={label} />
-              </ListItemButton>
-            </ListItem>
-          );
-        })}
-
-        {ownerLinks.length > 0 && (
-          <>
-            <Divider sx={{ my: 1 }} />
-            {ownerLinks.map(({ href, label }) => {
-              const fullHref = `/${accountId}/settings/${href}`;
-              const isActive = pathname === fullHref;
-              return (
-                <ListItem key={href} disablePadding>
-                  <ListItemButton
-                    component={AppLink}
-                    href={fullHref}
-                    selected={isActive}
-                    onClick={onNavigate}
-                    sx={{
-                      borderRadius: 0,
-                      "&.Mui-selected": {
-                        bgcolor: "background.subtle",
-                        borderRight: 2,
-                        borderColor: "primary.main",
-                        "& .MuiListItemText-primary": { color: "primary.main", fontWeight: 600 },
-                      },
-                    }}
-                  >
-                    <ListItemText primary={label} />
-                  </ListItemButton>
-                </ListItem>
-              );
-            })}
-          </>
-        )}
-      </List>
+      {groups.map((group) => (
+        <Box key={group.label} sx={{ mb: 1 }}>
+          <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
+            {group.label}
+          </Typography>
+          <List dense disablePadding sx={{ mt: 1 }}>
+            {group.entries.map((entry) => renderEntry(entry, accountId, pathname, onNavigate))}
+          </List>
+        </Box>
+      ))}
     </Box>
   );
 }
 
-export function SettingsNav({ accountId, editorLinks, ownerLinks }: Props) {
+export function SettingsNav({ accountId, groups }: Props) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -168,8 +146,7 @@ export function SettingsNav({ accountId, editorLinks, ownerLinks }: Props) {
       >
         <NavItems
           accountId={accountId}
-          editorLinks={editorLinks}
-          ownerLinks={ownerLinks}
+          groups={groups}
           pathname={pathname}
           onNavigate={() => setMobileOpen(false)}
         />
@@ -187,12 +164,7 @@ export function SettingsNav({ accountId, editorLinks, ownerLinks }: Props) {
           display: { xs: "none", md: "block" },
         }}
       >
-        <NavItems
-          accountId={accountId}
-          editorLinks={editorLinks}
-          ownerLinks={ownerLinks}
-          pathname={pathname}
-        />
+        <NavItems accountId={accountId} groups={groups} pathname={pathname} />
       </Box>
     </>
   );
