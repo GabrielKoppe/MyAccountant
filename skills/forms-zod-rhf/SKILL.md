@@ -26,6 +26,7 @@ src/lib/schemas/
 ```ts
 // src/lib/schemas/transaction.ts
 import { z } from "zod";
+import { cuidSchema } from "./shared"; // id de entidade: SEMPRE daqui (aceita uuid legado)
 
 // Schema base — só a forma do dado
 export const transactionFormSchema = z.object({
@@ -35,18 +36,18 @@ export const transactionFormSchema = z.object({
   notes: z.string().max(2000).optional(),
   isPending: z.boolean().default(false),
   isFavorite: z.boolean().default(false),
-  categoryId: z.string().cuid().nullable().optional(),
-  subcategoryId: z.string().cuid().nullable().optional(),
-  institutionId: z.string().cuid().nullable().optional(),
+  categoryId: cuidSchema.nullable().optional(),
+  subcategoryId: cuidSchema.nullable().optional(),
+  institutionId: cuidSchema.nullable().optional(),
   institutionText: z.string().max(80).optional(),
-  responsibleUserId: z.string().cuid().nullable().optional(),
+  responsibleUserId: cuidSchema.nullable().optional(),
   cardInstallment: z.string().regex(/^\d+\/\d+$/, "Formato: 3/12").optional(),
   investmentType: z.string().max(40).optional(),
 });
 
 // Schema para criar — adiciona o que falta
 export const createTransactionSchema = transactionFormSchema.extend({
-  tableId: z.string().cuid(),
+  tableId: cuidSchema,
 });
 
 // Schema para atualizar — tudo opcional
@@ -232,7 +233,18 @@ const bigIntFromAnything = z.coerce.bigint();
 ```ts
 // src/lib/schemas/shared.ts
 
-export const cuidSchema = z.string().cuid({ message: "ID inválido" });
+// ⚠️ NÃO é `z.string().cuid()`. O banco tem ids UUID LEGADOS (era MVP) convivendo
+// com cuid — em produção ~48% das transações e vários tipos de tabela/categorias/
+// instituições são UUID. O `.cuid()` estrito REJEITA esses ids e a Server Action
+// falha na validação antes do handler → UI quebra em silêncio ("ID inválido",
+// toggle que não salva, painel que não carrega). Aceitar os dois formatos ainda
+// rejeita lixo ("abc"), então nada de validação se perde. Ver §"IDs de entidade".
+const CUID_RE = /^c[^\s-]{8,}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const cuidSchema = z
+  .string()
+  .refine((v) => CUID_RE.test(v) || UUID_RE.test(v), { message: "ID inválido" });
+
 export const emailSchema = z.string().email().toLowerCase().trim();
 export const dateSchema = z.coerce.date();
 export const amountCentsSchema = z.coerce.bigint();
@@ -315,8 +327,32 @@ const dimIds = z.preprocess(
 );
 ```
 
+## IDs de entidade: sempre `cuidSchema`, nunca `z.string().cuid()`
+
+**Regra:** todo campo que carrega id de entidade (`categoryId`, `transactionId`,
+`tableTypeId`, `installmentGroupId`, …) usa `cuidSchema` de `shared.ts`.
+
+**Por quê:** o banco tem ids **UUID legados** (era MVP) misturados com cuid — em
+produção ~48% das transações, além de tipos de tabela, categorias e instituições.
+O `.cuid()` estrito rejeita esses ids e a Server Action falha **antes** do handler:
+"ID inválido", toggle que não persiste, painel que não carrega. Já se acumularam
+**103 ocorrências** desse erro em 14 arquivos (corrigidas na Spec 66).
+
+**Não migramos os ids** (decisão registrada): reescrever as PKs exigiria 26 FKs +
+ids embutidos em `dashboard_layouts.widgets` (JSON) e nos arrays `budgets.*_ids` —
+os dois **sem proteção de FK** (Postgres não suporta FK em array) —, além de quebrar
+URLs salvas e o contrato da API v1. Risco alto, ganho cosmético. O formato do id é
+irrelevante desde que a validação aceite ambos (e `cuidSchema` continua rejeitando
+lixo como `"abc"`).
+
+**Guarda automática:** `src/lib/schemas/no-strict-cuid.test.ts` falha o CI se um
+`z.string().cuid()` novo aparecer em `src/lib/schemas/` ou `src/actions/`. Exceção
+só com justificativa na ALLOWLIST do teste (hoje: `aliasIdSchema` — id sempre
+gerado pelo app, sem linhagem legada).
+
 ## Anti-patterns
 
+❌ `z.string().cuid()` em id de entidade — rejeita os UUID legados (use `cuidSchema`; há teste que barra isso)
 ❌ `z.string().cuid().optional()` num id que vem de `<Select>` — `""` vira "ID inválido" (use os helpers acima)
 ❌ Duplicar tipos: criar uma interface manual + schema Zod separados
 ❌ Validar só no client (server confia no input)

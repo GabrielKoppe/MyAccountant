@@ -33,7 +33,7 @@ const ColorPickerDot = styled("input")(({ theme }) => ({
   width: 11,
   height: 11,
   borderRadius: "50%",
-  border: `1px solid ${theme.palette.divider}`,
+  border: `1px solid ${theme.palette.border.default}`,
   padding: 0,
   cursor: "pointer",
   flexShrink: 0,
@@ -44,11 +44,15 @@ const ColorPickerDot = styled("input")(({ theme }) => ({
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+// Altura/paleta alinhadas ao `.chip` do frame 66 §7.3 (h24, tons via token —
+// nunca hex hardcoded). O formato pill (radius = h/2) é mantido: é a
+// identidade visual já estabelecida da tag colorida pelo usuário, diferente
+// do `.chip` retangular (radius 5) usado nas pílulas de metadado da linha.
 const chipBase = {
   display: "inline-flex",
   alignItems: "center",
-  height: 26,
-  borderRadius: "13px",
+  height: 24,
+  borderRadius: "12px",
   border: "1px solid",
   fontSize: "0.75rem",
   lineHeight: 1,
@@ -62,7 +66,7 @@ const chipBase = {
 
 function chipColors(color: string | null | undefined) {
   if (color) return { bgcolor: `${color}22`, borderColor: color, color: "text.primary" };
-  return { bgcolor: "background.subtle", borderColor: "divider", color: "text.secondary" };
+  return { bgcolor: "background.muted", borderColor: "border.default", color: "text.secondary" };
 }
 
 // ─── State 1: chip de leitura ─────────────────────────────────────────────────
@@ -269,7 +273,7 @@ function AddChip({
           sx={{
             ...chipBase,
             bgcolor: color ? `${color}22` : "background.subtle",
-            borderColor: color ?? "divider",
+            borderColor: color ?? "border.default",
             borderStyle: "dashed",
             color: "text.primary",
           }}
@@ -498,7 +502,7 @@ export function TagEditor({
             height: 22,
             borderRadius: "50%",
             border: "1px dashed",
-            borderColor: "divider",
+            borderColor: "border.default",
             color: "text.disabled",
             cursor: "pointer",
             fontSize: "0.85rem",

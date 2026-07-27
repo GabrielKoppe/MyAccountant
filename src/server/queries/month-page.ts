@@ -8,7 +8,7 @@ import { cache } from "react";
 
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel, getCurrentFiscalMonth } from "@/lib/dates";
-import { parseHiddenColumns } from "@/lib/schemas/settings";
+import { parseHiddenColumns, type RowLayout } from "@/lib/schemas/settings";
 import {
   getMonthSections,
   getSectionTotals,
@@ -105,6 +105,14 @@ export const getSourceTables = cache(async (accountId: string) => {
     sectionName: t.section.name,
     monthYear: formatMonthLabel(t.month.year, t.month.month),
   }));
+});
+
+// Total do mês — usado no MonthHeader (cacheado para deduplicar com getMonthSummaryData).
+export const getMonthTotal = cache(async (accountId: string, monthId: string): Promise<string> => {
+  const sections = await getMonthSections(accountId, monthId);
+  const sectionIds = sections.map((s) => s.id);
+  const totals = await getSectionTotals(accountId, monthId, sectionIds);
+  return calculateMonthTotal(sections, totals).toString();
 });
 
 // ─── Aba Summary ───────────────────────────────────────────────────
@@ -314,6 +322,7 @@ export type SectionTable = {
   tableTypeId: string | null;
   tableTypeName: string | null;
   hiddenColumns: ReturnType<typeof parseHiddenColumns>;
+  rowLayout: RowLayout;
   total: string;
   transactionCount: number;
 };
@@ -341,7 +350,7 @@ export const getSectionTabData = cache(
           countInMonth: true,
           groupByDate: true,
           tableTypeId: true,
-          tableType: { select: { name: true, hiddenColumns: true } },
+          tableType: { select: { name: true, hiddenColumns: true, rowLayout: true } },
           _count: { select: { transactions: true } },
         },
       }),
@@ -365,6 +374,7 @@ export const getSectionTabData = cache(
       tableTypeId: t.tableTypeId,
       tableTypeName: t.tableType?.name ?? null,
       hiddenColumns: parseHiddenColumns(t.tableType?.hiddenColumns),
+      rowLayout: (t.tableType?.rowLayout as RowLayout) ?? "columns",
       total: tableTotalsMap.get(t.id) ?? "0",
       transactionCount: t._count.transactions,
     }));

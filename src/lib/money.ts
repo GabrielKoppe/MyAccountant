@@ -43,12 +43,19 @@ export function reaisToCents(reais: number): bigint {
 // Instância cacheada — criar Intl.NumberFormat é custoso; reutilizar é ~10x mais rápido
 const BRL_FORMATTER = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-export function formatCentsToBrl(cents: bigint, options?: { sign?: boolean }): string {
+export function formatCentsToBrl(
+  cents: bigint,
+  options?: { sign?: boolean | "always" },
+): string {
   const value = Number(cents) / 100;
   const formatted = BRL_FORMATTER.format(Math.abs(value));
 
-  if (options?.sign && cents < 0n) {
+  if (cents < 0n && (options?.sign === true || options?.sign === "always")) {
     return `-${formatted}`;
+  }
+
+  if (cents > 0n && options?.sign === "always") {
+    return `+${formatted}`;
   }
 
   return formatted;

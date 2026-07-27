@@ -1,15 +1,17 @@
 import { z } from "zod";
 
+import { cuidSchema } from "./shared";
+
 export const createFinanceTableSchema = z
   .object({
-    monthId: z.string().cuid("ID inválido"),
-    sectionId: z.string().cuid("ID inválido"),
+    monthId: cuidSchema,
+    sectionId: cuidSchema,
     name: z.string().min(1, "Nome obrigatório").max(80).trim(),
-    tableTypeId: z.string().cuid("ID inválido"),
+    tableTypeId: cuidSchema,
     sourceMethod: z.enum(["empty", "copy", "template"]),
     countInMonth: z.boolean(),
     // Campos condicionais para source method "copy"
-    sourceTableId: z.string().cuid("ID inválido").optional(),
+    sourceTableId: cuidSchema.optional(),
     copyOptions: z
       .object({
         includeTransactions: z.boolean(),
@@ -29,21 +31,21 @@ export const createFinanceTableSchema = z
   });
 
 export const updateFinanceTableSchema = z.object({
-  tableId: z.string().cuid("ID inválido"),
+  tableId: cuidSchema,
   name: z.string().min(1, "Nome obrigatório").max(80).trim().optional(),
   countInMonth: z.boolean().optional(),
   groupByDate: z.boolean().optional(),
-  tableTypeId: z.string().cuid("ID inválido").optional(),
+  tableTypeId: cuidSchema.optional(),
 });
 
 export const deleteFinanceTableSchema = z.object({
-  tableId: z.string().cuid("ID inválido"),
+  tableId: cuidSchema,
 });
 
 export const reorderFinanceTablesSchema = z.object({
-  monthId: z.string().cuid("ID inválido"),
-  sectionId: z.string().cuid("ID inválido"),
-  orderedIds: z.array(z.string().cuid("ID inválido")).min(1),
+  monthId: cuidSchema,
+  sectionId: cuidSchema,
+  orderedIds: z.array(cuidSchema).min(1),
 });
 
 export type CreateFinanceTableInput = z.infer<typeof createFinanceTableSchema>;

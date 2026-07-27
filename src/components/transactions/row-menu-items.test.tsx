@@ -19,7 +19,7 @@ describe("buildRowMenuItems", () => {
       "Duplicar",
       "Mover para…",
       "Ver detalhes",
-      "Criar apelido a partir desta transação",
+      "Criar apelido",
       "Deletar",
     ]);
     const del = items.at(-1)!;

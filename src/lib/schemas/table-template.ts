@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-import { investmentTypeSchema } from "./transaction";
 import { partyIdSchema } from "./responsible-party";
+import { cuidSchema } from "./shared";
+import { investmentTypeSchema } from "./transaction";
 
 // Campos de um item de modelo (equivale a uma transação sem data completa)
 const templateItemFields = z.object({
@@ -10,9 +11,9 @@ const templateItemFields = z.object({
   description: z.string().max(200).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
   isPending: z.boolean().default(false),
-  categoryId: z.string().cuid().nullable().optional(),
-  subcategoryId: z.string().cuid().nullable().optional(),
-  institutionId: z.string().cuid().nullable().optional(),
+  categoryId: cuidSchema.nullable().optional(),
+  subcategoryId: cuidSchema.nullable().optional(),
+  institutionId: cuidSchema.nullable().optional(),
   responsiblePartyId: partyIdSchema.nullable().optional(),
   cardInstallment: z
     .string()
@@ -23,51 +24,51 @@ const templateItemFields = z.object({
 });
 
 export const createTemplateFromTableSchema = z.object({
-  tableId: z.string().cuid(),
+  tableId: cuidSchema,
   name: z.string().min(1, "Nome é obrigatório").max(80).trim(),
 });
 
 export const createTemplateManualSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(80).trim(),
   description: z.string().max(200).optional(),
-  tableTypeId: z.string().cuid().nullable().optional(),
+  tableTypeId: cuidSchema.nullable().optional(),
   countInMonth: z.boolean().default(true),
 });
 
 export const updateTemplateSchema = z.object({
-  templateId: z.string().cuid(),
+  templateId: cuidSchema,
   name: z.string().min(1).max(80).trim().optional(),
   description: z.string().max(200).optional().nullable(),
-  tableTypeId: z.string().cuid().nullable().optional(),
+  tableTypeId: cuidSchema.nullable().optional(),
   countInMonth: z.boolean().optional(),
   autoApply: z.boolean().optional(),
-  autoSectionId: z.string().cuid().nullable().optional(),
-  autoTableTypeId: z.string().cuid().nullable().optional(),
+  autoSectionId: cuidSchema.nullable().optional(),
+  autoTableTypeId: cuidSchema.nullable().optional(),
 });
 
 export const deleteTemplateSchema = z.object({
-  templateId: z.string().cuid(),
+  templateId: cuidSchema,
 });
 
 export const addTemplateItemSchema = templateItemFields.extend({
-  templateId: z.string().cuid(),
+  templateId: cuidSchema,
   displayOrder: z.number().int().min(0).optional(),
 });
 
 export const updateTemplateItemSchema = templateItemFields.partial().extend({
-  itemId: z.string().cuid(),
+  itemId: cuidSchema,
 });
 
 export const deleteTemplateItemSchema = z.object({
-  itemId: z.string().cuid(),
+  itemId: cuidSchema,
 });
 
 export const applyTemplateSchema = z.object({
-  templateId: z.string().cuid(),
-  monthId: z.string().cuid(),
-  sectionId: z.string().cuid(),
+  templateId: cuidSchema,
+  monthId: cuidSchema,
+  sectionId: cuidSchema,
   name: z.string().min(1, "Nome é obrigatório").max(80).trim(),
-  tableTypeId: z.string().cuid().optional(),
+  tableTypeId: cuidSchema.optional(),
   countInMonth: z.boolean().optional(),
 });
 

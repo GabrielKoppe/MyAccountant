@@ -10,6 +10,7 @@ import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
 import { KpiCard } from "@/components/dashboards/charts/lazy";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
+import { ChecklistWidget } from "@/components/dashboards/panels/ChecklistWidget";
 import {
   FilteredTransactionsWidget,
   type FilteredTransactionsWidgetOptions,
@@ -17,26 +18,25 @@ import {
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
 import type { TxRow } from "@/components/dashboards/panels/TopTransactionTable";
 import { AppLink } from "@/components/ui/AppLink";
-import { formatCentsToBrl } from "@/lib/money";
-
-import { SectionCards } from "../panels/SectionCards";
 import { m } from "@/lib/messages";
-import type { BudgetProgress } from "@/server/queries/budgets";
-import type { Insight } from "@/server/services/insights-service";
+import { formatCentsToBrl } from "@/lib/money";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
   kpiCustomConfigSchema,
   filteredTransactionsConfigSchema,
 } from "@/lib/schemas/widget-config";
+import type { BudgetProgress } from "@/server/queries/budgets";
 import type { KpiCustomResult } from "@/server/queries/kpi-custom";
-import { ChecklistWidget } from "@/components/dashboards/panels/ChecklistWidget";
 import type { ChecklistMonthItem } from "@/server/services/checklist-service";
+import type { Insight } from "@/server/services/insights-service";
+
 import {
   PendingTransactionsWidget,
   FavoriteTransactionsWidget,
   RecentTransactionsWidget,
   type ActivityTx,
 } from "../panels/ActivityWidget";
+import { SectionCards } from "../panels/SectionCards";
 type SectionItem = {
   id: string;
   name: string;
@@ -304,36 +304,15 @@ export function MonthSummary({
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* ── Total + link para dashboard — header fixo ── */}
-      <Box
-        sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 2.5 }}
-      >
-        <Box>
-          <Typography
-            variant="overline"
-            sx={{ color: "text.tertiary", fontSize: "0.65rem", lineHeight: 1.4 }}
-          >
-            {m.months.monthTotal}
-          </Typography>
-          <Typography
-            variant="h5"
-            sx={{
-              fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
-              fontWeight: 500,
-              color: totalBigInt >= 0n ? "success.main" : "danger.main",
-              lineHeight: 1.2,
-            }}
-          >
-            {formatCentsToBrl(totalBigInt)}
-          </Typography>
-        </Box>
+      {/* ── Link para dashboard ── */}
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2.5 }}>
         <Button
           variant="text"
           size="small"
           component={AppLink}
           href={dashboardHref}
           startIcon={<DashboardIcon sx={{ fontSize: "14px !important" }} />}
-          sx={{ color: "text.tertiary", fontSize: "0.75rem", mt: 0.5 }}
+          sx={{ color: "text.tertiary", fontSize: "0.75rem" }}
         >
           Ver Dashboard
         </Button>

@@ -27,6 +27,7 @@ export async function createTableType(input: CreateTableTypeInput, ctx: ActionCo
       name: input.name,
       isDefault: false,
       hiddenColumns: onlyHidden,
+      rowLayout: input.rowLayout ?? "columns",
     },
     select: { id: true },
   });
@@ -58,6 +59,11 @@ export async function updateTableType(input: UpdateTableTypeInput, ctx: ActionCo
       if (value) onlyHidden[key] = true;
     }
     data.hiddenColumns = onlyHidden;
+  }
+  // rowLayout é apenas apresentação (não muda dados) — editável inclusive no tipo
+  // padrão, para o usuário poder ativar o layout "rich" mesmo sem criar um tipo novo.
+  if (input.rowLayout !== undefined) {
+    data.rowLayout = input.rowLayout;
   }
 
   await prisma.tableType.update({ where: { id: input.tableTypeId }, data });

@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 import { m } from "@/lib/messages";
+
 import { partyIdSchema } from "./responsible-party";
+import { cuidSchema } from "./shared";
 
 // ─── Account General ──────────────────────────────────────────────
 
@@ -25,18 +27,18 @@ export const createSectionSchema = z.object({
 });
 
 export const updateSectionSchema = z.object({
-  sectionId: z.string().cuid("ID inválido"),
+  sectionId: cuidSchema,
   name: z.string().min(1, "Nome obrigatório").max(40).trim(),
   countType: z.enum(["add", "subtract", "ignore", "neutral"]),
   isActive: z.boolean(),
 });
 
 export const reorderSectionsSchema = z.object({
-  orderedIds: z.array(z.string().cuid("ID inválido")).min(1),
+  orderedIds: z.array(cuidSchema).min(1),
 });
 
 export const deleteSectionSchema = z.object({
-  sectionId: z.string().cuid("ID inválido"),
+  sectionId: cuidSchema,
 });
 
 export type CreateSectionInput = z.infer<typeof createSectionSchema>;
@@ -51,26 +53,26 @@ export const createCategorySchema = z.object({
 });
 
 export const updateCategorySchema = z.object({
-  categoryId: z.string().cuid("ID inválido"),
+  categoryId: cuidSchema,
   name: z.string().min(1, "Nome obrigatório").max(50).trim(),
 });
 
 export const deleteCategorySchema = z.object({
-  categoryId: z.string().cuid("ID inválido"),
+  categoryId: cuidSchema,
 });
 
 export const createSubcategorySchema = z.object({
-  categoryId: z.string().cuid("ID inválido"),
+  categoryId: cuidSchema,
   name: z.string().min(1, "Nome obrigatório").max(50).trim(),
 });
 
 export const updateSubcategorySchema = z.object({
-  subcategoryId: z.string().cuid("ID inválido"),
+  subcategoryId: cuidSchema,
   name: z.string().min(1, "Nome obrigatório").max(50).trim(),
 });
 
 export const deleteSubcategorySchema = z.object({
-  subcategoryId: z.string().cuid("ID inválido"),
+  subcategoryId: cuidSchema,
 });
 
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
@@ -87,12 +89,12 @@ export const createInstitutionSchema = z.object({
 });
 
 export const updateInstitutionSchema = z.object({
-  institutionId: z.string().cuid("ID inválido"),
+  institutionId: cuidSchema,
   name: z.string().min(1, "Nome obrigatório").max(80).trim(),
 });
 
 export const deleteInstitutionSchema = z.object({
-  institutionId: z.string().cuid("ID inválido"),
+  institutionId: cuidSchema,
 });
 
 export type CreateInstitutionInput = z.infer<typeof createInstitutionSchema>;
@@ -138,19 +140,28 @@ export function parseHiddenColumns(raw: unknown): HiddenColumns {
   return hiddenColumnsSchema.parse(raw ?? {}) as HiddenColumns;
 }
 
+// Layout da linha por tipo de tabela (Spec 66 TX-04b): "columns" (A, default,
+// colunas explícitas) × "rich" (B, descrição + pílulas). Default reproduz o
+// comportamento atual.
+export const ROW_LAYOUTS = ["columns", "rich"] as const;
+export const rowLayoutSchema = z.enum(ROW_LAYOUTS);
+export type RowLayout = z.infer<typeof rowLayoutSchema>;
+
 export const createTableTypeSchema = z.object({
   name: z.string().min(1, "Nome obrigatório").max(50).trim(),
   hiddenColumns: hiddenColumnsBaseSchema,
+  rowLayout: rowLayoutSchema.optional(),
 });
 
 export const updateTableTypeSchema = z.object({
-  tableTypeId: z.string().cuid("ID inválido"),
+  tableTypeId: cuidSchema,
   name: z.string().min(1, "Nome obrigatório").max(50).trim().optional(),
   hiddenColumns: hiddenColumnsBaseSchema.optional(),
+  rowLayout: rowLayoutSchema.optional(),
 });
 
 export const deleteTableTypeSchema = z.object({
-  tableTypeId: z.string().cuid("ID inválido"),
+  tableTypeId: cuidSchema,
 });
 
 export type CreateTableTypeInput = z.infer<typeof createTableTypeSchema>;

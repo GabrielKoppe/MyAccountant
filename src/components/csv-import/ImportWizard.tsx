@@ -1,6 +1,6 @@
 "use client";
 
-import UploadFileIcon from "@mui/icons-material/UploadFile";
+import UploadIcon from "@mui/icons-material/Upload";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -13,7 +13,6 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { executeImportAction, listTemplatesAction } from "@/actions/csv-import";
 import { DialogShell } from "@/components/ui/DialogShell";
-import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
 import { applyMappingToRows, deriveHeadersAndRows } from "@/lib/csv-parser";
 import type { FileMatrix, PreviewRow } from "@/lib/csv-parser";
 import { layout } from "@/lib/design-tokens";
@@ -295,13 +294,15 @@ export function ImportWizard({
 
   return (
     <>
-      <ExpandableIconButton
-        icon={<UploadFileIcon sx={{ fontSize: 22 }} />}
-        label={m.csvImport.importButton}
+      <Button
+        variant={"outlined"}
+        startIcon={<UploadIcon />}
         onClick={openWizard}
-        direction="left"
-        sx={{ color: "text.primary" }}
-      />
+        size="small"
+        sx={{ fontSize: "0.875rem", textTransform: "none" }}
+      >
+        {m.csvImport.importButton}
+      </Button>
 
       <DialogShell
         open={open}

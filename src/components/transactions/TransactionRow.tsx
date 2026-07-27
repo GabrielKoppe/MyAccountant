@@ -1,28 +1,16 @@
 "use client";
 
-import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
-import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
-import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Checkbox from "@mui/material/Checkbox";
-import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
-import IconButton from "@mui/material/IconButton";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import type { SectionCountType } from "@prisma/client";
 import { useSnackbar } from "notistack";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { listTagsAction } from "@/actions/tags";
 import { duplicateTransactionAction, updateTransactionAction } from "@/actions/transactions";
 import { InstallmentGroupPanel } from "@/components/installments/InstallmentGroupPanel";
-import { tagChipSx } from "@/components/tags/tagChipSx";
 import { TagPopover } from "@/components/tags/TagPopover";
 import {
   computeSuggestion,
@@ -30,19 +18,17 @@ import {
   type SuggestionPatch,
 } from "@/lib/aliases/apply";
 import { matchAlias } from "@/lib/aliases/match";
-import { formatDateShort } from "@/lib/dates";
 import { m } from "@/lib/messages";
-import { formatCentsToBrl } from "@/lib/money";
 import type { CreateTransactionAliasInput } from "@/lib/schemas/transaction-alias";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
 import { SuggestionPopover } from "./aliases/SuggestionPopover";
 import { TransactionAliasFormDialog } from "./aliases/TransactionAliasFormDialog";
+import { ColumnsRow } from "./ColumnsRow";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import { useOptions } from "./OptionsContext";
-import { PartyAvatar } from "./PartyAvatar";
-import { describeRowState } from "./row-state";
-import { TransactionRowActions } from "./TransactionRowActions";
+import { RichRow } from "./RichRow";
+import type { RowLayout } from "./row-layout";
 import { TransactionRowDetails } from "./TransactionRowDetails";
 import { TransactionRowEditor } from "./TransactionRowEditor";
 import type {
@@ -55,6 +41,35 @@ import type {
   TransactionRow as TxRow,
 } from "./types";
 
+/**
+ * Campos que a edição em massa inline propaga para TODAS as linhas selecionadas
+ * assim que o usuário toca um deles (frame 66 §4 · comportamento). É exatamente
+ * o conjunto aceito por `updateTransactionAction`; `tags` e `linkCount` ficam de
+ * fora de propósito — são persistidos na hora, por linha, pelos próprios
+ * subcomponentes da gaveta (TagPopover / vínculos), então replicá-los daria
+ * divergência entre o que a tela mostra e o que o servidor tem.
+ */
+export const BULK_EDIT_PROPAGATED_FIELDS: readonly (keyof TxRow)[] = [
+  "occurredOn",
+  "amountCents",
+  "description",
+  "notes",
+  "isPending",
+  "isFavorite",
+  "categoryId",
+  "subcategoryId",
+  "institutionId",
+  "institutionText",
+  "responsiblePartyId",
+  "cardInstallment",
+  "investmentType",
+  "expenseType",
+  "paymentMethod",
+  "originalCurrency",
+  "exchangeRate",
+  "originalAmountCents",
+];
+
 type Props = {
   tx: TxRow;
   accountId: string;
@@ -63,12 +78,20 @@ type Props = {
   isReadOnly: boolean;
   sectionCountType: SectionCountType;
   hiddenColumns: HiddenColumns;
+  /** Layout já resolvido pelo TransactionTable (config + degradação por viewport). */
+  effectiveLayout: RowLayout;
   categories: CategoryOption[];
   institutions: InstitutionOption[];
   members: MemberOption[];
   parties: ResponsiblePartyOption[];
   aliases: SerializedTransactionAlias[];
   autoEdit: boolean;
+  /** Esta linha faz parte do lote em edição em massa inline (frame 66 §4). */
+  bulkEditing?: boolean;
+  /** Patch compartilhado do lote — campos já tocados em QUALQUER linha selecionada. */
+  bulkPatch?: Partial<TxRow>;
+  /** Só a primeira linha do lote autofoca a descrição (senão as N brigariam pelo foco). */
+  bulkFocus?: boolean;
   onSelect: (id: string, checked: boolean) => void;
   onOptimisticUpdate: (id: string, patch: Partial<TxRow>) => void;
   onDeleteRequested: (id: string) => void;
@@ -77,6 +100,11 @@ type Props = {
   onAutoEditConsumed: () => void;
   onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, items: RowMenuItem[]) => void;
   onOpenMove: (ids: string[]) => void;
+  /** Publica no lote os campos alterados nesta linha (viram valor de todas). */
+  onBulkFieldChange?: (delta: Partial<TxRow>) => void;
+  /** Salvar/Cancelar são do LOTE (uma barra só) — Enter/Esc caem aqui também. */
+  onBulkSave?: () => void;
+  onBulkCancel?: () => void;
 };
 
 export function TransactionRowBase({
@@ -87,12 +115,16 @@ export function TransactionRowBase({
   isReadOnly,
   sectionCountType,
   hiddenColumns,
+  effectiveLayout,
   categories,
   institutions,
   members,
   parties,
   aliases,
   autoEdit,
+  bulkEditing = false,
+  bulkPatch,
+  bulkFocus = false,
   onSelect,
   onOptimisticUpdate,
   onDeleteRequested,
@@ -101,6 +133,9 @@ export function TransactionRowBase({
   onAutoEditConsumed,
   onOpenMenu,
   onOpenMove,
+  onBulkFieldChange,
+  onBulkSave,
+  onBulkCancel,
 }: Props) {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { onCreateCategory, onCreateSubcategory, onCreateInstitution, canManageOptions } =
@@ -126,10 +161,12 @@ export function TransactionRowBase({
   );
   // Sugestão (apelido + regra) no MODO VISUALIZAÇÃO (DD-23) — anchor do popover na descrição.
   const [suggestionAnchorEl, setSuggestionAnchorEl] = useState<HTMLElement | null>(null);
-  const tagCellRef = useRef<HTMLTableCellElement>(null);
-
-  const amount = BigInt(tx.amountCents);
-  const isPositive = sectionCountType === "subtract" ? amount < 0n : amount >= 0n;
+  // Foco imperativo (TX-03c): garante que "Editar" no modal de detalhe pouse na
+  // descrição mesmo competindo com o restore-focus do MUI Dialog (que roda
+  // depois do fechamento). Badge de parcela: devolve o foco a si mesmo ao
+  // fechar o painel lateral que ele abriu.
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
+  const installmentBadgeRef = useRef<HTMLDivElement>(null);
 
   function startEdit(field = "occurredOn") {
     if (isReadOnly) return;
@@ -140,8 +177,13 @@ export function TransactionRowBase({
 
   useEffect(() => {
     if (autoEdit) {
-      startEdit();
+      // "Editar" a partir do modal de detalhe (TX-03c) foca a descrição, não a
+      // data — fecha o loop leitura→edição no 1º campo natural da linha.
+      startEdit("description");
       onAutoEditConsumed();
+      // rAF: roda depois do restore-focus do MUI Dialog (que devolveria o foco
+      // ao gatilho que abriu o modal), garantindo que a descrição vença.
+      requestAnimationFrame(() => descriptionInputRef.current?.focus());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoEdit]);
@@ -223,6 +265,39 @@ export function TransactionRowBase({
     setEditing(false);
     setEditValues(tx);
   }
+
+  // ─── Edição em massa inline (frame 66 §4) ───────────────────────────────
+  // A linha continua exibindo os PRÓPRIOS valores; o patch compartilhado do
+  // lote (campos já tocados em qualquer linha) é sobreposto por cima. Não há
+  // estado local aqui: o `setEditValues` entregue ao editor vira um "dispatch
+  // de diff" que publica para o lote só o que mudou de fato.
+  const bulkEditValues = useMemo<TxRow>(() => ({ ...tx, ...bulkPatch }), [tx, bulkPatch]);
+  const bulkValuesRef = useRef(bulkEditValues);
+  bulkValuesRef.current = bulkEditValues;
+
+  const setBulkEditValues = useCallback<React.Dispatch<React.SetStateAction<TxRow>>>(
+    (action) => {
+      const current = bulkValuesRef.current;
+      const next = typeof action === "function" ? action(current) : action;
+
+      const delta: Partial<TxRow> = {};
+      for (const key of BULK_EDIT_PROPAGATED_FIELDS) {
+        if (!Object.is(next[key], current[key])) {
+          (delta as Record<string, unknown>)[key] = next[key];
+        }
+      }
+      if (Object.keys(delta).length === 0) return;
+
+      // Avança o ref na hora para que duas chamadas síncronas seguidas (ex.:
+      // categoria + subcategoria) não calculem o diff contra um valor velho.
+      bulkValuesRef.current = { ...current, ...delta };
+      onBulkFieldChange?.(delta);
+    },
+    [onBulkFieldChange],
+  );
+
+  const handleBulkSave = useCallback(() => onBulkSave?.(), [onBulkSave]);
+  const handleBulkCancel = useCallback(() => onBulkCancel?.(), [onBulkCancel]);
 
   async function toggleFavorite(e: React.MouseEvent) {
     e.stopPropagation();
@@ -401,8 +476,6 @@ export function TransactionRowBase({
     });
   }
 
-  const subcatsForCategory = categories.find((c) => c.id === tx.categoryId)?.subcategories ?? [];
-
   const aliasDialog = aliasDialogOpen && (
     <TransactionAliasFormDialog
       open={aliasDialogOpen}
@@ -425,15 +498,20 @@ export function TransactionRowBase({
   // Modo edição — delega para TransactionRowEditor. Dialog de apelido renderizado
   // junto (DD-24): TransactionRow retorna cedo aqui, então o dialog precisa existir
   // neste branch também para o botão "criar apelido" do editor abrir algo.
-  if (editing) {
+  // No lote (`bulkEditing`) o editor é o mesmo, mas: valores = linha + patch do
+  // lote, `setEditValues` publica o diff para todas as selecionadas e
+  // Salvar/Cancelar (inclusive Enter/Esc) agem sobre o LOTE inteiro.
+  if (editing || bulkEditing) {
+    const activeValues = bulkEditing ? bulkEditValues : editValues;
     return (
       <>
         <TransactionRowEditor
           tx={tx}
-          editValues={editValues}
-          setEditValues={setEditValues}
+          editValues={activeValues}
+          setEditValues={bulkEditing ? setBulkEditValues : setEditValues}
           isSelected={isSelected}
-          focusField={focusField}
+          focusField={bulkEditing ? (bulkFocus ? "description" : "") : focusField}
+          descriptionInputRef={descriptionInputRef}
           hiddenColumns={hiddenColumns}
           categories={categories}
           institutions={institutions}
@@ -442,384 +520,105 @@ export function TransactionRowBase({
           accountId={accountId}
           aliases={aliases}
           onSelect={onSelect}
-          onSave={saveEdit}
-          onCancel={cancelEdit}
-          onCreateAlias={() => openCreateAlias(editValues)}
+          onSave={bulkEditing ? handleBulkSave : saveEdit}
+          onCancel={bulkEditing ? handleBulkCancel : cancelEdit}
+          onCreateAlias={() => openCreateAlias(activeValues)}
+          hideActions={bulkEditing}
         />
         {aliasDialog}
       </>
     );
   }
 
-  // Modo leitura
+  // Modo leitura — delega para o layout do tipo de tabela (Spec 66 P6). O
+  // container mantém estado/handlers/effects e os overlays; ColumnsRow/RichRow
+  // apenas desenham a linha. Overlays (SuggestionPopover, TagPopover,
+  // InstallmentGroupPanel, LinkTransactionDialog, aliasDialog) e a gaveta ficam
+  // aqui — os popovers usam anchors abertos pela linha (onOpenSuggestion/onOpenTags).
+  const rowProps = {
+    tx,
+    isSelected,
+    isReadOnly,
+    sectionCountType,
+    hiddenColumns,
+    categories,
+    institutions,
+    parties,
+    localTags,
+    hasSuggestion: !!suggestion,
+    installmentBadgeRef,
+    onSelect,
+    onStartEdit: startEdit,
+    onOpenSuggestion: (anchor: HTMLElement) => setSuggestionAnchorEl(anchor),
+    onOpenTags: (anchor: HTMLElement) => setTagAnchor(anchor),
+    onOpenInstallmentPanel: () => setInstallmentPanelOpen(true),
+    onTogglePending: togglePending,
+    onToggleFavorite: toggleFavorite,
+    onViewDetails: handleViewDetails,
+    onDuplicate: handleDuplicate,
+    onMove: () => onOpenMove([tx.id]),
+    onCreateAlias: () => openCreateAlias(tx),
+    onDelete: handleDelete,
+    onToggleDrawer: () => setDrawerOpen((o) => !o),
+    drawerOpen,
+    onOpenMenu,
+  };
+
   return (
     <>
-      <TableRow
-        hover
-        selected={isSelected}
-        sx={{
-          opacity: tx.isPending ? 0.65 : 1,
-          // Primárias (pendente/favorito): visíveis mas discretas em repouso (tappable em touch),
-          // plenas no hover/foco da linha; estado ativo = pleno sempre.
-          "& .row-primary": { opacity: 0.55, transition: "opacity 0.15s" },
-          "&:hover .row-primary, &:focus-within .row-primary": { opacity: 1 },
-          "& .row-primary--active": { opacity: 1 },
-          "& .tag-hint-icon": { opacity: 0, transition: "opacity 0.15s" },
-          "&:hover .tag-hint-icon": { opacity: 1 },
-        }}
-      >
-        <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-          <Checkbox
-            checked={isSelected}
-            onChange={(e) => onSelect(tx.id, e.target.checked)}
-            size="small"
-            disabled={isReadOnly}
-          />
-        </TableCell>
+      {effectiveLayout === "rich" ? <RichRow {...rowProps} /> : <ColumnsRow {...rowProps} />}
 
-        <TableCell
-          sx={{ fontSize: 13, whiteSpace: "nowrap", cursor: isReadOnly ? "default" : "pointer" }}
-          onClick={() => !isReadOnly && startEdit("occurredOn")}
-        >
-          {formatDateShort(tx.occurredOn)}
-        </TableCell>
-
-        <TableCell
-          sx={{
-            fontSize: 13,
-            maxWidth: 200,
-            cursor: isReadOnly ? "default" : "pointer",
-          }}
-          onClick={() => !isReadOnly && startEdit("description")}
-          aria-label={describeRowState(tx)}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-            <Box
-              component="span"
-              sx={{
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {tx.description || (
-                <Typography variant="caption" color="text.disabled">
-                  —
-                </Typography>
-              )}
-            </Box>
-            {suggestion && (
-              <Tooltip title={m.transactions.aliasSuggestion.header}>
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSuggestionAnchorEl(e.currentTarget);
-                  }}
-                  aria-label={m.transactions.aliasSuggestion.header}
-                  sx={{ p: 0.25, flexShrink: 0 }}
-                >
-                  <AutoFixHighOutlinedIcon sx={{ fontSize: 16, color: "accent.primary" }} />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Box>
-          {suggestion && (
-            <SuggestionPopover
-              anchorEl={suggestionAnchorEl}
-              changes={suggestion.changes}
-              onApply={handleApplySuggestionView}
-              onClose={() => setSuggestionAnchorEl(null)}
-            />
-          )}
-        </TableCell>
-
-        {!hiddenColumns.category && (
-          <TableCell
-            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-            onClick={() => !isReadOnly && startEdit("categoryId")}
-          >
-            {categories.find((c) => c.id === tx.categoryId)?.name ?? (
-              <Typography variant="caption" color="text.disabled">
-                —
-              </Typography>
-            )}
-          </TableCell>
-        )}
-
-        {!hiddenColumns.subcategory && (
-          <TableCell
-            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-            onClick={() => !isReadOnly && startEdit("subcategoryId")}
-          >
-            {subcatsForCategory.find((s) => s.id === tx.subcategoryId)?.name ?? (
-              <Typography variant="caption" color="text.disabled">
-                —
-              </Typography>
-            )}
-          </TableCell>
-        )}
-
-        {!hiddenColumns.institution && (
-          <TableCell
-            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-            onClick={() => !isReadOnly && startEdit("institutionId")}
-          >
-            {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? (
-              <Typography variant="caption" color="text.disabled">
-                —
-              </Typography>
-            )}
-          </TableCell>
-        )}
-
-        {!hiddenColumns.paymentMethod && (
-          <TableCell
-            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-            onClick={() => !isReadOnly && startEdit("paymentMethod")}
-          >
-            {tx.paymentMethod ? (
-              m.transactions.paymentMethods[tx.paymentMethod]
-            ) : (
-              <Typography variant="caption" color="text.disabled">
-                —
-              </Typography>
-            )}
-          </TableCell>
-        )}
-
-        <TableCell
-          align="right"
-          sx={{
-            fontWeight: "medium",
-            fontSize: 13,
-            whiteSpace: "nowrap",
-            color: isPositive ? "success.main" : "error.main",
-            cursor: isReadOnly ? "default" : "pointer",
-          }}
-          onClick={() => !isReadOnly && startEdit("amountCents")}
-        >
-          {tx.originalCurrency ? (
-            <Tooltip
-              title={[
-                "Moeda estrangeira",
-                tx.originalAmountCents && tx.originalAmountCents !== "0"
-                  ? `${tx.originalCurrency} ${(Number(BigInt(tx.originalAmountCents)) / 100).toFixed(2)}`
-                  : tx.originalCurrency,
-                tx.exchangeRate ? `câmbio R$${tx.exchangeRate.toFixed(2)}` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-              arrow
-            >
-              <span>{formatCentsToBrl(amount)}</span>
-            </Tooltip>
-          ) : (
-            formatCentsToBrl(amount)
-          )}
-        </TableCell>
-
-        {!hiddenColumns.responsibleUser && (
-          <TableCell
-            sx={{ cursor: isReadOnly ? "default" : "pointer" }}
-            onClick={() => !isReadOnly && startEdit("responsibleUserId")}
-          >
-            {(() => {
-              const party = tx.responsiblePartyId
-                ? parties.find((p) => p.id === tx.responsiblePartyId)
-                : null;
-              if (!party) {
-                return (
-                  <Typography variant="caption" color="text.disabled">
-                    —
-                  </Typography>
-                );
-              }
-              return (
-                <Tooltip title={party.name}>
-                  <Box component="span" sx={{ display: "inline-flex" }}>
-                    <PartyAvatar
-                      kind={party.kind}
-                      icon={party.icon}
-                      color={party.color}
-                      imageUrl={party.imageUrl}
-                      name={party.name}
-                      size={24}
-                    />
-                  </Box>
-                </Tooltip>
-              );
-            })()}
-          </TableCell>
-        )}
-
-        {!hiddenColumns.investmentType && (
-          <TableCell
-            sx={{ fontSize: 13, cursor: isReadOnly ? "default" : "pointer" }}
-            onClick={() => !isReadOnly && startEdit("investmentType")}
-          >
-            {tx.investmentType ?? (
-              <Typography variant="caption" color="text.disabled">
-                —
-              </Typography>
-            )}
-          </TableCell>
-        )}
-
-        {/* Parcela estruturada ou texto legado */}
-        {!hiddenColumns.cardInstallment && (
-          <TableCell sx={{ px: 1 }}>
-            {tx.installmentGroupId && tx.installmentNumber && tx.installmentGroupCount ? (
-              <Tooltip
-                title={m.transactions.installments.badgeTooltip(
-                  tx.installmentNumber,
-                  tx.installmentGroupCount,
-                  m.transactions.installments.panelTitle,
-                )}
-              >
-                <Chip
-                  label={m.transactions.installments.badge(
-                    tx.installmentNumber,
-                    tx.installmentGroupCount,
-                  )}
-                  size="small"
-                  variant="outlined"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setInstallmentPanelOpen(true);
-                  }}
-                  sx={{
-                    height: 20,
-                    fontSize: 11,
-                    cursor: "pointer",
-                    "& .MuiChip-label": { px: 0.75 },
-                  }}
-                />
-              </Tooltip>
-            ) : tx.cardInstallment ? (
-              <Typography variant="caption" color="text.secondary">
-                {tx.cardInstallment}
-              </Typography>
-            ) : null}
-          </TableCell>
-        )}
-        {!hiddenColumns.expenseType && tx.expenseType && (
-          <TableCell sx={{ px: 0.5, width: 28 }}>
-            <Tooltip title={m.transactions.expenseTypeTooltips[tx.expenseType] ?? ""}>
-              <span style={{ display: "inline-flex", alignItems: "center", marginTop: 6 }}>
-                {tx.expenseType === "fixed" && (
-                  <LockOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-                )}
-                {tx.expenseType === "variable" && (
-                  <WavesOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-                )}
-                {tx.expenseType === "one_time" && (
-                  <FlashOnOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-                )}
-              </span>
-            </Tooltip>
-          </TableCell>
-        )}
-        {!hiddenColumns.expenseType && !tx.expenseType && <TableCell sx={{ px: 0.5, width: 28 }} />}
-
-        {/* Célula de tags */}
-        {!hiddenColumns.tags && (
-          <TableCell
-            ref={tagCellRef}
-            sx={{ cursor: "pointer", maxWidth: 160, minWidth: 60, px: 1 }}
-            onClick={(e) => setTagAnchor(e.currentTarget)}
-          >
-            {localTags.length > 0 ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 0.5,
-                  flexWrap: "nowrap",
-                  overflow: "hidden",
-                  alignItems: "center",
-                }}
-              >
-                {localTags.slice(0, 2).map((tag) => (
-                  <Tooltip key={tag.id} title={tag.name} disableInteractive>
-                    <Chip
-                      label={tag.name}
-                      size="small"
-                      sx={{ ...tagChipSx(tag.color), maxWidth: 72 }}
-                    />
-                  </Tooltip>
-                ))}
-                {localTags.length > 2 && (
-                  <Chip
-                    label={`+${localTags.length - 2}`}
-                    size="small"
-                    sx={{ fontSize: 11, height: 20, "& .MuiChip-label": { px: 0.75 } }}
-                  />
-                )}
-              </Box>
-            ) : (
-              <Tooltip title={m.transactions.tags.addTooltip}>
-                <LabelOutlinedIcon
-                  className="tag-hint-icon"
-                  sx={{ fontSize: 16, color: "text.disabled", display: "block" }}
-                />
-              </Tooltip>
-            )}
-          </TableCell>
-        )}
-
-        {tagAnchor && (
-          <TagPopover
-            anchorEl={tagAnchor}
-            onClose={() => setTagAnchor(null)}
-            accountId={accountId}
-            transactionId={tx.id}
-            currentTags={localTags}
-            onTagsChange={(tags) => {
-              setLocalTags(tags);
-              onOptimisticUpdate(tx.id, { tags });
-            }}
-          />
-        )}
-
-        <TransactionRowActions
-          tx={tx}
-          isReadOnly={isReadOnly}
-          onStartEdit={() => startEdit()}
-          onTogglePending={togglePending}
-          onToggleFavorite={toggleFavorite}
-          onViewDetails={handleViewDetails}
-          onDuplicate={handleDuplicate}
-          onMove={() => onOpenMove([tx.id])}
-          onCreateAlias={() => openCreateAlias(tx)}
-          onDelete={handleDelete}
-          onToggleDrawer={() => setDrawerOpen((o) => !o)}
-          drawerOpen={drawerOpen}
-          onOpenMenu={onOpenMenu}
+      {suggestion && (
+        <SuggestionPopover
+          anchorEl={suggestionAnchorEl}
+          trigger={matchedAlias?.trigger ?? null}
+          changes={suggestion.changes}
+          onApply={handleApplySuggestionView}
+          onClose={() => setSuggestionAnchorEl(null)}
         />
+      )}
 
-        {/* Painel de grupo de parcelamento — Drawer via portal */}
-        {tx.installmentGroupId && installmentPanelOpen && (
-          <InstallmentGroupPanel
-            open={installmentPanelOpen}
-            onClose={() => setInstallmentPanelOpen(false)}
-            accountId={accountId}
-            monthId={tx.monthId}
-            installmentGroupId={tx.installmentGroupId}
-            canEdit={!isReadOnly}
-          />
-        )}
-
-        <LinkTransactionDialog
-          open={linkDialogOpen}
-          onClose={() => setLinkDialogOpen(false)}
+      {tagAnchor && (
+        <TagPopover
+          anchorEl={tagAnchor}
+          onClose={() => setTagAnchor(null)}
           accountId={accountId}
           transactionId={tx.id}
-          onLinked={() => onOptimisticUpdate(tx.id, { linkCount: tx.linkCount + 1 })}
+          currentTags={localTags}
+          onTagsChange={(tags) => {
+            setLocalTags(tags);
+            onOptimisticUpdate(tx.id, { tags });
+          }}
         />
+      )}
 
-        {aliasDialog}
-      </TableRow>
+      {/* Painel de grupo de parcelamento — Drawer via portal */}
+      {tx.installmentGroupId && installmentPanelOpen && (
+        <InstallmentGroupPanel
+          open={installmentPanelOpen}
+          onClose={() => {
+            setInstallmentPanelOpen(false);
+            // Devolve o foco ao badge que abriu o painel (no-op se, por algum
+            // motivo, ele não estiver mais renderizado).
+            requestAnimationFrame(() => installmentBadgeRef.current?.focus());
+          }}
+          accountId={accountId}
+          monthId={tx.monthId}
+          installmentGroupId={tx.installmentGroupId}
+          canEdit={!isReadOnly}
+        />
+      )}
+
+      <LinkTransactionDialog
+        open={linkDialogOpen}
+        onClose={() => setLinkDialogOpen(false)}
+        accountId={accountId}
+        transactionId={tx.id}
+        onLinked={() => onOptimisticUpdate(tx.id, { linkCount: tx.linkCount + 1 })}
+      />
+
+      {aliasDialog}
+
       {drawerOpen && (
         <TableRow>
           <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>

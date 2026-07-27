@@ -18,6 +18,8 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
@@ -35,6 +37,7 @@ import {
 import {
   createTableTypeSchema,
   type CreateTableTypeInput,
+  type RowLayout,
   TOGGLEABLE_COLUMNS,
 } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
@@ -47,6 +50,7 @@ type TableTypeItem = {
   name: string;
   isDefault: boolean;
   hiddenColumns: Record<string, boolean>;
+  rowLayout: RowLayout;
   tableCount: number;
 };
 
@@ -100,7 +104,13 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
     }
     setTypes((prev) => [
       ...prev,
-      { id: result.data.tableTypeId, ...values, isDefault: false, tableCount: 0 },
+      {
+        id: result.data.tableTypeId,
+        ...values,
+        rowLayout: values.rowLayout ?? "columns",
+        isDefault: false,
+        tableCount: 0,
+      },
     ]);
     enqueueSnackbar(m.settings.tableTypes.created, { variant: "success" });
     closeDialog();
@@ -126,6 +136,24 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
       setTypes((prev) =>
         prev.map((t) => (t.id === typeId ? { ...t, hiddenColumns: newHidden } : t)),
       );
+    });
+  }
+
+  function handleChangeLayout(typeId: string, layout: RowLayout) {
+    startTransition(async () => {
+      const current = types.find((t) => t.id === typeId);
+      if (!current || current.rowLayout === layout) return;
+
+      const result = await updateTableTypeAction(accountId, {
+        tableTypeId: typeId,
+        rowLayout: layout,
+      });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setTypes((prev) => prev.map((t) => (t.id === typeId ? { ...t, rowLayout: layout } : t)));
+      enqueueSnackbar(m.settings.tableTypes.updated, { variant: "success" });
     });
   }
 
@@ -293,6 +321,39 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
                       O tipo padrão sempre exibe todas as colunas.
                     </Typography>
                   )}
+
+                  <Typography
+                    variant="caption"
+                    fontWeight="bold"
+                    color="text.secondary"
+                    sx={{ mt: 2, display: "block" }}
+                  >
+                    {m.settings.tableTypes.layoutLabel}
+                  </Typography>
+                  <ToggleButtonGroup
+                    size="small"
+                    exclusive
+                    value={type.rowLayout}
+                    disabled={isPending}
+                    onChange={(_e, value: RowLayout | null) => {
+                      if (value) handleChangeLayout(type.id, value);
+                    }}
+                    sx={{ mt: 0.5 }}
+                  >
+                    <ToggleButton value="columns">
+                      {m.settings.tableTypes.layoutColumns}
+                    </ToggleButton>
+                    <ToggleButton value="rich">{m.settings.tableTypes.layoutRich}</ToggleButton>
+                  </ToggleButtonGroup>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 0.5, display: "block" }}
+                  >
+                    {type.rowLayout === "rich"
+                      ? m.settings.tableTypes.layoutRichHelp
+                      : m.settings.tableTypes.layoutColumnsHelp}
+                  </Typography>
                 </Box>
               </Collapse>
             </Paper>

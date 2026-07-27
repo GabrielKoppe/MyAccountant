@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { cuidSchema } from "./shared";
+
 /**
  * Input de `revokeConnectorAction` (spec 63, Task 4.1).
  *
@@ -8,7 +10,7 @@ import { z } from "zod";
  * — nunca confia apenas no fato de o formulário ter enviado o id.
  */
 export const revokeConnectorSchema = z.object({
-  grantId: z.string().cuid("ID inválido"),
+  grantId: cuidSchema,
 });
 
 export type RevokeConnectorInput = z.infer<typeof revokeConnectorSchema>;

@@ -1,9 +1,8 @@
 "use client";
 
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DeleteIcon from "@mui/icons-material/Delete";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import Alert from "@mui/material/Alert";
 import Badge from "@mui/material/Badge";
@@ -57,7 +56,6 @@ export function MonthHeader({
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const { download: exportDownload, loading: exportLoading } = useExportDownload();
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [exportAnchor, setExportAnchor] = useState<null | HTMLElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -194,35 +192,18 @@ export function MonthHeader({
 
       {/* Excluir mês — apenas owner (menu de ações discreto; fora do frame simplificado) */}
       {isOwner && (
-        <>
+        <Tooltip title={m.months.deleteTitle}>
           <IconButton
             size="small"
             aria-label={m.months.deleteTitle}
-            onClick={(e) => setMenuAnchor(e.currentTarget)}
+            onClick={() => {
+              setDeleteConfirm("");
+              setDeleteOpen(true);
+            }}
           >
-            <MoreVertIcon fontSize="small" />
+            <DeleteIcon fontSize="small" sx={{ color: "error.main" }} />
           </IconButton>
-          <Menu
-            anchorEl={menuAnchor}
-            open={!!menuAnchor}
-            onClose={() => setMenuAnchor(null)}
-            slotProps={{ paper: { sx: { minWidth: 160 } } }}
-          >
-            <MenuItem
-              onClick={() => {
-                setMenuAnchor(null);
-                setDeleteConfirm("");
-                setDeleteOpen(true);
-              }}
-              sx={{ py: 0.75, fontSize: 13, color: "error.main" }}
-            >
-              <ListItemIcon sx={{ minWidth: 32 }}>
-                <DeleteOutlineIcon sx={{ fontSize: 16, color: "error.main" }} />
-              </ListItemIcon>
-              {m.months.deleteTitle}
-            </MenuItem>
-          </Menu>
-        </>
+        </Tooltip>
       )}
 
       {/* Delete confirmation */}

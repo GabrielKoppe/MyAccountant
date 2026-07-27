@@ -1,5 +1,6 @@
 "use client";
 
+import AddIcon from "@mui/icons-material/Add";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
@@ -8,7 +9,6 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import WavesOutlinedIcon from "@mui/icons-material/WavesOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Checkbox from "@mui/material/Checkbox";
 import Fade from "@mui/material/Fade";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -71,6 +71,69 @@ type Props = {
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Ícone dos cabeçalhos das seções colapsáveis (nota/moeda) — sempre a variante
+ * preenchida, casando com a gaveta de leitura (spec 66 TX-03b). */
+
+const MONO_FONT_FAMILY = "var(--font-jetbrains-mono), 'JetBrains Mono', monospace";
+
+// Recipes de campo — idênticos aos do editor (TransactionRowEditor), spec 66
+// §5/§6: "Inputs iguais aos do editor". Duplicados aqui (não há módulo
+// compartilhado dentro do escopo desta task) para os dois arquivos ficarem
+// visualmente idênticos sem introduzir um import cruzado novo.
+const FIELD_ROOT_SX = { "& .MuiOutlinedInput-root": { height: 30, borderRadius: "6px" } } as const;
+
+const DATE_FIELD_SX = {
+  ...FIELD_ROOT_SX,
+  "& .MuiOutlinedInput-input": {
+    padding: "0 6px",
+    fontFamily: MONO_FONT_FAMILY,
+    fontSize: "0.74rem",
+    color: "text.secondary",
+  },
+} as const;
+
+const DESCRIPTION_FIELD_SX = {
+  ...FIELD_ROOT_SX,
+  "& .MuiOutlinedInput-input": {
+    padding: "0 8px",
+    fontSize: "0.78rem",
+    color: "text.primary",
+    "&::placeholder": { color: "text.disabled", opacity: 1 },
+  },
+} as const;
+
+const SELECT_FIELD_SX = {
+  ...FIELD_ROOT_SX,
+  "& .MuiOutlinedInput-input, & .MuiSelect-select": {
+    padding: "0 8px",
+    fontSize: "0.76rem",
+    color: "text.secondary",
+  },
+  "& .MuiSelect-icon": { fontSize: 15 },
+  "& .MuiAutocomplete-popupIndicator svg": { fontSize: 15 },
+} as const;
+
+function amountFieldSx(color: string) {
+  return {
+    ...FIELD_ROOT_SX,
+    "& .MuiOutlinedInput-input": {
+      padding: "0 8px",
+      textAlign: "right" as const,
+      fontFamily: MONO_FONT_FAMILY,
+      fontSize: "0.78rem",
+      color,
+    },
+  };
+}
+
+/** Cor do valor mantida no input (danger/success), igual ao editor. Zero fica
+ * em `text.disabled` — o "0,00" inicial da linha nova lê como placeholder. */
+function amountColorFor(cents: string): string {
+  const value = BigInt(cents);
+  if (value === 0n) return "text.disabled";
+  return value < 0n ? "error.main" : "success.main";
 }
 
 export function NewTransactionRow({
@@ -231,7 +294,9 @@ export function NewTransactionRow({
   }
 
   const subcatsForCategory = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
-  const sharedInputProps = { size: "small" as const, variant: "standard" as const };
+  // "outlined" — mesmo padrão do editor (TransactionRowEditor) e do resto do
+  // app (CLAUDE.md §5.11); ver comentário lá para o porquê do override.
+  const sharedInputProps = { size: "small" as const, variant: "outlined" as const };
 
   async function handleSave() {
     if (saving) return;
@@ -332,37 +397,41 @@ export function NewTransactionRow({
   return (
     <>
       <TableRow
-        sx={{ bgcolor: "action.hover" }}
+        sx={{ bgcolor: "accent.primarySubtle" }}
         onKeyDown={(e) => {
           if (suggestionAnchorEl) return; // guard: popover de sugestão trata seu próprio Enter/Escape
           if (e.key === "Enter") handleSave();
           if (e.key === "Escape") onCancel();
         }}
       >
+        {/* Ícone "+" no lugar do checkbox — identidade visual de linha nova,
+            distinta do checkbox de seleção em massa das demais linhas (spec 66 §6). */}
         <TableCell padding="checkbox">
-          <Checkbox size="small" disabled />
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <AddIcon sx={{ fontSize: 18, color: "accent.primary" }} />
+          </Box>
         </TableCell>
 
-        <TableCell>
+        <TableCell sx={{ minWidth: 0 }}>
           <TextField
             {...sharedInputProps}
             type="date"
             value={occurredOn}
             onChange={(e) => setOccurredOn(e.target.value)}
-            inputProps={{ style: { fontSize: 13 } }}
-            sx={{ width: 120 }}
+            sx={{ width: "100%", minWidth: 0, maxWidth: 116, ...DATE_FIELD_SX }}
             autoFocus
           />
         </TableCell>
 
-        <TableCell>
+        <TableCell sx={{ minWidth: 0 }}>
           <TextField
             {...sharedInputProps}
             inputRef={descriptionRef}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descrição"
+            placeholder="Descrição…"
             fullWidth
+            sx={DESCRIPTION_FIELD_SX}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -389,6 +458,7 @@ export function NewTransactionRow({
           {suggestion && (
             <SuggestionPopover
               anchorEl={suggestionAnchorEl}
+              trigger={matchedAlias?.trigger ?? null}
               changes={suggestion.changes}
               onApply={handleApplySuggestion}
               onClose={() => setSuggestionAnchorEl(null)}
@@ -397,7 +467,7 @@ export function NewTransactionRow({
         </TableCell>
 
         {!hiddenColumns.category && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <CreatableEntitySelect
               value={categoryId}
               onChange={(id) => {
@@ -407,16 +477,16 @@ export function NewTransactionRow({
               options={categories}
               onCreate={onCreateCategory}
               canCreate={canManageOptions}
-              variant="standard"
+              variant="outlined"
               ariaLabel={m.transactions.fields.category}
-              placeholderNone={m.common.none}
-              sx={{ minWidth: 110 }}
+              placeholderNone="—"
+              sx={{ width: "100%", minWidth: 0, ...SELECT_FIELD_SX }}
             />
           </TableCell>
         )}
 
         {!hiddenColumns.subcategory && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <CreatableEntitySelect
               value={subcategoryId}
               onChange={setSubcategoryId}
@@ -427,16 +497,16 @@ export function NewTransactionRow({
               }}
               canCreate={canManageOptions && !!categoryId}
               disabled={!categoryId}
-              variant="standard"
+              variant="outlined"
               ariaLabel={m.transactions.fields.subcategory}
-              placeholderNone={m.common.none}
-              sx={{ minWidth: 110 }}
+              placeholderNone="—"
+              sx={{ width: "100%", minWidth: 0, ...SELECT_FIELD_SX }}
             />
           </TableCell>
         )}
 
         {!hiddenColumns.institution && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <CreatableEntitySelect
               value={institutionId}
               onChange={setInstitutionId}
@@ -446,22 +516,23 @@ export function NewTransactionRow({
               variant="standard"
               ariaLabel={m.transactions.fields.institution}
               placeholderNone={m.common.none}
-              sx={{ minWidth: 110 }}
+              sx={{ width: "100%", minWidth: 0 }}
             />
           </TableCell>
         )}
 
         {!hiddenColumns.paymentMethod && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <Select
               {...sharedInputProps}
               displayEmpty
+              fullWidth
               value={paymentMethod ?? ""}
               onChange={(e) =>
                 setPaymentMethod((e.target.value || null) as TransactionPaymentMethod | null)
               }
               aria-label={m.transactions.paymentMethodLabel}
-              sx={{ minWidth: 120, fontSize: 13 }}
+              sx={{ minWidth: 0, fontSize: 13 }}
             >
               <MenuItem value="">
                 <em>{m.transactions.paymentMethodNone}</em>
@@ -475,7 +546,7 @@ export function NewTransactionRow({
           </TableCell>
         )}
 
-        <TableCell align="right">
+        <TableCell align="right" sx={{ minWidth: 0 }}>
           <NumericFormat
             customInput={TextField}
             {...sharedInputProps}
@@ -488,29 +559,30 @@ export function NewTransactionRow({
             onValueChange={({ floatValue }) =>
               setAmountCents(reaisToCents(floatValue ?? 0).toString())
             }
-            inputProps={{ style: { textAlign: "right", width: 100, fontSize: 13 } }}
+            sx={{ ...amountFieldSx(amountColorFor(amountCents)), width: "100%", minWidth: 0 }}
           />
         </TableCell>
 
         {!hiddenColumns.responsibleUser && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <ResponsiblePartySelect
               value={responsiblePartyId}
               onChange={setResponsiblePartyId}
               parties={parties}
               variant="standard"
-              sx={{ minWidth: 90 }}
+              sx={{ width: "100%", minWidth: 0 }}
             />
           </TableCell>
         )}
 
         {!hiddenColumns.investmentType && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <Select
               {...sharedInputProps}
+              fullWidth
               value={investmentType ?? ""}
               onChange={(e) => setInvestmentType((e.target.value || null) as InvestmentType | null)}
-              sx={{ minWidth: 120, fontSize: 13 }}
+              sx={{ minWidth: 0, fontSize: 13 }}
             >
               <MenuItem value="">
                 <em>Nenhum</em>
@@ -525,11 +597,11 @@ export function NewTransactionRow({
         )}
 
         {/* Parcela — vazio na criação (parcelamentos são criados via dialog na Fase 8) */}
-        {!hiddenColumns.cardInstallment && <TableCell />}
+        {!hiddenColumns.cardInstallment && <TableCell sx={{ minWidth: 0 }} />}
 
         {/* Tipo de gasto (expenseType) */}
         {!hiddenColumns.expenseType && (
-          <TableCell sx={{ px: 0.5, width: 24 }}>
+          <TableCell sx={{ px: 0.5, minWidth: 0 }}>
             <Tooltip title={m.transactions.expenseTypeLabel}>
               <ToggleButtonGroup
                 value={expenseType}

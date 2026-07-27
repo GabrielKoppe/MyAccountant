@@ -81,6 +81,173 @@ async function seedConfig(accountId: string, ownerId: string) {
   });
 }
 
+/**
+ * Spec 66 P8 — fixtures do modal de detalhe da transação (e2e/transaction-detail.spec.ts):
+ * (a) transação simples com nota; (b) duas transações vinculadas por `TransactionLink`;
+ * (c) um `InstallmentGroup` com a 1ª parcela já lançada + parcelas pendentes.
+ *
+ * Mês DEDICADO ISOLADO (2099/11) — não é o `roMonth` (2099/12) usado por outros
+ * cenários, para não colidir com forecast/dashboards nem com dados de outros specs.
+ * Reusa a seção "Saídas" (já existe via `seedConfig`; seção é config compartilhada,
+ * não month-scoped — mesmo padrão do `roMonth`).
+ */
+async function seedSpec66Fixtures(accountId: string, ownerId: string) {
+  const section = await prisma.section.findFirstOrThrow({
+    where: { accountId, name: "Saídas" },
+    select: { id: true },
+  });
+  // Seção diferente p/ o alvo do vínculo (mesmo mês isolado) — dá ao "abrir" da aba
+  // "Parcelas e vínculos" uma navegação real (?tab= muda), em vez de um push para a
+  // URL já aberta.
+  const entradasSection = await prisma.section.findFirstOrThrow({
+    where: { accountId, name: "Entradas" },
+    select: { id: true },
+  });
+
+  const spec66Month = await prisma.month.create({
+    data: { accountId, year: 2099, month: 11, createdById: ownerId },
+    select: { id: true },
+  });
+  const spec66Table = await prisma.financeTable.create({
+    data: {
+      accountId,
+      monthId: spec66Month.id,
+      sectionId: section.id,
+      name: "Spec 66",
+      createdById: ownerId,
+    },
+    select: { id: true },
+  });
+  const spec66TableEntradas = await prisma.financeTable.create({
+    data: {
+      accountId,
+      monthId: spec66Month.id,
+      sectionId: entradasSection.id,
+      name: "Spec 66 — Entradas",
+      createdById: ownerId,
+    },
+    select: { id: true },
+  });
+
+  // (a) Transação simples — sem grupo/links/tags; nota preenchida exercita o bloco
+  // read-only da aba "Resumo" (§8). `isFavorite` dá ao cabeçalho um StatusBadge real
+  // p/ o e2e checar "StatusBadge, nunca Chip".
+  const simpleTx = await prisma.transaction.create({
+    data: {
+      accountId,
+      monthId: spec66Month.id,
+      tableId: spec66Table.id,
+      sectionId: section.id,
+      occurredOn: new Date("2099-11-05"),
+      amountCents: 45000n,
+      description: "Spec 66 — transação simples",
+      notes: "Nota de exemplo para a aba Resumo.",
+      isFavorite: true,
+      createdById: ownerId,
+    },
+    select: { id: true },
+  });
+
+  // (b) Vínculo — duas transações ligadas por TransactionLink (cenário §8: aba
+  // "Parcelas e vínculos" lista o vínculo e a ação "abrir" navega ao alvo, inclusive
+  // como viewer). Alvo numa seção diferente (mesmo mês) p/ a navegação ser observável.
+  const linkSourceTx = await prisma.transaction.create({
+    data: {
+      accountId,
+      monthId: spec66Month.id,
+      tableId: spec66Table.id,
+      sectionId: section.id,
+      occurredOn: new Date("2099-11-08"),
+      amountCents: 20000n,
+      description: "Spec 66 — despesa original",
+      createdById: ownerId,
+    },
+    select: { id: true },
+  });
+  const linkTargetTx = await prisma.transaction.create({
+    data: {
+      accountId,
+      monthId: spec66Month.id,
+      tableId: spec66TableEntradas.id,
+      sectionId: entradasSection.id,
+      occurredOn: new Date("2099-11-09"),
+      amountCents: 20000n,
+      description: "Spec 66 — reembolso",
+      createdById: ownerId,
+    },
+    select: { id: true },
+  });
+  await prisma.transactionLink.create({
+    data: {
+      accountId,
+      sourceId: linkSourceTx.id,
+      targetId: linkTargetTx.id,
+      type: "reimbursed_by",
+    },
+  });
+
+  // (c) Grupo de parcelamento — 1ª parcela já lançada (transação normal) + parcelas
+  // pendentes (cenário §8: badge → painel lateral com rodapé de 3 ações + "Criar
+  // neste mês" por item).
+  const installmentGroup = await prisma.installmentGroup.create({
+    data: {
+      accountId,
+      description: "Spec 66 — notebook parcelado",
+      totalCents: 90000n,
+      installmentCount: 3,
+      startDate: new Date("2099-11-10"),
+      sectionId: section.id,
+    },
+    select: { id: true },
+  });
+  const installmentTx = await prisma.transaction.create({
+    data: {
+      accountId,
+      monthId: spec66Month.id,
+      tableId: spec66Table.id,
+      sectionId: section.id,
+      occurredOn: new Date("2099-11-10"),
+      amountCents: 30000n,
+      description: "Spec 66 — notebook parcelado",
+      createdById: ownerId,
+      installmentGroupId: installmentGroup.id,
+      installmentNumber: 1,
+    },
+    select: { id: true },
+  });
+  await prisma.pendingInstallment.createMany({
+    data: [
+      {
+        accountId,
+        installmentGroupId: installmentGroup.id,
+        installmentNumber: 2,
+        amountCents: 30000n,
+        // Cai no mês já semeado (2099/12 — `roMonth`) → `getInstallmentGroupPanelData`
+        // resolve `existingMonthId` → InstallmentSchedule mostra "Criar neste mês"
+        // (chip clicável) para este item.
+        expectedDate: new Date("2099-12-10"),
+      },
+      {
+        accountId,
+        installmentGroupId: installmentGroup.id,
+        installmentNumber: 3,
+        amountCents: 30000n,
+        // Mês ainda não existe na conta → permanece "Aguardando mês".
+        expectedDate: new Date("2100-01-10"),
+      },
+    ],
+  });
+
+  return {
+    spec66MonthId: spec66Month.id,
+    simpleTxId: simpleTx.id,
+    linkSourceTxId: linkSourceTx.id,
+    linkTargetTxId: linkTargetTx.id,
+    installmentGroupId: installmentGroup.id,
+    installmentTxId: installmentTx.id,
+  };
+}
+
 async function main() {
   assertSafeSeedTarget({ requireDbSuffix: "_e2e", label: "e2e (myaccountant_e2e)" });
 
@@ -165,6 +332,9 @@ async function main() {
     },
   });
 
+  // Fixtures do modal de detalhe (Spec 66 P8) — mês dedicado isolado 2099/11.
+  const spec66 = await seedSpec66Fixtures(main.id, owner.id);
+
   // Notificações não lidas p/ o cenário NAV-02b (Spec 65 P5): sem elas os e2e de
   // badge/lista/navegação não têm dados. Destinatário = owner (tem storageState),
   // ator = editor. Uma COM link (link É o monthId → navega p/ /months/{roMonth})
@@ -205,6 +375,12 @@ async function main() {
     inviteAccountId: invite.id,
     roMonthId: roMonth.id,
     roSectionId: saidas.id,
+    spec66MonthId: spec66.spec66MonthId,
+    simpleTxId: spec66.simpleTxId,
+    linkSourceTxId: spec66.linkSourceTxId,
+    linkTargetTxId: spec66.linkTargetTxId,
+    installmentGroupId: spec66.installmentGroupId,
+    installmentTxId: spec66.installmentTxId,
   };
   mkdirSync(join(process.cwd(), "e2e/.auth"), { recursive: true });
   writeFileSync(join(process.cwd(), "e2e/.auth/seed-manifest.json"), JSON.stringify(manifest, null, 2));

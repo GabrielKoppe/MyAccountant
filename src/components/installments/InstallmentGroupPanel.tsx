@@ -1,91 +1,31 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
-import Divider from "@mui/material/Divider";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
-import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import CloseIcon from "@mui/icons-material/Close";
+import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
+import { useEffect, useState, useTransition } from "react";
 
 import {
   getInstallmentGroupPanelDataAction,
   convertPendingInstallmentForExistingMonthAction,
+  undoInstallmentGroupAction,
 } from "@/actions/installments";
-import { formatCentsToBrl } from "@/lib/money";
-import { formatMonthLabel } from "@/lib/dates";
+import { DialogShell } from "@/components/ui/DialogShell";
+import { typography } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
+import type { InstallmentGroupPanelData } from "@/server/services/installment-service";
+
+import { InstallmentSchedule } from "./InstallmentSchedule";
 import { SettleInstallmentDialog } from "./SettleInstallmentDialog";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import type {
-  InstallmentGroupPanelData,
-  InstallmentPanelItem,
-} from "@/server/services/installment-service";
-
-// Estilo base comum aos três estados de status
-const chipBaseSx = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "4px",
-  px: "8px",
-  py: "2px",
-  borderRadius: "4px",
-  fontSize: "0.75rem",
-  fontWeight: 500,
-  lineHeight: 1.4,
-  whiteSpace: "nowrap" as const,
-};
-
-type ItemStatusChipProps = {
-  item: InstallmentPanelItem;
-  canEdit: boolean;
-  convertingId: string | null;
-  onConvert: (id: string) => void;
-};
-
-/**
- * Chip unificado para os três estados:
- * - Pago → verde
- * - Aguardando mês → cinza
- * - Criar neste mês (mês existe mas parcela foi deletada) → accent/primary, clicável
- */
-function ItemStatusChip({ item, canEdit, convertingId, onConvert }: ItemStatusChipProps) {
-  if (item.status === "waiting" && item.existingMonthId && canEdit) {
-    const isConverting = convertingId === item.pendingInstallmentId;
-    return (
-      <Box
-        component="span"
-        onClick={() =>
-          !isConverting && item.pendingInstallmentId && onConvert(item.pendingInstallmentId)
-        }
-        sx={{
-          ...chipBaseSx,
-          bgcolor: "accent.primarySubtle",
-          color: "accent.primary",
-          cursor: isConverting ? "default" : "pointer",
-          transition: "filter 0.12s",
-          "&:hover": isConverting ? {} : { filter: "brightness(0.92)" },
-        }}
-      >
-        {isConverting && <CircularProgress size={10} color="inherit" />}
-        Criar neste mês
-      </Box>
-    );
-  }
-
-  const config = {
-    paid: { variant: "success" as const, label: m.transactions.installments.statusPaid },
-    pending: { variant: "warning" as const, label: m.transactions.installments.statusPending },
-    waiting: { variant: "neutral" as const, label: m.transactions.installments.statusWaiting },
-  }[item.status];
-
-  return <StatusBadge variant={config.variant}>{config.label}</StatusBadge>;
-}
 
 type Props = {
   open: boolean;
@@ -96,6 +36,19 @@ type Props = {
   canEdit?: boolean;
 };
 
+// Estilo base dos 3 botões do rodapé (frame Spec 66 §10): nenhum é
+// primário/preenchido — todos com contorno cinza e texto colorido conforme a
+// ação. `border.default`/`border.subtle` resolvem corretamente como tokens de
+// palette (ao contrário de "background.*", ver nota em InstallmentSchedule).
+const FOOTER_BUTTON_SX = {
+  height: "32px",
+  borderRadius: "8px",
+  borderColor: "border.default",
+  fontWeight: 500,
+  fontSize: "0.78rem",
+  px: "12px",
+} as const;
+
 export function InstallmentGroupPanel({
   open,
   onClose,
@@ -104,12 +57,15 @@ export function InstallmentGroupPanel({
   installmentGroupId,
   canEdit = false,
 }: Props) {
+  const router = useRouter();
   const [, startTransition] = useTransition();
   const { enqueueSnackbar } = useSnackbar();
   const [data, setData] = useState<InstallmentGroupPanelData | null>(null);
   const [loading, setLoading] = useState(false);
   const [settleOpen, setSettleOpen] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [undoOpen, setUndoOpen] = useState(false);
+  const [undoSubmitting, setUndoSubmitting] = useState(false);
 
   function reload() {
     setLoading(true);
@@ -131,8 +87,24 @@ export function InstallmentGroupPanel({
         enqueueSnackbar(result.error.message, { variant: "error" });
         return;
       }
-      enqueueSnackbar("Parcela criada no mês com sucesso.", { variant: "success" });
+      enqueueSnackbar(m.transactions.installments.launchNextSuccess, { variant: "success" });
       reload();
+    });
+  }
+
+  function handleUndoGroup() {
+    setUndoSubmitting(true);
+    startTransition(async () => {
+      const result = await undoInstallmentGroupAction(accountId, { installmentGroupId });
+      setUndoSubmitting(false);
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      enqueueSnackbar(m.transactions.installments.undoSuccess, { variant: "success" });
+      setUndoOpen(false);
+      onClose();
+      router.refresh();
     });
   }
 
@@ -142,7 +114,27 @@ export function InstallmentGroupPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, accountId, installmentGroupId]);
 
-  const paidCount = data?.items.filter((i) => i.status === "paid").length ?? 0;
+  // Parcelas já lançadas (paid ou pending) — define o preenchimento da barra
+  // de progresso e a legenda "X de Y lançadas".
+  const launchedCount = data?.items.filter((i) => i.status !== "waiting").length ?? 0;
+  // Soma do que já foi efetivamente pago (só "paid" — "pending" é lançada mas
+  // ainda não quitada).
+  const paidSumCents =
+    data?.items
+      .filter((i) => i.status === "paid")
+      .reduce((sum, i) => sum + BigInt(i.amountCents), 0n) ?? 0n;
+  const hasWaiting = data?.items.some((i) => i.status === "waiting") ?? false;
+  // Próxima parcela `waiting` cujo mês já existe (menor installmentNumber — items vem ordenado)
+  const nextItem = data?.items.find((i) => i.status === "waiting" && i.existingMonthId);
+  // Valor "por parcela" exibido no grid do cabeçalho: usa a última parcela
+  // (a mais representativa do valor recorrente — a 1ª pode incluir entrada,
+  // dado ainda não modelado em InstallmentGroupPanelData). Fallback simples
+  // (total / quantidade) só é usado se, por algum motivo, não houver itens.
+  const perInstallmentCents = data
+    ? data.items.length > 0
+      ? BigInt(data.items[data.items.length - 1].amountCents)
+      : BigInt(data.totalCents) / BigInt(data.installmentCount || 1)
+    : 0n;
 
   return (
     <Drawer
@@ -150,152 +142,222 @@ export function InstallmentGroupPanel({
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: "100%", sm: 420 }, display: "flex", flexDirection: "column" },
+        sx: { width: { xs: "100%", sm: 380 }, display: "flex", flexDirection: "column" },
       }}
     >
-      {/* Header */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 1,
-          px: 2.5,
-          pt: 2,
-          pb: 1.5,
-          borderBottom: 1,
-          borderColor: "divider",
-        }}
-      >
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+      {/* Header — frame Spec 66 §10 */}
+      <Box sx={{ p: "16px", borderBottom: "1px solid", borderColor: "border.subtle" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Typography
-            variant="caption"
-            color="text.secondary"
-            fontWeight={600}
-            sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+            component="span"
+            sx={{
+              fontWeight: 600,
+              fontSize: "0.62rem",
+              fontFamily: typography.fontFamily.mono,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "neutral.main",
+            }}
           >
-            {m.transactions.installments.panelTitle}
+            {m.transactions.installments.panelOverline}
           </Typography>
-          {data && (
-            <>
-              <Typography variant="h5" sx={{ mt: 2, lineHeight: 1.3, wordBreak: "break-word" }}>
-                {data.description}
-              </Typography>
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.75, flexWrap: "wrap" }}
-              >
-                <Typography variant="body2" color="text.secondary" fontSize={13}>
-                  {m.transactions.installments.totalLabel}:{" "}
-                  <Typography
-                    component="span"
-                    variant="body2"
-                    fontWeight={600}
-                    color="text.primary"
-                    fontSize={13}
-                  >
-                    {formatCentsToBrl(BigInt(data.totalCents))}
-                  </Typography>
-                </Typography>
-                <Chip
-                  label={m.transactions.installments.paidCount(paidCount, data.installmentCount)}
-                  size="small"
-                  sx={{ height: 20, fontSize: 11, "& .MuiChip-label": { px: 1 } }}
-                />
-              </Box>
-            </>
-          )}
+          <IconButton size="small" onClick={onClose} sx={{ p: 0.25, flexShrink: 0 }}>
+            <CloseIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+          </IconButton>
         </Box>
-        <IconButton size="small" onClick={onClose} sx={{ flexShrink: 0, mt: 0.5 }}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
+
+        {data && (
+          <>
+            <Typography
+              sx={{
+                fontWeight: 600,
+                fontSize: "1.05rem",
+                mt: "6px",
+                lineHeight: 1.3,
+                wordBreak: "break-word",
+              }}
+            >
+              {data.description}
+            </Typography>
+
+            {/* Grid: Total · Parcelas · Entrada */}
+            <Box sx={{ display: "flex", gap: "16px", mt: "8px" }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: "0.66rem", color: "neutral.main" }}>
+                  {m.transactions.installments.totalShort}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontWeight: 500,
+                    fontSize: "0.9rem",
+                    fontFamily: typography.fontFamily.mono,
+                    color: "text.primary",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {formatCentsToBrl(BigInt(data.totalCents))}
+                </Typography>
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: "0.66rem", color: "neutral.main" }}>
+                  {m.transactions.installments.installmentsShort}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontWeight: 500,
+                    fontSize: "0.9rem",
+                    fontFamily: typography.fontFamily.mono,
+                    color: "text.primary",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {m.transactions.installments.perInstallmentValue(
+                    data.installmentCount,
+                    formatCentsToBrl(perInstallmentCents),
+                  )}
+                </Typography>
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: "0.66rem", color: "neutral.main" }}>
+                  {m.transactions.installments.downPaymentShort}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontWeight: 500,
+                    fontSize: "0.9rem",
+                    fontFamily: typography.fontFamily.mono,
+                    color: "text.primary",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  —
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Barra de progresso — preenchimento na % de parcelas lançadas */}
+            <Box
+              sx={{
+                height: "6px",
+                borderRadius: "3px",
+                bgcolor: "surface.muted",
+                mt: "12px",
+                overflow: "hidden",
+              }}
+            >
+              <Box
+                sx={{
+                  height: "100%",
+                  borderRadius: "3px",
+                  bgcolor: "accent.primary",
+                  width:
+                    data.installmentCount > 0
+                      ? `${(launchedCount / data.installmentCount) * 100}%`
+                      : "0%",
+                }}
+              />
+            </Box>
+            <Typography sx={{ fontSize: "0.7rem", color: "neutral.main", mt: "5px" }}>
+              {m.transactions.installments.launchedProgress(
+                launchedCount,
+                data.installmentCount,
+                formatCentsToBrl(paidSumCents),
+              )}
+            </Typography>
+          </>
+        )}
       </Box>
 
-      {/* Content */}
-      <Box sx={{ flex: 1, overflowY: "auto", p: 2.5 }}>
+      {/* Content — cronograma via InstallmentSchedule (fonte única de verdade visual) */}
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
         {loading && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 6, px: 2.5 }}>
             <CircularProgress size={32} />
           </Box>
         )}
 
         {!loading && !data && (
-          <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
-            Não foi possível carregar os dados do grupo.
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ textAlign: "center", py: 4, px: 2.5 }}
+          >
+            {m.transactions.installments.loadError}
           </Typography>
         )}
 
         {!loading && data && (
-          <Stack divider={<Divider />} spacing={0}>
-            {data.items.map((item) => (
-              <Box
-                key={item.installmentNumber}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.5,
-                  py: 1.25,
-                  px: 0.5,
-                }}
-              >
-                {/* Número da parcela */}
-                <Typography
-                  variant="caption"
-                  color="text.disabled"
-                  sx={{
-                    width: 32,
-                    flexShrink: 0,
-                    textAlign: "center",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {item.installmentNumber}/{data.installmentCount}
-                </Typography>
-
-                {/* Valor + data + mês */}
-                <Box
-                  sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 0.25 }}
-                >
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatCentsToBrl(BigInt(item.amountCents))}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" fontSize={11}>
-                    {item.date.split("-").reverse().join("/")}
-                    {item.monthYear && item.monthMonth && (
-                      <> · {formatMonthLabel(item.monthYear, item.monthMonth)}</>
-                    )}
-                  </Typography>
-                </Box>
-
-                {/* Status chip unificado */}
-                <ItemStatusChip
-                  item={item}
-                  canEdit={canEdit}
-                  convertingId={convertingId}
-                  onConvert={handleConvertNow}
-                />
-              </Box>
-            ))}
-          </Stack>
+          <InstallmentSchedule
+            items={data.items}
+            installmentCount={data.installmentCount}
+            canEdit={canEdit}
+            convertingId={convertingId}
+            onConvert={handleConvertNow}
+            variant="panel"
+          />
         )}
       </Box>
 
-      {/* Footer: Quitar antecipado */}
-      {!loading && data && canEdit && data.items.some((i) => i.status === "waiting") && (
-        <>
-          <Divider />
-          <Box sx={{ p: 2, display: "flex", justifyContent: "flex-end" }}>
-            <Button
-              size="small"
-              variant="outlined"
-              color="warning"
-              onClick={() => setSettleOpen(true)}
-            >
-              {m.transactions.installments.settleButton}
-            </Button>
-          </Box>
-        </>
+      {/* Rodapé — 3 ações em linha, nenhuma primária (frame Spec 66 §10) */}
+      {!loading && data && canEdit && (
+        <Box
+          sx={{
+            py: "10px",
+            px: "16px",
+            borderTop: "1px solid",
+            borderColor: "border.subtle",
+            display: "flex",
+            gap: "8px",
+          }}
+        >
+          <Button
+            variant="outlined"
+            disabled={!hasWaiting}
+            onClick={() => setSettleOpen(true)}
+            sx={{ ...FOOTER_BUTTON_SX, color: "text.secondary", flexShrink: 0 }}
+          >
+            {m.transactions.installments.settleShort}
+          </Button>
+
+          <Tooltip
+            title={!nextItem ? m.transactions.installments.launchNextNoMonth : ""}
+            disableHoverListener={!!nextItem}
+          >
+            <Box component="span" sx={{ flex: 1, display: "flex" }}>
+              <Button
+                variant="outlined"
+                disabled={!nextItem || convertingId !== null}
+                startIcon={<AddIcon sx={{ fontSize: 15 }} />}
+                onClick={() =>
+                  nextItem?.pendingInstallmentId && handleConvertNow(nextItem.pendingInstallmentId)
+                }
+                sx={{
+                  ...FOOTER_BUTTON_SX,
+                  flex: 1,
+                  color: "text.secondary",
+                  justifyContent: "center",
+                }}
+              >
+                {nextItem && convertingId === nextItem.pendingInstallmentId ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  m.transactions.installments.launchNextButton
+                )}
+              </Button>
+            </Box>
+          </Tooltip>
+
+          <Button
+            variant="outlined"
+            onClick={() => setUndoOpen(true)}
+            sx={{ ...FOOTER_BUTTON_SX, color: "danger.main", flexShrink: 0 }}
+          >
+            {m.transactions.installments.undoButton}
+          </Button>
+        </Box>
       )}
 
-      {/* Dialog de quitação antecipada */}
+      {/* Dialog de quitação antecipada — preservado */}
       {data && (
         <SettleInstallmentDialog
           open={settleOpen}
@@ -313,6 +375,35 @@ export function InstallmentGroupPanel({
             .map((i) => i.amountCents)}
         />
       )}
+
+      {/* Dialog de confirmação — Desfazer grupo (preservado) */}
+      <DialogShell
+        open={undoOpen}
+        onClose={() => !undoSubmitting && setUndoOpen(false)}
+        title={m.transactions.installments.undoConfirmTitle}
+        description={m.transactions.installments.undoConfirmBody}
+        maxWidth="xs"
+        loading={undoSubmitting}
+        actions={
+          <>
+            <Button onClick={() => setUndoOpen(false)} disabled={undoSubmitting}>
+              {m.common.cancel}
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleUndoGroup}
+              disabled={undoSubmitting}
+            >
+              {undoSubmitting ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                m.transactions.installments.undoConfirmCta
+              )}
+            </Button>
+          </>
+        }
+      />
     </Drawer>
   );
 }

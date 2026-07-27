@@ -7,28 +7,26 @@ import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined
 import CallSplitIcon from "@mui/icons-material/CallSplit";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import ButtonGroup from "@mui/material/ButtonGroup";
-import Chip from "@mui/material/Chip";
-import Collapse from "@mui/material/Collapse";
-
-import IconButton from "@mui/material/IconButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import Paper from "@mui/material/Paper";
-
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
-import ViewColumnOutlinedIcon from "@mui/icons-material/ViewColumnOutlined";
 import RestoreIcon from "@mui/icons-material/Restore";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import ViewColumnOutlinedIcon from "@mui/icons-material/ViewColumnOutlined";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import ButtonGroup from "@mui/material/ButtonGroup";
+import Chip from "@mui/material/Chip";
+import Collapse from "@mui/material/Collapse";
+import IconButton from "@mui/material/IconButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Paper from "@mui/material/Paper";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import type { SectionCountType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
@@ -47,11 +45,13 @@ import type {
   ResponsiblePartyOption,
   TransactionRow,
 } from "@/components/transactions/types";
+import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
-
-import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
+import type { RowLayout } from "@/lib/schemas/settings";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+
+import { MoneyValue } from "../ui/MoneyValue";
 
 import {
   FinanceTableChangeTypeDialog,
@@ -70,6 +70,7 @@ type TableData = {
   total: string;
   transactionCount: number;
   hiddenColumns: HiddenColumns;
+  rowLayout: RowLayout;
 };
 
 type TableTypeOption = { id: string; name: string; isDefault: boolean };
@@ -263,15 +264,15 @@ export function FinanceTableCard({
         </Tooltip>
 
         <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 2, overflow: "hidden" }}>
-          <Typography fontWeight="medium" noWrap>
+          <Typography fontWeight="medium" noWrap sx={{ fontSize: "0.9rem" }}>
             {table.name}
           </Typography>
-          {typeLabel && <Chip label={typeLabel} size="small" variant="outlined" />}
+          {typeLabel && <Chip label={typeLabel} size="small" variant="filled" />}
           {!table.countInMonth && (
-            <Chip label="não conta" size="small" color="default" variant="outlined" />
+            <Chip label="não conta" size="small" color="default" variant="filled" />
           )}
           {isReadOnly && (
-            <Chip label="somente leitura" size="small" color="warning" variant="outlined" />
+            <Chip label="somente leitura" size="small" color="warning" variant="filled" />
           )}
           {/* Botão "Voltar à visualização padrão" — só aparece quando há ordenação personalizada */}
           {hasCustomSort && (
@@ -282,29 +283,27 @@ export function FinanceTableCard({
               sx={{ color: "text.secondary" }}
             />
           )}
-        </Box>
-
-        <Box sx={{ textAlign: "right", minWidth: 120 }}>
-          <Typography fontWeight="bold" color={totalIsPositive ? "success.main" : "error.main"}>
-            {formatCentsToBrl(total)}
-          </Typography>
-          {filteredTotal !== null && (
-            <Box
-              sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5 }}
-            >
-              <Typography variant="caption" color="warning.main" fontWeight={500}>
-                {formatCentsToBrl(filteredTotal)}
-              </Typography>
-              <Typography variant="caption" color="text.tertiary">
-                {m.transactions.filters.filteredLabel}
-              </Typography>
-              {total !== 0n && (
-                <Typography variant="caption" color="text.tertiary">
-                  · {Math.round((Math.abs(Number(filteredTotal)) / Math.abs(Number(total))) * 100)}%
+          <Box sx={{ textAlign: "left", minWidth: 120 }}>
+            <MoneyValue
+              cents={BigInt(total)}
+              sx={{ fontSize: "0.925rem", color: totalIsPositive ? "success.main" : "error.main" }}
+            />
+            {filteredTotal !== null && (
+              <Box
+                sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 1 }}
+              >
+                <Typography variant="caption" color="warning.main" fontWeight={500}>
+                  {formatCentsToBrl(filteredTotal)}
                 </Typography>
-              )}
-            </Box>
-          )}
+                {total !== 0n && (
+                  <Typography variant="caption" color="text.tertiary">
+                    ({Math.round((Math.abs(Number(filteredTotal)) / Math.abs(Number(total))) * 100)}
+                    %)
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </Box>
         </Box>
 
         {!isReadOnly && (
@@ -474,6 +473,7 @@ export function FinanceTableCard({
           sectionIsActive={sectionIsActive}
           sectionCountType={sectionCountType}
           hiddenColumns={table.hiddenColumns}
+          rowLayout={table.rowLayout}
           initialTransactions={transactions}
           categories={categories}
           institutions={institutions}

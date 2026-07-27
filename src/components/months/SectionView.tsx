@@ -22,7 +22,10 @@ import type {
 } from "@/components/transactions/types";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
+import type { RowLayout } from "@/lib/schemas/settings";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+
+import { MoneyValue } from "../ui/MoneyValue";
 
 type Section = {
   id: string;
@@ -40,6 +43,7 @@ type TableData = {
   tableTypeId: string | null;
   tableTypeName: string | null;
   hiddenColumns: HiddenColumns;
+  rowLayout: RowLayout;
   total: string;
   transactionCount: number;
 };
@@ -106,6 +110,8 @@ export function SectionView({
     return filtered.reduce((sum, tx) => sum + BigInt(tx.amountCents), 0n);
   }, [tables, transactionsByTable, filters, hasGlobalFilters]);
 
+  const total = BigInt(sectionTotal) * (section.countType === "subtract" ? -1n : 1n);
+
   return (
     <Box sx={{ p: 3 }}>
       <Box
@@ -116,15 +122,18 @@ export function SectionView({
           mb: 3,
         }}
       >
-        <Box>
-          <Typography variant="h5">{section.name}</Typography>
-          {!section.isActive && (
-            <Typography variant="caption" color="text.secondary">
-              Seção inativa — somente leitura
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box gap={0} sx={{ display: "flex", flexDirection: "column" }}>
+            <Typography variant="h5" sx={{ fontSize: "1.1rem" }}>
+              {section.name}
             </Typography>
-          )}
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+            {!section.isActive && (
+              <Typography sx={{ fontSize: "0.75rem" }} variant="caption" color="text.secondary">
+                Seção inativa — somente leitura
+              </Typography>
+            )}
+          </Box>
+          <Divider orientation="vertical" flexItem sx={{ borderColor: "border.subtle" }} />
           <Tooltip
             placement="bottom-end"
             title={
@@ -195,68 +204,63 @@ export function SectionView({
               },
             }}
           >
-            <Box sx={{ textAlign: "right", cursor: "default" }}>
-              <Typography variant="h5" color="text.secondary">
-                {formatCentsToBrl(BigInt(sectionTotal))}
-              </Typography>
+            <Box sx={{ textAlign: "left", cursor: "default" }}>
+              <MoneyValue cents={BigInt(total)} sx={{ fontSize: "0.925rem" }} />
               {filteredSectionTotal !== null && (
                 <Box
                   sx={{
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "flex-end",
-                    gap: 0.5,
+                    justifyContent: "flex-start",
+                    gap: 1,
                   }}
                 >
                   <Typography variant="caption" color="warning.main" fontWeight={500}>
                     {formatCentsToBrl(filteredSectionTotal)}
                   </Typography>
-                  <Typography variant="caption" color="text.tertiary">
-                    {m.transactions.filters.filteredLabel}
-                  </Typography>
                   {BigInt(sectionTotal) !== 0n && (
                     <Typography variant="caption" color="text.tertiary">
-                      ·{" "}
+                      (
                       {Math.round(
                         (Math.abs(Number(filteredSectionTotal)) /
                           Math.abs(Number(BigInt(sectionTotal)))) *
                           100,
                       )}
-                      %
+                      %)
                     </Typography>
                   )}
                 </Box>
               )}
             </Box>
           </Tooltip>
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
           {section.isActive && (
-            <>
-              <Divider orientation="vertical" flexItem />
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <CreateTableModal
-                  accountId={accountId}
-                  monthId={monthId}
-                  sections={allSections}
-                  tableTypes={tableTypes}
-                  preSelectedSectionId={section.id}
-                  sourceTables={sourceTables}
-                  trigger="button"
-                />
-                <ImportWizard
-                  accountId={accountId}
-                  monthId={monthId}
-                  sections={allSections}
-                  tableTypes={tableTypes}
-                  members={members}
-                  aliases={aliases}
-                  preSelectedSectionId={section.id}
-                />
-              </Box>
-            </>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <ImportWizard
+                accountId={accountId}
+                monthId={monthId}
+                sections={allSections}
+                tableTypes={tableTypes}
+                members={members}
+                aliases={aliases}
+                preSelectedSectionId={section.id}
+              />
+              <CreateTableModal
+                accountId={accountId}
+                monthId={monthId}
+                sections={allSections}
+                tableTypes={tableTypes}
+                preSelectedSectionId={section.id}
+                sourceTables={sourceTables}
+                trigger="button"
+              />
+            </Box>
           )}
         </Box>
       </Box>
 
+      {/* Seção sem tabelas */}
       {tables.length === 0 && (
         <Box
           sx={{
@@ -286,6 +290,7 @@ export function SectionView({
         </Box>
       )}
 
+      {/* Renderização das tabelas */}
       {tables.map((table) => (
         <FinanceTableCard
           key={table.id}

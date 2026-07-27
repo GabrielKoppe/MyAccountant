@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { cuidSchema } from "./shared";
+
 const TAG_NAME_REGEX = /^[\w\s\-àáâãéêíóôõúç]+$/u;
 
 export const createTagSchema = z.object({
@@ -16,7 +18,7 @@ export const createTagSchema = z.object({
 });
 
 export const addTagToTransactionSchema = z.object({
-  transactionId: z.string().cuid("ID inválido"),
+  transactionId: cuidSchema,
   tagName: z
     .string()
     .min(1, "Nome obrigatório")
@@ -30,12 +32,12 @@ export const addTagToTransactionSchema = z.object({
 });
 
 export const removeTagFromTransactionSchema = z.object({
-  transactionId: z.string().cuid("ID inválido"),
-  tagId: z.string().cuid("ID inválido"),
+  transactionId: cuidSchema,
+  tagId: cuidSchema,
 });
 
 export const bulkAddTagSchema = z.object({
-  transactionIds: z.array(z.string().cuid()).min(1),
+  transactionIds: z.array(cuidSchema).min(1),
   tagName: z.string().min(1).max(30).regex(TAG_NAME_REGEX).trim(),
   color: z
     .string()
@@ -44,12 +46,12 @@ export const bulkAddTagSchema = z.object({
 });
 
 export const bulkRemoveTagSchema = z.object({
-  transactionIds: z.array(z.string().cuid()).min(1),
-  tagId: z.string().cuid("ID inválido"),
+  transactionIds: z.array(cuidSchema).min(1),
+  tagId: cuidSchema,
 });
 
 export const updateTagSchema = z.object({
-  tagId: z.string().cuid("ID inválido"),
+  tagId: cuidSchema,
   name: z.string().min(1).max(30).regex(TAG_NAME_REGEX).trim().optional(),
   color: z
     .string()
@@ -59,7 +61,7 @@ export const updateTagSchema = z.object({
 });
 
 export const deleteTagSchema = z.object({
-  tagId: z.string().cuid("ID inválido"),
+  tagId: cuidSchema,
 });
 
 export type CreateTagInput = z.infer<typeof createTagSchema>;

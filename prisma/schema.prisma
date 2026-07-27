@@ -333,6 +333,7 @@ model TableType {
   name          String
   isDefault     Boolean  @default(false) @map("is_default")
   hiddenColumns Json     @default("{}") @map("hidden_columns")
+  rowLayout     String   @default("columns") @map("row_layout")
   createdAt     DateTime @default(now()) @map("created_at")
 
   account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)

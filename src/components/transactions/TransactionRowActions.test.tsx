@@ -95,7 +95,7 @@ describe("TransactionRowActions", () => {
       "Duplicar",
       "Mover para…",
       "Ver detalhes",
-      "Criar apelido a partir desta transação",
+      "Criar apelido",
       "Deletar",
     ]);
   });
@@ -106,14 +106,14 @@ describe("TransactionRowActions", () => {
     expect(screen.getByRole("button", { name: "Remover dos favoritos" })).toBeInTheDocument();
   });
 
-  it("transação limpa (0 anexos): NÃO mostra botão de anexos", () => {
+  it("transação limpa (0 anexos): NÃO mostra o chevron da gaveta", () => {
     renderActions();
-    expect(screen.queryByRole("button", { name: /Ver anexos/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ver detalhes da linha" })).not.toBeInTheDocument();
   });
 
-  it("transação com anexos (linkCount:2): mostra 'Ver anexos (2)' e clicar chama onToggleDrawer", async () => {
+  it("transação com conteúdo de gaveta (linkCount:2): mostra o chevron e clicar chama onToggleDrawer", async () => {
     const spies = renderActions({ tx: { ...TX, linkCount: 2 } });
-    const btn = screen.getByRole("button", { name: "Ver anexos (2)" });
+    const btn = screen.getByRole("button", { name: "Ver detalhes da linha" });
     expect(btn).toBeInTheDocument();
     await userEvent.click(btn);
     expect(spies.onToggleDrawer).toHaveBeenCalledTimes(1);

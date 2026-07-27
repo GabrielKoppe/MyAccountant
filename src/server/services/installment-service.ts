@@ -8,6 +8,7 @@ import { calcInstallmentAmounts } from "@/lib/installment-utils";
 import type {
   CreateInstallmentGroupInput,
   SettleInstallmentGroupInput,
+  UndoInstallmentGroupInput,
 } from "@/lib/schemas/installment";
 
 export { calcInstallmentAmounts } from "@/lib/installment-utils";
@@ -548,4 +549,53 @@ export async function settleInstallmentGroup(
 
   log.info({ groupId: input.installmentGroupId, totalCents, isPartial }, "Settled consolidated");
   return { mode: "consolidated", settledCount: 1 };
+}
+
+// ─── undoInstallmentGroup ──────────────────────────────────────────────────────
+
+export type UndoInstallmentGroupResult = {
+  dissociatedTransactions: number;
+  deletedPending: number;
+};
+
+/**
+ * Desfaz um grupo de parcelamento. Semântica NÃO-DESTRUTIVA (spec 66 §10.5, opção A):
+ * as transações já lançadas são desvinculadas (viram transações normais, preservando
+ * valor/data/descrição), as PendingInstallment futuras são removidas e o grupo é
+ * apagado. Alinhado ao FK `onDelete: SetNull` já existente no schema.
+ */
+export async function undoInstallmentGroup(
+  input: UndoInstallmentGroupInput,
+  ctx: ActionContext,
+): Promise<UndoInstallmentGroupResult> {
+  const group = await prisma.installmentGroup.findUnique({
+    where: { id: input.installmentGroupId, accountId: ctx.accountId },
+    select: { id: true },
+  });
+  if (!group) throw new NotFoundError("Grupo de parcelamento");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const dissociated = await tx.transaction.updateMany({
+      where: { installmentGroupId: input.installmentGroupId, accountId: ctx.accountId },
+      data: { installmentGroupId: null, installmentNumber: null },
+    });
+
+    const deletedPending = await tx.pendingInstallment.deleteMany({
+      where: { installmentGroupId: input.installmentGroupId, accountId: ctx.accountId },
+    });
+
+    await tx.installmentGroup.delete({ where: { id: input.installmentGroupId } });
+
+    return {
+      dissociatedTransactions: dissociated.count,
+      deletedPending: deletedPending.count,
+    };
+  });
+
+  log.info(
+    { groupId: input.installmentGroupId, accountId: ctx.accountId, ...result },
+    "InstallmentGroup undone (non-destructive)",
+  );
+
+  return result;
 }

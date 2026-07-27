@@ -44,6 +44,13 @@ export interface DialogShellProps {
   fullScreenOnMobile?: boolean;
   /** Esconde o botao X (use somente se houver acoes obrigatorias) */
   hideCloseButton?: boolean;
+  /**
+   * Oculta o titulo VISUALMENTE, mantendo-o para leitores de tela (`aria-labelledby`).
+   * Use quando o proprio conteudo ja tem um cabecalho de destaque que seria o apex
+   * visual (ex.: o valor da transacao no modal de detalhe) e um titulo extra
+   * competiria com ele. O header colapsa para a altura do botao X.
+   */
+  titleVisuallyHidden?: boolean;
   /** Esconde scroll do conteudo (raro, para conteudo pequeno) */
   hideContentScroll?: boolean;
   /** Estado de carregamento: bloqueia fechar (ESC, backdrop, X) e desabilita todos os botoes de actions. */
@@ -90,6 +97,7 @@ export function DialogShell({
   hideCloseButton = false,
   hideContentScroll = false,
   loading = false,
+  titleVisuallyHidden = false,
 }: DialogShellProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -109,8 +117,14 @@ export function DialogShell({
       <DialogTitle
         sx={{
           px: layout.card,
-          pt: layout.card,
-          pb: description !== undefined ? layout.stack : layout.card,
+          // Titulo oculto: o header vira só a faixa do botao X (sem espaco morto);
+          // o cabecalho de destaque do proprio conteudo assume o topo visual.
+          pt: titleVisuallyHidden ? layout.inline : layout.card,
+          pb: titleVisuallyHidden
+            ? 0
+            : description !== undefined
+              ? layout.stack
+              : layout.card,
         }}
       >
         <Stack
@@ -119,9 +133,33 @@ export function DialogShell({
           justifyContent="space-between"
           spacing={layout.inline}
         >
-          <Typography id={titleId} variant="h3" component="div" sx={{ flex: 1, minWidth: 0 }}>
+          <Typography
+            id={titleId}
+            variant="h3"
+            component="div"
+            sx={
+              titleVisuallyHidden
+                ? // sr-only: continua no DOM para o aria-labelledby, sem ocupar espaco
+                  {
+                    // ATENÇÃO: no `sx` do MUI, `width: 1` significa 100% (não 1px) —
+                    // usar string com unidade, senão o título "oculto" ocupa a largura
+                    // toda e estoura o dialog na horizontal.
+                    position: "absolute",
+                    width: "1px",
+                    height: "1px",
+                    p: 0,
+                    m: "-1px",
+                    overflow: "hidden",
+                    clip: "rect(0 0 0 0)",
+                    whiteSpace: "nowrap",
+                    border: 0,
+                  }
+                : { flex: 1, minWidth: 0 }
+            }
+          >
             {title}
           </Typography>
+          {titleVisuallyHidden && <Box sx={{ flex: 1, minWidth: 0 }} />}
           {!hideCloseButton && (
             <IconButton
               onClick={onClose}

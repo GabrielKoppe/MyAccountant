@@ -26,7 +26,7 @@ export default async function SettingsLayout({ children, params }: Props) {
     <Box
       sx={{
         display: "flex",
-        minHeight: "calc(100vh - 48px)",
+        height: "100%",
         flexDirection: { xs: "column", md: "row" },
       }}
     >

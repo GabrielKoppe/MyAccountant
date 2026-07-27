@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cuidSchema } from "./shared";
 
 export const createInstallmentGroupSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória").max(200),
@@ -15,17 +16,23 @@ export const createInstallmentGroupSchema = z.object({
   /** Data da 1ª parcela */
   startDate: z.coerce.date({ message: "Data inválida" }),
   /** Tabela onde a 1ª parcela será criada — seção e tipo de tabela são derivados */
-  tableId: z.string().cuid("ID de tabela inválido"),
+  tableId: cuidSchema,
 });
 
 export type CreateInstallmentGroupInput = z.infer<typeof createInstallmentGroupSchema>;
 
 export const settleInstallmentGroupSchema = z.object({
-  installmentGroupId: z.string().cuid("ID inválido"),
+  installmentGroupId: cuidSchema,
   mode: z.enum(["individual", "consolidated"]),
-  tableId: z.string().cuid("ID de tabela inválido"),
+  tableId: cuidSchema,
   /** Quantas parcelas pendentes (ordenadas por número) quitar agora */
   count: z.coerce.number().int().min(1, "Selecione ao menos 1 parcela"),
 });
 
 export type SettleInstallmentGroupInput = z.infer<typeof settleInstallmentGroupSchema>;
+
+export const undoInstallmentGroupSchema = z.object({
+  installmentGroupId: cuidSchema,
+});
+
+export type UndoInstallmentGroupInput = z.infer<typeof undoInstallmentGroupSchema>;

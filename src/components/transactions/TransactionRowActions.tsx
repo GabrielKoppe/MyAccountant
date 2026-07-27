@@ -12,8 +12,8 @@ import Tooltip from "@mui/material/Tooltip";
 
 import { m } from "@/lib/messages";
 
-import { AttachmentIndicator } from "./AttachmentIndicator";
 import { countAttachments } from "./attachments";
+import { RowDrawerChevron } from "./RowDrawerChevron";
 import { buildRowMenuItems } from "./row-menu-items";
 import type { RowMenuItem, TransactionRow as TxRow } from "./types";
 
@@ -33,9 +33,15 @@ type Props = {
   onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, items: RowMenuItem[]) => void;
 };
 
-const ICON_SX = { fontSize: 18 } as const;
-const BTN_SX = { p: 1, minWidth: 32, minHeight: 32 } as const;
-const GAP = 0.2;
+// 16px (Spec 66 · Fidelidade): "more_vert e afins" — todo o cluster de ações
+// (favorito, pendente, chevron, ⋮) usa o mesmo tamanho de ícone do frame.
+const ICON_SX = { fontSize: 16 } as const;
+const BTN_SX = { p: 0.5, minWidth: 28, minHeight: 28 } as const;
+// Cluster sempre `justifyContent:flex-end`, gap 2px (não maior) — o botão
+// wrapper do RowDrawerChevron carrega seu próprio `mr` (não é nosso arquivo,
+// ver comentário abaixo), por isso o wrapper aqui compensa com margem negativa
+// para o chevron ficar realmente colado no ⋮.
+const GAP = "2px";
 
 export function TransactionRowActions({
   tx,
@@ -76,13 +82,23 @@ export function TransactionRowActions({
       sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1 }}
       onClick={(e) => e.stopPropagation()}
     >
-      <Box sx={{ display: "inline-flex", alignItems: "center", gap: GAP }}>
-        {attachmentCount > 0 && (
-          <AttachmentIndicator count={attachmentCount} onClick={onToggleDrawer} expanded={drawerOpen} />
-        )}
-
+      <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: GAP }}>
+        {/* Ordem do frame (linha hover): star · schedule · expand_more · more_vert
+            — o chevron fica sempre penúltimo, colado no ⋮. */}
         {!isReadOnly && (
           <>
+            <Tooltip title={favoriteLabel}>
+              <IconButton
+                size="small"
+                onClick={onToggleFavorite}
+                aria-label={favoriteLabel}
+                className={`row-primary${tx.isFavorite ? " row-primary--active" : ""}`}
+                sx={{ ...BTN_SX, color: tx.isFavorite ? "warning.main" : "text.secondary" }}
+              >
+                {tx.isFavorite ? <StarIcon sx={ICON_SX} /> : <StarBorderIcon sx={ICON_SX} />}
+              </IconButton>
+            </Tooltip>
+
             <Tooltip title={pendingLabel}>
               <IconButton
                 size="small"
@@ -98,19 +114,18 @@ export function TransactionRowActions({
                 )}
               </IconButton>
             </Tooltip>
-
-            <Tooltip title={favoriteLabel}>
-              <IconButton
-                size="small"
-                onClick={onToggleFavorite}
-                aria-label={favoriteLabel}
-                className={`row-primary${tx.isFavorite ? " row-primary--active" : ""}`}
-                sx={{ ...BTN_SX, color: tx.isFavorite ? "warning.main" : "text.secondary" }}
-              >
-                {tx.isFavorite ? <StarIcon sx={ICON_SX} /> : <StarBorderIcon sx={ICON_SX} />}
-              </IconButton>
-            </Tooltip>
           </>
+        )}
+
+        {attachmentCount > 0 && (
+          // Ação rápida (gaveta): some em repouso, revela no hover/foco da linha —
+          // mesma convenção de `.row-primary` do pendente/favorito (Spec 66 · Colunas,
+          // REFINADO). Wrapper em Box porque RowDrawerChevron não expõe `className`.
+          // `RowDrawerChevron` (fora do nosso escopo) tem `mr:1` embutido — compensamos
+          // aqui para o chevron ficar colado no ⋮, conforme o frame.
+          <Box className="row-primary" sx={{ display: "inline-flex", mr: "-8px" }}>
+            <RowDrawerChevron open={drawerOpen} onClick={onToggleDrawer} />
+          </Box>
         )}
 
         <Tooltip title={m.transactions.actions.more}>
@@ -118,7 +133,8 @@ export function TransactionRowActions({
             size="small"
             aria-label={m.transactions.actions.more}
             onClick={(e) => onOpenMenu(e, items)}
-            sx={{ ...BTN_SX, color: "text.secondary" }}
+            className="row-more-vert"
+            sx={BTN_SX}
           >
             <MoreVertIcon sx={ICON_SX} />
           </IconButton>

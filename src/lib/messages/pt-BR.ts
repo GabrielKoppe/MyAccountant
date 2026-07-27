@@ -542,6 +542,12 @@ export const messages = {
       columnsLabel: "Colunas visíveis",
       alwaysVisible: "Sempre visíveis",
       configurable: "Configuráveis",
+      layoutLabel: "Layout da linha",
+      layoutColumns: "Colunas",
+      layoutRich: "Rico (pílulas)",
+      layoutColumnsHelp: "Colunas explícitas, com ordenação e busca por coluna.",
+      layoutRichHelp: "Descrição em destaque com os demais campos como pílulas.",
+      layoutDefaultLocked: "O tipo padrão usa o layout de colunas.",
       created: "Tipo criado.",
       updated: "Tipo atualizado.",
       deleted: "Tipo deletado.",
@@ -759,7 +765,7 @@ export const messages = {
     },
   },
   financeTables: {
-    createButton: "Adicionar tabela",
+    createButton: "Tabela",
     createTitle: "Nova tabela financeira",
     editTitle: "Editar tabela",
     nameLabel: "Nome da tabela",
@@ -858,6 +864,29 @@ export const messages = {
       other: "Outro",
     } as Record<string, string>,
     sourceLabel: "Origem do lançamento",
+    // Barra de ações em massa (BulkActionBar) — Spec 66 BULK-01/02/03. Os
+    // setters de campo (categoria, tipo de gasto, forma de pagamento,
+    // favoritar) ficam consolidados no diálogo "Editar em massa"; as demais
+    // strings da barra reusam chaves já existentes (m.common.*,
+    // m.transactions.tags.*, bulkDelete*, expenseType*, paymentMethod*,
+    // fields.category) — não duplicadas aqui.
+    bulk: {
+      // Frame §4: contador em texto puro (não pílula), plural natural.
+      selected: (n: number) => `${n} ${n === 1 ? "selecionada" : "selecionadas"}`,
+      editTitle: "Editar em massa",
+      markPaid: "Marcar pago",
+      tags: "Tags",
+      delete: "Excluir",
+      apply: "Aplicar",
+      fieldUnchanged: "(não alterar)",
+      categoryRemove: "Remover categoria",
+      favorite: "Favoritar",
+      markPending: "Marcar pendente",
+      unmarkPending: "Desmarcar pendente",
+      move: "Mover",
+      tagNameLabel: "Nome da tag",
+      selectTagPlaceholder: "Selecionar tag...",
+    },
     tags: {
       addPlaceholder: "Adicionar tag...",
       noTags: "Sem tags",
@@ -895,6 +924,8 @@ export const messages = {
       subcategory: "Subcategoria",
       institution: "Instituição",
       isPending: "Pendente",
+      // Frame §3: o chip na linha é minúsculo e sem ícone ("pendente").
+      isPendingChip: "pendente",
       isFavorite: "Favorito",
       responsibleUser: "Responsável",
       cardInstallment: "Parcela do cartão",
@@ -929,9 +960,25 @@ export const messages = {
       futureInstallmentsInfo: (count: number) =>
         `Parcelas 2–${count} serão criadas automaticamente ao abrir os meses futuros.`,
       panelTitle: "Grupo de parcelamento",
+      // Frame §10: cabeçalho do painel = overline "Parcelamento" + descrição em
+      // destaque + grid Total/Parcelas/Entrada + barra de progresso.
+      panelOverline: "Parcelamento",
+      totalShort: "Total",
+      installmentsShort: "Parcelas",
+      downPaymentShort: "Entrada",
+      perInstallmentValue: (count: number, amount: string) => `${count}× ${amount}`,
+      launchedProgress: (launched: number, total: number, paid: string) =>
+        `${launched} de ${total} lançadas · ${paid} pagos`,
+      itemTitle: (n: number, total: number) => `Parcela ${n}/${total}`,
+      itemCurrentSuffix: "atual",
+      itemForecastSuffix: "prevista",
+      itemNotLaunched: "ainda não lançada",
+      settleShort: "Quitar parcelas",
+      installmentPosition: (current: number, total: number) => `Parcela ${current} de ${total}`,
       statusPaid: "Pago",
       statusPending: "Pendente",
       statusWaiting: "Aguardando mês",
+      statusForecast: "prevista",
       paidCount: (paid: number, total: number) =>
         `${paid} de ${total} paga${paid !== 1 ? "s" : ""}`,
       totalLabel: "Total da compra",
@@ -952,6 +999,16 @@ export const messages = {
         `${count} parcela${count !== 1 ? "s" : ""} registrada${count !== 1 ? "s" : ""} com sucesso.`,
       settleSuccessConsolidated: "Quitação consolidada registrada com sucesso.",
       settleNoTables: "Nenhuma tabela encontrada neste mês.",
+      launchNextButton: "Lançar próxima",
+      launchNextNoMonth: "Nenhum mês aberto para a próxima parcela",
+      launchNextSuccess: "Parcela criada no mês com sucesso.",
+      loadError: "Não foi possível carregar as parcelas.",
+      undoButton: "Desfazer grupo",
+      undoConfirmTitle: "Desfazer grupo de parcelas?",
+      undoConfirmBody:
+        "As parcelas já lançadas viram transações normais (desvinculadas) e as parcelas futuras pendentes são removidas. Esta ação não pode ser desfeita.",
+      undoConfirmCta: "Desfazer grupo",
+      undoSuccess: "Grupo de parcelamento desfeito.",
     },
     rowState: {
       hasNote: "tem nota",
@@ -959,7 +1016,8 @@ export const messages = {
       links: (n: number) => `${n} ${n === 1 ? "vínculo" : "vínculos"}`,
     },
     attachments: {
-      view: (n: number) => `Ver anexos (${n})`,
+      expand: "Ver detalhes da linha",
+      collapse: "Ocultar detalhes da linha",
       viewGroup: "Ver grupo",
     },
     actions: {
@@ -967,12 +1025,12 @@ export const messages = {
       edit: "Editar",
       duplicate: "Duplicar",
       moveTo: "Mover para…",
-      createAlias: "Criar apelido a partir desta transação",
+      createAlias: "Criar apelido",
       delete: "Deletar",
       addNote: "Adicionar nota",
       hideNotes: "Ocultar notas",
-      save: "Salvar (Enter)",
-      cancel: "Cancelar (Esc)",
+      save: "Salvar",
+      cancel: "Cancelar",
       markAsDone: "Marcar como concluída",
       markAsPending: "Marcar como pendente",
       quickConfirm: "Confirmar transação",
@@ -984,23 +1042,45 @@ export const messages = {
     },
     aliasSuggestion: {
       header: "Apelido",
+      // Frame §11: o cabeçalho do popover nomeia o gatilho casado — Apelido "NETFLIX".
+      headerWithTrigger: (trigger: string) => `Apelido "${trigger}"`,
       tooltip: (trigger: string) => `Aplicar apelido "${trigger}"`,
       applyButton: "Aplicar",
-      cancelButton: "Cancelar",
+      cancelButton: "Agora não",
       applied: (trigger: string, count: number) =>
         `Apelido "${trigger}" aplicado — ${count} campo${count !== 1 ? "s" : ""} atualizado${count !== 1 ? "s" : ""}.`,
       undo: "Desfazer",
       noApplicableFields:
         "Nenhum campo aplicável aqui — os valores já coincidem ou usam campos não suportados nesta tela (ex.: tags).",
     },
+    // Modal de detalhe (TransactionDetailDialog) — Spec 66 P3, modelo em abas
+    // somente leitura. `title` do DialogShell é neutro (titleNeutral); o valor
+    // em destaque vai no cabeçalho do corpo (MoneyValue). Rótulos de campo
+    // reusam `fields.*`/`paymentMethods.*`/`expenseTypes.*`/`links.*` — não
+    // duplicados aqui.
     detail: {
-      title: "Detalhes da transação",
+      titleNeutral: "Transação",
       close: "Fechar",
-      history: "Histórico",
-      status: "Status",
-      createdBy: "Criado por",
-      updatedBy: "Última alteração por",
+      // Frame §9: rótulos curtos e valor ausente explícito (traço, não sumir).
+      paymentMethodShort: "Forma pagto",
+      emptyValue: "—",
+      linksTitle: "Vínculos",
+      createdBy: "Criada por",
+      updatedBy: "Editada por",
       removedUser: "Usuário removido",
+      tabs: {
+        summary: "Resumo",
+        classification: "Classificação",
+        installmentsLinks: "Parcelas",
+        history: "Histórico",
+      },
+      emptySummary: "Nenhum detalhe adicional",
+      emptyClassification: "Sem classificação preenchida",
+      emptyInstallmentsLinks: "Sem parcelas ou vínculos",
+      loading: "Carregando…",
+      loadError: "Não foi possível carregar os vínculos.",
+      reload: "Recarregar",
+      openLinked: "Abrir transação vinculada",
     },
     errors: {
       invalidDate: "Data inválida",
@@ -1453,7 +1533,7 @@ export const messages = {
     mappingLabel: "Configurações de mapeamento",
   },
   csvImport: {
-    importButton: "Importar CSV/XLSX",
+    importButton: "Importar",
     wizardTitle: "Importar arquivo",
     steps: {
       upload: "Upload",

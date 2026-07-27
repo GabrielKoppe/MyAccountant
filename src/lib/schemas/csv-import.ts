@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { cuidSchema } from "./shared";
+
 export const importMappingSchema = z
   .object({
     columns: z.object({
@@ -29,7 +31,7 @@ export const importMappingSchema = z
     }),
     // Mapeia texto da coluna → userId do membro (ex: "GABRIEL KOPPE" → "clxxx...")
     responsibleUserMappings: z
-      .array(z.object({ text: z.string().min(1), userId: z.string().cuid() }))
+      .array(z.object({ text: z.string().min(1), userId: cuidSchema }))
       .default([]),
     dateFormat: z.string().default("DD/MM/YYYY"),
     amountFormat: z.enum(["brl", "us"]).default("brl"),
@@ -45,8 +47,8 @@ export const importMappingSchema = z
     ignoreRowsWhere: z
       .array(z.object({ column: z.string().min(1), contains: z.string().min(1) }))
       .default([]),
-    defaultCategoryId: z.string().cuid().nullable().default(null),
-    defaultInstitutionId: z.string().cuid().nullable().default(null),
+    defaultCategoryId: cuidSchema.nullable().default(null),
+    defaultInstitutionId: cuidSchema.nullable().default(null),
     onCategoryNotFound: z.enum(["ignore", "create", "fail"]).default("create"),
     onSubcategoryNotFound: z.enum(["ignore", "create"]).default("create"),
     onInstitutionNotFound: z.enum(["ignore", "create", "fail"]).default("ignore"),
@@ -78,19 +80,19 @@ export const createTemplateSchema = z.object({
 });
 
 export const updateTemplateSchema = z.object({
-  templateId: z.string().cuid(),
+  templateId: cuidSchema,
   name: z.string().min(1).max(80).optional(),
   mapping: importMappingSchema.optional(),
 });
 
 export const deleteTemplateSchema = z.object({
-  templateId: z.string().cuid(),
+  templateId: cuidSchema,
 });
 
 export const executeImportSchema = z.object({
-  monthId: z.string().cuid(),
-  sectionId: z.string().cuid(),
-  tableTypeId: z.string().cuid(),
+  monthId: cuidSchema,
+  sectionId: cuidSchema,
+  tableTypeId: cuidSchema,
   tableName: z.string().min(1, "Nome é obrigatório").max(80).trim(),
   countInMonth: z.boolean().default(true),
   mapping: importMappingSchema,

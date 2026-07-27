@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import AddIcon from "@mui/icons-material/Add";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
@@ -20,18 +19,19 @@ import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import AddIcon from "@mui/icons-material/Add";
 import { useSnackbar } from "notistack";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 
 import { createFinanceTableAction } from "@/actions/finance-tables";
 import { applyTemplateAction, listTemplatesAction } from "@/actions/table-templates";
+import { DialogShell } from "@/components/ui/DialogShell";
+import { layout } from "@/lib/design-tokens";
+import { m } from "@/lib/messages";
 import {
   createFinanceTableSchema,
   type CreateFinanceTableInput,
 } from "@/lib/schemas/finance-table";
-import { m } from "@/lib/messages";
-import { layout } from "@/lib/design-tokens";
-import { DialogShell } from "@/components/ui/DialogShell";
 
 type Section = { id: string; name: string };
 type TableTypeOption = { id: string; name: string; isDefault: boolean };
@@ -165,6 +165,7 @@ export function CreateTableModal({
         startIcon={<AddIcon />}
         onClick={openModal}
         size="small"
+        sx={{ fontSize: "0.875rem", textTransform: "none" }}
       >
         {m.financeTables.createButton}
       </Button>

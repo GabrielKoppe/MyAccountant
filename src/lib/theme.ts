@@ -58,6 +58,23 @@ declare module "@mui/material/styles" {
     danger?: Palette["danger"];
     neutral?: Palette["neutral"];
   }
+
+  // O projeto documenta `background.surface` e `text.tertiary` como tokens
+  // canônicos (CLAUDE.md §5.11), mas a palette do MUI só traz
+  // background.{default,paper} e text.{primary,secondary,disabled}. Sem estas
+  // extensões, `sx={{ bgcolor: "background.subtle" }}` e `color="text.tertiary"`
+  // resolvem para `undefined` e o MUI descarta a regra em SILÊNCIO — o estilo
+  // simplesmente não aparece (183 usos em 74 arquivos estavam nesse estado).
+  // Mantemos `surface.*` como alias equivalente (ambos apontam para os mesmos hex).
+  interface TypeBackground {
+    canvas: string;
+    surface: string;
+    subtle: string;
+    muted: string;
+  }
+  interface TypeText {
+    tertiary: string;
+  }
   interface TypographyVariants {
     kpi: React.CSSProperties;
     mono: React.CSSProperties;
@@ -111,10 +128,15 @@ function buildPalette(mode: ThemeMode, c: ColorTokens, ac: AccentPreset): Palett
       primary: c.text.primary,
       secondary: c.text.secondary,
       disabled: c.text.disabled,
+      // Token documentado em CLAUDE.md §5.11 — sem isto, `text.tertiary` some.
+      tertiary: c.text.tertiary,
     },
     background: {
       default: c.background.canvas,
       paper: c.background.surface,
+      // Aliases semânticos (mesmos hex de `surface.*`) para que
+      // `bgcolor: "background.canvas|surface|subtle|muted"` funcione de fato.
+      ...c.background,
     },
     divider: c.border.subtle,
     // Tokens customizados

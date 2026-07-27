@@ -1,29 +1,32 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { SectionCountType, TransactionExpenseType } from "@prisma/client";
+import type { SectionCountType } from "@prisma/client";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
+import Checkbox from "@mui/material/Checkbox";
+import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
-import StarIcon from "@mui/icons-material/Star";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import CheckIcon from "@mui/icons-material/Check";
 import DeleteIcon from "@mui/icons-material/Delete";
+import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
+import EditIcon from "@mui/icons-material/Edit";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 import { useSnackbar } from "notistack";
 
 import { bulkDeleteAction, bulkUpdateAction } from "@/actions/transactions";
 import { bulkAddTagAction, bulkRemoveTagAction, listTagsAction } from "@/actions/tags";
 import type { BulkUpdateInput } from "@/lib/schemas/transaction";
-import { TransactionPaymentMethod } from "@/lib/schemas/transaction";
 import { m } from "@/lib/messages";
-import type { CategoryOption, InstitutionOption, TransactionRow } from "./types";
+import type { TransactionRow } from "./types";
 import { MoveTransactionsDialog } from "./MoveTransactionsDialog";
-import DriveFileMoveIcon from "@mui/icons-material/DriveFileMove";
+import { rowCheckboxCheckedIconSx, rowCheckboxIconSx } from "./pill-sx";
 import { DialogShell } from "@/components/ui/DialogShell";
 
 type Props = {
@@ -34,12 +37,60 @@ type Props = {
   sampleAmountCents?: string;
   selectedIds: string[];
   allSelectedPending: boolean;
-  categories: CategoryOption[];
-  institutions: InstitutionOption[];
+  /** Edição em massa inline ativa — a barra troca as ações por Salvar/Cancelar do lote. */
+  isEditing: boolean;
+  /** Lote em gravação (desabilita Salvar/Cancelar). */
+  isSavingEdit: boolean;
   onClear: () => void;
   onMoved: (ids: string[]) => void;
   onBulkUpdated: (ids: string[], patch: Partial<TransactionRow>) => void;
+  /** Coloca TODAS as linhas selecionadas em edição inline simultânea (frame §4). */
+  onStartInlineEdit: () => void;
+  onSaveInlineEdit: () => void;
+  onCancelInlineEdit: () => void;
 };
+
+/**
+ * Botão em modo texto da barra (frame §4): ícone 16px + rótulo, peso 500,
+ * 0.78rem, `text.secondary`, gap 5px entre ícone e rótulo.
+ */
+const BAR_BUTTON_SX = {
+  textTransform: "none",
+  fontWeight: 500,
+  fontSize: "0.78rem",
+  color: "text.secondary",
+  minWidth: 0,
+  px: 1,
+  py: 0.5,
+  whiteSpace: "nowrap",
+  "& .MuiButton-startIcon": { marginLeft: 0, marginRight: "5px" },
+  "& .MuiButton-startIcon > *:nth-of-type(1)": { fontSize: 16 },
+} as const;
+
+/** "Cancelar" do lote — botão texto do frame (h30, r8, px12, 500/0.78rem). */
+const CANCEL_BUTTON_SX = {
+  textTransform: "none",
+  height: 30,
+  borderRadius: "8px",
+  px: "12px",
+  fontWeight: 500,
+  fontSize: "0.78rem",
+  color: "text.secondary",
+} as const;
+
+/** "Salvar" do lote — botão primário do frame (h30, r8, px14, 600/0.78rem). */
+const SAVE_BUTTON_SX = {
+  textTransform: "none",
+  height: 30,
+  borderRadius: "8px",
+  px: "14px",
+  fontWeight: 600,
+  fontSize: "0.78rem",
+  bgcolor: "accent.primary",
+  color: "background.canvas",
+  boxShadow: "none",
+  "&:hover": { bgcolor: "accent.primaryHover", boxShadow: "none" },
+} as const;
 
 export function BulkActionBar({
   accountId,
@@ -49,16 +100,20 @@ export function BulkActionBar({
   sampleAmountCents,
   selectedIds,
   allSelectedPending,
-  categories,
-  institutions: _institutions,
+  isEditing,
+  isSavingEdit,
   onClear,
   onMoved,
   onBulkUpdated,
+  onStartInlineEdit,
+  onSaveInlineEdit,
+  onCancelInlineEdit,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [isPending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [tagMenuAnchor, setTagMenuAnchor] = useState<HTMLElement | null>(null);
   const [tagAddOpen, setTagAddOpen] = useState(false);
   const [tagRemoveOpen, setTagRemoveOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
@@ -66,10 +121,12 @@ export function BulkActionBar({
   const [tagRemoveId, setTagRemoveId] = useState("");
 
   const count = selectedIds.length;
+  const busy = isPending || isSavingEdit;
 
+  /** Aplica um patch imediato (usado pela ação direta "Marcar pago/pendente"). */
   function run(patch: BulkUpdateInput["patch"]) {
     startTransition(async () => {
-      const result = await bulkUpdateAction(accountId, { ids: selectedIds, patch });
+      const result = await bulkUpdateAction(accountId, { ids: selectedIds, monthId, patch });
       if (!result.ok) {
         enqueueSnackbar(result.error.message, { variant: "error" });
       } else {
@@ -98,142 +155,160 @@ export function BulkActionBar({
       sx={{
         display: "flex",
         alignItems: "center",
-        gap: 1.5,
-        px: 2,
-        py: 1,
-        bgcolor: "background.subtle",
-        borderBottom: 1,
-        borderTop: 1,
-        borderColor: "divider",
+        gap: "14px",
+        px: "14px",
+        py: "10px",
+        bgcolor: "accent.primarySubtle",
+        borderBottom: "1px solid",
+        borderColor: "border.subtle",
+        borderRadius: 0,
         flexWrap: "wrap",
       }}
     >
-      <Chip label={`${count} selecionada(s)`} size="small" color="primary" />
+      {/* Checkbox marcado do frame (`.cbox` accent) — também é o caminho para
+          limpar a seleção (a barra do frame não tem botão "cancelar" explícito). */}
+      <Tooltip title={m.common.cancel}>
+        <span>
+          <Checkbox
+            checked
+            size="small"
+            disabled={isEditing}
+            onChange={onClear}
+            inputProps={{ "aria-label": m.common.cancel }}
+            icon={<Box component="span" sx={rowCheckboxIconSx} />}
+            checkedIcon={
+              <Box component="span" sx={rowCheckboxCheckedIconSx}>
+                <CheckIcon sx={{ fontSize: 12 }} />
+              </Box>
+            }
+            sx={{ p: 0 }}
+          />
+        </span>
+      </Tooltip>
 
-      <Button
-        size="small"
-        variant="outlined"
-        disabled={isPending}
-        onClick={() => run({ isPending: !allSelectedPending })}
+      {/* Contador em TEXTO PURO (frame §4) — nunca pílula. */}
+      <Typography
+        component="span"
+        sx={{ fontWeight: 600, fontSize: "0.82rem", color: "accent.primary" }}
       >
-        {allSelectedPending ? "Desmarcar pendente" : "Marcar pendente"}
-      </Button>
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<StarIcon fontSize="small" />}
-        disabled={isPending}
-        onClick={() => run({ isFavorite: true })}
-      >
-        Favoritar
-      </Button>
+        {m.transactions.bulk.selected(count)}
+      </Typography>
 
-      {/* Tipo de gasto */}
-      <FormControl size="small" sx={{ minWidth: 130 }}>
-        <InputLabel>{m.transactions.expenseTypeLabel}</InputLabel>
-        <Select
-          label={m.transactions.expenseTypeLabel}
-          value=""
-          onChange={(e) =>
-            run({ expenseType: (e.target.value || null) as TransactionExpenseType | null })
-          }
-        >
-          <MenuItem value="">{m.transactions.expenseTypeNone}</MenuItem>
-          <MenuItem value="fixed">{m.transactions.expenseTypes.fixed}</MenuItem>
-          <MenuItem value="variable">{m.transactions.expenseTypes.variable}</MenuItem>
-          <MenuItem value="one_time">{m.transactions.expenseTypes.one_time}</MenuItem>
-        </Select>
-      </FormControl>
-
-      {/* Método de pagamento */}
-      <FormControl size="small" sx={{ minWidth: 130 }}>
-        <InputLabel>{m.transactions.paymentMethodLabel}</InputLabel>
-        <Select
-          label={m.transactions.paymentMethodLabel}
-          value=""
-          onChange={(e) =>
-            run({ paymentMethod: (e.target.value || null) as TransactionPaymentMethod | null })
-          }
-        >
-          <MenuItem value="">{m.transactions.paymentMethodNone}</MenuItem>
-          {Object.values(TransactionPaymentMethod).map((pm) => (
-            <MenuItem key={pm} value={pm}>
-              {m.transactions.paymentMethods[pm]}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-
-      {/* Tags */}
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<LabelOutlinedIcon fontSize="small" />}
-        disabled={isPending}
-        onClick={() => {
-          setTagInput("");
-          setTagAddOpen(true);
-        }}
-      >
-        {m.transactions.tags.bulkAdd}
-      </Button>
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<LabelOutlinedIcon fontSize="small" />}
-        disabled={isPending}
-        onClick={() => {
-          listTagsAction(accountId).then(setAvailableTags);
-          setTagRemoveId("");
-          setTagRemoveOpen(true);
-        }}
-      >
-        {m.transactions.tags.bulkRemove}
-      </Button>
-
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<DriveFileMoveIcon fontSize="small" />}
-        disabled={isPending}
-        onClick={() => setMoveOpen(true)}
-      >
-        Mover
-      </Button>
-
-      {categories.length > 0 && (
-        <FormControl size="small" sx={{ minWidth: 130 }}>
-          <InputLabel>Categoria</InputLabel>
-          <Select
-            label="Categoria"
-            value=""
-            onChange={(e) => run({ categoryId: e.target.value as string })}
-          >
-            <MenuItem value="">Remover categoria</MenuItem>
-            {categories.map((c) => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      )}
-
+      {/* Spacer: empurra TODOS os botões para a extremidade direita. */}
       <Box sx={{ flex: 1 }} />
 
-      <Button
-        size="small"
-        variant="outlined"
-        color="error"
-        startIcon={<DeleteIcon />}
-        disabled={isPending}
-        onClick={() => (count > 5 ? setDeleteOpen(true) : handleDelete())}
+      {isEditing ? (
+        <>
+          <Button
+            variant="text"
+            size="small"
+            disabled={isSavingEdit}
+            onClick={onCancelInlineEdit}
+            sx={CANCEL_BUTTON_SX}
+          >
+            {m.transactions.actions.cancel}
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            disableElevation
+            disabled={isSavingEdit}
+            onClick={onSaveInlineEdit}
+            sx={SAVE_BUTTON_SX}
+          >
+            {m.transactions.actions.save}
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<EditIcon />}
+            disabled={busy}
+            onClick={onStartInlineEdit}
+            sx={BAR_BUTTON_SX}
+          >
+            {m.transactions.bulk.editTitle}
+          </Button>
+
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<DriveFileMoveIcon />}
+            disabled={busy}
+            onClick={() => setMoveOpen(true)}
+            sx={BAR_BUTTON_SX}
+          >
+            {m.transactions.bulk.move}
+          </Button>
+
+          {/* "Marcar pago" do frame é o mesmo toggle de pendência de sempre:
+              com tudo pendente marca como pago (isPending:false); caso
+              contrário marca como pendente. Nenhuma capacidade se perde. */}
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<ScheduleIcon />}
+            disabled={busy}
+            onClick={() => run({ isPending: !allSelectedPending })}
+            sx={BAR_BUTTON_SX}
+          >
+            {allSelectedPending ? m.transactions.bulk.markPaid : m.transactions.bulk.markPending}
+          </Button>
+
+          {/* Um único botão "Tags" (frame) abrindo as duas capacidades atuais. */}
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<LabelOutlinedIcon />}
+            disabled={busy}
+            onClick={(e) => setTagMenuAnchor(e.currentTarget)}
+            sx={BAR_BUTTON_SX}
+          >
+            {m.transactions.bulk.tags}
+          </Button>
+
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<DeleteIcon />}
+            disabled={busy}
+            onClick={() => (count > 5 ? setDeleteOpen(true) : handleDelete())}
+            sx={{ ...BAR_BUTTON_SX, color: "danger.main" }}
+          >
+            {m.transactions.bulk.delete}
+          </Button>
+        </>
+      )}
+
+      <Menu
+        anchorEl={tagMenuAnchor}
+        open={!!tagMenuAnchor}
+        onClose={() => setTagMenuAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
-        Deletar
-      </Button>
-      <Button size="small" variant="text" onClick={onClear}>
-        Cancelar
-      </Button>
+        <MenuItem
+          onClick={() => {
+            setTagMenuAnchor(null);
+            setTagInput("");
+            setTagAddOpen(true);
+          }}
+        >
+          {m.transactions.tags.bulkAdd}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setTagMenuAnchor(null);
+            listTagsAction(accountId).then(setAvailableTags);
+            setTagRemoveId("");
+            setTagRemoveOpen(true);
+          }}
+        >
+          {m.transactions.tags.bulkRemove}
+        </MenuItem>
+      </Menu>
 
       <DialogShell
         open={deleteOpen}
@@ -303,7 +378,7 @@ export function BulkActionBar({
           autoFocus
           fullWidth
           size="small"
-          label="Nome da tag"
+          label={m.transactions.bulk.tagNameLabel}
           value={tagInput}
           onChange={(e) => setTagInput(e.target.value)}
           onKeyDown={(e) => {
@@ -355,7 +430,7 @@ export function BulkActionBar({
           onChange={(e) => setTagRemoveId(e.target.value)}
           displayEmpty
         >
-          <MenuItem value="">Selecionar tag...</MenuItem>
+          <MenuItem value="">{m.transactions.bulk.selectTagPlaceholder}</MenuItem>
           {availableTags.map((tag) => (
             <MenuItem key={tag.id} value={tag.id}>
               {tag.name}

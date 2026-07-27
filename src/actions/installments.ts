@@ -2,9 +2,11 @@
 
 import { defineAction } from "@/server/api/define-action";
 import { z } from "zod";
+import { cuidSchema } from "@/lib/schemas/shared";
 import {
   createInstallmentGroupSchema,
   settleInstallmentGroupSchema,
+  undoInstallmentGroupSchema,
 } from "@/lib/schemas/installment";
 import * as installmentService from "@/server/services/installment-service";
 import { prisma } from "@/server/prisma";
@@ -50,7 +52,7 @@ export async function getInstallmentCreateContext(accountId: string, tableId: st
 /** Busca todos os dados do painel de grupo de parcelamento.
  *  Disponível para todos os papéis (viewers também podem visualizar). */
 export const getInstallmentGroupPanelDataAction = defineAction({
-  schema: z.object({ installmentGroupId: z.string().cuid() }),
+  schema: z.object({ installmentGroupId: cuidSchema }),
   handler: async (input, ctx) => {
     return installmentService.getInstallmentGroupPanelData(input.installmentGroupId, ctx.accountId);
   },
@@ -62,6 +64,16 @@ export const settleInstallmentGroupAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     return installmentService.settleInstallmentGroup(input, ctx);
+  },
+});
+
+/** Desfaz um grupo de parcelamento (não-destrutivo): desvincula as transações já
+ *  lançadas, remove as parcelas pendentes futuras e apaga o grupo (owner/editor apenas). */
+export const undoInstallmentGroupAction = defineAction({
+  schema: undoInstallmentGroupSchema,
+  requireRoles: [...EDITOR_ROLES],
+  handler: async (input, ctx) => {
+    return installmentService.undoInstallmentGroup(input, ctx);
   },
 });
 
@@ -102,7 +114,7 @@ export async function listTablesForSettlementAction(accountId: string) {
  * deletada antes de ser convertida automaticamente.
  */
 export const convertPendingInstallmentForExistingMonthAction = defineAction({
-  schema: z.object({ pendingInstallmentId: z.string().cuid() }),
+  schema: z.object({ pendingInstallmentId: cuidSchema }),
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     const pi = await prisma.pendingInstallment.findUnique({

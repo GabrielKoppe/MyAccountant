@@ -275,7 +275,7 @@ function SidebarContent({
       key: "months",
       href: monthsHref,
       label: m.nav.months,
-      icon: <CalendarMonthIcon fontSize="small" />,
+      icon: <CalendarMonthIcon fontSize={collapsed ? "medium" : "small"} />,
       // Meses = base exata da account OU qualquer rota sob /months (§10.3 P1).
       isActive: (p) =>
         isNavItemActive(p, monthsHref, { exact: true }) ||
@@ -291,28 +291,28 @@ function SidebarContent({
       key: "dashboards",
       href: `/${accountId}/dashboards`,
       label: m.nav.dashboards,
-      icon: <BarChartIcon fontSize="small" />,
+      icon: <BarChartIcon fontSize={collapsed ? "medium" : "small"} />,
       isActive: (p) => isNavItemActive(p, `/${accountId}/dashboards`),
     },
     {
       key: "net-worth",
       href: `/${accountId}/net-worth`,
       label: m.netWorth.navLabel,
-      icon: <AccountBalanceWalletIcon fontSize="small" />,
+      icon: <AccountBalanceWalletIcon fontSize={collapsed ? "medium" : "small"} />,
       isActive: (p) => isNavItemActive(p, `/${accountId}/net-worth`),
     },
     {
       key: "planning",
       href: `/${accountId}/planning`,
       label: m.goals.navLabel,
-      icon: <SavingsIcon fontSize="small" />,
+      icon: <SavingsIcon fontSize={collapsed ? "medium" : "small"} />,
       isActive: (p) => isNavItemActive(p, `/${accountId}/planning`),
     },
     {
       key: "forecast",
       href: `/${accountId}/forecast`,
       label: m.cashflowForecast.navLabel,
-      icon: <TrendingUpIcon fontSize="small" />,
+      icon: <TrendingUpIcon fontSize={collapsed ? "medium" : "small"} />,
       isActive: (p) => isNavItemActive(p, `/${accountId}/forecast`),
     },
   ];
@@ -323,7 +323,7 @@ function SidebarContent({
       href: membersHref,
       // Membros: visível a TODOS os papéis (gestão fica owner-only dentro da página — §7.1).
       label: m.settings.nav.members,
-      icon: <GroupIcon fontSize="small" />,
+      icon: <GroupIcon fontSize={collapsed ? "medium" : "small"} />,
       isActive: (p) => isNavItemActive(p, membersHref),
     },
     ...(canManageSettings
@@ -332,7 +332,7 @@ function SidebarContent({
             key: "settings",
             href: `${settingsBase}/general`,
             label: m.nav.settings,
-            icon: <SettingsIcon fontSize="small" />,
+            icon: <SettingsIcon fontSize={collapsed ? "medium" : "small"} />,
             // Configurações = prefixo /settings E NÃO /settings/members (§10.3 P1).
             isActive: (p: string) =>
               isNavItemActive(p, settingsBase) && !isNavItemActive(p, membersHref),
@@ -343,7 +343,13 @@ function SidebarContent({
 
   return (
     <Box
-      sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden" }}
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        width: "100%",
+        overflow: "hidden",
+      }}
     >
       {/* Topo — troca de conta (NAV-02). Altura fixa = `APP_HEADER_HEIGHT` para o
           `borderBottom` alinhar com o cabeçalho de página (ex.: MonthHeader). */}
@@ -356,6 +362,7 @@ function SidebarContent({
           borderColor: "divider",
           display: "flex",
           alignItems: "center",
+          justifyContent: collapsed ? "center" : "flex-start",
         }}
       >
         <AccountSwitcher
@@ -373,7 +380,14 @@ function SidebarContent({
             Reusa o CreateMonthModal via renderTrigger; cada instância de
             SidebarContent tem seu próprio modal (estado independente). */}
         {canCreateMonth && (
-          <Box sx={{ p: layout.inline, display: "flex", justifyContent: "center" }}>
+          <Box
+            sx={{
+              p: layout.inline,
+              pb: collapsed ? layout.stack : layout.inline,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
             <CreateMonthModal
               accountId={accountId}
               lastMonth={lastMonth}
@@ -416,24 +430,23 @@ function SidebarContent({
           </Box>
         )}
 
-      {/* Grupo Principal (NAV-04) — "Meses" traz os meses recentes como submenu recolhível */}
-      <NavGroup
-        label={m.nav.groupPrincipal}
-        items={principalItems}
-        collapsed={collapsed}
-        pathname={pathname}
-        onNavigate={onNavigate}
-      />
+        {/* Grupo Principal (NAV-04) — "Meses" traz os meses recentes como submenu recolhível */}
+        <NavGroup
+          label={m.nav.groupPrincipal}
+          items={principalItems}
+          collapsed={collapsed}
+          pathname={pathname}
+          onNavigate={onNavigate}
+        />
 
-      {/* Grupo Gestão (NAV-04) */}
-      <NavGroup
-        label={m.nav.groupManagement}
-        items={managementItems}
-        collapsed={collapsed}
-        pathname={pathname}
-        onNavigate={onNavigate}
-      />
-
+        {/* Grupo Gestão (NAV-04) */}
+        <NavGroup
+          label={m.nav.groupManagement}
+          items={managementItems}
+          collapsed={collapsed}
+          pathname={pathname}
+          onNavigate={onNavigate}
+        />
       </Box>
 
       <Divider sx={{ flexShrink: 0 }} />
@@ -508,9 +521,7 @@ function NavGroup({ label, items, collapsed, pathname, onNavigate }: NavGroupPro
 
   return (
     <Box sx={{ pb: layout.micro }}>
-      {collapsed ? (
-        <Divider sx={{ my: layout.inline }} />
-      ) : (
+      {!collapsed ? (
         <Typography
           variant="overline"
           sx={{
@@ -527,7 +538,7 @@ function NavGroup({ label, items, collapsed, pathname, onNavigate }: NavGroupPro
         >
           {label}
         </Typography>
-      )}
+      ) : null}
       <List dense disablePadding>
         {items.map((item) => {
           if (!collapsed && item.subItems && item.subItems.length > 0) {
@@ -553,6 +564,7 @@ function NavGroup({ label, items, collapsed, pathname, onNavigate }: NavGroupPro
               sx={{
                 ...activeNavItemSx,
                 justifyContent: collapsed ? "center" : "flex-start",
+                mb: collapsed ? "2px" : 0,
               }}
             >
               <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36, justifyContent: "center" }}>
@@ -606,11 +618,7 @@ function NavItemWithSubmenu({ item, pathname, onNavigate }: NavItemWithSubmenuPr
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
-            {open ? (
-              <ExpandLessIcon fontSize="small" />
-            ) : (
-              <ExpandMoreIcon fontSize="small" />
-            )}
+            {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
           </IconButton>
         }
       >

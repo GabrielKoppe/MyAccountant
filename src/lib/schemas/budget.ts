@@ -91,11 +91,11 @@ export const createBudgetSchema = z
   });
 
 export const updateBudgetSchema = createBudgetSchema.and(
-  z.object({ budgetId: z.string().cuid("ID inválido") }),
+  z.object({ budgetId: cuidSchema }),
 );
 
 export const deleteBudgetSchema = z.object({
-  budgetId: z.string().cuid("ID inválido"),
+  budgetId: cuidSchema,
 });
 
 export type CreateBudgetInput = z.infer<typeof createBudgetSchema>;

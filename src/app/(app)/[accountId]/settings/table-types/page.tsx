@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
 import { m } from "@/lib/messages";
-import { parseHiddenColumns } from "@/lib/schemas/settings";
+import { parseHiddenColumns, type RowLayout } from "@/lib/schemas/settings";
 import { TableTypesManager } from "./TableTypesManager";
 
 type Props = { params: Promise<{ accountId: string }> };
@@ -29,6 +29,7 @@ export default async function TableTypesPage({ params }: Props) {
       name: true,
       isDefault: true,
       hiddenColumns: true,
+      rowLayout: true,
       _count: { select: { financeTables: true } },
     },
   });
@@ -39,12 +40,14 @@ export default async function TableTypesPage({ params }: Props) {
       name: string;
       isDefault: boolean;
       hiddenColumns: any;
+      rowLayout: string | null;
       _count: { financeTables: number };
     }) => ({
       id: t.id,
       name: t.name,
       isDefault: t.isDefault,
       hiddenColumns: parseHiddenColumns(t.hiddenColumns),
+      rowLayout: (t.rowLayout as RowLayout) ?? "columns",
       tableCount: t._count.financeTables,
     }),
   );

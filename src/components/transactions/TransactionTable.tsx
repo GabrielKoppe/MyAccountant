@@ -29,17 +29,21 @@ import {
   createInstitutionAction,
   createSubcategoryAction,
 } from "@/actions/account-settings";
+import { bulkUpdateAction, updateTransactionAction } from "@/actions/transactions";
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import { useDeleteUndo } from "@/components/providers/DeleteUndoProvider";
 import { TagUpdateContext } from "@/components/tags/TagUpdateContext";
+import type { ActionResult } from "@/lib/action-result";
 import { formatDateLong } from "@/lib/dates";
 import { m } from "@/lib/messages";
+import type { BulkUpdateInput, UpdateTransactionInput } from "@/lib/schemas/transaction";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 
 import { BulkActionBar } from "./BulkActionBar";
 import { MoveTransactionsDialog } from "./MoveTransactionsDialog";
 import { NewTransactionRow } from "./NewTransactionRow";
 import { OptionsProvider } from "./OptionsContext";
+import { resolveRowLayout, useIsNarrow, type RowLayout } from "./row-layout";
 import { RowActionsMenu } from "./RowActionsMenu";
 import { TransactionDetailDialog } from "./TransactionDetailDialog";
 import { TransactionRow } from "./TransactionRow";
@@ -59,6 +63,64 @@ type SortState = { field: SortField; dir: SortDir } | null;
 
 const DEFAULT_SORT_FIELD: SortField = "occurredOn";
 const DEFAULT_SORT_DIR: SortDir = "desc";
+
+// Rótulos do header (`.thead` do frame 66 §1): fonte SANS — não mono —, 0.62rem,
+// peso 500, letter-spacing .05em, uppercase, `text.tertiary`.
+const HEADER_LABEL_SX = {
+  fontWeight: 500,
+  fontSize: "0.62rem",
+  letterSpacing: "0.05em",
+  textTransform: "uppercase",
+  color: "text.tertiary",
+} as const;
+
+/**
+ * Campos que `bulkUpdateAction` sabe aplicar em UM round-trip para o lote
+ * inteiro. Os demais campos tocados na edição em massa (data, descrição, valor,
+ * nota, subcategoria, responsável, …) precisam de `updateTransactionAction`
+ * linha a linha — ver `saveBulkEdit`.
+ */
+const BULK_ACTION_FIELDS = new Set<keyof TxRow>([
+  "isPending",
+  "isFavorite",
+  "categoryId",
+  "institutionId",
+  "expenseType",
+  "paymentMethod",
+]);
+
+/**
+ * Converte um patch em formato de linha (strings serializadas) para o input da
+ * Server Action de update individual (Date/BigInt). Só entram as chaves
+ * presentes no patch — `undefined` nunca é enviado.
+ */
+function toUpdateInput(patch: Partial<TxRow>): Omit<UpdateTransactionInput, "transactionId"> {
+  const out: Record<string, unknown> = {};
+  if ("occurredOn" in patch) out.occurredOn = new Date(patch.occurredOn as string);
+  if ("amountCents" in patch) out.amountCents = BigInt(patch.amountCents as string);
+  if ("description" in patch) out.description = patch.description;
+  if ("notes" in patch) out.notes = patch.notes;
+  if ("isPending" in patch) out.isPending = patch.isPending;
+  if ("isFavorite" in patch) out.isFavorite = patch.isFavorite;
+  if ("categoryId" in patch) out.categoryId = patch.categoryId;
+  if ("subcategoryId" in patch) out.subcategoryId = patch.subcategoryId;
+  if ("institutionId" in patch) out.institutionId = patch.institutionId;
+  if ("institutionText" in patch) out.institutionText = patch.institutionText;
+  if ("responsiblePartyId" in patch) out.responsiblePartyId = patch.responsiblePartyId;
+  if ("cardInstallment" in patch) out.cardInstallment = patch.cardInstallment;
+  if ("investmentType" in patch) out.investmentType = patch.investmentType;
+  if ("expenseType" in patch) out.expenseType = patch.expenseType;
+  if ("paymentMethod" in patch) out.paymentMethod = patch.paymentMethod;
+  if ("originalCurrency" in patch) out.originalCurrency = patch.originalCurrency;
+  if ("exchangeRate" in patch) out.exchangeRate = patch.exchangeRate;
+  if ("originalAmountCents" in patch) {
+    out.originalAmountCents =
+      patch.originalAmountCents !== null && patch.originalAmountCents !== undefined
+        ? BigInt(patch.originalAmountCents)
+        : null;
+  }
+  return out as Omit<UpdateTransactionInput, "transactionId">;
+}
 
 function nextSortState(current: SortState, field: SortField): SortState {
   if (!current || current.field !== field) return { field, dir: "asc" };
@@ -114,6 +176,7 @@ type Props = {
   sectionIsActive: boolean;
   sectionCountType: SectionCountType;
   hiddenColumns: HiddenColumns;
+  rowLayout: RowLayout;
   initialTransactions: TxRow[];
   categories: CategoryOption[];
   institutions: InstitutionOption[];
@@ -140,6 +203,7 @@ export function TransactionTable({
   sectionIsActive,
   sectionCountType,
   hiddenColumns,
+  rowLayout,
   initialTransactions,
   categories: propCategories,
   institutions: propInstitutions,
@@ -207,6 +271,14 @@ export function TransactionTable({
   }, [resetSortSignal]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Layout efetivo (Spec 66 TX-04d): degrada para "rich" em viewport estreito.
+  // A medição vem do container de overflow; `useIsNarrow` retorna false até
+  // montar, então SSR/1ª render usam sempre o layout configurado (sem mismatch).
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const isNarrow = useIsNarrow(wrapperRef);
+  const effectiveLayout = resolveRowLayout(rowLayout, isNarrow);
+
   const { requestDelete, registerRestoreCallback, unregisterRestoreCallback } = useDeleteUndo();
 
   const {
@@ -332,10 +404,115 @@ export function TransactionTable({
     setSelected(new Set());
   }
 
-  function onBulkUpdated(ids: string[], patch: Partial<TxRow>) {
+  const onBulkUpdated = useCallback((ids: string[], patch: Partial<TxRow>) => {
     const idSet = new Set(ids);
     setRows((prev) => prev.map((r) => (idSet.has(r.id) ? { ...r, ...patch } : r)));
-  }
+  }, []);
+
+  // ─── Edição em massa INLINE (frame 66 §4) ───────────────────────────────
+  // "Editar em massa" não abre modal: coloca todas as linhas selecionadas em
+  // edição ao mesmo tempo. Cada linha mostra os próprios valores; o campo que o
+  // usuário tocar em QUALQUER linha entra no `bulkPatch` e passa a valer para
+  // todas. Salvar/Cancelar são únicos, para o lote inteiro.
+  const [bulkEditIds, setBulkEditIds] = useState<Set<string> | null>(null);
+  const [bulkPatch, setBulkPatch] = useState<Partial<TxRow>>({});
+  const [bulkSaving, setBulkSaving] = useState(false);
+
+  const startBulkEdit = useCallback(() => {
+    setBulkPatch({});
+    setBulkEditIds(new Set(selected));
+  }, [selected]);
+
+  const cancelBulkEdit = useCallback(() => {
+    setBulkEditIds(null);
+    setBulkPatch({});
+  }, []);
+
+  const handleBulkFieldChange = useCallback((delta: Partial<TxRow>) => {
+    setBulkPatch((prev) => ({ ...prev, ...delta }));
+  }, []);
+
+  const saveBulkEdit = useCallback(async () => {
+    if (!bulkEditIds || bulkSaving) return;
+
+    const affected = rows.filter((r) => bulkEditIds.has(r.id));
+    const ids = affected.map((r) => r.id);
+    const touched = bulkPatch;
+
+    if (ids.length === 0 || Object.keys(touched).length === 0) {
+      cancelBulkEdit();
+      return;
+    }
+
+    // Split: o que `bulkUpdateAction` aceita vai numa chamada só para o lote;
+    // o resto vai linha a linha, e apenas onde o valor realmente difere.
+    const sharedPatch: Record<string, unknown> = {};
+    const individualPatch: Partial<TxRow> = {};
+    for (const key of Object.keys(touched) as (keyof TxRow)[]) {
+      if (BULK_ACTION_FIELDS.has(key)) sharedPatch[key] = touched[key];
+      else (individualPatch as Record<string, unknown>)[key] = touched[key];
+    }
+
+    const snapshot = new Map(affected.map((r) => [r.id, r]));
+
+    setBulkSaving(true);
+    onBulkUpdated(ids, touched); // otimista
+
+    const calls: Promise<ActionResult<void>>[] = [];
+    if (Object.keys(sharedPatch).length > 0) {
+      calls.push(
+        bulkUpdateAction(accountId, {
+          ids,
+          monthId,
+          patch: sharedPatch as BulkUpdateInput["patch"],
+        }),
+      );
+    }
+
+    const individualKeys = Object.keys(individualPatch) as (keyof TxRow)[];
+    if (individualKeys.length > 0) {
+      for (const row of affected) {
+        const diff: Partial<TxRow> = {};
+        for (const key of individualKeys) {
+          if (!Object.is(individualPatch[key], row[key])) {
+            (diff as Record<string, unknown>)[key] = individualPatch[key];
+          }
+        }
+        if (Object.keys(diff).length === 0) continue;
+        calls.push(
+          updateTransactionAction(accountId, { transactionId: row.id, ...toUpdateInput(diff) }),
+        );
+      }
+    }
+
+    const results = await Promise.all(calls);
+
+    setBulkSaving(false);
+    setBulkEditIds(null);
+    setBulkPatch({});
+    setSelected(new Set());
+
+    const failure = results.find((r) => !r.ok);
+    if (failure && !failure.ok) {
+      setRows((prev) => prev.map((r) => snapshot.get(r.id) ?? r));
+      enqueueSnackbar(failure.error.message, { variant: "error" });
+    }
+  }, [
+    accountId,
+    bulkEditIds,
+    bulkPatch,
+    bulkSaving,
+    cancelBulkEdit,
+    enqueueSnackbar,
+    monthId,
+    onBulkUpdated,
+    rows,
+  ]);
+
+  // Só a 1ª linha do lote autofoca a descrição — N autoFocus brigariam entre si.
+  const firstBulkEditId = bulkEditIds
+    ? (visibleRows.find((r) => bulkEditIds.has(r.id))?.id ?? null)
+    : null;
 
   const onDeleteRequested = useCallback(
     (id: string) => {
@@ -452,13 +629,12 @@ export function TransactionTable({
       <TableCell
         align={align}
         sx={{
-          fontSize: 12,
-          fontWeight: "bold",
+          ...HEADER_LABEL_SX,
           whiteSpace: "nowrap",
           cursor: "pointer",
           userSelect: "none",
           "&:hover": { color: "accent.primary" },
-          color: isActive ? "accent.primary" : "inherit",
+          color: isActive ? "accent.primary" : "text.tertiary",
         }}
         onClick={() => handleSortClick(field)}
       >
@@ -469,6 +645,45 @@ export function TransactionTable({
       </TableCell>
     );
   }
+
+  // Renderer único da linha (usado com e sem agrupamento por data) — evita que a
+  // lista de props divirja entre os dois caminhos.
+  const renderTransactionRow = (tx: TxRow) => {
+    const inBulkEdit = bulkEditIds?.has(tx.id) ?? false;
+    return (
+      <TransactionRow
+        key={tx.id}
+        tx={tx}
+        accountId={accountId}
+        currentUserId={currentUserId}
+        isSelected={selected.has(tx.id)}
+        isReadOnly={isReadOnly}
+        sectionCountType={sectionCountType}
+        hiddenColumns={hiddenColumns}
+        effectiveLayout={effectiveLayout}
+        categories={categories}
+        institutions={institutions}
+        members={members}
+        parties={parties}
+        aliases={aliases}
+        autoEdit={editRequestId === tx.id}
+        bulkEditing={inBulkEdit}
+        bulkPatch={inBulkEdit ? bulkPatch : undefined}
+        bulkFocus={firstBulkEditId === tx.id}
+        onSelect={handleSelect}
+        onOptimisticUpdate={optimisticUpdate}
+        onDeleteRequested={onDeleteRequested}
+        onDuplicated={onDuplicated}
+        onViewDetails={setDetailTxId}
+        onAutoEditConsumed={handleAutoEditConsumed}
+        onOpenMenu={handleOpenRowMenu}
+        onOpenMove={handleOpenMove}
+        onBulkFieldChange={handleBulkFieldChange}
+        onBulkSave={saveBulkEdit}
+        onBulkCancel={cancelBulkEdit}
+      />
+    );
+  };
 
   const isFiltered = hasGlobalFilters || searchText.trim().length > 0;
   const noRowsAtAll = rows.length === 0 && !showNewRow;
@@ -520,11 +735,14 @@ export function TransactionTable({
               )}
               selectedIds={selectedIds}
               allSelectedPending={allSelectedPending}
-              categories={categories}
-              institutions={institutions}
+              isEditing={bulkEditIds !== null}
+              isSavingEdit={bulkSaving}
               onClear={() => setSelected(new Set())}
               onMoved={onBulkMoved}
               onBulkUpdated={onBulkUpdated}
+              onStartInlineEdit={startBulkEdit}
+              onSaveInlineEdit={saveBulkEdit}
+              onCancelInlineEdit={cancelBulkEdit}
             />
           )}
 
@@ -568,21 +786,51 @@ export function TransactionTable({
             </Box>
           </Collapse>
 
-          <Box sx={{ overflowX: "auto" }}>
+          <Box ref={wrapperRef} sx={{ overflowX: "auto" }}>
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: "background.default" }}>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={allSelected}
-                      indeterminate={someSelected}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      disabled={isReadOnly}
-                    />
-                  </TableCell>
-                  <SortableHeaderCell field="occurredOn" label="Data" />
-                  <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
+                {effectiveLayout === "rich" ? (
+                  // Header mínimo no layout rico (frame B): select-all + os três
+                  // rótulos que o layout de fato tem (DATA · TRANSAÇÃO · VALOR).
+                  // Sem cabeçalhos por coluna — no rico os metadados são pílulas.
+                  <TableRow sx={{ bgcolor: "background.default" }}>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        size="small"
+                        checked={allSelected}
+                        indeterminate={someSelected}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        disabled={isReadOnly}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <Box component="span" sx={{ ...HEADER_LABEL_SX, minWidth: 40 }}>
+                          {m.transactions.fields.occurredOn}
+                        </Box>
+                        <Box component="span" sx={{ ...HEADER_LABEL_SX, flex: 1, minWidth: 0 }}>
+                          {m.transactions.detail.titleNeutral}
+                        </Box>
+                        <Box component="span" sx={{ ...HEADER_LABEL_SX, flexShrink: 0 }}>
+                          {m.transactions.fields.amount}
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ width: 160, minWidth: 160 }} />
+                  </TableRow>
+                ) : (
+                  <TableRow sx={{ bgcolor: "background.default" }}>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        size="small"
+                        checked={allSelected}
+                        indeterminate={someSelected}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        disabled={isReadOnly}
+                      />
+                    </TableCell>
+                    <SortableHeaderCell field="occurredOn" label="Data" />
+                  <TableCell sx={HEADER_LABEL_SX}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <Box
                         component="span"
@@ -590,7 +838,7 @@ export function TransactionTable({
                           cursor: "pointer",
                           userSelect: "none",
                           "&:hover": { color: "accent.primary" },
-                          color: sort?.field === "description" ? "accent.primary" : "inherit",
+                          color: sort?.field === "description" ? "accent.primary" : "text.tertiary",
                           display: "inline-flex",
                           alignItems: "center",
                           gap: 0.25,
@@ -624,42 +872,36 @@ export function TransactionTable({
                   </TableCell>
                   {show("category") && <SortableHeaderCell field="categoryId" label="Categoria" />}
                   {show("subcategory") && (
-                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Subcategoria</TableCell>
+                    <TableCell sx={HEADER_LABEL_SX}>Subcategoria</TableCell>
                   )}
                   {show("institution") && (
                     <SortableHeaderCell field="institutionId" label="Instituição" />
                   )}
                   {show("paymentMethod") && (
-                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>
-                      {m.transactions.paymentMethodColumn}
-                    </TableCell>
+                    <TableCell sx={HEADER_LABEL_SX}>{m.transactions.paymentMethodColumn}</TableCell>
                   )}
                   <SortableHeaderCell field="amountCents" label="Valor" align="right" />
                   {show("responsibleUser") && (
-                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Resp.</TableCell>
+                    <TableCell sx={HEADER_LABEL_SX}>Resp.</TableCell>
                   )}
 
                   {show("investmentType") && (
-                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tipo inv.</TableCell>
+                    <TableCell sx={HEADER_LABEL_SX}>Tipo inv.</TableCell>
                   )}
                   {show("cardInstallment") && (
-                    <TableCell align="left" sx={{ fontSize: 12, fontWeight: "bold" }}>
+                    <TableCell align="left" sx={HEADER_LABEL_SX}>
                       {m.transactions.installments.column}
                     </TableCell>
                   )}
                   {show("expenseType") && (
-                    <TableCell
-                      align="center"
-                      sx={{ fontSize: 12, fontWeight: "bold", width: 28, px: 0.5 }}
-                    >
+                    <TableCell align="center" sx={{ ...HEADER_LABEL_SX, width: 28, px: 0.5 }}>
                       Tipo
                     </TableCell>
                   )}
-                  {show("tags") && (
-                    <TableCell sx={{ fontSize: 12, fontWeight: "bold" }}>Tags</TableCell>
-                  )}
-                  <TableCell sx={{ width: 160, minWidth: 160 }} />
-                </TableRow>
+                  {show("tags") && <TableCell sx={HEADER_LABEL_SX}>Tags</TableCell>}
+                    <TableCell sx={{ width: 160, minWidth: 160 }} />
+                  </TableRow>
+                )}
               </TableHead>
 
               <TableBody>
@@ -722,32 +964,7 @@ export function TransactionTable({
                     const groupingActive = isGrouped && (!sort || sort.field === "occurredOn");
 
                     if (!groupingActive) {
-                      return visibleRows.map((tx) => (
-                        <TransactionRow
-                          key={tx.id}
-                          tx={tx}
-                          accountId={accountId}
-                          currentUserId={currentUserId}
-                          isSelected={selected.has(tx.id)}
-                          isReadOnly={isReadOnly}
-                          sectionCountType={sectionCountType}
-                          hiddenColumns={hiddenColumns}
-                          categories={categories}
-                          institutions={institutions}
-                          members={members}
-                          parties={parties}
-                          aliases={aliases}
-                          autoEdit={editRequestId === tx.id}
-                          onSelect={handleSelect}
-                          onOptimisticUpdate={optimisticUpdate}
-                          onDeleteRequested={onDeleteRequested}
-                          onDuplicated={onDuplicated}
-                          onViewDetails={setDetailTxId}
-                          onAutoEditConsumed={handleAutoEditConsumed}
-                          onOpenMenu={handleOpenRowMenu}
-                          onOpenMove={handleOpenMove}
-                        />
-                      ));
+                      return visibleRows.map(renderTransactionRow);
                     }
 
                     // Renderizar com separadores de data
@@ -778,32 +995,7 @@ export function TransactionTable({
                           </TableRow>,
                         );
                       }
-                      result.push(
-                        <TransactionRow
-                          key={tx.id}
-                          tx={tx}
-                          accountId={accountId}
-                          currentUserId={currentUserId}
-                          isSelected={selected.has(tx.id)}
-                          isReadOnly={isReadOnly}
-                          sectionCountType={sectionCountType}
-                          hiddenColumns={hiddenColumns}
-                          categories={categories}
-                          institutions={institutions}
-                          members={members}
-                          parties={parties}
-                          aliases={aliases}
-                          autoEdit={editRequestId === tx.id}
-                          onSelect={handleSelect}
-                          onOptimisticUpdate={optimisticUpdate}
-                          onDeleteRequested={onDeleteRequested}
-                          onDuplicated={onDuplicated}
-                          onViewDetails={setDetailTxId}
-                          onAutoEditConsumed={handleAutoEditConsumed}
-                          onOpenMenu={handleOpenRowMenu}
-                          onOpenMove={handleOpenMove}
-                        />,
-                      );
+                      result.push(renderTransactionRow(tx));
                     }
                     return result;
                   })()
@@ -819,7 +1011,6 @@ export function TransactionTable({
               tx={detailTx}
               accountId={accountId}
               sectionCountType={sectionCountType}
-              hiddenColumns={hiddenColumns}
               categories={categories}
               institutions={institutions}
               members={members}
@@ -827,11 +1018,6 @@ export function TransactionTable({
               timezone={timezone}
               canEdit={!isReadOnly}
               onEdit={handleEditFromDetail}
-              onTagsChange={(tags) => optimisticUpdate(detailTx.id, { tags })}
-              onLinkCountChanged={(newCount) =>
-                optimisticUpdate(detailTx.id, { linkCount: newCount })
-              }
-              onViewLinkedTransaction={(txId) => setDetailTxId(txId)}
             />
           )}
 

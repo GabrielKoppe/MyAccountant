@@ -57,9 +57,58 @@ describe("TransactionRowDetails", () => {
     renderDetails({ tags: [{ id: "1", name: "lazer", color: null }] });
     expect(screen.getByText("lazer")).toBeInTheDocument();
   });
-  it("seção de câmbio: mostra moeda, valor estrangeiro e taxa centralizada", () => {
+  it("seção de câmbio: mostra moeda, valor original e taxa em campos distintos (frame 66 §7.2)", () => {
     renderDetails({ originalCurrency: "USD", originalAmountCents: "899", exchangeRate: 5.11 });
-    expect(screen.getByText(/USD.*8\.99/)).toBeInTheDocument();
-    expect(screen.getByText(/câmbio R\$5\.11/)).toBeInTheDocument();
+    expect(screen.getByText("USD")).toBeInTheDocument();
+    expect(screen.getByText("8.99")).toBeInTheDocument();
+    expect(screen.getByText("R$5.11")).toBeInTheDocument();
+  });
+
+  const ALL_SECTIONS_TX: Partial<TxRow> = {
+    notes: "Nota de teste",
+    originalCurrency: "USD",
+    originalAmountCents: "899",
+    exchangeRate: 5.11,
+    linkCount: 1,
+    tags: [{ id: "1", name: "lazer", color: null }],
+    installmentGroupId: "g1",
+    installmentNumber: 3,
+    installmentGroupCount: 12,
+  };
+
+  it("com todos os dados preenchidos: seções aparecem na ordem canônica (notas, câmbio, vínculos, tags, parcela)", () => {
+    const { container } = render(
+      <TransactionRowDetails
+        tx={{ ...TX, ...ALL_SECTIONS_TX }}
+        isReadOnly={false}
+        onManageLinks={vi.fn()}
+        onViewInstallmentGroup={vi.fn()}
+      />,
+    );
+
+    const labels = ["Notas", "Moeda estrangeira", "Vínculos", "Tags", "Parcela"];
+    const positions = labels.map((label) => container.innerHTML.indexOf(`>${label}<`));
+
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it("com todos os dados preenchidos: cabeçalhos das seções não repetem o ícone da seção (frame 66 §7)", () => {
+    render(
+      <TransactionRowDetails
+        tx={{ ...TX, ...ALL_SECTIONS_TX }}
+        isReadOnly={false}
+        onManageLinks={vi.fn()}
+        onViewInstallmentGroup={vi.fn()}
+      />,
+    );
+
+    // O ícone de cada seção já vive no toggle da barra de ferramentas
+    // (RowDrawerToolbar) — o cabeçalho da gaveta é só o rótulo `.cap`.
+    expect(screen.queryByTestId("NoteIcon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("CurrencyExchangeIcon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("LinkIcon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("LabelIcon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("PaymentsIcon")).not.toBeInTheDocument();
   });
 });

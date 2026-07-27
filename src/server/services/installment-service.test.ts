@@ -196,3 +196,57 @@ describe("restoreAsPendingInstallment", () => {
     expect(prismaMock.pendingInstallment.create).not.toHaveBeenCalled();
   });
 });
+
+// ─── undoInstallmentGroup ─────────────────────────────────────────────────────
+
+describe("undoInstallmentGroup", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("multi-tenancy: throws NotFoundError when group belongs to another account and never touches update/delete", async () => {
+    prismaMock.installmentGroup.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.undoInstallmentGroup({ installmentGroupId: "group-other-acc" }, mockCtx),
+    ).rejects.toThrow("Grupo de parcelamento");
+
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(prismaMock.transaction.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.pendingInstallment.deleteMany).not.toHaveBeenCalled();
+    expect(prismaMock.installmentGroup.delete).not.toHaveBeenCalled();
+  });
+
+  it("happy path: dissociates transactions, deletes pending installments and deletes the group inside $transaction", async () => {
+    prismaMock.installmentGroup.findUnique.mockResolvedValue({ id: "group-1" } as never);
+
+    const txMock = {
+      transaction: { updateMany: vi.fn().mockResolvedValue({ count: 3 }) },
+      pendingInstallment: { deleteMany: vi.fn().mockResolvedValue({ count: 9 }) },
+      installmentGroup: { delete: vi.fn().mockResolvedValue({ id: "group-1" }) },
+    };
+    prismaMock.$transaction.mockImplementation(
+      async (fn: Parameters<typeof prismaMock.$transaction>[0]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (fn as (tx: any) => Promise<unknown>)(txMock);
+      },
+    );
+
+    const result = await service.undoInstallmentGroup(
+      { installmentGroupId: "group-1" },
+      mockCtx,
+    );
+
+    expect(prismaMock.installmentGroup.findUnique).toHaveBeenCalledWith({
+      where: { id: "group-1", accountId: "acc-1" },
+      select: { id: true },
+    });
+    expect(txMock.transaction.updateMany).toHaveBeenCalledWith({
+      where: { installmentGroupId: "group-1", accountId: "acc-1" },
+      data: { installmentGroupId: null, installmentNumber: null },
+    });
+    expect(txMock.pendingInstallment.deleteMany).toHaveBeenCalledWith({
+      where: { installmentGroupId: "group-1", accountId: "acc-1" },
+    });
+    expect(txMock.installmentGroup.delete).toHaveBeenCalledWith({ where: { id: "group-1" } });
+    expect(result).toEqual({ dissociatedTransactions: 3, deletedPending: 9 });
+  });
+});

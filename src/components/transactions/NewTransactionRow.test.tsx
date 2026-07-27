@@ -135,7 +135,7 @@ describe("NewTransactionRow", () => {
   it("envia expenseType ao service no create (regressão do bug que descartava o tipo)", async () => {
     const { onCreated } = renderRow();
 
-    await userEvent.type(screen.getByPlaceholderText("Descrição"), "Café{Enter}");
+    await userEvent.type(screen.getByPlaceholderText("Descrição…"), "Café{Enter}");
 
     await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(1));
     const [accountId, payload] = createTransactionAction.mock.calls[0];
@@ -149,11 +149,11 @@ describe("NewTransactionRow", () => {
   it("mantém a linha aberta e limpa a descrição após salvar (entrada rápida)", async () => {
     const { onCancel } = renderRow();
 
-    await userEvent.type(screen.getByPlaceholderText("Descrição"), "Mercado{Enter}");
+    await userEvent.type(screen.getByPlaceholderText("Descrição…"), "Mercado{Enter}");
 
     await waitFor(() => expect(createTransactionAction).toHaveBeenCalled());
     // A linha permanece montada e o campo de descrição é limpo para o próximo lançamento.
-    await waitFor(() => expect(screen.getByPlaceholderText("Descrição")).toHaveValue(""));
+    await waitFor(() => expect(screen.getByPlaceholderText("Descrição…")).toHaveValue(""));
     expect(onCancel).not.toHaveBeenCalled();
   });
 
@@ -161,7 +161,7 @@ describe("NewTransactionRow", () => {
     renderRow();
 
     // Linha aberta e vazia: um Enter perdido não deve disparar o create.
-    screen.getByPlaceholderText("Descrição").focus();
+    screen.getByPlaceholderText("Descrição…").focus();
     await userEvent.keyboard("{Enter}");
 
     expect(createTransactionAction).not.toHaveBeenCalled();
@@ -171,7 +171,7 @@ describe("NewTransactionRow", () => {
     renderRow();
 
     await userEvent.click(screen.getByRole("button", { name: "Transação fixa" }));
-    await userEvent.type(screen.getByPlaceholderText("Descrição"), "Aluguel{Enter}");
+    await userEvent.type(screen.getByPlaceholderText("Descrição…"), "Aluguel{Enter}");
 
     await waitFor(() => expect(createTransactionAction).toHaveBeenCalled());
     expect(createTransactionAction.mock.calls[0][1].expenseType).toBe("fixed");
@@ -187,11 +187,11 @@ describe("NewTransactionRow — aplicação manual de apelido (Fase 4)", () => {
   it("acende o ícone ao casar o gatilho e aplica os campos do apelido ao confirmar no popover", async () => {
     renderRow({ aliases: [CEG_ALIAS] });
 
-    await userEvent.type(screen.getByPlaceholderText("Descrição"), "pagamento CEG");
+    await userEvent.type(screen.getByPlaceholderText("Descrição…"), "pagamento CEG");
     await userEvent.click(await screen.findByRole("button", { name: "Apelido" }));
     await userEvent.click(await screen.findByRole("button", { name: "Aplicar" }));
 
-    await userEvent.click(screen.getByPlaceholderText("Descrição"));
+    await userEvent.click(screen.getByPlaceholderText("Descrição…"));
     await userEvent.keyboard("{Enter}");
 
     await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(1));
@@ -203,12 +203,12 @@ describe("NewTransactionRow — aplicação manual de apelido (Fase 4)", () => {
   it('"Desfazer" no snackbar restaura os campos — nada persiste até Salvar', async () => {
     renderRow({ aliases: [CEG_ALIAS] });
 
-    await userEvent.type(screen.getByPlaceholderText("Descrição"), "pagamento CEG");
+    await userEvent.type(screen.getByPlaceholderText("Descrição…"), "pagamento CEG");
     await userEvent.click(await screen.findByRole("button", { name: "Apelido" }));
     await userEvent.click(await screen.findByRole("button", { name: "Aplicar" }));
     await userEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
 
-    await userEvent.click(screen.getByPlaceholderText("Descrição"));
+    await userEvent.click(screen.getByPlaceholderText("Descrição…"));
     await userEvent.keyboard("{Enter}");
 
     await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(1));
@@ -220,16 +220,16 @@ describe("NewTransactionRow — aplicação manual de apelido (Fase 4)", () => {
   it("não vaza isPending do apelido para o próximo lançamento na entrada rápida (regressão)", async () => {
     renderRow({ aliases: [CEG_ALIAS] });
 
-    await userEvent.type(screen.getByPlaceholderText("Descrição"), "pagamento CEG");
+    await userEvent.type(screen.getByPlaceholderText("Descrição…"), "pagamento CEG");
     await userEvent.click(await screen.findByRole("button", { name: "Apelido" }));
     await userEvent.click(await screen.findByRole("button", { name: "Aplicar" }));
-    await userEvent.click(screen.getByPlaceholderText("Descrição"));
+    await userEvent.click(screen.getByPlaceholderText("Descrição…"));
     await userEvent.keyboard("{Enter}");
     await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(1));
     expect(createTransactionAction.mock.calls[0][1].isPending).toBe(true);
 
     // Linha permanece aberta (entrada rápida) — próximo lançamento não deve herdar isPending.
-    await userEvent.type(screen.getByPlaceholderText("Descrição"), "Mercado{Enter}");
+    await userEvent.type(screen.getByPlaceholderText("Descrição…"), "Mercado{Enter}");
     await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(2));
     expect(createTransactionAction.mock.calls[1][1].isPending).toBe(false);
   });

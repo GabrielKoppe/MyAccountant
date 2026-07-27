@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TransactionExpenseType, TransactionPaymentMethod } from "@prisma/client";
 
 import { partyIdSchema } from "./responsible-party";
+import { cuidSchema } from "./shared";
 
 export { TransactionExpenseType, TransactionPaymentMethod };
 
@@ -29,9 +30,9 @@ export const baseTransactionSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
   isPending: z.boolean(),
   isFavorite: z.boolean(),
-  categoryId: z.string().cuid("ID inválido").nullable().optional(),
-  subcategoryId: z.string().cuid("ID inválido").nullable().optional(),
-  institutionId: z.string().cuid("ID inválido").nullable().optional(),
+  categoryId: cuidSchema.nullable().optional(),
+  subcategoryId: cuidSchema.nullable().optional(),
+  institutionId: cuidSchema.nullable().optional(),
   institutionText: z.string().max(80).optional().nullable(),
   responsiblePartyId: partyIdSchema.nullable().optional(),
   cardInstallment: z
@@ -48,41 +49,41 @@ export const baseTransactionSchema = z.object({
 });
 
 export const createTransactionSchema = baseTransactionSchema.extend({
-  tableId: z.string().cuid("ID inválido"),
+  tableId: cuidSchema,
 });
 
 export const updateTransactionSchema = baseTransactionSchema.partial().extend({
-  transactionId: z.string().cuid("ID inválido"),
+  transactionId: cuidSchema,
 });
 
 export const deleteTransactionSchema = z.object({
-  transactionId: z.string().cuid("ID inválido"),
+  transactionId: cuidSchema,
 });
 
 export const duplicateTransactionSchema = z.object({
-  transactionId: z.string().cuid("ID inválido"),
+  transactionId: cuidSchema,
 });
 
 export const bulkDeleteSchema = z.object({
-  ids: z.array(z.string().cuid("ID inválido")).min(1),
+  ids: z.array(cuidSchema).min(1),
 });
 
 export const bulkUpdateSchema = z.object({
-  ids: z.array(z.string().cuid("ID inválido")).min(1),
-  monthId: z.string().cuid("ID inválido"),
+  ids: z.array(cuidSchema).min(1),
+  monthId: cuidSchema,
   patch: z.object({
     isPending: z.boolean().optional(),
     isFavorite: z.boolean().optional(),
-    categoryId: z.string().cuid().nullable().optional(),
-    institutionId: z.string().cuid().nullable().optional(),
+    categoryId: cuidSchema.nullable().optional(),
+    institutionId: cuidSchema.nullable().optional(),
     expenseType: z.nativeEnum(TransactionExpenseType).nullable().optional(),
     paymentMethod: z.nativeEnum(TransactionPaymentMethod).nullable().optional(),
   }),
 });
 
 export const moveTransactionsSchema = z.object({
-  ids: z.array(z.string().cuid("ID inválido")).min(1),
-  sourceMonthId: z.string().cuid("ID inválido"),
+  ids: z.array(cuidSchema).min(1),
+  sourceMonthId: cuidSchema,
   // Inverte o sinal de amountCents quando as convenções de exibição de origem e
   // destino diferem (exatamente um lado é `subtract`). Ver spec 59. O default de
   // UX (true) vive em AccountSettings.invertSignOnMoveByDefault e na pré-seleção
@@ -90,13 +91,13 @@ export const moveTransactionsSchema = z.object({
   invertSign: z.boolean(),
   destination: z.discriminatedUnion("type", [
     // Mover para tabela já existente
-    z.object({ type: z.literal("existing"), tableId: z.string().cuid("ID inválido") }),
+    z.object({ type: z.literal("existing"), tableId: cuidSchema }),
     // Criar nova tabela e mover para ela (não cria Seção nem Mês)
     z.object({
       type: z.literal("new"),
-      monthId: z.string().cuid("ID inválido"),
-      sectionId: z.string().cuid("ID inválido"),
-      tableTypeId: z.string().cuid("ID inválido"),
+      monthId: cuidSchema,
+      sectionId: cuidSchema,
+      tableTypeId: cuidSchema,
       name: z.string().min(1, "Nome é obrigatório").max(80).trim(),
       countInMonth: z.boolean(),
     }),

@@ -14,6 +14,14 @@ type Props = {
    *  `action.hover` na criação. */
   bgcolor: string;
   label: string;
+  /**
+   * @deprecated Frame 66 §7 — a gaveta não repete mais o ícone da seção no
+   * cabeçalho (ele já vive no toggle da barra de ferramentas). Prop ignorada
+   * (não é mais repassada ao `SectionDrawer`); mantida só para não quebrar os
+   * call sites de `TransactionRowEditor`/`NewTransactionRow`, que ainda
+   * passam `icon`. Remover de lá quando esses arquivos forem tocados.
+   */
+  icon?: React.ReactNode;
   /** Ação opcional à direita do rótulo (ex.: contador + "vincular"). */
   action?: React.ReactNode;
   /** Override do timeout do Collapse (ex.: câmbio no editor). */
@@ -27,7 +35,14 @@ type Props = {
  * Compartilhada entre `TransactionRowEditor` e `NewTransactionRow` para não
  * duplicar o boilerplate por seção. O conteúdo (inputs) vem via `children`.
  */
-export function CollapsibleSectionRow({ open, bgcolor, label, action, timeout, children }: Props) {
+export function CollapsibleSectionRow({
+  open,
+  bgcolor,
+  label,
+  action,
+  timeout,
+  children,
+}: Props) {
   return (
     <TableRow sx={{ bgcolor }}>
       <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>

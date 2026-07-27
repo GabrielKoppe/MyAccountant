@@ -2,8 +2,9 @@ import { AliasMatchMode, AliasPriority } from "@prisma/client";
 import { z } from "zod";
 
 import { isLikelyCatastrophicRegex } from "../rules/safe-regex";
+
 import { partyIdSchema } from "./responsible-party";
-import { amountCentsSchema } from "./shared";
+import { amountCentsSchema, cuidSchema } from "./shared";
 import {
   TransactionExpenseType,
   TransactionPaymentMethod,
@@ -24,16 +25,16 @@ const basePayloadSchema = z.object({
   // gatilho + prioridade no desempate + condições (AND com o gatilho).
   triggerMode: z.nativeEnum(AliasMatchMode).default(AliasMatchMode.contains),
   priority: z.nativeEnum(AliasPriority).default(AliasPriority.medium),
-  conditionInstitutionId: z.string().cuid("ID inválido").optional().nullable(),
+  conditionInstitutionId: cuidSchema.optional().nullable(),
   // Faixa de valor em BigInt centavos — NUNCA Float (money-handling).
   minCents: amountCentsSchema.optional().nullable(),
   maxCents: amountCentsSchema.optional().nullable(),
   description: z.string().max(200).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
   amountCents: z.coerce.bigint().optional().nullable(),
-  categoryId: z.string().cuid("ID inválido").nullable().optional(),
-  subcategoryId: z.string().cuid("ID inválido").nullable().optional(),
-  institutionId: z.string().cuid("ID inválido").nullable().optional(),
+  categoryId: cuidSchema.nullable().optional(),
+  subcategoryId: cuidSchema.nullable().optional(),
+  institutionId: cuidSchema.nullable().optional(),
   institutionText: z.string().max(80).optional().nullable(),
   responsiblePartyId: partyIdSchema.nullable().optional(),
   expenseType: z.nativeEnum(TransactionExpenseType).nullable().optional(),
@@ -52,7 +53,7 @@ const basePayloadSchema = z.object({
   exchangeRate: z.coerce.number().positive().optional().nullable(),
   originalAmountCents: z.coerce.bigint().optional().nullable(),
   // Conjunto de tags do apelido (não da transação-alvo). [] = apelido não toca tags (DD-04).
-  tagIds: z.array(z.string().cuid("ID inválido")),
+  tagIds: z.array(cuidSchema),
 });
 
 // DD-14: institutionId e institutionText são mutuamente exclusivos.

@@ -1,31 +1,22 @@
 "use client";
 
 import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
-import CurrencyExchangeOutlinedIcon from "@mui/icons-material/CurrencyExchangeOutlined";
-import LabelIcon from "@mui/icons-material/Label";
-import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
-import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
-import NoteIcon from "@mui/icons-material/Note";
-import NoteOutlinedIcon from "@mui/icons-material/NoteOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
-import Stack from "@mui/material/Stack";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 
-import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
+
+import { drawerSectionMeta } from "./drawerSections";
 
 type Toggle = { open: boolean; onToggle: () => void };
 
 type Props = {
-  /** Fundo da célula — casa com o fundo das linhas do modo:
-   *  `action.selected` na edição, `action.hover` na criação. */
-  bgcolor: string;
   /** Toggle da seção de nota. `hasContent` mantém o ícone preenchido quando há
-   *  nota mesmo com o painel fechado (o `color` só acende quando aberto). */
+   *  nota mesmo com o painel fechado (a cor só acende com `open`). */
   note: Toggle & { hasContent: boolean };
   /** Toggle da seção de moeda estrangeira. */
   fx: Toggle;
@@ -35,108 +26,180 @@ type Props = {
   tags?: (Toggle & { hasContent: boolean }) | null;
   /** Botão "Criar apelido" à direita — só na edição. */
   onCreateAlias?: () => void;
+  /** Ações Salvar/Cancelar — só na edição (a criação salva via Enter/✓ na própria
+   *  linha). Ficam numa linha própria, junto dos toggles, para não competir por
+   *  largura com os campos da linha de edição (bugfix layout — spec 66). */
+  actions?: { onSave: () => void; onCancel: () => void };
+  /** Cor de fundo da barra. Default `background.subtle` (edição, frame §5); a
+   *  linha de criação passa `accent.primarySubtle` para manter a identidade
+   *  visual de "novo" ao longo de toda a linha (frame §6). */
+  bgcolor?: string;
 };
 
-const BTN_SX = { p: 1, minWidth: 32, minHeight: 32 } as const;
-const ICON_SX = { fontSize: 16 } as const;
+// Ícones-gaveta (nota/câmbio/vínculos/tags): 32x32, ícone 17px, ativo em
+// accent.primary — spec 66 §5 item 4. `padding:0` porque o tamanho final é
+// travado por width/height, não pelo padding interno default do IconButton.
+const DRAWER_BTN_SX = { width: 32, height: 32, padding: 0, borderRadius: "8px" } as const;
+const DRAWER_ICON_SX = { fontSize: 17 } as const;
+
+function drawerIconColor(active: boolean) {
+  return active ? "accent.primary" : "text.secondary";
+}
 
 /**
  * Barra de ferramentas da gaveta de transação: toggles de seção (nota / câmbio /
- * vínculos / tags) + "Criar apelido". Compartilhada entre o editor
- * (`TransactionRowEditor`) e a criação (`NewTransactionRow`) para que as duas
- * fiquem idênticas — referência de design é o editor. Vínculos, tags e criar
- * apelido são opcionais (não existem no modo criação).
+ * vínculos / tags) + "Criar apelido" + Salvar/Cancelar. Compartilhada entre o
+ * editor (`TransactionRowEditor`) e a criação (`NewTransactionRow`) para que as
+ * duas fiquem idênticas — referência de design é o editor. Vínculos, tags, criar
+ * apelido e Salvar/Cancelar são opcionais (não existem no modo criação, que salva
+ * via Enter/✓ na própria linha).
+ *
+ * Fundo sempre `background.subtle` (spec 66 §5 item 4/8) — independe do modo
+ * (edição/criação), que é sinalizado pela cor da linha acima, não pela barra.
  */
-export function RowDrawerToolbar({ bgcolor, note, fx, links, tags, onCreateAlias }: Props) {
+export function RowDrawerToolbar({
+  note,
+  fx,
+  links,
+  tags,
+  onCreateAlias,
+  actions,
+  bgcolor = "background.subtle",
+}: Props) {
   const noteLabel = note.open ? m.transactions.actions.hideNotes : m.transactions.actions.addNote;
+  const noteMeta = drawerSectionMeta.notes;
+  const fxMeta = drawerSectionMeta.fx;
+  const linksMeta = drawerSectionMeta.links;
+  const tagsMeta = drawerSectionMeta.tags;
 
   return (
     <TableRow>
-      <TableCell colSpan={99} sx={{ py: 0.5, border: 0, bgcolor }}>
-        <Stack direction="row" spacing={layout.inline} alignItems="center" sx={{ px: 2 }}>
+      <TableCell colSpan={99} sx={{ p: 0, border: 0 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "6px 14px",
+            bgcolor,
+            borderTop: "1px solid",
+            borderColor: "border.subtle",
+          }}
+        >
           <Tooltip title={noteLabel}>
             <IconButton
               size="small"
-              sx={BTN_SX}
+              sx={{ ...DRAWER_BTN_SX, color: drawerIconColor(note.open) }}
               onClick={note.onToggle}
               aria-label={noteLabel}
-              color={note.open ? "primary" : "default"}
             >
               {note.open || note.hasContent ? (
-                <NoteIcon sx={ICON_SX} />
+                <noteMeta.IconFilled sx={DRAWER_ICON_SX} />
               ) : (
-                <NoteOutlinedIcon sx={ICON_SX} />
+                <noteMeta.Icon sx={DRAWER_ICON_SX} />
               )}
             </IconButton>
           </Tooltip>
 
-          <Tooltip title={m.transactions.foreignCurrency.label}>
+          <Tooltip title={fxMeta.label}>
             <IconButton
               size="small"
-              sx={BTN_SX}
+              sx={{ ...DRAWER_BTN_SX, color: drawerIconColor(fx.open) }}
               onClick={fx.onToggle}
-              aria-label={m.transactions.foreignCurrency.label}
-              color={fx.open ? "primary" : "default"}
+              aria-label={fxMeta.label}
             >
-              <CurrencyExchangeOutlinedIcon sx={ICON_SX} />
+              <fxMeta.Icon sx={DRAWER_ICON_SX} />
             </IconButton>
           </Tooltip>
 
           {links && (
-            <Tooltip title={m.transactions.links.title}>
+            <Tooltip title={linksMeta.label}>
               <IconButton
                 size="small"
-                sx={BTN_SX}
+                sx={{ ...DRAWER_BTN_SX, color: drawerIconColor(links.open) }}
                 onClick={links.onToggle}
-                aria-label={m.transactions.links.title}
-                color={links.open ? "primary" : "default"}
+                aria-label={linksMeta.label}
               >
-                <LinkOutlinedIcon sx={ICON_SX} />
+                <linksMeta.Icon sx={DRAWER_ICON_SX} />
               </IconButton>
             </Tooltip>
           )}
 
           {tags && (
-            <Tooltip title={m.transactions.tags.editTitle}>
+            <Tooltip title={tagsMeta.label}>
               <IconButton
                 size="small"
-                sx={BTN_SX}
+                sx={{ ...DRAWER_BTN_SX, color: drawerIconColor(tags.open) }}
                 onClick={tags.onToggle}
-                aria-label={m.transactions.tags.editTitle}
-                color={tags.open || tags.hasContent ? "primary" : "default"}
+                aria-label={tagsMeta.label}
               >
                 {tags.open || tags.hasContent ? (
-                  <LabelIcon sx={ICON_SX} color="inherit" />
+                  <tagsMeta.IconFilled sx={DRAWER_ICON_SX} />
                 ) : (
-                  <LabelOutlinedIcon sx={ICON_SX} />
+                  <tagsMeta.Icon sx={DRAWER_ICON_SX} />
                 )}
               </IconButton>
             </Tooltip>
           )}
 
+          <Box sx={{ flex: 1 }} />
+
           {onCreateAlias && (
+            <Button
+              variant="text"
+              color="inherit"
+              onClick={onCreateAlias}
+              startIcon={<BookmarkAddOutlinedIcon sx={{ fontSize: 15 }} />}
+              sx={{
+                height: 30,
+                borderRadius: "8px",
+                px: "8px",
+                fontWeight: 400,
+                fontSize: "0.76rem",
+                color: "text.secondary",
+                "& .MuiButton-startIcon": { marginRight: "5px", marginLeft: 0 },
+              }}
+            >
+              {m.transactions.actions.createAlias}
+            </Button>
+          )}
+
+          {actions && (
             <>
-              <Box sx={{ flex: 1 }} />
               <Button
                 variant="text"
-                size="small"
                 color="inherit"
-                startIcon={<BookmarkAddOutlinedIcon color="inherit" sx={ICON_SX} />}
-                onClick={onCreateAlias}
+                onClick={actions.onCancel}
                 sx={{
-                  textTransform: "none",
-                  fontSize: 12,
-                  px: 2,
-                  py: 1,
-                  fontWeight: 400,
+                  height: 30,
+                  borderRadius: "8px",
+                  px: "12px",
+                  fontWeight: 500,
+                  fontSize: "0.78rem",
                   color: "text.secondary",
                 }}
               >
-                {m.transactions.actions.createAlias}
+                {m.transactions.actions.cancel}
+              </Button>
+              <Button
+                variant="text"
+                onClick={actions.onSave}
+                sx={{
+                  height: 30,
+                  borderRadius: "8px",
+                  px: "14px",
+                  fontWeight: 600,
+                  fontSize: "0.78rem",
+                  bgcolor: "accent.primary",
+                  color: "background.canvas",
+                  "&:hover": { bgcolor: "accent.primaryHover" },
+                }}
+              >
+                {m.transactions.actions.save}
               </Button>
             </>
           )}
-        </Stack>
+        </Box>
       </TableCell>
     </TableRow>
   );

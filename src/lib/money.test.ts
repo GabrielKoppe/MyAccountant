@@ -75,6 +75,28 @@ describe("formatCentsToBrl", () => {
     const result = formatCentsToBrl(0n);
     expect(result).toContain("0");
   });
+
+  it("deve adicionar sinal positivo quando options.sign='always' e valor positivo", () => {
+    const result = formatCentsToBrl(10000n, { sign: "always" });
+    expect(result).toContain("+");
+  });
+
+  it("deve adicionar sinal negativo (e não positivo) quando options.sign='always' e valor negativo", () => {
+    const result = formatCentsToBrl(-10000n, { sign: "always" });
+    expect(result).toContain("-");
+    expect(result).not.toContain("+");
+  });
+
+  it("não deve adicionar sinal quando options.sign='always' e valor for zero", () => {
+    const result = formatCentsToBrl(0n, { sign: "always" });
+    expect(result).not.toContain("+");
+    expect(result).not.toContain("-");
+  });
+
+  it("não deve adicionar sinal positivo quando options.sign=true e valor positivo (não-regressão)", () => {
+    const result = formatCentsToBrl(10000n, { sign: true });
+    expect(result).not.toContain("+");
+  });
 });
 
 describe("displaySignInverts", () => {

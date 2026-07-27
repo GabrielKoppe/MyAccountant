@@ -24,6 +24,7 @@ import {
   getMonthInstitutions,
   getMonthMembers,
   getMonthResponsibleParties,
+  getMonthTotal,
 } from "@/server/queries/month-page";
 import { getMonthSections } from "@/server/services/month-service";
 
@@ -111,6 +112,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
     membersRaw,
     partiesRaw,
     accountTags,
+    monthTotal,
   ] = await Promise.all([
     prisma.month.findUnique({
       where: { id: monthId },
@@ -131,6 +133,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
       orderBy: { name: "asc" },
       select: { id: true, name: true, color: true },
     }),
+    getMonthTotal(accountId, monthId),
   ]);
 
   // Resolve exibição das parties (Spec 60 §2.4).
@@ -165,6 +168,7 @@ export default async function MonthPage({ params, searchParams }: Props) {
           currentMonth={currentMonth}
           months={allMonths}
           role={member.role}
+          monthTotal={monthTotal}
         />
 
         <MonthTabs accountId={accountId} monthId={monthId} sections={sections} activeTab={tab} />

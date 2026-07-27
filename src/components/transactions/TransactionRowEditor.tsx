@@ -2,8 +2,7 @@
 
 import AddLinkIcon from "@mui/icons-material/AddLink";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FlashOnOutlinedIcon from "@mui/icons-material/FlashOnOutlined";
 import LabelOutlinedIcon from "@mui/icons-material/LabelOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -50,10 +49,10 @@ import type { TransactionLinkItem } from "@/server/services/transaction-link-ser
 
 import { SuggestionPopover } from "./aliases/SuggestionPopover";
 import { useSuggestions } from "./aliases/useSuggestions";
+import { CollapsibleSectionRow } from "./CollapsibleSectionRow";
 import { CreatableEntitySelect } from "./CreatableEntitySelect";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import { useOptions } from "./OptionsContext";
-import { CollapsibleSectionRow } from "./CollapsibleSectionRow";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
 import { RowDrawerToolbar } from "./RowDrawerToolbar";
 import type {
@@ -71,6 +70,8 @@ type Props = {
   setEditValues: React.Dispatch<React.SetStateAction<TxRow>>;
   isSelected: boolean;
   focusField: string;
+  /** Ref imperativo do input de descrição (TX-03c: foco robusto vindo do modal→inline). */
+  descriptionInputRef?: React.Ref<HTMLInputElement>;
   hiddenColumns: HiddenColumns;
   categories: CategoryOption[];
   institutions: InstitutionOption[];
@@ -83,7 +84,83 @@ type Props = {
   onCancel: () => void;
   /** Cria apelido a partir dos valores em edição (DD-24). */
   onCreateAlias: () => void;
+  /**
+   * Oculta os botões Salvar/Cancelar DESTA linha. Usado na edição em massa:
+   * o lote inteiro é confirmado por uma única barra no topo da tabela, então
+   * repetir os botões por linha confundiria (decisão do dono, spec 66 §4).
+   * O atalho Enter/Esc continua funcionando na linha.
+   */
+  hideActions?: boolean;
 };
+
+/** Ícone dos cabeçalhos das seções colapsáveis (nota/moeda/vínculos/tags) —
+ * sempre a variante preenchida, casando com a gaveta de leitura (spec 66 TX-03b). */
+
+const MONO_FONT_FAMILY = "var(--font-jetbrains-mono), 'JetBrains Mono', monospace";
+
+// Recipes de campo da linha de edição — spec 66 §5. Outlined (o padrão do
+// resto do app — sharedInputProps abaixo troca "standard" por "outlined"),
+// h30, radius 6, padding e tipografia por tipo de campo. O foco (borda 2px
+// accent) já vem do tema (MuiOutlinedInput override global, spec 66 item 2) e
+// não desloca layout: o fieldset do MUI é absolutamente posicionado — trocar
+// 1px→2px não altera a caixa do input.
+const FIELD_ROOT_SX = { "& .MuiOutlinedInput-root": { height: 30, borderRadius: "6px" } } as const;
+
+const DATE_FIELD_SX = {
+  ...FIELD_ROOT_SX,
+  "& .MuiOutlinedInput-input": {
+    padding: "0 6px",
+    fontFamily: MONO_FONT_FAMILY,
+    fontSize: "0.74rem",
+    color: "text.secondary",
+  },
+} as const;
+
+const DESCRIPTION_FIELD_SX = {
+  ...FIELD_ROOT_SX,
+  "& .MuiOutlinedInput-input": {
+    padding: "0 8px",
+    fontSize: "0.78rem",
+    color: "text.primary",
+  },
+} as const;
+
+// Também cobre CreatableEntitySelect (Autocomplete) e ResponsiblePartySelect
+// (Select cru): ambos herdam o sx no elemento raiz, então os seletores abaixo
+// alcançam seus inputs internos por descendência. `.MuiAutocomplete-popupIndicator`
+// é um no-op nos campos que não são Autocomplete.
+const SELECT_FIELD_SX = {
+  ...FIELD_ROOT_SX,
+  "& .MuiOutlinedInput-input, & .MuiSelect-select": {
+    padding: "0 8px",
+    fontSize: "0.76rem",
+    color: "text.secondary",
+  },
+  "& .MuiSelect-icon": { fontSize: 15 },
+  "& .MuiAutocomplete-popupIndicator svg": { fontSize: 15 },
+} as const;
+
+function amountFieldSx(color: string) {
+  return {
+    ...FIELD_ROOT_SX,
+    "& .MuiOutlinedInput-input": {
+      padding: "0 8px",
+      textAlign: "right" as const,
+      fontFamily: MONO_FONT_FAMILY,
+      fontSize: "0.78rem",
+      color,
+    },
+  };
+}
+
+/** Cor do valor mantida no input (danger/success), igual ao modo leitura —
+ * spec 66 §5 item 3. Zero fica em `text.disabled` (nem ganho nem gasto ainda
+ * lançado, mesmo visual de "vazio"). */
+function amountColorFor(cents: string): string {
+  const value = BigInt(cents);
+  if (value === 0n) return "text.disabled";
+  return value < 0n ? "error.main" : "success.main";
+}
 
 export function TransactionRowEditor({
   tx,
@@ -91,6 +168,7 @@ export function TransactionRowEditor({
   setEditValues,
   isSelected,
   focusField,
+  descriptionInputRef,
   hiddenColumns,
   categories,
   institutions,
@@ -101,6 +179,7 @@ export function TransactionRowEditor({
   onSave,
   onCancel,
   onCreateAlias,
+  hideActions = false,
 }: Props) {
   const subcatsForCategory =
     categories.find((c) => c.id === editValues.categoryId)?.subcategories ?? [];
@@ -109,7 +188,10 @@ export function TransactionRowEditor({
     useOptions();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
-  const sharedInputProps = { size: "small" as const, variant: "standard" as const };
+  // "outlined" — o padrão do resto do app (CLAUDE.md §5.11); o override para
+  // "standard" era a causa raiz da divergência de item 1/2 do frame 66 (a linha
+  // de edição não seguia o padrão de input com borda total do resto do app).
+  const sharedInputProps = { size: "small" as const, variant: "outlined" as const };
 
   // Sugestão manual de apelido — o ícone acende sempre que há match, inclusive
   // no mount (DD-23, revê a regra `descriptionDirty` original). Como a aplicação
@@ -217,7 +299,7 @@ export function TransactionRowEditor({
   return (
     <>
       <TableRow
-        sx={{ bgcolor: "action.selected" }}
+        sx={{ bgcolor: "background.subtle" }}
         onKeyDown={(e) => {
           if (suggestionAnchorEl) return; // guard: popover de sugestão trata seu próprio Enter/Escape
           if (e.key === "Enter") onSave();
@@ -233,19 +315,19 @@ export function TransactionRowEditor({
         </TableCell>
 
         {/* Data */}
-        <TableCell>
+        <TableCell sx={{ minWidth: 0 }}>
           <TextField
             {...sharedInputProps}
             type="date"
             value={editValues.occurredOn.slice(0, 10)}
             onChange={(e) => setEditValues((prev) => ({ ...prev, occurredOn: e.target.value }))}
-            sx={{ width: 120, "& input": { fontSize: 13 } }}
+            sx={{ width: "100%", minWidth: 0, maxWidth: 116, ...DATE_FIELD_SX }}
             autoFocus={focusField === "occurredOn"}
           />
         </TableCell>
 
         {/* Descrição */}
-        <TableCell>
+        <TableCell sx={{ minWidth: 0 }}>
           <TextField
             {...sharedInputProps}
             value={editValues.description ?? ""}
@@ -255,7 +337,8 @@ export function TransactionRowEditor({
             placeholder="Descrição"
             fullWidth
             autoFocus={focusField === "description"}
-            sx={{ "& input": { fontSize: 13 } }}
+            inputRef={descriptionInputRef}
+            sx={DESCRIPTION_FIELD_SX}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -282,6 +365,7 @@ export function TransactionRowEditor({
           {suggestion && (
             <SuggestionPopover
               anchorEl={suggestionAnchorEl}
+              trigger={matchedAlias?.trigger ?? null}
               changes={suggestion.changes}
               onApply={handleApplySuggestion}
               onClose={() => setSuggestionAnchorEl(null)}
@@ -291,7 +375,7 @@ export function TransactionRowEditor({
 
         {/* Categoria */}
         {!hiddenColumns.category && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <CreatableEntitySelect
               value={editValues.categoryId}
               onChange={(id) =>
@@ -304,10 +388,10 @@ export function TransactionRowEditor({
               options={categories}
               onCreate={onCreateCategory}
               canCreate={canManageOptions}
-              variant="standard"
+              variant="outlined"
               ariaLabel={m.transactions.fields.category}
               placeholderNone={m.common.none}
-              sx={{ minWidth: 110 }}
+              sx={{ width: "100%", minWidth: 0, ...SELECT_FIELD_SX }}
               autoFocus={focusField === "categoryId"}
             />
           </TableCell>
@@ -315,7 +399,7 @@ export function TransactionRowEditor({
 
         {/* Subcategoria */}
         {!hiddenColumns.subcategory && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <CreatableEntitySelect
               value={editValues.subcategoryId}
               onChange={(id) => setEditValues((prev) => ({ ...prev, subcategoryId: id }))}
@@ -326,10 +410,10 @@ export function TransactionRowEditor({
               }}
               canCreate={canManageOptions && !!editValues.categoryId}
               disabled={!editValues.categoryId}
-              variant="standard"
+              variant="outlined"
               ariaLabel={m.transactions.fields.subcategory}
               placeholderNone={m.common.none}
-              sx={{ minWidth: 110 }}
+              sx={{ width: "100%", minWidth: 0, ...SELECT_FIELD_SX }}
               autoFocus={focusField === "subcategoryId"}
             />
           </TableCell>
@@ -337,17 +421,17 @@ export function TransactionRowEditor({
 
         {/* Instituição */}
         {!hiddenColumns.institution && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <CreatableEntitySelect
               value={editValues.institutionId}
               onChange={(id) => setEditValues((prev) => ({ ...prev, institutionId: id }))}
               options={institutions}
               onCreate={onCreateInstitution}
               canCreate={canManageOptions}
-              variant="standard"
+              variant="outlined"
               ariaLabel={m.transactions.fields.institution}
               placeholderNone={m.common.none}
-              sx={{ minWidth: 110 }}
+              sx={{ width: "100%", minWidth: 0, ...SELECT_FIELD_SX }}
               autoFocus={focusField === "institutionId"}
             />
           </TableCell>
@@ -355,10 +439,12 @@ export function TransactionRowEditor({
 
         {/* Método de pagamento */}
         {!hiddenColumns.paymentMethod && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <Select
               {...sharedInputProps}
               displayEmpty
+              fullWidth
+              IconComponent={ExpandMoreIcon}
               value={editValues.paymentMethod ?? ""}
               onChange={(e) =>
                 setEditValues((prev) => ({
@@ -367,7 +453,7 @@ export function TransactionRowEditor({
                 }))
               }
               aria-label={m.transactions.paymentMethodLabel}
-              sx={{ minWidth: 120, fontSize: 13 }}
+              sx={{ minWidth: 0, ...SELECT_FIELD_SX }}
               autoFocus={focusField === "paymentMethod"}
             >
               <MenuItem value="">
@@ -383,7 +469,7 @@ export function TransactionRowEditor({
         )}
 
         {/* Valor */}
-        <TableCell align="right">
+        <TableCell align="right" sx={{ minWidth: 0 }}>
           <NumericFormat
             customInput={TextField}
             {...sharedInputProps}
@@ -397,22 +483,26 @@ export function TransactionRowEditor({
               const cents = reaisToCents(floatValue ?? 0);
               setEditValues((prev) => ({ ...prev, amountCents: cents.toString() }));
             }}
-            sx={{ "& input": { textAlign: "right", width: 100, fontSize: 13 } }}
+            sx={{
+              width: "100%",
+              minWidth: 0,
+              ...amountFieldSx(amountColorFor(editValues.amountCents)),
+            }}
             autoFocus={focusField === "amountCents"}
           />
         </TableCell>
 
         {/* Responsável */}
         {!hiddenColumns.responsibleUser && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <ResponsiblePartySelect
               value={editValues.responsiblePartyId}
               onChange={(partyId) =>
                 setEditValues((prev) => ({ ...prev, responsiblePartyId: partyId }))
               }
               parties={parties}
-              variant="standard"
-              sx={{ minWidth: 90 }}
+              variant="outlined"
+              sx={{ width: "100%", minWidth: 0, ...SELECT_FIELD_SX }}
               autoFocus={focusField === "responsibleUserId"}
             />
           </TableCell>
@@ -420,9 +510,11 @@ export function TransactionRowEditor({
 
         {/* Tipo de investimento */}
         {!hiddenColumns.investmentType && (
-          <TableCell>
+          <TableCell sx={{ minWidth: 0 }}>
             <Select
               {...sharedInputProps}
+              fullWidth
+              IconComponent={ExpandMoreIcon}
               value={editValues.investmentType ?? ""}
               onChange={(e) =>
                 setEditValues((prev) => ({
@@ -430,7 +522,7 @@ export function TransactionRowEditor({
                   investmentType: (e.target.value || null) as InvestmentType | null,
                 }))
               }
-              sx={{ minWidth: 120, fontSize: 13 }}
+              sx={{ minWidth: 0, ...SELECT_FIELD_SX }}
               autoFocus={focusField === "investmentType"}
             >
               <MenuItem value="">
@@ -447,7 +539,7 @@ export function TransactionRowEditor({
 
         {/* Parcela — read-only no editor (parcelamentos são criados via dialog) */}
         {!hiddenColumns.cardInstallment && (
-          <TableCell sx={{ px: 1 }}>
+          <TableCell sx={{ px: 1, minWidth: 0 }}>
             {editValues.installmentGroupId &&
             editValues.installmentNumber &&
             editValues.installmentGroupCount ? (
@@ -458,7 +550,7 @@ export function TransactionRowEditor({
                 sx={{ height: 20, fontSize: 11, "& .MuiChip-label": { px: 0.75 } }}
               />
             ) : editValues.cardInstallment ? (
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" noWrap>
                 {editValues.cardInstallment}
               </Typography>
             ) : null}
@@ -467,7 +559,7 @@ export function TransactionRowEditor({
 
         {/* Tipo de gasto (expenseType) */}
         {!hiddenColumns.expenseType && (
-          <TableCell sx={{ px: 0.5 }}>
+          <TableCell sx={{ px: 0.5, minWidth: 0 }}>
             <Tooltip title={m.transactions.expenseTypeLabel}>
               <ToggleButtonGroup
                 value={editValues.expenseType ?? null}
@@ -479,7 +571,7 @@ export function TransactionRowEditor({
                     expenseType: (val as TransactionExpenseType | null) ?? null,
                   }))
                 }
-                sx={{ "& .MuiToggleButton-root": { px: 2, py: 1, fontSize: 12 } }}
+                sx={{ "& .MuiToggleButton-root": { px: 0.75, py: 0.25, fontSize: 12 } }}
               >
                 <Tooltip title={m.transactions.expenseTypeTooltips.fixed}>
                   <ToggleButton value="fixed" aria-label={m.transactions.expenseTypes.fixed}>
@@ -539,36 +631,18 @@ export function TransactionRowEditor({
           </TableCell>
         )}
 
-        {/* Ações */}
-        <TableCell align="right" sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1 }}>
-          <Tooltip title={m.transactions.actions.save}>
-            <IconButton
-              size="small"
-              sx={{ p: 1, minWidth: 32, minHeight: 32 }}
-              onClick={onSave}
-              aria-label={m.transactions.actions.save}
-              color="primary"
-            >
-              <CheckIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={m.transactions.actions.cancel}>
-            <IconButton
-              size="small"
-              sx={{ p: 1, minWidth: 32, minHeight: 32 }}
-              onClick={onCancel}
-              aria-label={m.transactions.actions.cancel}
-            >
-              <CloseIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-        </TableCell>
+        {/* Placeholder da coluna de ações: sem Salvar/Cancelar aqui (foram para a
+            barra da gaveta abaixo — não competem por largura com os campos), mas
+            a célula continua existindo para a linha manter o mesmo bgcolor
+            (background.subtle) até a borda direita da tabela, igual às demais linhas. */}
+        <TableCell sx={{ width: 160, minWidth: 160 }} />
       </TableRow>
 
-      {/* Barra de ferramentas da gaveta — toggles de seção + criar apelido
-          (componente compartilhado com NewTransactionRow). */}
+      {/* Barra de ferramentas da gaveta — toggles de seção + criar apelido +
+          Salvar/Cancelar (componente compartilhado com NewTransactionRow; aqui a
+          linha própria abaixo evita que os botões disputem largura com os campos
+          — bugfix de layout da linha em edição inline, spec 66). */}
       <RowDrawerToolbar
-        bgcolor="action.selected"
         note={{
           open: notesOpen,
           onToggle: () => setNotesOpen((o) => !o),
@@ -586,12 +660,13 @@ export function TransactionRowEditor({
             : null
         }
         onCreateAlias={onCreateAlias}
+        actions={hideActions ? undefined : { onSave, onCancel }}
       />
 
       {/* Seções colapsáveis da gaveta — CollapsibleSectionRow compartilhado com NewTransactionRow */}
       <CollapsibleSectionRow
         open={notesOpen}
-        bgcolor="action.selected"
+        bgcolor="background.surface"
         label={m.transactions.fields.notes}
       >
         <TextField
@@ -600,7 +675,7 @@ export function TransactionRowEditor({
           maxRows={6}
           fullWidth
           size="small"
-          variant="standard"
+          variant="outlined"
           // label={m.transactions.fields.notes}
           placeholder={m.transactions.fields.notesPlaceholder}
           value={editValues.notes ?? ""}
@@ -608,14 +683,28 @@ export function TransactionRowEditor({
           onKeyDown={(e) => {
             if (e.key === "Escape") onCancel();
           }}
-          sx={{ "& textarea": { fontSize: 13 } }}
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              minHeight: 56,
+              alignItems: "flex-start",
+              borderRadius: "8px",
+              bgcolor: "background.canvas",
+              padding: "10px 12px",
+            },
+            "& .MuiOutlinedInput-input": {
+              padding: 0,
+              fontSize: "0.8rem",
+              lineHeight: 1.5,
+              color: "text.secondary",
+            },
+          }}
           autoFocus={focusField === "notes"}
         />
       </CollapsibleSectionRow>
 
       <CollapsibleSectionRow
         open={tagsOpen}
-        bgcolor="action.selected"
+        bgcolor="background.subtle"
         label={m.transactions.tags.editTitle}
       >
         <TagPopover
@@ -631,7 +720,7 @@ export function TransactionRowEditor({
 
       <CollapsibleSectionRow
         open={foreignCurrencyOpen}
-        bgcolor="action.selected"
+        bgcolor="background.subtle"
         label={m.transactions.foreignCurrency.label}
         timeout={{ enter: motion.duration.slow, exit: motion.duration.normal }}
       >
@@ -776,7 +865,7 @@ export function TransactionRowEditor({
 
       <CollapsibleSectionRow
         open={linksOpen}
-        bgcolor="action.selected"
+        bgcolor="background.subtle"
         label={m.transactions.links.title}
         action={
           <>

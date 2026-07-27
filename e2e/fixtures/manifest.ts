@@ -10,6 +10,14 @@ export type SeedManifest = {
   inviteAccountId: string;
   roMonthId: string;
   roSectionId: string;
+  // Spec 66 P8 — fixtures do modal de detalhe (e2e/transaction-detail.spec.ts), num mês
+  // dedicado isolado (2099/11) na conta principal. Seção reusa `roSectionId` ("Saídas").
+  spec66MonthId: string;
+  simpleTxId: string;
+  linkSourceTxId: string;
+  linkTargetTxId: string;
+  installmentGroupId: string;
+  installmentTxId: string;
 };
 
 export function manifest(): SeedManifest {

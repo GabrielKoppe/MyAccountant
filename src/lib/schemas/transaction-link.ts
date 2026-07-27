@@ -1,33 +1,34 @@
 import { z } from "zod";
 import { TransactionLinkType } from "@prisma/client";
+import { cuidSchema } from "./shared";
 
 export { TransactionLinkType };
 
 export const createTransactionLinkSchema = z.object({
-  sourceId: z.string().cuid("ID inválido"),
-  targetId: z.string().cuid("ID inválido"),
+  sourceId: cuidSchema,
+  targetId: cuidSchema,
   type: z.nativeEnum(TransactionLinkType),
   notes: z.string().max(500).optional().nullable(),
 });
 
 export const deleteTransactionLinkSchema = z.object({
-  linkId: z.string().cuid("ID inválido"),
+  linkId: cuidSchema,
 });
 
 export const listLinksForTransactionSchema = z.object({
-  transactionId: z.string().cuid("ID inválido"),
+  transactionId: cuidSchema,
 });
 
 export const searchTransactionsForLinkSchema = z.object({
   query: z.string().max(100),
-  excludeTransactionId: z.string().cuid().optional(),
-  tableId: z.string().cuid().optional(),
+  excludeTransactionId: cuidSchema.optional(),
+  tableId: cuidSchema.optional(),
 });
 
 export const getMonthsForLinkSchema = z.object({});
 
 export const getSectionsTablesSchema = z.object({
-  monthId: z.string().cuid(),
+  monthId: cuidSchema,
 });
 
 export type CreateTransactionLinkInput = z.infer<typeof createTransactionLinkSchema>;

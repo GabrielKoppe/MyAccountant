@@ -16,6 +16,7 @@ import { CollapsibleNavItem } from "@/components/settings/CollapsibleNavItem";
 import { isCollapsibleNavEntry } from "@/components/settings/settings-nav-groups";
 import type { NavEntry, NavGroup } from "@/components/settings/settings-nav-groups";
 import { AppLink } from "@/components/ui/AppLink";
+import { layout } from "@/lib/design-tokens";
 
 export type {
   CollapsibleNavEntry,
@@ -25,6 +26,8 @@ export type {
 } from "@/components/settings/settings-nav-groups";
 
 const DRAWER_WIDTH = 220;
+
+const NAV_LABEL_TYPOGRAPHY = { fontSize: "0.82rem", fontWeight: 500 } as const;
 
 type Props = {
   accountId: string;
@@ -75,7 +78,7 @@ function renderEntry(
           },
         }}
       >
-        <ListItemText primary={label} />
+        <ListItemText primary={label} primaryTypographyProps={NAV_LABEL_TYPOGRAPHY} />
       </ListItemButton>
     </ListItem>
   );
@@ -91,10 +94,23 @@ function NavItems({
     <Box sx={{ pt: 2 }}>
       {groups.map((group) => (
         <Box key={group.label} sx={{ mb: 1 }}>
-          <Typography variant="overline" sx={{ px: 2, color: "text.secondary" }}>
+          <Typography
+            variant="overline"
+            sx={{
+              display: "block",
+              px: layout.inline,
+              mt: layout.inline,
+              mb: layout.micro,
+              color: "text.disabled",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              lineHeight: 1.6,
+            }}
+          >
             {group.label}
           </Typography>
-          <List dense disablePadding sx={{ mt: 1 }}>
+          <List dense disablePadding>
             {group.entries.map((entry) => renderEntry(entry, accountId, pathname, onNavigate))}
           </List>
         </Box>
@@ -158,6 +174,7 @@ export function SettingsNav({ accountId, groups }: Props) {
         sx={{
           width: DRAWER_WIDTH,
           flexShrink: 0,
+          overflowY: "auto",
           borderRight: 1,
           borderColor: "divider",
           bgcolor: "background.paper",
