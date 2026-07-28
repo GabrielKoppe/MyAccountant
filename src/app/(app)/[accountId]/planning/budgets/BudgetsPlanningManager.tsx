@@ -133,8 +133,8 @@ export function BudgetsPlanningManager({ accountId, initialBudgets, formOptions,
   }
 
   return (
-    <Box sx={{ p: layout.page }}>
-      <Stack spacing={layout.section}>
+    <Box sx={{ px: layout.page, py: layout.inline }}>
+      <Stack spacing={3}>
         {/* ── Barra de ação (o PageHeader do hub vem do layout — só o botão contextual) ── */}
         {canEdit && (
           <Stack direction="row" alignItems="center" justifyContent="flex-end">

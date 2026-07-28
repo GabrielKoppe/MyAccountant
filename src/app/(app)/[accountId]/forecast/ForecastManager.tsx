@@ -103,10 +103,12 @@ export function ForecastManager({ accountId, forecast }: Props) {
           <Stack direction="row" spacing={layout.inline}>
             <PageInfoButton guide={m.cashflowForecast.guide} />
             <Button
+              size="small"
               component={AppLink}
               href={`/${accountId}/settings/forecast`}
               variant="outlined"
               startIcon={<SettingsIcon />}
+              sx={{ color: "text.secondary", borderColor: "divider" }}
             >
               {m.cashflowForecast.configureLink}
             </Button>

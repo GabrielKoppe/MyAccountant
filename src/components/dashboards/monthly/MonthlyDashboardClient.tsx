@@ -1,12 +1,26 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import React, { useState, useTransition } from "react";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import CategoryIcon from "@mui/icons-material/Category";
+import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
+import SavingsIcon from "@mui/icons-material/Savings";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import dynamic from "next/dynamic";
+import React, { useState, useTransition } from "react";
 
-import { formatCentsToBrl } from "@/lib/money";
+import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
+import { DailyHeatmap } from "@/components/dashboards/charts/DailyHeatmap";
+import {
+  KpiCard,
+  CategoryTreemap,
+  MemberRadarWidget,
+  WeeklySpendingWidget,
+} from "@/components/dashboards/charts/lazy";
 import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
 import type {
   SectionMeta,
   CategorySum,
@@ -17,30 +31,23 @@ import type {
   SankeyData,
   DrillDownTransaction,
 } from "@/server/queries/dashboards";
+import type { KpiCustomResult } from "@/server/queries/kpi-custom";
 import type { MemberBreakdownRow } from "@/server/queries/member-analytics";
 
-import {
-  KpiCard,
-  CategoryTreemap,
-  MemberRadarWidget,
-  WeeklySpendingWidget,
-} from "@/components/dashboards/charts/lazy";
-import { DailyHeatmap } from "@/components/dashboards/charts/DailyHeatmap";
 import { DrillDownDrawer } from "@/components/dashboards/panels/DrillDownDrawer";
+
+import type { Insight } from "@/server/services/insights-service";
+import { TopTransactionTable } from "../panels/TopTransactionTable";
 import { ComparisonToggle, type CompareMode } from "./ComparisonToggle";
 import { InsightsCard } from "@/components/dashboards/panels/InsightsCard";
 import { SectionBreakdownWidget } from "@/components/dashboards/panels/SectionBreakdownWidget";
 import { CategoryBreakdownWidget } from "@/components/dashboards/panels/CategoryBreakdownWidget";
 import { MemberBreakdownWidget } from "@/components/dashboards/panels/MemberBreakdownWidget";
 import { MemberListWidget } from "@/components/dashboards/panels/MemberListWidget";
-import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
-import { TopTransactionTable } from "../panels/TopTransactionTable";
 import { BudgetsWidget } from "@/components/budgets/BudgetsWidget";
 import { BudgetHealthKpi } from "@/components/dashboards/kpi/BudgetHealthKpi";
 import { InstitutionBreakdownWidget } from "@/components/dashboards/panels/InstitutionBreakdownWidget";
-
-import type { Insight } from "@/server/services/insights-service";
 import type { BudgetProgress, BudgetFormOptions } from "@/server/queries/budgets";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import {
@@ -50,17 +57,10 @@ import {
   type TopTransactionsConfig,
   type TreemapConfig,
 } from "@/lib/schemas/widget-config";
-import type { KpiCustomResult } from "@/server/queries/kpi-custom";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
 import { AnalysisWidget } from "@/components/dashboards/panels/AnalysisWidget";
 import type { SerializedSandboxResult } from "@/server/queries/sandbox";
 import type { InstitutionBreakdownItem, WeeklySpendingItem } from "@/server/queries/dashboards";
-import TrendingDownIcon from "@mui/icons-material/TrendingDown";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import SavingsIcon from "@mui/icons-material/Savings";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import CategoryIcon from "@mui/icons-material/Category";
-import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 
 // @nivo/sankey loaded client-only (no SSR — uses D3 hooks)
 const SankeyChart = dynamic(
@@ -460,7 +460,7 @@ export function MonthlyDashboardClient({
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 4 }}>
         <ComparisonToggle
           value={compareMode}
           onChange={setCompareMode}

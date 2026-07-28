@@ -35,7 +35,7 @@ export interface PageHeaderProps {
  */
 export function PageHeader({ title, description, breadcrumbs, actions }: PageHeaderProps) {
   return (
-    <Stack spacing={layout.inline} sx={{ mb: layout.card }}>
+    <Stack spacing={layout.inline} sx={{ mb: 3 }}>
       {breadcrumbs && breadcrumbs.length > 0 && (
         <Breadcrumbs
           separator={<NavigateNextIcon fontSize="small" />}
@@ -83,7 +83,9 @@ export function PageHeader({ title, description, breadcrumbs, actions }: PageHea
         spacing={layout.stack}
       >
         <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography variant="h3">{title}</Typography>
+          <Typography variant="h3" sx={{ color: "text.primary" }}>
+            {title}
+          </Typography>
           {description && (
             <Typography variant="body2" sx={{ color: "text.secondary", mt: layout.micro }}>
               {description}

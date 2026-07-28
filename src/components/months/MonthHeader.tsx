@@ -146,7 +146,7 @@ export function MonthHeader({
 
       <TransactionFilterDrawer anchorEl={filterAnchorEl} onClose={() => setFilterAnchorEl(null)} />
 
-      {/* Exportar — botão explícito (CSV/PDF), como no frame */}
+      {/* Exportar — botão explícito (CSV/PDF)*/}
       <Button
         variant="outlined"
         size="small"
@@ -159,6 +159,11 @@ export function MonthHeader({
         }
         onClick={(e) => setExportAnchor(e.currentTarget)}
         disabled={exportLoading}
+        sx={{
+          color: "text.secondary",
+          borderColor: "divider",
+          "&:hover": { borderColor: "divider" },
+        }}
       >
         {m.export.buttonLabel}
       </Button>

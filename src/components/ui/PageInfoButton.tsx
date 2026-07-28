@@ -28,12 +28,7 @@ export interface PageInfoButtonProps {
  * É um client component, mas pode ser usado dentro de Server Components
  * (ex: no `actions` de um `PageHeader`).
  */
-export function PageInfoButton({
-  guide,
-  ariaLabel,
-  size = "small",
-  sx,
-}: PageInfoButtonProps) {
+export function PageInfoButton({ guide, ariaLabel, size = "small", sx }: PageInfoButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -45,6 +40,7 @@ export function PageInfoButton({
         sx={{
           color: "text.tertiary",
           "&:hover": { color: "text.primary" },
+          px: 2,
           ...sx,
         }}
       >

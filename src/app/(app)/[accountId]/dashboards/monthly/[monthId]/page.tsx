@@ -227,13 +227,16 @@ export default async function MonthlyDashboardPage({ params }: Props) {
           <Button
             component={AppLink}
             href={`/${accountId}/dashboards/yearly/${year}`}
-            size="small"
+            size="medium"
             variant="text"
-            sx={{ color: "text.secondary", fontWeight: "normal", px: 1, minWidth: 0 }}
+            sx={{ color: "text.secondary", fontWeight: 400, px: 1, minWidth: 0 }}
           >
             Dashboards · {year}
           </Button>
-          <Typography variant="body2" sx={{ color: "text.disabled" }}>
+          <Typography
+            variant="body2"
+            sx={{ fontSize: "1.25rem", color: "text.disabled", mr: -1.5 }}
+          >
             /
           </Typography>
           <MonthPickerNav
@@ -247,8 +250,14 @@ export default async function MonthlyDashboardPage({ params }: Props) {
             variant="text"
             component={AppLink}
             href={`/${accountId}/months/${monthId}`}
-            startIcon={<CalendarMonthIcon fontSize="small" />}
-            sx={{ color: "text.secondary", whiteSpace: "nowrap" }}
+            startIcon={<CalendarMonthIcon />}
+            sx={{
+              color: "text.secondary",
+              whiteSpace: "nowrap",
+              fontWeight: 400,
+              fontSize: 13,
+              "& .MuiButton-startIcon > *:nth-of-type(1)": { fontSize: 16 },
+            }}
           >
             Ver mês
           </Button>

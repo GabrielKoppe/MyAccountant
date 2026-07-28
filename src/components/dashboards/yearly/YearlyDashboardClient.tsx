@@ -2,18 +2,20 @@
 
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
 import SavingsIcon from "@mui/icons-material/Savings";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import { Button } from "@mui/material";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import Typography from "@mui/material/Typography";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import React from "react";
 
 import { DashboardGrid } from "@/components/dashboards/_core/DashboardGrid";
 import { getRenderMode } from "@/components/dashboards/_core/widget-registry";
-import { YearSelector } from "@/components/dashboards/_shared/YearSelector";
 import { KpiCard, MonthlyBarChart, MemberTrendChart } from "@/components/dashboards/charts/lazy";
 import { MonthCardGrid } from "@/components/dashboards/charts/MonthCardGrid";
 import { KpiCustomWidget } from "@/components/dashboards/kpi/KpiCustomWidget";
@@ -115,6 +117,8 @@ export function YearlyDashboardClient({
   const yearTotalBigInt = BigInt(yearTotal);
   const yearlyIncomeBigInt = BigInt(yearlyIncome);
   const yearlyExpenseBigInt = BigInt(yearlyExpense);
+
+  const [monthsMenuAnchor, setMonthsMenuAnchor] = React.useState<null | HTMLElement>(null);
 
   // Config interna por widget (singletons)
   const configOf = (widgetId: string): unknown =>
@@ -320,8 +324,35 @@ export function YearlyDashboardClient({
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Typography variant="h5">{m.dashboards.yearlyTitle}</Typography>
-          <YearSelector accountId={accountId} currentYear={year} allYears={allYears} />
+          <>
+            <Button
+              size="medium"
+              variant="text"
+              onClick={(e) => setMonthsMenuAnchor(e.currentTarget)}
+              endIcon={<ExpandMoreIcon />}
+              sx={{ color: "text.secondary", fontWeight: 400, px: 4, minWidth: 0 }}
+            >
+              Dashboards · {year}
+            </Button>
+            <Menu
+              anchorEl={monthsMenuAnchor}
+              open={Boolean(monthsMenuAnchor)}
+              onClose={() => setMonthsMenuAnchor(null)}
+              slotProps={{ paper: { sx: { minWidth: 160 } } }}
+            >
+              {monthSummaries.map((ms) => (
+                <MenuItem
+                  key={ms.id}
+                  component={AppLink}
+                  href={`/${accountId}/dashboards/monthly/${ms.id}`}
+                  onClick={() => setMonthsMenuAnchor(null)}
+                  sx={{ py: 0.75, fontSize: 13 }}
+                >
+                  {ms.label}
+                </MenuItem>
+              ))}
+            </Menu>
+          </>
         </Box>
 
         {/* Quick links + actions */}

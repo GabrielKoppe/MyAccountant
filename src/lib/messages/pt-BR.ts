@@ -765,7 +765,7 @@ export const messages = {
     },
   },
   financeTables: {
-    createButton: "Tabela",
+    createButton: "Nova tabela",
     createTitle: "Nova tabela financeira",
     editTitle: "Editar tabela",
     nameLabel: "Nome da tabela",

@@ -355,13 +355,24 @@ export function NetWorthManager({ accountId, overview, series, institutions, can
               <>
                 <Button
                   variant="outlined"
+                  size="small"
                   startIcon={<SyncIcon />}
                   disabled={activeAccounts.length === 0}
                   onClick={() => openBalancesDialog(activeAccounts.map((a) => a.id))}
+                  sx={{
+                    color: "text.secondary",
+                    borderColor: "divider",
+                    "&:hover": { borderColor: "divider" },
+                  }}
                 >
                   {m.netWorth.updateBalances}
                 </Button>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={openCreate}
+                >
                   {m.netWorth.newAccount}
                 </Button>
               </>

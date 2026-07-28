@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import { Button } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
-import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { useState } from "react";
 
 import { useExportDownload } from "@/lib/hooks/use-export-download";
 import { m } from "@/lib/messages";
@@ -27,23 +26,31 @@ export function YearlyDashboardMenu({ csvUrl }: Props) {
 
   return (
     <>
-      <IconButton
+      <Button
+        variant="outlined"
         size="small"
         onClick={(e) => setAnchor(e.currentTarget)}
         disabled={loading}
-        aria-label="Mais opções"
+        startIcon={
+          loading ? (
+            <CircularProgress size={16} color="inherit" />
+          ) : (
+            <FileDownloadIcon fontSize="small" />
+          )
+        }
+        sx={{
+          color: "text.secondary",
+          borderColor: "divider",
+          "&:hover": { borderColor: "divider" },
+        }}
       >
-        {loading ? (
-          <CircularProgress size={16} color="inherit" />
-        ) : (
-          <MoreVertIcon fontSize="small" />
-        )}
-      </IconButton>
+        {m.export.buttonLabel}
+      </Button>
       <Menu
         anchorEl={anchor}
         open={!!anchor}
         onClose={() => setAnchor(null)}
-        slotProps={{ paper: { sx: { minWidth: 180 } } }}
+        slotProps={{ paper: { sx: { minWidth: 160 } } }}
       >
         <MenuItem
           onClick={() => handleExport(csvUrl)}

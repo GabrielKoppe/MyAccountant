@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import { Button } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
-import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import { useState } from "react";
 
 import { useExportDownload } from "@/lib/hooks/use-export-download";
 import { m } from "@/lib/messages";
@@ -29,23 +28,27 @@ export function MonthlyDashboardMenu({ csvUrl, pdfUrl }: Props) {
 
   return (
     <>
-      <IconButton
+      <Button
         size="small"
+        variant="outlined"
         onClick={(e) => setAnchor(e.currentTarget)}
         disabled={loading}
-        aria-label="Mais opções"
+        startIcon={
+          loading ? (
+            <CircularProgress size={16} color="inherit" />
+          ) : (
+            <FileDownloadIcon fontSize="small" />
+          )
+        }
+        sx={{color: "text.secondary", borderColor: "divider", "&:hover": { borderColor: "divider" }}}
       >
-        {loading ? (
-          <CircularProgress size={16} color="inherit" />
-        ) : (
-          <MoreVertIcon fontSize="small" />
-        )}
-      </IconButton>
+        Exportar
+      </Button>
       <Menu
         anchorEl={anchor}
         open={!!anchor}
         onClose={() => setAnchor(null)}
-        slotProps={{ paper: { sx: { minWidth: 180 } } }}
+        slotProps={{ paper: { sx: { minWidth: 160 } } }}
       >
         <MenuItem
           onClick={() => handleExport(csvUrl)}
