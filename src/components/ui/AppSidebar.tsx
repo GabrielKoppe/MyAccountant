@@ -47,7 +47,7 @@ import { saveSidebarCollapsedAction } from "@/actions/user-settings";
 import { AccountSwitcher } from "@/components/accounts/AccountSwitcher";
 import { CreateMonthModal } from "@/components/months/CreateMonthModal";
 import { AppLink } from "@/components/ui/AppLink";
-import { activeNavItemSx, isNavItemActive } from "@/components/ui/nav-active";
+import { activeNavItemCollapsedSx, activeNavItemSx, isNavItemActive } from "@/components/ui/nav-active";
 import { UserMenuButton } from "@/components/ui/UserMenuButton";
 import { APP_HEADER_HEIGHT, layout, motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
@@ -275,7 +275,7 @@ function SidebarContent({
       key: "months",
       href: monthsHref,
       label: m.nav.months,
-      icon: <CalendarMonthIcon fontSize={collapsed ? "medium" : "small"} />,
+      icon: <CalendarMonthIcon fontSize="small" />,
       // Meses = base exata da account OU qualquer rota sob /months (§10.3 P1).
       isActive: (p) =>
         isNavItemActive(p, monthsHref, { exact: true }) ||
@@ -291,28 +291,28 @@ function SidebarContent({
       key: "dashboards",
       href: `/${accountId}/dashboards`,
       label: m.nav.dashboards,
-      icon: <BarChartIcon fontSize={collapsed ? "medium" : "small"} />,
+      icon: <BarChartIcon fontSize="small" />,
       isActive: (p) => isNavItemActive(p, `/${accountId}/dashboards`),
     },
     {
       key: "net-worth",
       href: `/${accountId}/net-worth`,
       label: m.netWorth.navLabel,
-      icon: <AccountBalanceWalletIcon fontSize={collapsed ? "medium" : "small"} />,
+      icon: <AccountBalanceWalletIcon fontSize="small" />,
       isActive: (p) => isNavItemActive(p, `/${accountId}/net-worth`),
     },
     {
       key: "planning",
       href: `/${accountId}/planning`,
       label: m.goals.navLabel,
-      icon: <SavingsIcon fontSize={collapsed ? "medium" : "small"} />,
+      icon: <SavingsIcon fontSize="small" />,
       isActive: (p) => isNavItemActive(p, `/${accountId}/planning`),
     },
     {
       key: "forecast",
       href: `/${accountId}/forecast`,
       label: m.cashflowForecast.navLabel,
-      icon: <TrendingUpIcon fontSize={collapsed ? "medium" : "small"} />,
+      icon: <TrendingUpIcon fontSize="small" />,
       isActive: (p) => isNavItemActive(p, `/${accountId}/forecast`),
     },
   ];
@@ -323,7 +323,7 @@ function SidebarContent({
       href: membersHref,
       // Membros: visível a TODOS os papéis (gestão fica owner-only dentro da página — §7.1).
       label: m.settings.nav.members,
-      icon: <GroupIcon fontSize={collapsed ? "medium" : "small"} />,
+      icon: <GroupIcon fontSize="small" />,
       isActive: (p) => isNavItemActive(p, membersHref),
     },
     ...(canManageSettings
@@ -332,7 +332,7 @@ function SidebarContent({
             key: "settings",
             href: `${settingsBase}/general`,
             label: m.nav.settings,
-            icon: <SettingsIcon fontSize={collapsed ? "medium" : "small"} />,
+            icon: <SettingsIcon fontSize="small" />,
             // Configurações = prefixo /settings E NÃO /settings/members (§10.3 P1).
             isActive: (p: string) =>
               isNavItemActive(p, settingsBase) && !isNavItemActive(p, membersHref),
@@ -562,9 +562,8 @@ function NavGroup({ label, items, collapsed, pathname, onNavigate }: NavGroupPro
               aria-label={item.label}
               onClick={onNavigate}
               sx={{
-                ...activeNavItemSx,
+                ...(collapsed ? activeNavItemCollapsedSx : activeNavItemSx),
                 justifyContent: collapsed ? "center" : "flex-start",
-                mb: collapsed ? "2px" : 0,
               }}
             >
               <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36, justifyContent: "center" }}>

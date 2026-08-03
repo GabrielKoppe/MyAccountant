@@ -52,3 +52,37 @@ export const activeNavItemSx: SxProps<Theme> = {
     "& .MuiListItemIcon-root": { color: "primary.main" },
   },
 };
+
+/**
+ * `sx` do item de navegação ativo no **rail recolhido** — pastilha centrada
+ * em torno do ícone com `accent.primarySubtle` de fundo e sem faixa
+ * edge-to-edge. Dimensões do ícone são fixas (40×40) para evitar layout shift
+ * ao hover/select.
+ */
+export const activeNavItemCollapsedSx: SxProps<Theme> = {
+  borderRadius: 1,
+  py: 0,
+  // Dimensões fixas sempre no ícone — sem layout shift no hover/selected.
+  "& .MuiListItemIcon-root": {
+    minWidth: 0,
+    width: 40,
+    height: 40,
+    borderRadius: "10px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  "&:hover": {
+    bgcolor: "transparent",
+    "& .MuiListItemIcon-root": { bgcolor: "background.subtle" },
+  },
+  "&.Mui-selected": {
+    bgcolor: "transparent",
+    borderRight: 0,
+    "& .MuiListItemIcon-root": { color: "accent.primary", bgcolor: "accent.primarySubtle" },
+  },
+  "&.Mui-selected:hover": {
+    bgcolor: "transparent",
+    "& .MuiListItemIcon-root": { color: "accent.primary", bgcolor: "accent.primarySubtle" },
+  },
+};
