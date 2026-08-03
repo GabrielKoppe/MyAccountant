@@ -9,6 +9,10 @@ import {
   getMonthRange,
   getNextMonthSuggestion,
   parseLocalDate,
+  shiftYearMonth,
+  utcDateOnly,
+  utcMonthRange,
+  utcYearMonthOf,
 } from "./dates";
 
 describe("applyDayToMonth", () => {
@@ -171,5 +175,76 @@ describe("formatDateTimeInTz", () => {
 
   it("deve aceitar objeto Date", () => {
     expect(formatDateTimeInTz(new Date("2026-01-15T00:00:00Z"), "UTC")).toBe("15/01/2026 00:00");
+  });
+});
+
+// ─── Helpers UTC de datas @db.Date (spec 73 §2.7) ────────────────────────────
+
+describe("shiftYearMonth", () => {
+  it("avança dentro do mesmo ano", () => {
+    expect(shiftYearMonth({ year: 2026, month: 3 }, 3)).toEqual({ year: 2026, month: 6 });
+  });
+
+  it("avança virando o ano", () => {
+    expect(shiftYearMonth({ year: 2026, month: 11 }, 3)).toEqual({ year: 2027, month: 2 });
+  });
+
+  it("retrocede virando o ano", () => {
+    expect(shiftYearMonth({ year: 2026, month: 2 }, -3)).toEqual({ year: 2025, month: 11 });
+  });
+
+  it("offset zero é identidade", () => {
+    expect(shiftYearMonth({ year: 2026, month: 6 }, 0)).toEqual({ year: 2026, month: 6 });
+  });
+
+  it("retrocede 12 meses = ano anterior, mesmo mês", () => {
+    expect(shiftYearMonth({ year: 2026, month: 1 }, -12)).toEqual({ year: 2025, month: 1 });
+  });
+});
+
+describe("utcDateOnly", () => {
+  it("constrói meia-noite UTC", () => {
+    expect(utcDateOnly(2026, 6, 15).toISOString()).toBe("2026-06-15T00:00:00.000Z");
+  });
+
+  it("ajusta dia 31 para o último dia do mês curto", () => {
+    expect(utcDateOnly(2026, 4, 31).toISOString()).toBe("2026-04-30T00:00:00.000Z");
+  });
+
+  it("ajusta dia 30 em fevereiro não-bissexto", () => {
+    expect(utcDateOnly(2026, 2, 30).toISOString()).toBe("2026-02-28T00:00:00.000Z");
+  });
+
+  it("respeita 29 de fevereiro em ano bissexto", () => {
+    expect(utcDateOnly(2028, 2, 29).toISOString()).toBe("2028-02-29T00:00:00.000Z");
+  });
+});
+
+describe("utcYearMonthOf", () => {
+  it("lê os componentes em UTC (não desloca para o mês anterior)", () => {
+    expect(utcYearMonthOf(new Date("2026-07-01T00:00:00.000Z"))).toEqual({
+      year: 2026,
+      month: 7,
+    });
+  });
+
+  it("último dia do mês continua no mês certo", () => {
+    expect(utcYearMonthOf(new Date("2026-12-31T00:00:00.000Z"))).toEqual({
+      year: 2026,
+      month: 12,
+    });
+  });
+});
+
+describe("utcMonthRange", () => {
+  it("cobre do 1º dia ao último instante do mês, em UTC", () => {
+    const { from, to } = utcMonthRange(2026, 2);
+    expect(from.toISOString()).toBe("2026-02-01T00:00:00.000Z");
+    expect(to.toISOString()).toBe("2026-02-28T23:59:59.999Z");
+  });
+
+  it("dezembro não vaza para janeiro do ano seguinte", () => {
+    const { to } = utcMonthRange(2026, 12);
+    expect(to.toISOString()).toBe("2026-12-31T23:59:59.999Z");
   });
 });

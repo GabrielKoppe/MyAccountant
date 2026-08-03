@@ -199,6 +199,8 @@ export const installmentGroupRowSchema = z.object({
   sectionId: z.string(),
   tableTypeId: z.string().nullable(),
   createdAt: z.string(),
+  // Spec 73 §2.4 — backup antigo (sem o campo) restaura com o default do schema.
+  autoCreateOnNewMonth: z.boolean().default(true),
 });
 export type InstallmentGroupRow = z.infer<typeof installmentGroupRowSchema>;
 
@@ -214,6 +216,8 @@ export const pendingInstallmentRowSchema = z.object({
   subcategoryId: z.string().nullable(),
   notes: z.string().nullable(),
   createdAt: z.string(),
+  // Spec 73 §2.5 — backup antigo (sem o campo) restaura como não-paga.
+  settledAt: z.string().nullable().default(null),
 });
 export type PendingInstallmentRow = z.infer<typeof pendingInstallmentRowSchema>;
 

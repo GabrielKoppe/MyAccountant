@@ -58,6 +58,27 @@ export function StepResult({
             color="warning"
           />
         )}
+        {/* Parcelamentos: criados vs. vinculados a grupo existente (spec 73 §2.3) */}
+        {result.installmentGroupsCreated > 0 && (
+          <Chip
+            label={m.csvImport.result.installmentGroupsCreated(result.installmentGroupsCreated)}
+            variant="outlined"
+          />
+        )}
+        {result.installmentGroupsLinked > 0 && (
+          <Chip
+            label={m.csvImport.result.installmentGroupsLinked(result.installmentGroupsLinked)}
+            variant="outlined"
+          />
+        )}
+        {result.installmentLinesSkipped > 0 && (
+          <Chip
+            icon={<ErrorOutlineIcon />}
+            label={m.csvImport.result.installmentLinesSkipped(result.installmentLinesSkipped)}
+            color="warning"
+            variant="outlined"
+          />
+        )}
       </Box>
 
       {hasErrors && (

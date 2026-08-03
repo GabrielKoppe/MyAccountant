@@ -93,3 +93,46 @@ módulo testado; como o `vi.mock` mora no helper (não é hoisted pelo Vitest co
 **Como evitar**: NÃO rodar `eslint --fix`/`import/order` em arquivos de teste com
 mock indireto; a ordem de import é semanticamente significativa. Blindar com
 `// eslint-disable-next-line import/order` + comentário na linha do import do helper.
+
+---
+
+## Suíte E2E acumulou rótulos stale (drift da Spec 66) — 2026-08-03
+
+**Sintoma**: ao rodar a suíte E2E completa pela primeira vez em muito tempo (durante
+a Spec 73), 14 de 34 testes falhavam. As falhas eram por **rótulo/locator que não
+existe mais**, não por bug de produto:
+
+| E2E esperava | Rótulo/afordância real hoje |
+|---|---|
+| `button "Importar CSV/XLSX"` | `m.csvImport.importButton` = **"Importar"** |
+| `button "Adicionar tabela"` | `m.financeTables.createButton` = **"Nova tabela"** |
+| `button "Salvar (Enter)"` | `m.transactions.actions.save` = **"Salvar"** |
+| `button "Quitar antecipado"` (rodapé do painel) | `settleShort` = **"Quitar parcelas"** |
+| `button "1/3"` (badge de parcela) | nome acessível é **"Parcela 1 de 3 — …"** |
+| `tab "Parcelas e vínculos"` | **"Parcelas"** |
+| `getByText("Grupo de parcelamento")` no painel | overline **"Parcelamento"** |
+| `button "Mais opções"` (menu de export) | não encontrado |
+
+**Causa**: a Spec 66 (reestruturação da linha/painel/modal) renomeou rótulos e trocou
+afordâncias sem atualizar os E2E, e a suíte não roda no fluxo de dev local (só o
+unit roda em `pnpm test`). O drift ficou invisível até alguém rodar o perfil `e2e`.
+
+O caso do badge é o menos óbvio: o `Chip` clicável está dentro de um `Tooltip`, e o
+**MUI escreve `aria-label` com o título do tooltip no filho**, sobrescrevendo o nome
+acessível. Então `getByRole("button", { name: "1/3" })` nunca casa — o nome é
+`"Parcela 1 de 3 — Grupo de parcelamento"`. Vale para qualquer `Chip`/`IconButton`
+curto embrulhado em `Tooltip`.
+
+**Como evitar**:
+- Ao renomear string de UI em `src/lib/messages/pt-BR.ts`, `grep` o literal em `e2e/`
+  antes de fechar o pacote. Rótulo é contrato de teste.
+- Rodar o perfil `e2e` ao fechar pacote que mexe em linha/painel/modal de transação
+  (não só `pnpm test`).
+- Para elemento curto dentro de `Tooltip`, o locator estável é o **nome acessível
+  derivado do tooltip** (`{ name: /^Parcela 1 de 3/ }`), não o texto visível.
+
+**Pendente** (não corrigido na Spec 73, exige decisão de produto — spec 66 §10 vs
+código): aba `"Parcelas e vínculos"` → `"Parcelas"`, cabeçalho do painel
+`"Grupo de parcelamento"` → overline `"Parcelamento"`, e o menu `"Mais opções"` do
+export em `solo-flow`. Testes afetados: `transaction-detail.spec.ts` (3),
+`transaction-detail-edit.spec.ts` (2), `solo-flow.spec.ts` (1).

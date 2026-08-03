@@ -248,6 +248,265 @@ async function seedSpec66Fixtures(accountId: string, ownerId: string) {
   };
 }
 
+/**
+ * Spec 73 §2.1/§2.3 — fixtures do import de fatura com parcelamento
+ * (e2e/installment-import-link.spec.ts). Reproduz o cenário real do bug: um
+ * parcelamento de 3x cuja parcela 2 já foi importada na fatura de junho/2098, e a
+ * parcela 3 chega na fatura de julho/2098.
+ *
+ * Meses DEDICADOS (2098/06 e 2098/07) na conta principal — não colidem com os
+ * meses criados por `solo-flow` (2098/01) nem por `csv-import` (2098/02), e as
+ * `expectedDate` das pendências (2098-05/2098-07) ficam fora desses meses para
+ * que a criação de mês daqueles specs continue sem passo de Automações.
+ *
+ * O grupo nasce `autoCreateOnNewMonth: false` (origem import) e a transação
+ * lançada carrega `occurredOn` = data da COMPRA (2098-05-04), repetida pelo
+ * extrato em toda parcela — é ela que o casamento por data usa como sinal.
+ */
+async function seedSpec73Fixtures(accountId: string, ownerId: string) {
+  const saidas = await prisma.section.findFirstOrThrow({
+    where: { accountId, name: "Saídas" },
+    select: { id: true },
+  });
+
+  const invoiceMonth = await prisma.month.create({
+    data: { accountId, year: 2098, month: 6, createdById: ownerId },
+    select: { id: true },
+  });
+  // Destino do import: existe e está vazio (criado aqui para o teste não depender
+  // do dialog de novo mês).
+  const importMonth = await prisma.month.create({
+    data: { accountId, year: 2098, month: 7, createdById: ownerId },
+    select: { id: true },
+  });
+
+  const invoiceTable = await prisma.financeTable.create({
+    data: {
+      accountId,
+      monthId: invoiceMonth.id,
+      sectionId: saidas.id,
+      name: "Fatura junho E2E",
+      sourceMethod: "import",
+      createdById: ownerId,
+    },
+    select: { id: true },
+  });
+
+  const group = await prisma.installmentGroup.create({
+    data: {
+      accountId,
+      description: "Cyan Shoes E2E",
+      totalCents: 47349n, // 3 × 157,83
+      installmentCount: 3,
+      // Competência da parcela 1 (maio/2098), não a data retroagida da compra.
+      startDate: new Date("2098-05-04"),
+      sectionId: saidas.id,
+      autoCreateOnNewMonth: false,
+    },
+    select: { id: true },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      accountId,
+      monthId: invoiceMonth.id,
+      tableId: invoiceTable.id,
+      sectionId: saidas.id,
+      occurredOn: new Date("2098-05-04"),
+      amountCents: 15783n,
+      description: "Cyan Shoes E2E",
+      source: "csv_import",
+      installmentGroupId: group.id,
+      installmentNumber: 2,
+      createdById: ownerId,
+    },
+  });
+
+  await prisma.pendingInstallment.createMany({
+    data: [
+      {
+        accountId,
+        installmentGroupId: group.id,
+        installmentNumber: 1,
+        amountCents: 15783n,
+        // Competência maio/2098 — mês não existe na conta.
+        expectedDate: new Date("2098-05-04"),
+        description: "Cyan Shoes E2E",
+      },
+      {
+        accountId,
+        installmentGroupId: group.id,
+        installmentNumber: 3,
+        amountCents: 15783n,
+        // Competência julho/2098 — é esta que o import deve consumir.
+        expectedDate: new Date("2098-07-04"),
+        description: "Cyan Shoes E2E",
+      },
+    ],
+  });
+
+  return {
+    spec73InvoiceMonthId: invoiceMonth.id,
+    spec73ImportMonthId: importMonth.id,
+    spec73GroupId: group.id,
+  };
+}
+
+/**
+ * Spec 73 §2.4 — conta DEDICADA para o passo "Automações"
+ * (e2e/month-automations.spec.ts).
+ *
+ * Precisa ser uma conta separada: `TableTemplate.autoApply` é account-wide, então
+ * semear um modelo automático na conta principal faria o passo 2 aparecer em TODA
+ * criação de mês — quebrando `solo-flow` e `csv-import`, que clicam "Criar" e
+ * esperam o dialog fechar.
+ *
+ * Conteúdo: 1 modelo bem configurado (2 itens) · 1 modelo sem seção (item
+ * bloqueado com motivo) · 1 parcela de grupo manual (pré-marcada) · 1 parcela de
+ * grupo de import (desmarcada). Todas as pendências caem em 2098/09, o mês que o
+ * teste cria pela UI.
+ */
+async function seedSpec73AutomationsAccount(ownerId: string) {
+  const account = await prisma.account.create({
+    data: {
+      name: "E2E Automations",
+      createdById: ownerId,
+      settings: {
+        create: {
+          currency: "BRL",
+          monthStartDay: 1,
+          onboardingCompletedAt: new Date("2026-01-01"),
+        },
+      },
+      members: { create: [{ userId: ownerId, role: "owner" }] },
+    },
+    select: { id: true },
+  });
+  await seedConfig(account.id, ownerId);
+
+  const [saidas, manualType] = await Promise.all([
+    prisma.section.findFirstOrThrow({
+      where: { accountId: account.id, name: "Saídas" },
+      select: { id: true },
+    }),
+    prisma.tableType.findFirstOrThrow({
+      where: { accountId: account.id, name: "Manual" },
+      select: { id: true },
+    }),
+  ]);
+
+  // Mês de aterrissagem: a página de mês é onde vive o botão "Novo mês".
+  const landingMonth = await prisma.month.create({
+    data: { accountId: account.id, year: 2098, month: 8, createdById: ownerId },
+    select: { id: true },
+  });
+
+  const template = await prisma.tableTemplate.create({
+    data: {
+      accountId: account.id,
+      name: "Contas fixas E2E",
+      autoApply: true,
+      autoSectionId: saidas.id,
+      autoTableTypeId: manualType.id,
+      countInMonth: true,
+      createdById: ownerId,
+      items: {
+        create: [
+          {
+            accountId: account.id,
+            day: 5,
+            amountCents: 100000n,
+            description: "Aluguel E2E",
+            displayOrder: 0,
+          },
+          {
+            accountId: account.id,
+            day: 10,
+            amountCents: 20000n,
+            description: "Internet E2E",
+            displayOrder: 1,
+          },
+        ],
+      },
+    },
+    select: { id: true },
+  });
+
+  // autoApply ligado mas sem seção destino → passo 2 mostra desmarcado + motivo,
+  // em vez de falhar silenciosamente no snackbar depois de criar o mês.
+  const brokenTemplate = await prisma.tableTemplate.create({
+    data: {
+      accountId: account.id,
+      name: "Modelo quebrado E2E",
+      autoApply: true,
+      autoSectionId: null,
+      autoTableTypeId: manualType.id,
+      createdById: ownerId,
+    },
+    select: { id: true },
+  });
+
+  const manualGroup = await prisma.installmentGroup.create({
+    data: {
+      accountId: account.id,
+      description: "Curso manual E2E",
+      totalCents: 60000n,
+      installmentCount: 3,
+      startDate: new Date("2098-08-15"),
+      sectionId: saidas.id,
+      tableTypeId: manualType.id,
+      autoCreateOnNewMonth: true,
+    },
+    select: { id: true },
+  });
+  const manualPending = await prisma.pendingInstallment.create({
+    data: {
+      accountId: account.id,
+      installmentGroupId: manualGroup.id,
+      installmentNumber: 2,
+      amountCents: 20000n,
+      expectedDate: new Date("2098-09-15"),
+      description: "Curso manual E2E",
+    },
+    select: { id: true },
+  });
+
+  const importGroup = await prisma.installmentGroup.create({
+    data: {
+      accountId: account.id,
+      description: "Fatura import E2E",
+      totalCents: 45000n,
+      installmentCount: 3,
+      startDate: new Date("2098-08-20"),
+      sectionId: saidas.id,
+      tableTypeId: manualType.id,
+      autoCreateOnNewMonth: false,
+    },
+    select: { id: true },
+  });
+  const importPending = await prisma.pendingInstallment.create({
+    data: {
+      accountId: account.id,
+      installmentGroupId: importGroup.id,
+      installmentNumber: 2,
+      amountCents: 15000n,
+      expectedDate: new Date("2098-09-20"),
+      description: "Fatura import E2E",
+    },
+    select: { id: true },
+  });
+
+  return {
+    automationsAccountId: account.id,
+    automationsMonthId: landingMonth.id,
+    automationsTemplateId: template.id,
+    automationsBrokenTemplateId: brokenTemplate.id,
+    automationsManualGroupId: manualGroup.id,
+    automationsManualPendingId: manualPending.id,
+    automationsImportPendingId: importPending.id,
+  };
+}
+
 async function main() {
   assertSafeSeedTarget({ requireDbSuffix: "_e2e", label: "e2e (myaccountant_e2e)" });
 
@@ -262,7 +521,13 @@ async function main() {
     data: {
       name: "E2E Main",
       createdById: owner.id,
-      settings: { create: { currency: "BRL", monthStartDay: 1, onboardingCompletedAt: new Date("2026-01-01") } },
+      settings: {
+        create: {
+          currency: "BRL",
+          monthStartDay: 1,
+          onboardingCompletedAt: new Date("2026-01-01"),
+        },
+      },
       members: {
         create: [
           { userId: owner.id, role: "owner" },
@@ -279,7 +544,13 @@ async function main() {
     data: {
       name: "E2E Invite",
       createdById: owner.id,
-      settings: { create: { currency: "BRL", monthStartDay: 1, onboardingCompletedAt: new Date("2026-01-01") } },
+      settings: {
+        create: {
+          currency: "BRL",
+          monthStartDay: 1,
+          onboardingCompletedAt: new Date("2026-01-01"),
+        },
+      },
       members: { create: [{ userId: owner.id, role: "owner" }] },
     },
     select: { id: true },
@@ -292,7 +563,13 @@ async function main() {
     data: {
       name: "E2E Invitee Home",
       createdById: invitee.id,
-      settings: { create: { currency: "BRL", monthStartDay: 1, onboardingCompletedAt: new Date("2026-01-01") } },
+      settings: {
+        create: {
+          currency: "BRL",
+          monthStartDay: 1,
+          onboardingCompletedAt: new Date("2026-01-01"),
+        },
+      },
       members: { create: [{ userId: invitee.id, role: "owner" }] },
     },
     select: { id: true },
@@ -334,6 +611,11 @@ async function main() {
 
   // Fixtures do modal de detalhe (Spec 66 P8) — mês dedicado isolado 2099/11.
   const spec66 = await seedSpec66Fixtures(main.id, owner.id);
+
+  // Fixtures da Spec 73 — import de fatura com parcelamento (meses 2098/06 e 2098/07
+  // na conta principal) e conta dedicada para o passo "Automações".
+  const spec73 = await seedSpec73Fixtures(main.id, owner.id);
+  const automations = await seedSpec73AutomationsAccount(owner.id);
 
   // Notificações não lidas p/ o cenário NAV-02b (Spec 65 P5): sem elas os e2e de
   // badge/lista/navegação não têm dados. Destinatário = owner (tem storageState),
@@ -381,9 +663,14 @@ async function main() {
     linkTargetTxId: spec66.linkTargetTxId,
     installmentGroupId: spec66.installmentGroupId,
     installmentTxId: spec66.installmentTxId,
+    ...spec73,
+    ...automations,
   };
   mkdirSync(join(process.cwd(), "e2e/.auth"), { recursive: true });
-  writeFileSync(join(process.cwd(), "e2e/.auth/seed-manifest.json"), JSON.stringify(manifest, null, 2));
+  writeFileSync(
+    join(process.cwd(), "e2e/.auth/seed-manifest.json"),
+    JSON.stringify(manifest, null, 2),
+  );
   console.log("E2E seed OK:", manifest.mainAccountId);
 }
 

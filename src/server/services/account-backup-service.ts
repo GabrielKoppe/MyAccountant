@@ -289,6 +289,7 @@ export async function buildAccountSnapshot(accountId: string): Promise<AccountSn
         sectionId: g.sectionId,
         tableTypeId: g.tableTypeId,
         createdAt: ts(g.createdAt),
+        autoCreateOnNewMonth: g.autoCreateOnNewMonth,
       })),
       pendingInstallments: pendingInstallments.map((p) => ({
         id: p.id,
@@ -302,6 +303,7 @@ export async function buildAccountSnapshot(accountId: string): Promise<AccountSn
         subcategoryId: p.subcategoryId,
         notes: p.notes,
         createdAt: ts(p.createdAt),
+        settledAt: tsNullable(p.settledAt),
       })),
       financeTables: financeTables.map((f) => ({
         id: f.id,
@@ -977,6 +979,7 @@ export function planImport(
       sectionId: reqId(idMap.sections, g.sectionId),
       tableTypeId: optId(idMap.tableTypes, g.tableTypeId),
       createdAt: date(g.createdAt),
+      autoCreateOnNewMonth: g.autoCreateOnNewMonth,
     })),
 
     pendingInstallments: data.pendingInstallments.map((p) => ({
@@ -992,6 +995,7 @@ export function planImport(
       subcategoryId: optId(idMap.subcategories, p.subcategoryId),
       notes: p.notes,
       createdAt: date(p.createdAt),
+      settledAt: dateNull(p.settledAt),
     })),
 
     financeTables: data.financeTables.map((f) => {

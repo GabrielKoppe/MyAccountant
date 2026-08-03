@@ -2,16 +2,171 @@ import type { SectionCountType } from "@prisma/client";
 
 import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/errors";
 import type { ActionContext } from "@/server/api/define-action";
-import { applyDayToMonth } from "@/lib/dates";
+import { applyDayToMonth, utcMonthRange } from "@/lib/dates";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
-import type { AutoApplyResult, CreateMonthInput, DeleteMonthInput } from "@/lib/schemas/months";
+import type {
+  AutoApplyResult,
+  CreateMonthInput,
+  DeleteMonthInput,
+  PreviewMonthAutomationsInput,
+} from "@/lib/schemas/months";
 import {
   convertPendingInstallmentsForMonth,
   type InstallmentConvertResult,
 } from "./installment-service";
 
 const log = logger.child({ module: "month-service" });
+
+// ─── Automações do mês (spec 73 §2.4) ─────────────────────────────────────────
+
+/**
+ * Motivo pelo qual um item não pode ser aplicado. Código, não prosa: a mensagem
+ * é montada no client a partir de `src/lib/messages/` (CLAUDE §5.10).
+ */
+export type MonthAutomationBlockedReason =
+  | "missing_section"
+  | "missing_table_type"
+  | "section_not_found"
+  | "table_type_not_found";
+
+export type MonthAutomationItem = {
+  /** templateId (kind=table_template) ou pendingInstallmentId (kind=pending_installment) */
+  id: string;
+  /** Nome do modelo ou descrição da parcela — dado do usuário, não mensagem de UI */
+  label: string;
+  sectionName: string | null;
+  tableTypeName: string | null;
+  /** Quantidade de itens do modelo (null para parcela) */
+  itemCount: number | null;
+  /** Posição da parcela no grupo (null para modelo) */
+  installmentNumber: number | null;
+  installmentCount: number | null;
+  /** Total a lançar, em centavos, serializado para a borda RSC */
+  amountCents: string;
+  defaultSelected: boolean;
+  blockedReason: MonthAutomationBlockedReason | null;
+};
+
+export type MonthAutomationGroup = {
+  kind: "table_template" | "pending_installment";
+  items: MonthAutomationItem[];
+};
+
+/**
+ * Dry-run do que a criação do mês vai lançar. NÃO escreve nada — alimenta o
+ * passo "Automações" do dialog de novo mês (spec 73 §2.4).
+ */
+export async function previewMonthAutomations(
+  input: PreviewMonthAutomationsInput,
+  ctx: ActionContext,
+): Promise<MonthAutomationGroup[]> {
+  const { from, to } = utcMonthRange(input.year, input.month);
+
+  const [templates, sections, tableTypes, pending] = await Promise.all([
+    prisma.tableTemplate.findMany({
+      where: { accountId: ctx.accountId, autoApply: true },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        autoSectionId: true,
+        autoTableTypeId: true,
+        items: { select: { amountCents: true } },
+      },
+    }),
+    prisma.section.findMany({
+      where: { accountId: ctx.accountId },
+      select: { id: true, name: true, isActive: true },
+    }),
+    prisma.tableType.findMany({
+      where: { accountId: ctx.accountId },
+      select: { id: true, name: true },
+    }),
+    prisma.pendingInstallment.findMany({
+      where: {
+        accountId: ctx.accountId, // ✅ multi-tenancy
+        expectedDate: { gte: from, lte: to },
+        settledAt: null,
+      },
+      orderBy: { expectedDate: "asc" },
+      select: {
+        id: true,
+        installmentNumber: true,
+        amountCents: true,
+        description: true,
+        group: {
+          select: {
+            description: true,
+            installmentCount: true,
+            autoCreateOnNewMonth: true,
+            sectionId: true,
+            tableTypeId: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const sectionById = new Map(sections.map((s) => [s.id, s]));
+  const tableTypeById = new Map(tableTypes.map((t) => [t.id, t]));
+
+  const templateItems: MonthAutomationItem[] = templates.map((tpl) => {
+    const section = tpl.autoSectionId ? sectionById.get(tpl.autoSectionId) : undefined;
+    const tableType = tpl.autoTableTypeId ? tableTypeById.get(tpl.autoTableTypeId) : undefined;
+
+    // Mesmas pré-condições que `applyAutoTemplates` exige em runtime — aqui elas
+    // viram um item desabilitado com motivo, em vez de falha silenciosa depois.
+    const blockedReason: MonthAutomationBlockedReason | null = !tpl.autoSectionId
+      ? "missing_section"
+      : !tpl.autoTableTypeId
+        ? "missing_table_type"
+        : !section
+          ? "section_not_found"
+          : !tableType
+            ? "table_type_not_found"
+            : null;
+
+    return {
+      id: tpl.id,
+      label: tpl.name,
+      sectionName: section?.name ?? null,
+      tableTypeName: tableType?.name ?? null,
+      itemCount: tpl.items.length,
+      installmentNumber: null,
+      installmentCount: null,
+      amountCents: tpl.items.reduce((sum, i) => sum + i.amountCents, 0n).toString(),
+      defaultSelected: blockedReason === null,
+      blockedReason,
+    };
+  });
+
+  const installmentItems: MonthAutomationItem[] = pending.map((pi) => {
+    const section = sectionById.get(pi.group.sectionId);
+    const tableType = pi.group.tableTypeId ? tableTypeById.get(pi.group.tableTypeId) : undefined;
+
+    return {
+      id: pi.id,
+      label: pi.description ?? pi.group.description,
+      sectionName: section?.name ?? null,
+      tableTypeName: tableType?.name ?? null,
+      itemCount: null,
+      installmentNumber: pi.installmentNumber,
+      installmentCount: pi.group.installmentCount,
+      amountCents: pi.amountCents.toString(),
+      // Padrão do grupo: import nasce desmarcado (a fatura é a fonte da parcela).
+      defaultSelected: pi.group.autoCreateOnNewMonth,
+      blockedReason: !section || !section.isActive ? ("section_not_found" as const) : null,
+    };
+  });
+
+  const groups: MonthAutomationGroup[] = [];
+  if (templateItems.length > 0) groups.push({ kind: "table_template", items: templateItems });
+  if (installmentItems.length > 0) {
+    groups.push({ kind: "pending_installment", items: installmentItems });
+  }
+  return groups;
+}
 
 export async function createMonth(
   input: CreateMonthInput,
@@ -44,7 +199,15 @@ export async function createMonth(
 
   log.info({ monthId: newMonth.id, accountId: ctx.accountId }, "Month created");
 
-  const autoApplied = await applyAutoTemplates(newMonth.id, input, ctx);
+  // `selection` vem do passo "Automações" (spec 73 §2.4). Ausente = comportamento
+  // automático: todos os modelos autoApply + pendências de grupos que optaram
+  // pela criação automática.
+  const autoApplied = await applyAutoTemplates(
+    newMonth.id,
+    input,
+    ctx,
+    input.selection?.templateIds,
+  );
 
   const installmentsConverted = await convertPendingInstallmentsForMonth(
     ctx.accountId,
@@ -52,6 +215,7 @@ export async function createMonth(
     input.year,
     input.month,
     ctx.userId,
+    input.selection ? { pendingInstallmentIds: input.selection.pendingInstallmentIds } : {},
   );
 
   return { monthId: newMonth.id, autoApplied, installmentsConverted };
@@ -61,9 +225,17 @@ async function applyAutoTemplates(
   monthId: string,
   input: CreateMonthInput,
   ctx: ActionContext,
+  /** Quando presente, aplica só estes modelos (subconjunto dos `autoApply`). */
+  templateIds?: string[],
 ): Promise<AutoApplyResult[]> {
+  if (templateIds?.length === 0) return [];
+
   const templates = await prisma.tableTemplate.findMany({
-    where: { accountId: ctx.accountId, autoApply: true },
+    where: {
+      accountId: ctx.accountId,
+      autoApply: true,
+      ...(templateIds ? { id: { in: templateIds } } : {}),
+    },
     orderBy: { createdAt: "asc" },
     include: { items: { orderBy: [{ displayOrder: "asc" }, { day: "asc" }] } },
   });

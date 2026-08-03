@@ -18,6 +18,22 @@ export type SeedManifest = {
   linkTargetTxId: string;
   installmentGroupId: string;
   installmentTxId: string;
+  // Spec 73 §2.1/§2.3 — import de fatura com parcelamento
+  // (e2e/installment-import-link.spec.ts), meses dedicados 2098/06 e 2098/07 na
+  // conta principal.
+  spec73InvoiceMonthId: string;
+  spec73ImportMonthId: string;
+  spec73GroupId: string;
+  // Spec 73 §2.4 — passo "Automações" (e2e/month-automations.spec.ts) numa conta
+  // DEDICADA: `TableTemplate.autoApply` é account-wide e faria o passo 2 aparecer
+  // em toda criação de mês da conta principal.
+  automationsAccountId: string;
+  automationsMonthId: string;
+  automationsTemplateId: string;
+  automationsBrokenTemplateId: string;
+  automationsManualGroupId: string;
+  automationsManualPendingId: string;
+  automationsImportPendingId: string;
 };
 
 export function manifest(): SeedManifest {

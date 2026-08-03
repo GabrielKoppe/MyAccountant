@@ -27,6 +27,7 @@ import type { InstallmentSuggestion } from "@/lib/installment-detector";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+import type { ImportGroupMatch } from "@/server/services/installment-service";
 
 type Props = {
   previewRows: PreviewRow[];
@@ -43,6 +44,10 @@ type Props = {
   installmentSuggestions?: InstallmentSuggestion[];
   acceptedInstallmentIds?: Set<string>;
   onToggleInstallment?: (id: string) => void;
+  /** Parcelamentos existentes casados com cada sugestão (spec 73 §2.3) */
+  installmentMatches?: Map<string, ImportGroupMatch>;
+  linkedInstallmentIds?: Set<string>;
+  onToggleInstallmentLink?: (id: string, link: boolean) => void;
 };
 
 export function StepPreview({
@@ -55,6 +60,9 @@ export function StepPreview({
   installmentSuggestions = [],
   acceptedInstallmentIds = new Set(),
   onToggleInstallment = () => {},
+  installmentMatches,
+  linkedInstallmentIds,
+  onToggleInstallmentLink,
 }: Props) {
   const [showErrorsOnly, setShowErrorsOnly] = useState(false);
   const aliasById = useMemo(() => new Map(aliases.map((a) => [a.id, a])), [aliases]);
@@ -148,6 +156,9 @@ export function StepPreview({
           suggestions={installmentSuggestions}
           acceptedIds={acceptedInstallmentIds}
           onToggle={onToggleInstallment}
+          matches={installmentMatches}
+          linkedIds={linkedInstallmentIds}
+          onToggleLink={onToggleInstallmentLink}
         />
       )}
 

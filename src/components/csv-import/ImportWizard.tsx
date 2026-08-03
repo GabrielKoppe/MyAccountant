@@ -12,6 +12,7 @@ import { useSnackbar } from "notistack";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { executeImportAction, listTemplatesAction } from "@/actions/csv-import";
+import { findInstallmentGroupMatchesForImportAction } from "@/actions/installments";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { applyMappingToRows, deriveHeadersAndRows } from "@/lib/csv-parser";
 import type { FileMatrix, PreviewRow } from "@/lib/csv-parser";
@@ -23,6 +24,7 @@ import { DEFAULT_MAPPING, importMappingSchema } from "@/lib/schemas/csv-import";
 import type { ImportMapping } from "@/lib/schemas/csv-import";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
 import type { ImportResult } from "@/server/services/csv-import-service";
+import type { ImportGroupMatch } from "@/server/services/installment-service";
 
 import { StepConfig, type ImportConfig } from "./StepConfig";
 import { StepMapping } from "./StepMapping";
@@ -91,6 +93,11 @@ export function ImportWizard({
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
   const [installmentSuggestions, setInstallmentSuggestions] = useState<InstallmentSuggestion[]>([]);
   const [acceptedInstallmentIds, setAcceptedInstallmentIds] = useState<Set<string>>(new Set());
+  // Parcelamentos já existentes casados com cada sugestão (spec 73 §2.3)
+  const [installmentMatches, setInstallmentMatches] = useState<Map<string, ImportGroupMatch>>(
+    new Map(),
+  );
+  const [linkedInstallmentIds, setLinkedInstallmentIds] = useState<Set<string>>(new Set());
   // rowIndexes que o usuário marcou para ignorar manualmente no preview
   const [manualIgnoredRows, setManualIgnoredRows] = useState<Set<number>>(new Set());
   // rowIndexes casadas por um apelido que o usuário optou por NÃO aplicar (DD-16)
@@ -217,6 +224,11 @@ export function ImportWizard({
       setAcceptedInstallmentIds(
         new Set(suggestions.filter((s) => s.confidence === "high").map((s) => s.id)),
       );
+      setInstallmentMatches(new Map());
+      setLinkedInstallmentIds(new Set());
+      // Resolver, no servidor, quais sugestões continuam um parcelamento que já
+      // existe (spec 73 §2.3). Só leitura — não bloqueia o avanço do passo.
+      void resolveInstallmentMatches(suggestions, preview);
       setStep(2);
       return;
     }
@@ -250,6 +262,56 @@ export function ImportWizard({
     }
   }
 
+  /**
+   * Monta os candidatos a partir da linha ÂNCORA de cada sugestão (a de maior
+   * número de parcela — a que pertence à fatura sendo importada) e pergunta ao
+   * servidor se já existe `InstallmentGroup` correspondente. Vínculo encontrado
+   * e não-ambíguo entra pré-selecionado.
+   */
+  async function resolveInstallmentMatches(
+    suggestions: InstallmentSuggestion[],
+    preview: PreviewRow[],
+  ) {
+    const parsedByRow = new Map(
+      preview.filter((r) => r.parsed).map((r) => [r.rowIndex, r.parsed!]),
+    );
+
+    const candidates = suggestions.flatMap((s) => {
+      const anchor = [...s.lines].sort((a, b) => b.installmentNumber - a.installmentNumber)[0];
+      const parsed = anchor ? parsedByRow.get(anchor.rowIndex) : undefined;
+      if (!parsed) return [];
+      return [
+        {
+          suggestionId: s.id,
+          normalizedDescription: s.groupDescription,
+          installmentCount: s.installmentCount,
+          occurredOn: parsed.occurredOn,
+          installmentNumbers: s.lines.map((l) => l.installmentNumber),
+        },
+      ];
+    });
+
+    if (candidates.length === 0) return;
+
+    const res = await findInstallmentGroupMatchesForImportAction(accountId, { candidates });
+    if (!res.ok) return; // silencioso: sem casamento, o fluxo cria grupos novos
+
+    const byId = new Map(res.data.map((match) => [match.suggestionId, match]));
+    setInstallmentMatches(byId);
+    setLinkedInstallmentIds(
+      new Set(res.data.filter((match) => !match.ambiguous).map((match) => match.suggestionId)),
+    );
+  }
+
+  function handleToggleInstallmentLink(id: string, link: boolean) {
+    setLinkedInstallmentIds((prev) => {
+      const next = new Set(prev);
+      if (link) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   function handleImport() {
     startTransition(async () => {
       const res = await executeImportAction(accountId, {
@@ -266,12 +328,20 @@ export function ImportWizard({
         aliasIgnoreRows: [...aliasIgnoredRows],
         acceptedInstallments: installmentSuggestions
           .filter((s) => acceptedInstallmentIds.has(s.id))
-          .map((s) => ({
-            groupDescription: s.groupDescription,
-            installmentCount: s.installmentCount,
-            lines: s.lines,
-            totalAmountCents: s.totalAmountCents.toString(),
-          })),
+          .map((s) => {
+            const match = installmentMatches.get(s.id);
+            const existingGroupId =
+              match && !match.ambiguous && linkedInstallmentIds.has(s.id)
+                ? match.groupId
+                : undefined;
+            return {
+              groupDescription: s.groupDescription,
+              installmentCount: s.installmentCount,
+              lines: s.lines,
+              totalAmountCents: s.totalAmountCents.toString(),
+              existingGroupId,
+            };
+          }),
       });
 
       if (!res.ok) {
@@ -406,6 +476,9 @@ export function ImportWizard({
                       return next;
                     })
                   }
+                  installmentMatches={installmentMatches}
+                  linkedInstallmentIds={linkedInstallmentIds}
+                  onToggleInstallmentLink={handleToggleInstallmentLink}
                 />
               )}
               {step === 3 && (

@@ -2,11 +2,14 @@
 
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Drawer from "@mui/material/Drawer";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
+import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useRouter } from "next/navigation";
@@ -16,6 +19,8 @@ import { useEffect, useState, useTransition } from "react";
 import {
   getInstallmentGroupPanelDataAction,
   convertPendingInstallmentForExistingMonthAction,
+  setInstallmentGroupAutoCreateAction,
+  setPendingInstallmentSettledAction,
   undoInstallmentGroupAction,
 } from "@/actions/installments";
 import { DialogShell } from "@/components/ui/DialogShell";
@@ -64,6 +69,8 @@ export function InstallmentGroupPanel({
   const [loading, setLoading] = useState(false);
   const [settleOpen, setSettleOpen] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [settlingId, setSettlingId] = useState<string | null>(null);
+  const [autoCreateSaving, setAutoCreateSaving] = useState(false);
   const [undoOpen, setUndoOpen] = useState(false);
   const [undoSubmitting, setUndoSubmitting] = useState(false);
 
@@ -92,6 +99,49 @@ export function InstallmentGroupPanel({
     });
   }
 
+  function handleToggleSettled(pendingInstallmentId: string, settled: boolean) {
+    setSettlingId(pendingInstallmentId);
+    startTransition(async () => {
+      const result = await setPendingInstallmentSettledAction(accountId, {
+        pendingInstallmentId,
+        settled,
+      });
+      setSettlingId(null);
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      enqueueSnackbar(
+        settled
+          ? m.transactions.installments.markSettledSuccess
+          : m.transactions.installments.unmarkSettledSuccess,
+        { variant: "success" },
+      );
+      reload();
+      // A parcela sai/entra na projeção de fluxo de caixa e nos widgets.
+      router.refresh();
+    });
+  }
+
+  function handleToggleAutoCreate(autoCreateOnNewMonth: boolean) {
+    // Otimista: o Switch responde na hora; erro reverte via reload().
+    setData((prev) => (prev ? { ...prev, autoCreateOnNewMonth } : prev));
+    setAutoCreateSaving(true);
+    startTransition(async () => {
+      const result = await setInstallmentGroupAutoCreateAction(accountId, {
+        installmentGroupId,
+        autoCreateOnNewMonth,
+      });
+      setAutoCreateSaving(false);
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        reload();
+        return;
+      }
+      enqueueSnackbar(m.transactions.installments.autoCreateUpdated, { variant: "success" });
+    });
+  }
+
   function handleUndoGroup() {
     setUndoSubmitting(true);
     startTransition(async () => {
@@ -114,14 +164,14 @@ export function InstallmentGroupPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, accountId, installmentGroupId]);
 
-  // Parcelas já lançadas (paid ou pending) — define o preenchimento da barra
-  // de progresso e a legenda "X de Y lançadas".
+  // Parcelas já resolvidas (lançadas ou marcadas como pagas fora do app) —
+  // define o preenchimento da barra e a legenda "X de Y lançadas".
   const launchedCount = data?.items.filter((i) => i.status !== "waiting").length ?? 0;
-  // Soma do que já foi efetivamente pago (só "paid" — "pending" é lançada mas
-  // ainda não quitada).
+  // Soma do que já foi efetivamente pago: "paid" (transação quitada) e
+  // "settled_external" (paga fora do app). "pending" é lançada mas não quitada.
   const paidSumCents =
     data?.items
-      .filter((i) => i.status === "paid")
+      .filter((i) => i.status === "paid" || i.status === "settled_external")
       .reduce((sum, i) => sum + BigInt(i.amountCents), 0n) ?? 0n;
   const hasWaiting = data?.items.some((i) => i.status === "waiting") ?? false;
   // Próxima parcela `waiting` cujo mês já existe (menor installmentNumber — items vem ordenado)
@@ -287,14 +337,45 @@ export function InstallmentGroupPanel({
         )}
 
         {!loading && data && (
-          <InstallmentSchedule
-            items={data.items}
-            installmentCount={data.installmentCount}
-            canEdit={canEdit}
-            convertingId={convertingId}
-            onConvert={handleConvertNow}
-            variant="panel"
-          />
+          <>
+            <InstallmentSchedule
+              items={data.items}
+              installmentCount={data.installmentCount}
+              canEdit={canEdit}
+              convertingId={convertingId}
+              onConvert={handleConvertNow}
+              settlingId={settlingId}
+              onToggleSettled={handleToggleSettled}
+              variant="panel"
+            />
+
+            {/* Criação automática ao abrir mês novo (spec 73 §2.4) */}
+            {canEdit && (
+              <Box sx={{ px: "16px", pt: "12px", pb: "4px" }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      size="small"
+                      checked={data.autoCreateOnNewMonth}
+                      disabled={autoCreateSaving}
+                      onChange={(e) => handleToggleAutoCreate(e.target.checked)}
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontSize: "0.78rem", color: "text.primary" }}>
+                      {m.transactions.installments.autoCreateLabel}
+                    </Typography>
+                  }
+                  sx={{ ml: 0, mr: 0 }}
+                />
+                <Typography sx={{ fontSize: "0.68rem", color: "neutral.main", mt: "2px" }}>
+                  {data.autoCreateOnNewMonth
+                    ? m.transactions.installments.autoCreateHintOn
+                    : m.transactions.installments.autoCreateHintOff}
+                </Typography>
+              </Box>
+            )}
+          </>
         )}
       </Box>
 
@@ -319,11 +400,15 @@ export function InstallmentGroupPanel({
             {m.transactions.installments.settleShort}
           </Button>
 
+          {/* Sem `flex: 1`: esticar o botão dentro dos ~348px do Drawer fazia o
+              rótulo quebrar em duas linhas e o ícone `+` descolar do texto
+              (spec 73 §2.6). O `flex: 1` do wrapper apenas empurra a ação
+              destrutiva para a direita. */}
           <Tooltip
             title={!nextItem ? m.transactions.installments.launchNextNoMonth : ""}
             disableHoverListener={!!nextItem}
           >
-            <Box component="span" sx={{ flex: 1, display: "flex" }}>
+            <Box component="span" sx={{ flex: 1, display: "flex", minWidth: 0 }}>
               <Button
                 variant="outlined"
                 disabled={!nextItem || convertingId !== null}
@@ -333,9 +418,10 @@ export function InstallmentGroupPanel({
                 }
                 sx={{
                   ...FOOTER_BUTTON_SX,
-                  flex: 1,
                   color: "text.secondary",
-                  justifyContent: "center",
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                  "& .MuiButton-startIcon": { mr: 0.5, ml: 0 },
                 }}
               >
                 {nextItem && convertingId === nextItem.pendingInstallmentId ? (
@@ -347,13 +433,23 @@ export function InstallmentGroupPanel({
             </Box>
           </Tooltip>
 
-          <Button
-            variant="outlined"
-            onClick={() => setUndoOpen(true)}
-            sx={{ ...FOOTER_BUTTON_SX, color: "danger.main", flexShrink: 0 }}
-          >
-            {m.transactions.installments.undoButton}
-          </Button>
+          <Tooltip title={m.transactions.installments.undoButton}>
+            <IconButton
+              aria-label={m.transactions.installments.undoButton}
+              onClick={() => setUndoOpen(true)}
+              sx={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                border: "1px solid",
+                borderColor: "border.default",
+                color: "danger.main",
+                flexShrink: 0,
+              }}
+            >
+              <DeleteOutlineIcon sx={{ fontSize: 17 }} />
+            </IconButton>
+          </Tooltip>
         </Box>
       )}
 

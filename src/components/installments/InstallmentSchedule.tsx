@@ -1,6 +1,7 @@
 "use client";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import HistoryIcon from "@mui/icons-material/History";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
@@ -8,7 +9,9 @@ import ScheduleIcon from "@mui/icons-material/Schedule";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -18,49 +21,71 @@ import { parseLocalDate } from "@/lib/dates";
 import { layout, typography } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
-import type { InstallmentPanelItem } from "@/server/services/installment-service";
+import type {
+  InstallmentPanelItem,
+  InstallmentPanelItemStatus,
+} from "@/server/services/installment-service";
+
+/**
+ * Rótulo de mês da parcela. Usa a COMPETÊNCIA (`monthYear`/`monthMonth`) — para
+ * item lançado ela vem do `Month` da transação, não de `occurredOn`, que numa
+ * parcela de fatura é a data da compra e apontaria o mês errado (spec 73 §2.2).
+ */
+function monthLabelOf(item: InstallmentPanelItem, pattern: string): string {
+  const date =
+    item.monthYear && item.monthMonth
+      ? new Date(item.monthYear, item.monthMonth - 1, 1)
+      : parseLocalDate(item.date);
+  return format(date, pattern, { locale: ptBR });
+}
 
 // Ícone de status por linha (variante "compact"): paga (check verde) ·
 // atual/pendente (radio preenchido, accent) · prevista/aguardando (radio
 // vazio, mutado). O ícone já comunica o estado — não repetir em uma pílula
 // de texto ao lado.
-const STATUS_ICON = {
+const STATUS_ICON: Record<InstallmentPanelItemStatus, typeof CheckCircleIcon> = {
   paid: CheckCircleIcon,
   pending: RadioButtonCheckedIcon,
   waiting: RadioButtonUncheckedIcon,
-} as const;
+  // Paga fora do app: check, mas em tom secundário — não é lançamento
+  settled_external: HistoryIcon,
+};
 
-const STATUS_ICON_COLOR = {
+const STATUS_ICON_COLOR: Record<InstallmentPanelItemStatus, string> = {
   paid: "success.main",
   pending: "accent.primary",
   waiting: "text.disabled",
-} as const;
+  settled_external: "success.main",
+};
 
 // Ícone de status da variante "panel" (frame Spec 66 §10): check_circle
 // (paga) · radio_button_checked (atual) · schedule (prevista) — diferente da
 // variante "compact", que usa radio_button_unchecked para "prevista".
-const PANEL_STATUS_ICON = {
+const PANEL_STATUS_ICON: Record<InstallmentPanelItemStatus, typeof CheckCircleIcon> = {
   paid: CheckCircleIcon,
   pending: RadioButtonCheckedIcon,
   waiting: ScheduleIcon,
-} as const;
+  settled_external: HistoryIcon,
+};
 
 // NOTA: "text.tertiary" não é um token de palette resolvível pelo MUI (só
 // `text.primary/secondary/disabled` existem em `theme.palette.text` — ver
 // `src/lib/theme.ts`). O equivalente que REALMENTE resolve para o mesmo tom
 // cinza-terciário é `neutral.main` (mesmo valor hex em light e dark). Usar
 // "text.tertiary" aqui resultaria em cor não aplicada (fallback silencioso).
-const PANEL_STATUS_ICON_COLOR = {
+const PANEL_STATUS_ICON_COLOR: Record<InstallmentPanelItemStatus, string> = {
   paid: "success.main",
   pending: "accent.primary",
   waiting: "neutral.main",
-} as const;
+  settled_external: "success.main",
+};
 
-const PANEL_VALUE_COLOR = {
+const PANEL_VALUE_COLOR: Record<InstallmentPanelItemStatus, string> = {
   paid: "text.secondary",
   pending: "text.primary",
   waiting: "neutral.main",
-} as const;
+  settled_external: "text.secondary",
+};
 
 type InstallmentRowValueProps = {
   item: InstallmentPanelItem;
@@ -165,6 +190,64 @@ function PanelRowValue({ item, canEdit, convertingId, onConvert }: InstallmentRo
   );
 }
 
+type StatusIconSlotProps = {
+  item: InstallmentPanelItem;
+  Icon: typeof CheckCircleIcon;
+  color: string;
+  fontSize: number;
+  canEdit: boolean;
+  settlingId: string | null;
+  onToggleSettled?: (pendingInstallmentId: string, settled: boolean) => void;
+};
+
+/**
+ * Ícone de status. Para parcela prevista/paga-fora-do-app com permissão de
+ * edição, vira botão: marca/desmarca "paga (histórico)" (spec 73 §2.5).
+ */
+function StatusIconSlot({
+  item,
+  Icon,
+  color,
+  fontSize,
+  canEdit,
+  settlingId,
+  onToggleSettled,
+}: StatusIconSlotProps) {
+  const isSettleable =
+    canEdit &&
+    Boolean(onToggleSettled) &&
+    Boolean(item.pendingInstallmentId) &&
+    (item.status === "waiting" || item.status === "settled_external");
+
+  if (!isSettleable) {
+    return <Icon sx={{ fontSize, color, flexShrink: 0 }} />;
+  }
+
+  const isSettled = item.status === "settled_external";
+  const isBusy = settlingId === item.pendingInstallmentId;
+  const label = isSettled
+    ? m.transactions.installments.unmarkSettled
+    : m.transactions.installments.markSettled;
+
+  return (
+    <Tooltip title={label}>
+      <IconButton
+        size="small"
+        aria-label={label}
+        disabled={isBusy}
+        onClick={() => onToggleSettled?.(item.pendingInstallmentId!, !isSettled)}
+        sx={{ p: 0.25, flexShrink: 0, color }}
+      >
+        {isBusy ? (
+          <CircularProgress size={fontSize} color="inherit" />
+        ) : (
+          <Icon sx={{ fontSize, color: "inherit" }} />
+        )}
+      </IconButton>
+    </Tooltip>
+  );
+}
+
 type InstallmentScheduleVariant = "compact" | "panel";
 
 type InstallmentScheduleProps = {
@@ -173,6 +256,10 @@ type InstallmentScheduleProps = {
   canEdit?: boolean;
   convertingId?: string | null;
   onConvert?: (pendingInstallmentId: string) => void;
+  /** PendingInstallment cuja marcação de "paga (histórico)" está em voo */
+  settlingId?: string | null;
+  /** Marca/desmarca a parcela como paga fora do app (spec 73 §2.5) */
+  onToggleSettled?: (pendingInstallmentId: string, settled: boolean) => void;
   /**
    * "compact" (padrão): linha única condensada, usada na aba "Parcelas" do
    * modal de detalhe da transação (TransactionDetailDialog).
@@ -194,6 +281,8 @@ export function InstallmentSchedule({
   canEdit = false,
   convertingId = null,
   onConvert,
+  settlingId = null,
+  onToggleSettled,
   variant = "compact",
 }: InstallmentScheduleProps) {
   const handleConvert = onConvert ?? (() => {});
@@ -204,18 +293,28 @@ export function InstallmentSchedule({
         {items.map((item, index) => {
           const StatusIcon = PANEL_STATUS_ICON[item.status];
           const isCurrent = item.status === "pending";
-          const isLaunched = item.status !== "waiting";
-          const monthLabel = format(parseLocalDate(item.date), "MMMM yyyy", { locale: ptBR });
+          // Só "paid"/"pending" têm Transaction navegável; settled_external e
+          // waiting não são lançamentos.
+          const isLaunched = item.status === "paid" || item.status === "pending";
+          const monthLabel = monthLabelOf(item, "MMMM yyyy");
           const subtitle =
             item.status === "waiting"
               ? `${monthLabel} · ${m.transactions.installments.itemNotLaunched}`
-              : monthLabel;
+              : item.status === "settled_external"
+                ? `${monthLabel} · ${m.transactions.installments.itemSettledNote}`
+                : monthLabel;
+          const itemTitle = m.transactions.installments.itemTitle(
+            item.installmentNumber,
+            installmentCount,
+          );
           const title =
             item.status === "pending"
-              ? `${m.transactions.installments.itemTitle(item.installmentNumber, installmentCount)} · ${m.transactions.installments.itemCurrentSuffix}`
+              ? `${itemTitle} · ${m.transactions.installments.itemCurrentSuffix}`
               : item.status === "waiting"
-                ? `${m.transactions.installments.itemTitle(item.installmentNumber, installmentCount)} · ${m.transactions.installments.itemForecastSuffix}`
-                : m.transactions.installments.itemTitle(item.installmentNumber, installmentCount);
+                ? `${itemTitle} · ${m.transactions.installments.itemForecastSuffix}`
+                : item.status === "settled_external"
+                  ? `${itemTitle} · ${m.transactions.installments.itemSettledSuffix}`
+                  : itemTitle;
 
           return (
             <Box
@@ -231,8 +330,14 @@ export function InstallmentSchedule({
                 bgcolor: isCurrent ? "accent.primarySubtle" : "transparent",
               }}
             >
-              <StatusIcon
-                sx={{ fontSize: 17, color: PANEL_STATUS_ICON_COLOR[item.status], flexShrink: 0 }}
+              <StatusIconSlot
+                item={item}
+                Icon={StatusIcon}
+                color={PANEL_STATUS_ICON_COLOR[item.status]}
+                fontSize={17}
+                canEdit={canEdit}
+                settlingId={settlingId}
+                onToggleSettled={onToggleSettled}
               />
 
               <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -283,7 +388,7 @@ export function InstallmentSchedule({
     <Stack divider={<Divider />} spacing={0}>
       {items.map((item) => {
         const StatusIcon = STATUS_ICON[item.status];
-        const monthLabel = format(parseLocalDate(item.date), "MMMM", { locale: ptBR });
+        const monthLabel = monthLabelOf(item, "MMMM");
 
         return (
           <Box
@@ -296,9 +401,14 @@ export function InstallmentSchedule({
               px: 0.5,
             }}
           >
-            <StatusIcon
-              fontSize="small"
-              sx={{ color: STATUS_ICON_COLOR[item.status], flexShrink: 0 }}
+            <StatusIconSlot
+              item={item}
+              Icon={StatusIcon}
+              color={STATUS_ICON_COLOR[item.status]}
+              fontSize={20}
+              canEdit={canEdit}
+              settlingId={settlingId}
+              onToggleSettled={onToggleSettled}
             />
 
             {/* N/total · mês */}

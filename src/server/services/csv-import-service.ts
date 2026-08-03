@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
 
 import type { TransactionExpenseType, TransactionPaymentMethod } from "@prisma/client";
-import { addMonths } from "date-fns";
 
 import { applyMappingToRows } from "@/lib/csv-parser";
+import { shiftYearMonth, utcDateOnly } from "@/lib/dates";
 import { calcInstallmentAmounts } from "@/lib/installment-utils";
 import {
   importMappingSchema,
@@ -36,6 +36,10 @@ export type ImportResult = {
   skipped: number;
   errors: { rowIndex: number; message: string }[];
   installmentGroupsCreated: number;
+  /** Parcelas vinculadas a um InstallmentGroup que já existia (spec 73 §2.3) */
+  installmentGroupsLinked: number;
+  /** Linhas não vinculadas porque o número de parcela já estava lançado no grupo */
+  installmentLinesSkipped: number;
 };
 
 async function listTemplates(accountId: string) {
@@ -408,13 +412,90 @@ async function executeImport(
       },
     });
 
-    // Create InstallmentGroups for accepted suggestions and link transactions
+    // Create/link InstallmentGroups for accepted suggestions and link transactions
     let installmentGroupsCreated = 0;
+    let installmentGroupsLinked = 0;
+    let installmentLinesSkipped = 0;
+
     for (const suggestion of input.acceptedInstallments ?? []) {
+      // ─── Âncora do cronograma (spec 73 §2.1) ──────────────────────────────
+      // A parcela de MAIOR número presente no arquivo é a que pertence à fatura
+      // sendo importada, então ela ocupa o mês de competência escolhido no
+      // wizard. `occurredOn` é a data da COMPRA — o extrato a repete em todas as
+      // parcelas, então ela NÃO serve de âncora (spec 73 §1 BUG-01).
+      const anchor = [...suggestion.lines].sort(
+        (a, b) => b.installmentNumber - a.installmentNumber,
+      )[0];
+      const anchorTx = anchor
+        ? transactionData.find((t) => t.rowIndex === anchor.rowIndex)
+        : undefined;
+      if (!anchor || !anchorTx) continue;
+
+      // Dia da compra, reaplicado em cada competência (ajustado ao último dia
+      // válido do mês por `utcDateOnly` — compra dia 31 → fevereiro dia 28).
+      const anchorDay = anchorTx.occurredOn.getUTCDate();
+      const expectedDateFor = (installmentNumber: number) => {
+        const slot = shiftYearMonth(
+          { year: month.year, month: month.month },
+          installmentNumber - anchor.installmentNumber,
+        );
+        return utcDateOnly(slot.year, slot.month, anchorDay);
+      };
+
+      // ─── Vínculo com parcelamento existente (spec 73 §2.3) ────────────────
+      if (suggestion.existingGroupId) {
+        const existing = await tx.installmentGroup.findFirst({
+          where: { id: suggestion.existingGroupId, accountId: ctx.accountId }, // ✅ multi-tenancy
+          select: {
+            id: true,
+            transactions: { select: { installmentNumber: true } },
+            pendingInstallments: {
+              where: { settledAt: null },
+              select: { id: true, installmentNumber: true },
+            },
+          },
+        });
+        if (!existing) throw new NotFoundError("Parcelamento a vincular");
+
+        const takenNumbers = new Set(
+          existing.transactions
+            .map((t) => t.installmentNumber)
+            .filter((n): n is number => n !== null),
+        );
+
+        for (const line of suggestion.lines) {
+          const txIdx = rowIndexToTxIdx.get(line.rowIndex);
+          if (txIdx === undefined) continue;
+
+          // Número já lançado no grupo: importa a linha SEM vínculo. Dois itens
+          // com o mesmo installmentNumber quebrariam o cronograma e o progresso.
+          if (takenNumbers.has(line.installmentNumber)) {
+            installmentLinesSkipped++;
+            continue;
+          }
+
+          transactionData[txIdx].installmentGroupId = existing.id;
+          transactionData[txIdx].installmentNumber = line.installmentNumber;
+          takenNumbers.add(line.installmentNumber);
+
+          // A pendente deste número acabou de ser materializada por esta linha.
+          const consumed = existing.pendingInstallments.find(
+            (pi) => pi.installmentNumber === line.installmentNumber,
+          );
+          if (consumed) await tx.pendingInstallment.delete({ where: { id: consumed.id } });
+        }
+
+        installmentGroupsLinked++;
+        continue;
+      }
+
+      // ─── Novo grupo ───────────────────────────────────────────────────────
       // Estima o total real da compra: totalAmountCents representa apenas as parcelas
       // presentes no CSV; escalamos pelo total de parcelas.
+      // `BigInt(...)`: o tipo de entrada é `z.input<>` (z.coerce.bigint aceita
+      // string), então não dá para assumir bigint sem coagir.
       const estimatedTotalCents =
-        (suggestion.totalAmountCents * BigInt(suggestion.installmentCount)) /
+        (BigInt(suggestion.totalAmountCents) * BigInt(suggestion.installmentCount)) /
         BigInt(suggestion.lines.length);
 
       const group = await tx.installmentGroup.create({
@@ -423,11 +504,12 @@ async function executeImport(
           description: suggestion.groupDescription,
           totalCents: estimatedTotalCents,
           installmentCount: suggestion.installmentCount,
-          startDate:
-            transactionData.find((t) => suggestion.lines.some((l) => l.rowIndex === t.rowIndex))
-              ?.occurredOn ?? new Date(),
+          startDate: expectedDateFor(1),
           sectionId: input.sectionId,
           tableTypeId: input.tableTypeId,
+          // A fatura é a fonte das parcelas deste grupo: lançar na criação do
+          // mês duplicaria a linha do CSV (spec 73 §2.4).
+          autoCreateOnNewMonth: false,
         },
         select: { id: true },
       });
@@ -449,28 +531,17 @@ async function executeImport(
       ).filter((n) => !presentNumbers.has(n));
 
       if (missingNumbers.length > 0) {
-        // Deriva a data da parcela 1 a partir da primeira parcela presente
-        const firstPresent = [...suggestion.lines].sort(
-          (a, b) => a.installmentNumber - b.installmentNumber,
-        )[0];
-        const firstPresentTx = transactionData.find((t) => t.rowIndex === firstPresent.rowIndex);
-        if (firstPresentTx) {
-          const startDate = addMonths(
-            firstPresentTx.occurredOn,
-            -(firstPresent.installmentNumber - 1),
-          );
-          const amounts = calcInstallmentAmounts(estimatedTotalCents, suggestion.installmentCount);
-          await tx.pendingInstallment.createMany({
-            data: missingNumbers.map((num) => ({
-              accountId: ctx.accountId,
-              installmentGroupId: group.id,
-              installmentNumber: num,
-              amountCents: amounts[num - 1],
-              expectedDate: addMonths(startDate, num - 1),
-              description: suggestion.groupDescription,
-            })),
-          });
-        }
+        const amounts = calcInstallmentAmounts(estimatedTotalCents, suggestion.installmentCount);
+        await tx.pendingInstallment.createMany({
+          data: missingNumbers.map((num) => ({
+            accountId: ctx.accountId,
+            installmentGroupId: group.id,
+            installmentNumber: num,
+            amountCents: amounts[num - 1],
+            expectedDate: expectedDateFor(num),
+            description: suggestion.groupDescription,
+          })),
+        });
       }
     }
 
@@ -526,7 +597,7 @@ async function executeImport(
       }
     }
 
-    return { table, installmentGroupsCreated };
+    return { table, installmentGroupsCreated, installmentGroupsLinked, installmentLinesSkipped };
   });
 
   const aliasesApplied = transactionData.filter((t) => t.appliedAliasId !== null).length;
@@ -541,6 +612,8 @@ async function executeImport(
     skipped,
     errors: importErrors,
     installmentGroupsCreated: result.installmentGroupsCreated,
+    installmentGroupsLinked: result.installmentGroupsLinked,
+    installmentLinesSkipped: result.installmentLinesSkipped,
   };
 }
 

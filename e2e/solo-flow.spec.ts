@@ -18,8 +18,11 @@ test("criar mês, tabela, transação e exportar CSV com a transação", async (
   await dialog.getByRole("combobox").click(); // único combobox no dialog = select de mês
   await page.getByRole("option", { name: "Janeiro" }).click();
   await dialog.getByLabel("Ano").fill("2098");
-  await dialog.getByRole("button", { name: "Criar" }).click();
-  await expect(dialog).toBeHidden();
+  await dialog.getByRole("button", { name: "Criar", exact: true }).click();
+  // 20s: desde a spec 73 a criação de mês faz duas idas ao servidor (preview de
+  // automações → createMonth). Sem automação o passo 2 é omitido, mas o preview
+  // acontece de qualquer forma.
+  await expect(dialog).toBeHidden({ timeout: 20_000 });
 
   const created = await db.month.findFirstOrThrow({
     where: { accountId: m.mainAccountId, year: 2098, month: 1 },
@@ -27,8 +30,8 @@ test("criar mês, tabela, transação e exportar CSV com a transação", async (
   });
   await page.goto(`/${m.mainAccountId}/months/${created.id}?tab=${m.roSectionId}`);
 
-  // 2. Criar uma tabela na seção.
-  await page.getByRole("button", { name: "Adicionar tabela" }).first().click();
+  // 2. Criar uma tabela na seção. Rótulo real: `m.financeTables.createButton`.
+  await page.getByRole("button", { name: "Nova tabela" }).first().click();
   const tableDialog = page.getByRole("dialog");
   await tableDialog.getByLabel("Nome da tabela").fill("Mercado");
   await tableDialog.getByRole("button", { name: "Criar" }).click();
@@ -38,11 +41,11 @@ test("criar mês, tabela, transação e exportar CSV com a transação", async (
   await page.getByRole("button", { name: "Nova transação" }).first().click();
   const row = page
     .getByRole("row")
-    .filter({ has: page.getByRole("button", { name: "Salvar (Enter)" }) });
+    .filter({ has: page.getByRole("button", { name: "Salvar", exact: true }) });
   await row.getByPlaceholder("Descrição").fill("Compra teste E2E");
   // Célula de valor: único input[type=text] da linha sem placeholder/aria-label.
   await row.locator('input[type="text"]:not([placeholder]):not([aria-label])').first().fill("100");
-  await page.getByRole("button", { name: "Salvar (Enter)" }).click();
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(page.getByText("Compra teste E2E")).toBeVisible();
 
   // 4. Exportar CSV pelo menu e checar o conteúdo.

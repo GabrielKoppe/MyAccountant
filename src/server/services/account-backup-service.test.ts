@@ -481,6 +481,7 @@ function installmentGroup(
     startDate: "2026-01-01",
     tableTypeId: null,
     createdAt: ISO,
+    autoCreateOnNewMonth: true,
     ...over,
   };
 }
@@ -497,6 +498,7 @@ function pendingInstallment(
     subcategoryId: null,
     notes: null,
     createdAt: ISO,
+    settledAt: null,
     ...over,
   };
 }

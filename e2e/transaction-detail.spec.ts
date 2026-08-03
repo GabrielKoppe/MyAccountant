@@ -84,14 +84,17 @@ test.describe("owner", () => {
     await page.goto(`/${m.mainAccountId}/months/${m.spec66MonthId}?tab=${m.roSectionId}`);
 
     const row = page.getByRole("row").filter({ hasText: "Spec 66 — notebook parcelado" });
-    await row.getByRole("button", { name: "1/3" }).click();
+    // O badge é um Chip clicável dentro de um Tooltip: o MUI escreve `aria-label`
+    // com o título do tooltip, então o nome acessível é "Parcela 1 de 3 — …".
+    await row.getByRole("button", { name: /^Parcela 1 de 3/ }).click();
 
     await expect(page.getByText("Grupo de parcelamento")).toBeVisible();
     await expect(page.getByText(/900,00/)).toBeVisible();
 
-    // Rodapé: 3 ações, 1 só "contained" (Lançar próxima é a única habilitada de
-    // cara — a próxima pendência cai num mês já existente, 2099/12).
-    const settleButton = page.getByRole("button", { name: "Quitar antecipado" });
+    // Rodapé: 3 ações ("Lançar próxima" é a única habilitada de cara — a próxima
+    // pendência cai num mês já existente, 2099/12). "Desfazer grupo" é IconButton
+    // com aria-label desde a spec 73 §2.6 — continua acessível pelo mesmo nome.
+    const settleButton = page.getByRole("button", { name: "Quitar parcelas" });
     const launchNextButton = page.getByRole("button", { name: "Lançar próxima" });
     const undoButton = page.getByRole("button", { name: "Desfazer grupo" });
     await expect(settleButton).toBeVisible();

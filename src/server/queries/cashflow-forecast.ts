@@ -182,6 +182,9 @@ export const getCashflowForecast = cache(async function getCashflowForecast(
     where: {
       accountId, // ✅ multi-tenancy
       expectedDate: { gte: rangeStart, lte: rangeEnd },
+      // Parcela marcada como paga fora do app já saiu do bolso — não é
+      // compromisso futuro a projetar (spec 73 §2.5).
+      settledAt: null,
     },
     select: {
       amountCents: true,

@@ -36,3 +36,21 @@ export const undoInstallmentGroupSchema = z.object({
 });
 
 export type UndoInstallmentGroupInput = z.infer<typeof undoInstallmentGroupSchema>;
+
+/** Spec 73 §2.5 — marcar/desmarcar parcela prevista como paga fora do app. */
+export const setPendingInstallmentSettledSchema = z.object({
+  pendingInstallmentId: cuidSchema,
+  settled: z.boolean(),
+});
+
+export type SetPendingInstallmentSettledInput = z.infer<typeof setPendingInstallmentSettledSchema>;
+
+/** Spec 73 §2.4 — criação automática das parcelas futuras ao abrir um mês novo. */
+export const setInstallmentGroupAutoCreateSchema = z.object({
+  installmentGroupId: cuidSchema,
+  autoCreateOnNewMonth: z.boolean(),
+});
+
+export type SetInstallmentGroupAutoCreateInput = z.infer<
+  typeof setInstallmentGroupAutoCreateSchema
+>;

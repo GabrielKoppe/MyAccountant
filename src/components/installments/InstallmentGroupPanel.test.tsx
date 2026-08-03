@@ -18,6 +18,8 @@ const convertPendingInstallmentForExistingMonthAction = vi.fn();
 const undoInstallmentGroupAction = vi.fn();
 const listTablesForSettlementAction = vi.fn();
 const settleInstallmentGroupAction = vi.fn();
+const setPendingInstallmentSettledAction = vi.fn();
+const setInstallmentGroupAutoCreateAction = vi.fn();
 
 vi.mock("@/actions/installments", () => ({
   getInstallmentGroupPanelDataAction: (...args: unknown[]) =>
@@ -27,6 +29,10 @@ vi.mock("@/actions/installments", () => ({
   undoInstallmentGroupAction: (...args: unknown[]) => undoInstallmentGroupAction(...args),
   listTablesForSettlementAction: (...args: unknown[]) => listTablesForSettlementAction(...args),
   settleInstallmentGroupAction: (...args: unknown[]) => settleInstallmentGroupAction(...args),
+  setPendingInstallmentSettledAction: (...args: unknown[]) =>
+    setPendingInstallmentSettledAction(...args),
+  setInstallmentGroupAutoCreateAction: (...args: unknown[]) =>
+    setInstallmentGroupAutoCreateAction(...args),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -38,6 +44,7 @@ const PANEL_DATA: InstallmentGroupPanelData = {
   description: "Notebook Dell",
   totalCents: "500000",
   installmentCount: 3,
+  autoCreateOnNewMonth: true,
   items: [
     {
       installmentNumber: 1,
@@ -62,6 +69,8 @@ const PANEL_DATA: InstallmentGroupPanelData = {
       amountCents: "166666",
       date: "2026-07-15",
       status: "waiting",
+      monthYear: 2026,
+      monthMonth: 7,
       pendingInstallmentId: "pi-3",
     },
   ],
@@ -126,20 +135,33 @@ describe("InstallmentGroupPanel (frame Spec 66 §10)", () => {
     ).toBeInTheDocument();
   });
 
-  it("rodapé: 3 botões (Quitar parcelas, Lançar próxima, Desfazer grupo), nenhum contained", async () => {
+  it("rodapé: 3 ações acessíveis; as textuais são outlined, nenhuma contained", async () => {
     renderPanel();
     await screen.findByText("Notebook Dell");
 
     const settle = screen.getByRole("button", { name: m.transactions.installments.settleShort });
-    const undo = screen.getByRole("button", { name: m.transactions.installments.undoButton });
     const launchNext = screen.getByRole("button", {
       name: m.transactions.installments.launchNextButton,
     });
+    // "Desfazer grupo" virou IconButton com aria-label (spec 73 §2.6) — continua
+    // acessível pelo mesmo nome.
+    const undo = screen.getByRole("button", { name: m.transactions.installments.undoButton });
 
-    for (const btn of [settle, undo, launchNext]) {
+    for (const btn of [settle, launchNext]) {
       expect(btn.className).toContain("MuiButton-outlined");
       expect(btn.className).not.toContain("MuiButton-contained");
     }
+    expect(undo.className).toContain("MuiIconButton-root");
+    expect(undo).toHaveAttribute("aria-label", m.transactions.installments.undoButton);
+  });
+
+  it("'Lançar próxima' não quebra o rótulo em duas linhas (nowrap, spec 73 §2.6)", async () => {
+    renderPanel();
+    await screen.findByText("Notebook Dell");
+    const launchNext = screen.getByRole("button", {
+      name: m.transactions.installments.launchNextButton,
+    });
+    expect(getComputedStyle(launchNext).whiteSpace).toBe("nowrap");
   });
 
   it("'Desfazer grupo' abre a confirmação existente", async () => {
@@ -206,5 +228,74 @@ describe("InstallmentGroupPanel (frame Spec 66 §10)", () => {
     await screen.findByText("Notebook Dell");
     const settle = screen.getByRole("button", { name: m.transactions.installments.settleShort });
     expect(settle).toBeDisabled();
+  });
+});
+
+describe("InstallmentGroupPanel — spec 73", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getInstallmentGroupPanelDataAction.mockResolvedValue({ ok: true, data: PANEL_DATA });
+    listTablesForSettlementAction.mockResolvedValue({ months: [], sections: [], tables: [] });
+  });
+
+  it("marcar parcela prevista como paga chama a action com settled=true", async () => {
+    const user = userEvent.setup();
+    setPendingInstallmentSettledAction.mockResolvedValue({ ok: true, data: { settled: true } });
+    renderPanel();
+    await screen.findByText("Notebook Dell");
+
+    await user.click(screen.getByRole("button", { name: m.transactions.installments.markSettled }));
+    expect(setPendingInstallmentSettledAction).toHaveBeenCalledWith("acc-1", {
+      pendingInstallmentId: "pi-3",
+      settled: true,
+    });
+  });
+
+  it("parcela settled_external conta no progresso e no somatório de pagos", async () => {
+    getInstallmentGroupPanelDataAction.mockResolvedValue({
+      ok: true,
+      data: {
+        ...PANEL_DATA,
+        items: [
+          PANEL_DATA.items[0],
+          PANEL_DATA.items[1],
+          { ...PANEL_DATA.items[2], status: "settled_external" as const },
+        ],
+      },
+    });
+    renderPanel();
+    await screen.findByText("Notebook Dell");
+    // 3 de 3 lançadas; pagos = paid (1.666,67) + settled_external (1.666,66)
+    expect(
+      screen.getByText(m.transactions.installments.launchedProgress(3, 3, "R$ 3.333,33")),
+    ).toBeInTheDocument();
+  });
+
+  it("toggle de criação automática persiste via action", async () => {
+    const user = userEvent.setup();
+    setInstallmentGroupAutoCreateAction.mockResolvedValue({
+      ok: true,
+      data: { autoCreateOnNewMonth: false },
+    });
+    renderPanel();
+    await screen.findByText("Notebook Dell");
+
+    const toggle = screen.getByRole("checkbox", {
+      name: m.transactions.installments.autoCreateLabel,
+    });
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    expect(setInstallmentGroupAutoCreateAction).toHaveBeenCalledWith("acc-1", {
+      installmentGroupId: "grp-1",
+      autoCreateOnNewMonth: false,
+    });
+  });
+
+  it("canEdit=false: não mostra o toggle de criação automática", async () => {
+    renderPanel({ canEdit: false });
+    await screen.findByText("Notebook Dell");
+    expect(
+      screen.queryByRole("checkbox", { name: m.transactions.installments.autoCreateLabel }),
+    ).not.toBeInTheDocument();
   });
 });

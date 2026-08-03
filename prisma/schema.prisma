@@ -821,16 +821,20 @@ enum AliasPriority {
 // =========================================
 
 model InstallmentGroup {
-  id               String   @id @default(cuid())
-  accountId        String   @map("account_id")
-  description      String
-  totalCents       BigInt   @map("total_cents")
-  installmentCount Int      @map("installment_count")
-  downPaymentCents BigInt?  @map("down_payment_cents")
-  startDate        DateTime @map("start_date") @db.Date
-  sectionId        String   @map("section_id")
-  tableTypeId      String?  @map("table_type_id")
-  createdAt        DateTime @default(now()) @map("created_at")
+  id                   String   @id @default(cuid())
+  accountId            String   @map("account_id")
+  description          String
+  totalCents           BigInt   @map("total_cents")
+  installmentCount     Int      @map("installment_count")
+  downPaymentCents     BigInt?  @map("down_payment_cents")
+  startDate            DateTime @map("start_date") @db.Date
+  sectionId            String   @map("section_id")
+  tableTypeId          String?  @map("table_type_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+  // Spec 73 §2.4 — parcelas deste grupo entram automaticamente ao criar um mês
+  // novo. `false` para grupo criado por import: a fatura é a fonte da parcela,
+  // então lançar na criação do mês duplicaria a linha do CSV.
+  autoCreateOnNewMonth Boolean  @default(true) @map("auto_create_on_new_month")
 
   account             Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
   section             Section              @relation(fields: [sectionId], references: [id], onDelete: Restrict)
@@ -843,17 +847,20 @@ model InstallmentGroup {
 }
 
 model PendingInstallment {
-  id                 String   @id @default(cuid())
-  accountId          String   @map("account_id")
-  installmentGroupId String   @map("installment_group_id")
-  installmentNumber  Int      @map("installment_number")
-  amountCents        BigInt   @map("amount_cents")
-  expectedDate       DateTime @map("expected_date") @db.Date
+  id                 String    @id @default(cuid())
+  accountId          String    @map("account_id")
+  installmentGroupId String    @map("installment_group_id")
+  installmentNumber  Int       @map("installment_number")
+  amountCents        BigInt    @map("amount_cents")
+  expectedDate       DateTime  @map("expected_date") @db.Date
   description        String?
-  categoryId         String?  @map("category_id")
-  subcategoryId      String?  @map("subcategory_id")
+  categoryId         String?   @map("category_id")
+  subcategoryId      String?   @map("subcategory_id")
   notes              String?
-  createdAt          DateTime @default(now()) @map("created_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  // Spec 73 §2.5 — marcada como paga fora do app (histórico). Conta no
+  // progresso do grupo, mas NÃO gera Transaction e não altera total de mês.
+  settledAt          DateTime? @map("settled_at")
 
   account Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
   group   InstallmentGroup @relation(fields: [installmentGroupId], references: [id], onDelete: Cascade)

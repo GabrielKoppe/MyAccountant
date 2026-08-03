@@ -623,3 +623,262 @@ describe("listTemplates", () => {
     );
   });
 });
+
+// ─── Spec 73 — parcelamentos de fatura ───────────────────────────────────────
+
+describe("executeImport — ancoragem no mês de competência (spec 73 §2.1)", () => {
+  // Fatura de competência JUNHO/2026 com a linha "EINSCRICAO 4/4", cuja data de
+  // COMPRA é 06/03/2026. O cronograma deve ficar março→junho, não dez/2025→março.
+  const JUNE_MONTH = {
+    id: "month-jun",
+    year: 2026,
+    month: 6,
+    accountId: "acc-test-1",
+  };
+
+  function setupJuneImport() {
+    prismaMock.month.findFirst.mockResolvedValue(JUNE_MONTH as any);
+    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
+    prismaMock.category.findMany.mockResolvedValue([]);
+    prismaMock.subcategory.findMany.mockResolvedValue([]);
+    prismaMock.institution.findMany.mockResolvedValue([]);
+    prismaMock.responsiblePartyMember.findMany.mockResolvedValue([]);
+    prismaMock.transactionAlias.findMany.mockResolvedValue([]);
+
+    const txMock = {
+      financeTable: {
+        count: vi.fn().mockResolvedValue(0),
+        create: vi.fn().mockResolvedValue({ id: "table-jun" }),
+      },
+      transaction: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      transactionTag: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      installmentGroup: {
+        create: vi.fn().mockResolvedValue({ id: "grp-new" }),
+        findFirst: vi.fn(),
+      },
+      pendingInstallment: {
+        createMany: vi.fn().mockResolvedValue({ count: 3 }),
+        delete: vi.fn().mockResolvedValue({}),
+      },
+    };
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
+    return txMock;
+  }
+
+  const EINSCRICAO_INPUT = {
+    monthId: "month-jun",
+    sectionId: "sec-1",
+    tableTypeId: "tt-1",
+    tableName: "Fatura Junho",
+    countInMonth: true,
+    mapping: MAPPING,
+    rows: [{ Data: "06/03/2026", Valor: "229,83" }],
+    acceptedInstallments: [
+      {
+        groupDescription: "einscricao",
+        installmentCount: 4,
+        lines: [{ rowIndex: 0, installmentNumber: 4 }],
+        totalAmountCents: "22983",
+      },
+    ],
+  };
+
+  it("parcela 4/4 na fatura de junho: pendentes 1–3 em março, abril e maio de 2026", async () => {
+    const txMock = setupJuneImport();
+
+    await csvImportService.executeImport(EINSCRICAO_INPUT as any, EXEC_CTX);
+
+    const pending = txMock.pendingInstallment.createMany.mock.calls[0][0].data as {
+      installmentNumber: number;
+      expectedDate: Date;
+    }[];
+    const byNumber = new Map(pending.map((p) => [p.installmentNumber, p.expectedDate]));
+
+    expect([...byNumber.keys()].sort()).toEqual([1, 2, 3]);
+    // Dia da compra (6) reaplicado em cada competência, em UTC
+    expect(byNumber.get(1)!.toISOString()).toBe("2026-03-06T00:00:00.000Z");
+    expect(byNumber.get(2)!.toISOString()).toBe("2026-04-06T00:00:00.000Z");
+    expect(byNumber.get(3)!.toISOString()).toBe("2026-05-06T00:00:00.000Z");
+  });
+
+  it("startDate do grupo = competência da parcela 1 (não a data da compra retroagida)", async () => {
+    const txMock = setupJuneImport();
+
+    await csvImportService.executeImport(EINSCRICAO_INPUT as any, EXEC_CTX);
+
+    const data = txMock.installmentGroup.create.mock.calls[0][0].data as {
+      startDate: Date;
+      autoCreateOnNewMonth: boolean;
+    };
+    expect(data.startDate.toISOString()).toBe("2026-03-06T00:00:00.000Z");
+    // Grupo vindo de import nasce sem criação automática (spec 73 §2.4)
+    expect(data.autoCreateOnNewMonth).toBe(false);
+  });
+
+  it("dia da compra inexistente no mês destino é ajustado ao último dia válido", async () => {
+    const txMock = setupJuneImport();
+
+    await csvImportService.executeImport(
+      {
+        ...EINSCRICAO_INPUT,
+        rows: [{ Data: "31/03/2026", Valor: "100,00" }],
+        acceptedInstallments: [
+          {
+            groupDescription: "compra",
+            installmentCount: 3,
+            lines: [{ rowIndex: 0, installmentNumber: 3 }],
+            totalAmountCents: "10000",
+          },
+        ],
+      } as any,
+      EXEC_CTX,
+    );
+
+    const pending = txMock.pendingInstallment.createMany.mock.calls[0][0].data as {
+      installmentNumber: number;
+      expectedDate: Date;
+    }[];
+    const byNumber = new Map(pending.map((p) => [p.installmentNumber, p.expectedDate]));
+    // Parcela 3 = junho → parcela 1 = abril (30 dias), parcela 2 = maio
+    expect(byNumber.get(1)!.toISOString()).toBe("2026-04-30T00:00:00.000Z");
+    expect(byNumber.get(2)!.toISOString()).toBe("2026-05-31T00:00:00.000Z");
+  });
+
+  it("occurredOn da transação importada continua sendo a data da compra", async () => {
+    const txMock = setupJuneImport();
+
+    await csvImportService.executeImport(EINSCRICAO_INPUT as any, EXEC_CTX);
+
+    const rows = txMock.transaction.createMany.mock.calls[0][0].data as {
+      occurredOn: Date;
+      installmentNumber: number | null;
+    }[];
+    expect(rows[0].occurredOn.toISOString()).toBe("2026-03-06T00:00:00.000Z");
+    expect(rows[0].installmentNumber).toBe(4);
+  });
+});
+
+describe("executeImport — vínculo com parcelamento existente (spec 73 §2.3)", () => {
+  function setupJulyImport(existingGroup: unknown) {
+    prismaMock.month.findFirst.mockResolvedValue({
+      id: "month-jul",
+      year: 2026,
+      month: 7,
+      accountId: "acc-test-1",
+    } as any);
+    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
+    prismaMock.category.findMany.mockResolvedValue([]);
+    prismaMock.subcategory.findMany.mockResolvedValue([]);
+    prismaMock.institution.findMany.mockResolvedValue([]);
+    prismaMock.responsiblePartyMember.findMany.mockResolvedValue([]);
+    prismaMock.transactionAlias.findMany.mockResolvedValue([]);
+
+    const txMock = {
+      financeTable: {
+        count: vi.fn().mockResolvedValue(0),
+        create: vi.fn().mockResolvedValue({ id: "table-jul" }),
+      },
+      transaction: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      transactionTag: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      installmentGroup: {
+        create: vi.fn().mockResolvedValue({ id: "grp-new" }),
+        findFirst: vi.fn().mockResolvedValue(existingGroup),
+      },
+      pendingInstallment: {
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+        delete: vi.fn().mockResolvedValue({}),
+      },
+    };
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
+    return txMock;
+  }
+
+  // "CYAN SHOES 3/3" na fatura de julho, continuando o grupo criado em junho
+  const CYAN_INPUT = {
+    monthId: "month-jul",
+    sectionId: "sec-1",
+    tableTypeId: "tt-1",
+    tableName: "Fatura Julho",
+    countInMonth: true,
+    mapping: MAPPING,
+    rows: [{ Data: "04/05/2026", Valor: "157,83" }],
+    acceptedInstallments: [
+      {
+        groupDescription: "cyan shoes",
+        installmentCount: 3,
+        lines: [{ rowIndex: 0, installmentNumber: 3 }],
+        totalAmountCents: "15783",
+        existingGroupId: "grp-jun",
+      },
+    ],
+  };
+
+  it("vincula ao grupo existente, consome a pendente e não cria grupo novo", async () => {
+    const txMock = setupJulyImport({
+      id: "grp-jun",
+      transactions: [{ installmentNumber: 2 }],
+      pendingInstallments: [{ id: "pi-3", installmentNumber: 3 }],
+    });
+
+    const result = await csvImportService.executeImport(CYAN_INPUT as any, EXEC_CTX);
+
+    expect(txMock.installmentGroup.create).not.toHaveBeenCalled();
+    expect(txMock.pendingInstallment.createMany).not.toHaveBeenCalled();
+    expect(txMock.pendingInstallment.delete).toHaveBeenCalledWith({ where: { id: "pi-3" } });
+
+    const rows = txMock.transaction.createMany.mock.calls[0][0].data as {
+      installmentGroupId: string | null;
+      installmentNumber: number | null;
+    }[];
+    expect(rows[0].installmentGroupId).toBe("grp-jun");
+    expect(rows[0].installmentNumber).toBe(3);
+
+    expect(result.installmentGroupsLinked).toBe(1);
+    expect(result.installmentGroupsCreated).toBe(0);
+    expect(result.installmentLinesSkipped).toBe(0);
+  });
+
+  it("multi-tenancy: busca o grupo escopada por accountId", async () => {
+    const txMock = setupJulyImport({
+      id: "grp-jun",
+      transactions: [],
+      pendingInstallments: [{ id: "pi-3", installmentNumber: 3 }],
+    });
+
+    await csvImportService.executeImport(CYAN_INPUT as any, EXEC_CTX);
+
+    expect(txMock.installmentGroup.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "grp-jun", accountId: "acc-test-1" },
+      }),
+    );
+  });
+
+  it("grupo de outra account: NotFoundError", async () => {
+    setupJulyImport(null);
+
+    await expect(
+      csvImportService.executeImport(CYAN_INPUT as any, EXEC_CTX),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("número já lançado no grupo: importa sem vínculo e reporta", async () => {
+    const txMock = setupJulyImport({
+      id: "grp-jun",
+      // A parcela 3 já foi materializada (ex: auto-criação ao abrir o mês)
+      transactions: [{ installmentNumber: 2 }, { installmentNumber: 3 }],
+      pendingInstallments: [],
+    });
+
+    const result = await csvImportService.executeImport(CYAN_INPUT as any, EXEC_CTX);
+
+    const rows = txMock.transaction.createMany.mock.calls[0][0].data as {
+      installmentGroupId: string | null;
+    }[];
+    expect(rows[0].installmentGroupId).toBeNull();
+    expect(result.installmentLinesSkipped).toBe(1);
+    expect(txMock.pendingInstallment.delete).not.toHaveBeenCalled();
+  });
+});

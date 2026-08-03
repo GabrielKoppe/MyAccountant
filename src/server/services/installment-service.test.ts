@@ -250,3 +250,279 @@ describe("undoInstallmentGroup", () => {
     expect(result).toEqual({ dissociatedTransactions: 3, deletedPending: 9 });
   });
 });
+
+// ─── Spec 73 ─────────────────────────────────────────────────────────────────
+
+describe("convertPendingInstallmentsForMonth — filtros da spec 73", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("sem seleção explícita: só grupos com autoCreateOnNewMonth e pendências não pagas, range em UTC", async () => {
+    prismaMock.pendingInstallment.findMany.mockResolvedValue([]);
+
+    await service.convertPendingInstallmentsForMonth("acc-1", "month-1", 2026, 7, "user-1");
+
+    const where = prismaMock.pendingInstallment.findMany.mock.calls[0][0]!.where as {
+      accountId: string;
+      settledAt: null;
+      group?: { autoCreateOnNewMonth: boolean };
+      expectedDate: { gte: Date; lte: Date };
+    };
+    expect(where.accountId).toBe("acc-1");
+    expect(where.settledAt).toBeNull();
+    expect(where.group).toEqual({ autoCreateOnNewMonth: true });
+    // Bordas em UTC: 2026-07-01T00:00:00Z até 2026-07-31T23:59:59.999Z
+    expect(where.expectedDate.gte.toISOString()).toBe("2026-07-01T00:00:00.000Z");
+    expect(where.expectedDate.lte.toISOString()).toBe("2026-07-31T23:59:59.999Z");
+  });
+
+  it("com pendingInstallmentIds: escopa nos ids e ignora a flag do grupo", async () => {
+    prismaMock.pendingInstallment.findMany.mockResolvedValue([]);
+
+    await service.convertPendingInstallmentsForMonth("acc-1", "month-1", 2026, 7, "user-1", {
+      pendingInstallmentIds: ["pi-1", "pi-2"],
+    });
+
+    const where = prismaMock.pendingInstallment.findMany.mock.calls[0][0]!.where as {
+      id?: { in: string[] };
+      group?: unknown;
+    };
+    expect(where.id).toEqual({ in: ["pi-1", "pi-2"] });
+    expect(where.group).toBeUndefined();
+  });
+
+  it("lista vazia de ids não converte nada (não cai no caminho automático)", async () => {
+    prismaMock.pendingInstallment.findMany.mockResolvedValue([]);
+
+    const result = await service.convertPendingInstallmentsForMonth(
+      "acc-1",
+      "month-1",
+      2026,
+      7,
+      "user-1",
+      { pendingInstallmentIds: [] },
+    );
+
+    const where = prismaMock.pendingInstallment.findMany.mock.calls[0][0]!.where as {
+      id?: { in: string[] };
+    };
+    expect(where.id).toEqual({ in: [] });
+    expect(result.converted).toBe(0);
+  });
+});
+
+describe("setPendingInstallmentSettled", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("multi-tenancy: parcela de outra account → NotFoundError", async () => {
+    prismaMock.pendingInstallment.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.setPendingInstallmentSettled(
+        { pendingInstallmentId: "pi-outra", settled: true },
+        mockCtx,
+      ),
+    ).rejects.toThrow("Parcela pendente");
+    expect(prismaMock.pendingInstallment.findFirst).toHaveBeenCalledWith({
+      where: { id: "pi-outra", accountId: "acc-1" },
+      select: { id: true, installmentGroupId: true },
+    });
+    expect(prismaMock.pendingInstallment.update).not.toHaveBeenCalled();
+  });
+
+  it("marcar: grava settledAt e NÃO cria Transaction", async () => {
+    prismaMock.pendingInstallment.findFirst.mockResolvedValue({
+      id: "pi-1",
+      installmentGroupId: "grp-1",
+    } as never);
+    prismaMock.pendingInstallment.update.mockResolvedValue({} as never);
+
+    const result = await service.setPendingInstallmentSettled(
+      { pendingInstallmentId: "pi-1", settled: true },
+      mockCtx,
+    );
+
+    expect(result).toEqual({ settled: true });
+    const call = prismaMock.pendingInstallment.update.mock.calls[0][0] as {
+      data: { settledAt: Date | null };
+    };
+    expect(call.data.settledAt).toBeInstanceOf(Date);
+    expect(prismaMock.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("desmarcar: limpa settledAt", async () => {
+    prismaMock.pendingInstallment.findFirst.mockResolvedValue({
+      id: "pi-1",
+      installmentGroupId: "grp-1",
+    } as never);
+    prismaMock.pendingInstallment.update.mockResolvedValue({} as never);
+
+    await service.setPendingInstallmentSettled(
+      { pendingInstallmentId: "pi-1", settled: false },
+      mockCtx,
+    );
+
+    expect(prismaMock.pendingInstallment.update).toHaveBeenCalledWith({
+      where: { id: "pi-1" },
+      data: { settledAt: null },
+    });
+  });
+});
+
+describe("setInstallmentGroupAutoCreate", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("multi-tenancy: grupo de outra account → NotFoundError", async () => {
+    prismaMock.installmentGroup.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.setInstallmentGroupAutoCreate(
+        { installmentGroupId: "grp-outra", autoCreateOnNewMonth: false },
+        mockCtx,
+      ),
+    ).rejects.toThrow("Grupo de parcelamento");
+    expect(prismaMock.installmentGroup.update).not.toHaveBeenCalled();
+  });
+
+  it("persiste a flag", async () => {
+    prismaMock.installmentGroup.findFirst.mockResolvedValue({ id: "grp-1" } as never);
+    prismaMock.installmentGroup.update.mockResolvedValue({} as never);
+
+    const result = await service.setInstallmentGroupAutoCreate(
+      { installmentGroupId: "grp-1", autoCreateOnNewMonth: false },
+      mockCtx,
+    );
+
+    expect(result).toEqual({ autoCreateOnNewMonth: false });
+    expect(prismaMock.installmentGroup.update).toHaveBeenCalledWith({
+      where: { id: "grp-1" },
+      data: { autoCreateOnNewMonth: false },
+    });
+  });
+});
+
+describe("settleInstallmentGroup — exclui parcela paga fora do app", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("busca pendências com settledAt: null", async () => {
+    prismaMock.installmentGroup.findUnique.mockResolvedValue({
+      id: "grp-1",
+      description: "Notebook",
+    } as never);
+    prismaMock.pendingInstallment.findMany.mockResolvedValue([]);
+
+    await expect(
+      service.settleInstallmentGroup(
+        { installmentGroupId: "grp-1", mode: "individual", tableId: "table-1", count: 2 },
+        mockCtx,
+      ),
+    ).rejects.toThrow("Não há parcelas pendentes");
+
+    expect(prismaMock.pendingInstallment.findMany).toHaveBeenCalledWith({
+      where: { installmentGroupId: "grp-1", accountId: "acc-1", settledAt: null },
+      orderBy: { installmentNumber: "asc" },
+    });
+  });
+});
+
+describe("findInstallmentGroupMatchesForImport", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  const CANDIDATE = {
+    suggestionId: "ci:37",
+    normalizedDescription: "cyan shoes",
+    installmentCount: 3,
+    occurredOn: "2026-05-04",
+    installmentNumbers: [3],
+  };
+
+  function group(over: Partial<Record<string, unknown>> = {}) {
+    return {
+      id: "grp-1",
+      description: "cyan shoes",
+      installmentCount: 3,
+      startDate: new Date("2026-05-01T00:00:00Z"),
+      transactions: [{ installmentNumber: 2, occurredOn: new Date("2026-05-04T00:00:00Z") }],
+      pendingInstallments: [{ installmentNumber: 1 }, { installmentNumber: 3 }],
+      ...over,
+    };
+  }
+
+  it("lista vazia de candidatos não consulta o banco", async () => {
+    const result = await service.findInstallmentGroupMatchesForImport([], "acc-1");
+    expect(result).toEqual([]);
+    expect(prismaMock.installmentGroup.findMany).not.toHaveBeenCalled();
+  });
+
+  it("multi-tenancy: filtra por accountId e só descarta pendências pagas", async () => {
+    prismaMock.installmentGroup.findMany.mockResolvedValue([]);
+    await service.findInstallmentGroupMatchesForImport([CANDIDATE], "acc-1");
+
+    const args = prismaMock.installmentGroup.findMany.mock.calls[0][0]!;
+    expect((args.where as { accountId: string }).accountId).toBe("acc-1");
+    expect(
+      (args.select as { pendingInstallments: { where: unknown } }).pendingInstallments.where,
+    ).toEqual({ settledAt: null });
+  });
+
+  it("casa pela data da compra (sinal 1)", async () => {
+    prismaMock.installmentGroup.findMany.mockResolvedValue([group()] as never);
+
+    const [match] = await service.findInstallmentGroupMatchesForImport([CANDIDATE], "acc-1");
+
+    expect(match).toMatchObject({
+      suggestionId: "ci:37",
+      groupId: "grp-1",
+      matchedBy: "purchase_date",
+      pendingNumbers: [1, 3],
+      launchedNumbers: [2],
+      startDate: "2026-05-01",
+    });
+  });
+
+  it("data diferente: casa pelo número de parcela pendente (sinal 2)", async () => {
+    // "Anuidade Diferenciada" é re-datada a cada mês → sinal 1 falha
+    prismaMock.installmentGroup.findMany.mockResolvedValue([
+      group({
+        description: "anuidade diferenciada",
+        installmentCount: 12,
+        transactions: [{ installmentNumber: 4, occurredOn: new Date("2026-06-23T00:00:00Z") }],
+        pendingInstallments: [{ installmentNumber: 5 }, { installmentNumber: 6 }],
+      }),
+    ] as never);
+
+    const [match] = await service.findInstallmentGroupMatchesForImport(
+      [
+        {
+          ...CANDIDATE,
+          normalizedDescription: "anuidade diferenciada",
+          installmentCount: 12,
+          occurredOn: "2026-07-22",
+          installmentNumbers: [5],
+        },
+      ],
+      "acc-1",
+    );
+
+    expect(match).toMatchObject({ groupId: "grp-1", matchedBy: "installment_number" });
+  });
+
+  it("dois grupos com a mesma data: ambíguo, sem vínculo", async () => {
+    prismaMock.installmentGroup.findMany.mockResolvedValue([
+      group({ id: "grp-1" }),
+      group({ id: "grp-2" }),
+    ] as never);
+
+    const [match] = await service.findInstallmentGroupMatchesForImport([CANDIDATE], "acc-1");
+
+    expect(match).toEqual({ suggestionId: "ci:37", ambiguous: true, candidateCount: 2 });
+  });
+
+  it("descrição diferente: nenhum casamento", async () => {
+    prismaMock.installmentGroup.findMany.mockResolvedValue([
+      group({ description: "outra compra" }),
+    ] as never);
+
+    const result = await service.findInstallmentGroupMatchesForImport([CANDIDATE], "acc-1");
+    expect(result).toEqual([]);
+  });
+});

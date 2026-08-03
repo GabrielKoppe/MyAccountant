@@ -14,12 +14,14 @@ import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 import { useState, type ReactNode } from "react";
 
-import { createMonthAction } from "@/actions/months";
+import { createMonthAction, previewMonthAutomationsAction } from "@/actions/months";
+import { MonthAutomationsStep } from "@/components/months/MonthAutomationsStep";
 import { AutoApplyResultSnackbar } from "@/components/ui/AutoApplyResultSnackbar";
 import { DialogShell } from "@/components/ui/DialogShell";
 import { MONTH_NAMES, getNextMonthSuggestion } from "@/lib/dates";
 import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
+import type { MonthAutomationGroup } from "@/server/services/month-service";
 
 type Props = {
   accountId: string;
@@ -42,19 +44,97 @@ export function CreateMonthModal({ accountId, lastMonth, variant = "button", ren
 
   const [year, setYear] = useState(suggestion.year);
   const [month, setMonth] = useState(suggestion.month);
+  // Passo "Automações" (spec 73 §2.4): só existe quando há algo a automatizar.
+  const [step, setStep] = useState<"month" | "automations">("month");
+  const [automations, setAutomations] = useState<MonthAutomationGroup[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   function openModal() {
     const s = lastMonth ? getNextMonthSuggestion(lastMonth) : suggestion;
     setYear(s.year);
     setMonth(s.month);
     setError("");
+    setStep("month");
+    setAutomations([]);
+    setSelectedIds(new Set());
     setOpen(true);
+  }
+
+  /**
+   * Passo 1 → 2. Consulta o dry-run; sem automações, cria direto (o passo extra
+   * só apareceria vazio). Falha no preview não bloqueia: cria com os padrões.
+   */
+  async function handleContinue() {
+    setError("");
+    setLoading(true);
+    const result = await previewMonthAutomationsAction(accountId, { year, month });
+    setLoading(false);
+
+    if (!result.ok) {
+      enqueueSnackbar(m.months.automations.loadError, { variant: "warning" });
+      await handleCreate();
+      return;
+    }
+
+    const groups = result.data;
+    if (groups.length === 0) {
+      await handleCreate();
+      return;
+    }
+
+    setAutomations(groups);
+    setSelectedIds(
+      new Set(
+        groups.flatMap((g) =>
+          g.items.filter((i) => i.defaultSelected && !i.blockedReason).map((i) => i.id),
+        ),
+      ),
+    );
+    setStep("automations");
+  }
+
+  function idsOfKind(kind: MonthAutomationGroup["kind"]): string[] {
+    return (automations.find((g) => g.kind === kind)?.items ?? [])
+      .filter((i) => selectedIds.has(i.id))
+      .map((i) => i.id);
+  }
+
+  function toggleItem(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleGroup(kind: MonthAutomationGroup["kind"], selectAll: boolean) {
+    const ids = (automations.find((g) => g.kind === kind)?.items ?? [])
+      .filter((i) => !i.blockedReason)
+      .map((i) => i.id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (selectAll) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
   }
 
   async function handleCreate() {
     setError("");
     setLoading(true);
-    const result = await createMonthAction(accountId, { year, month });
+    // `selection` só vai quando o passo 2 foi exibido: ausente = padrões do
+    // servidor (todos os modelos autoApply + parcelas com auto-criação ligada).
+    const selection =
+      step === "automations"
+        ? {
+            templateIds: idsOfKind("table_template"),
+            pendingInstallmentIds: idsOfKind("pending_installment"),
+          }
+        : undefined;
+    const result = await createMonthAction(accountId, { year, month, selection });
     setLoading(false);
 
     if (!result.ok) {
@@ -127,50 +207,84 @@ export function CreateMonthModal({ accountId, lastMonth, variant = "button", ren
       <DialogShell
         open={open}
         onClose={() => setOpen(false)}
-        maxWidth="xs"
-        title={m.months.createTitle}
+        maxWidth={step === "automations" ? "sm" : "xs"}
+        title={
+          step === "automations"
+            ? m.months.automations.title(`${MONTH_NAMES[month - 1]} ${year}`)
+            : m.months.createTitle
+        }
         loading={loading}
         actions={
-          <>
-            <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
-            <Button
-              variant="contained"
-              onClick={handleCreate}
-              endIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
-            >
-              {m.common.create}
-            </Button>
-          </>
+          step === "automations" ? (
+            <>
+              <Button onClick={() => setStep("month")} disabled={loading}>
+                {m.months.automations.back}
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleCreate}
+                disabled={loading}
+                endIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
+              >
+                {m.months.automations.create}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
+              <Button
+                variant="contained"
+                onClick={handleContinue}
+                disabled={loading}
+                endIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
+              >
+                {m.common.create}
+              </Button>
+            </>
+          )
         }
       >
-        <Stack spacing={layout.inline} sx={{ mt: layout.micro }}>
-          <Stack direction="row" spacing={layout.inline}>
-            <FormControl sx={{ flex: 1 }}>
-              <InputLabel>{m.months.monthLabel}</InputLabel>
-              <Select
-                value={month}
-                label={m.months.monthLabel}
-                size="small"
-                onChange={(e) => setMonth(Number(e.target.value))}
-              >
-                {MONTH_NAMES.map((name, idx) => (
-                  <MenuItem key={idx + 1} value={idx + 1}>
-                    {name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField
-              label={m.months.yearLabel}
-              type="number"
-              value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
-              inputProps={{ min: 2000, max: 2400 }}
-              sx={{ width: 110 }}
+        {step === "automations" ? (
+          <Stack spacing={layout.inline} sx={{ mt: layout.micro }}>
+            <MonthAutomationsStep
+              groups={automations}
+              selectedIds={selectedIds}
+              onToggle={toggleItem}
+              onToggleGroup={toggleGroup}
+              disabled={loading}
             />
+            {error && <Alert severity="error">{error}</Alert>}
           </Stack>
-          {error && <Alert severity="error">{error}</Alert>}
-        </Stack>
+        ) : (
+          <Stack spacing={layout.inline} sx={{ mt: layout.micro }}>
+            <Stack direction="row" spacing={layout.inline}>
+              <FormControl sx={{ flex: 1 }}>
+                <InputLabel>{m.months.monthLabel}</InputLabel>
+                <Select
+                  value={month}
+                  label={m.months.monthLabel}
+                  size="small"
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                >
+                  {MONTH_NAMES.map((name, idx) => (
+                    <MenuItem key={idx + 1} value={idx + 1}>
+                      {name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <TextField
+                label={m.months.yearLabel}
+                type="number"
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+                inputProps={{ min: 2000, max: 2400 }}
+                sx={{ width: 110 }}
+              />
+            </Stack>
+            {error && <Alert severity="error">{error}</Alert>}
+          </Stack>
+        )}
       </DialogShell>
     </>
   );

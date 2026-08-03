@@ -12,6 +12,8 @@ const PAID_ITEM: InstallmentPanelItem = {
   amountCents: "10000",
   date: "2026-01-15",
   status: "paid",
+  monthYear: 2026,
+  monthMonth: 1,
 };
 
 const PENDING_ITEM: InstallmentPanelItem = {
@@ -19,6 +21,8 @@ const PENDING_ITEM: InstallmentPanelItem = {
   amountCents: "10000",
   date: "2026-02-15",
   status: "pending",
+  monthYear: 2026,
+  monthMonth: 2,
 };
 
 const WAITING_CONVERTIBLE_ITEM: InstallmentPanelItem = {
@@ -26,6 +30,8 @@ const WAITING_CONVERTIBLE_ITEM: InstallmentPanelItem = {
   amountCents: "5000",
   date: "2026-03-15",
   status: "waiting",
+  monthYear: 2026,
+  monthMonth: 3,
   existingMonthId: "month-3",
   pendingInstallmentId: "pi-3",
 };
@@ -35,6 +41,29 @@ const WAITING_PLAIN_ITEM: InstallmentPanelItem = {
   amountCents: "5000",
   date: "2026-07-15",
   status: "waiting",
+  monthYear: 2026,
+  monthMonth: 7,
+};
+
+// Parcela de fatura: occurredOn é a data da COMPRA (março), mas a parcela é
+// contabilizada na competência de junho (spec 73 §2.2).
+const INVOICE_LAST_INSTALLMENT: InstallmentPanelItem = {
+  installmentNumber: 4,
+  amountCents: "22983",
+  date: "2026-03-06",
+  status: "paid",
+  monthYear: 2026,
+  monthMonth: 6,
+};
+
+const SETTLED_EXTERNAL_ITEM: InstallmentPanelItem = {
+  installmentNumber: 2,
+  amountCents: "22983",
+  date: "2026-04-06",
+  status: "settled_external",
+  monthYear: 2026,
+  monthMonth: 4,
+  pendingInstallmentId: "pi-2",
 };
 
 describe("InstallmentSchedule", () => {
@@ -82,10 +111,18 @@ describe("InstallmentSchedule", () => {
       amountCents: "12345",
       date: "2026-04-15",
       status: "pending",
+      monthYear: 2026,
+      monthMonth: 4,
     };
     render(<InstallmentSchedule items={[item]} installmentCount={5} />);
     expect(screen.getByText("2/5")).toBeInTheDocument();
     expect(screen.getByText(/123,45/)).toBeInTheDocument();
+  });
+
+  it("rotula o mês pela competência (monthMonth), não pela data da compra (spec 73 §2.2)", () => {
+    render(<InstallmentSchedule items={[INVOICE_LAST_INSTALLMENT]} installmentCount={4} />);
+    expect(screen.getByText(/junho/i)).toBeInTheDocument();
+    expect(screen.queryByText(/março/i)).not.toBeInTheDocument();
   });
 });
 
@@ -141,5 +178,65 @@ describe("InstallmentSchedule — variant=panel (frame Spec 66 §10)", () => {
     const trigger = screen.getByText("Criar neste mês");
     await userEvent.click(trigger);
     expect(onConvert).toHaveBeenCalledWith("pi-3");
+  });
+});
+
+describe("InstallmentSchedule — paga fora do app (spec 73 §2.5)", () => {
+  it("waiting + canEdit + onToggleSettled: ícone vira botão que marca como paga", async () => {
+    const onToggleSettled = vi.fn();
+    render(
+      <InstallmentSchedule
+        items={[WAITING_CONVERTIBLE_ITEM]}
+        installmentCount={4}
+        canEdit
+        onToggleSettled={onToggleSettled}
+        variant="panel"
+      />,
+    );
+    const button = screen.getByRole("button", {
+      name: m.transactions.installments.markSettled,
+    });
+    await userEvent.click(button);
+    expect(onToggleSettled).toHaveBeenCalledWith("pi-3", true);
+  });
+
+  it("settled_external: sufixo 'paga (histórico)', valor visível e botão de desfazer", async () => {
+    const onToggleSettled = vi.fn();
+    render(
+      <InstallmentSchedule
+        items={[SETTLED_EXTERNAL_ITEM]}
+        installmentCount={4}
+        canEdit
+        onToggleSettled={onToggleSettled}
+        variant="panel"
+      />,
+    );
+    expect(
+      screen.getByText(
+        `${m.transactions.installments.itemTitle(2, 4)} · ${m.transactions.installments.itemSettledSuffix}`,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/229,83/)).toBeInTheDocument();
+    // Não é lançamento: sem link para transação
+    expect(screen.queryByTestId("OpenInNewIcon")).not.toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: m.transactions.installments.unmarkSettled }),
+    );
+    expect(onToggleSettled).toHaveBeenCalledWith("pi-2", false);
+  });
+
+  it("canEdit=false: ícone de status não é botão", () => {
+    render(
+      <InstallmentSchedule
+        items={[SETTLED_EXTERNAL_ITEM]}
+        installmentCount={4}
+        variant="panel"
+        onToggleSettled={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: m.transactions.installments.unmarkSettled }),
+    ).not.toBeInTheDocument();
   });
 });

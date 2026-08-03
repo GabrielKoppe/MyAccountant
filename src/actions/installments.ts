@@ -5,13 +5,16 @@ import { z } from "zod";
 import { cuidSchema } from "@/lib/schemas/shared";
 import {
   createInstallmentGroupSchema,
+  setInstallmentGroupAutoCreateSchema,
+  setPendingInstallmentSettledSchema,
   settleInstallmentGroupSchema,
   undoInstallmentGroupSchema,
 } from "@/lib/schemas/installment";
 import * as installmentService from "@/server/services/installment-service";
 import { prisma } from "@/server/prisma";
 import { requireAccountAccess } from "@/server/auth/session";
-import { NotFoundError } from "@/server/api/errors";
+import { ConflictError, NotFoundError } from "@/server/api/errors";
+import { utcYearMonthOf } from "@/lib/dates";
 
 const EDITOR_ROLES = ["owner", "editor"] as const;
 
@@ -117,14 +120,15 @@ export const convertPendingInstallmentForExistingMonthAction = defineAction({
   schema: z.object({ pendingInstallmentId: cuidSchema }),
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
-    const pi = await prisma.pendingInstallment.findUnique({
+    const pi = await prisma.pendingInstallment.findFirst({
       where: { id: input.pendingInstallmentId, accountId: ctx.accountId },
-      select: { expectedDate: true },
+      select: { expectedDate: true, settledAt: true },
     });
     if (!pi) throw new NotFoundError("Parcela pendente");
+    if (pi.settledAt) throw new ConflictError("Esta parcela já está marcada como paga.");
 
-    const year = pi.expectedDate.getFullYear();
-    const month = pi.expectedDate.getMonth() + 1;
+    // getUTC*: expectedDate é @db.Date (meia-noite UTC) — spec 73 §2.7
+    const { year, month } = utcYearMonthOf(pi.expectedDate);
 
     const existingMonth = await prisma.month.findFirst({
       where: { accountId: ctx.accountId, year, month },
@@ -138,6 +142,50 @@ export const convertPendingInstallmentForExistingMonthAction = defineAction({
       year,
       month,
       ctx.userId,
+      // Escopo na parcela clicada: sem isso, converteria TODAS as pendências
+      // que caem nesse mês, de qualquer grupo.
+      { pendingInstallmentIds: [input.pendingInstallmentId] },
     );
+  },
+});
+
+/** Marca/desmarca uma parcela prevista como paga fora do app (owner/editor apenas). */
+export const setPendingInstallmentSettledAction = defineAction({
+  schema: setPendingInstallmentSettledSchema,
+  requireRoles: [...EDITOR_ROLES],
+  handler: async (input, ctx) => {
+    return installmentService.setPendingInstallmentSettled(input, ctx);
+  },
+});
+
+/** Liga/desliga a criação automática das parcelas ao abrir mês novo (owner/editor apenas). */
+export const setInstallmentGroupAutoCreateAction = defineAction({
+  schema: setInstallmentGroupAutoCreateSchema,
+  requireRoles: [...EDITOR_ROLES],
+  handler: async (input, ctx) => {
+    return installmentService.setInstallmentGroupAutoCreate(input, ctx);
+  },
+});
+
+/**
+ * Resolve, para as sugestões detectadas no preview do import, quais já
+ * correspondem a um InstallmentGroup existente (spec 73 §2.3). Somente leitura.
+ */
+export const findInstallmentGroupMatchesForImportAction = defineAction({
+  schema: z.object({
+    candidates: z
+      .array(
+        z.object({
+          suggestionId: z.string().min(1).max(200),
+          normalizedDescription: z.string().max(200),
+          installmentCount: z.number().int().min(2).max(360),
+          occurredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida"),
+          installmentNumbers: z.array(z.number().int().min(1)).max(360),
+        }),
+      )
+      .max(500),
+  }),
+  handler: async (input, ctx) => {
+    return installmentService.findInstallmentGroupMatchesForImport(input.candidates, ctx.accountId);
   },
 });

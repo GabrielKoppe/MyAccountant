@@ -110,6 +110,40 @@ export function getCurrentFiscalMonth(
   return { year: prev.getFullYear(), month: prev.getMonth() + 1 };
 }
 
+// ─── Datas @db.Date em UTC (spec 73 §2.7) ────────────────────────────────────
+// Colunas `@db.Date` (ex: PendingInstallment.expectedDate) são materializadas
+// pelo Prisma como meia-noite **UTC**. Ler/gravar com os getters locais
+// (getFullYear/getMonth) desloca a data para o mês adjacente em processo com
+// offset de fuso não-zero. Estes helpers mantêm todo o cálculo em UTC — mesma
+// convenção já usada em `src/server/queries/cashflow-forecast.ts`.
+
+export type YearMonth = { year: number; month: number };
+
+/** Desloca um par ano/mês por `offset` meses (aceita negativo). */
+export function shiftYearMonth({ year, month }: YearMonth, offset: number): YearMonth {
+  const zeroBased = year * 12 + (month - 1) + offset;
+  return { year: Math.floor(zeroBased / 12), month: (zeroBased % 12) + 1 };
+}
+
+/** Constrói uma data-only em UTC, ajustando o dia ao último válido do mês. */
+export function utcDateOnly(year: number, month: number, day: number): Date {
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month - 1, Math.min(day, lastDay)));
+}
+
+/** Extrai ano/mês de uma data `@db.Date` sem sofrer deslocamento de fuso. */
+export function utcYearMonthOf(date: Date): YearMonth {
+  return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1 };
+}
+
+/** Range fechado [primeiro dia, último instante] do mês, em UTC. */
+export function utcMonthRange(year: number, month: number): { from: Date; to: Date } {
+  return {
+    from: new Date(Date.UTC(year, month - 1, 1)),
+    to: new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)),
+  };
+}
+
 export const MONTH_NAMES = [
   "Janeiro",
   "Fevereiro",

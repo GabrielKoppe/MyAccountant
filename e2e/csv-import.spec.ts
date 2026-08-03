@@ -26,8 +26,11 @@ test("importar CSV faz as transações aparecerem na tabela", async ({ page }) =
   await dialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Fevereiro" }).click();
   await dialog.getByLabel("Ano").fill("2098");
-  await dialog.getByRole("button", { name: "Criar" }).click();
-  await expect(dialog).toBeHidden();
+  await dialog.getByRole("button", { name: "Criar", exact: true }).click();
+  // 20s: desde a spec 73 a criação de mês faz duas idas ao servidor (preview de
+  // automações → createMonth). Sem automação o passo 2 é omitido, mas o preview
+  // acontece de qualquer forma.
+  await expect(dialog).toBeHidden({ timeout: 20_000 });
 
   const created = await db.month.findFirstOrThrow({
     where: { accountId: m.mainAccountId, year: 2098, month: 2 },
@@ -35,8 +38,9 @@ test("importar CSV faz as transações aparecerem na tabela", async ({ page }) =
   });
   await page.goto(`/${m.mainAccountId}/months/${created.id}?tab=${m.roSectionId}`);
 
-  // Abrir o wizard e carregar o arquivo.
-  await page.getByRole("button", { name: "Importar CSV/XLSX" }).first().click();
+  // Abrir o wizard e carregar o arquivo. O rótulo é `m.csvImport.importButton`
+  // ("Importar"); `exact` evita casar com "Importar outro arquivo" do resultado.
+  await page.getByRole("button", { name: "Importar", exact: true }).first().click();
   await page
     .locator('input[type="file"]')
     .setInputFiles(join(process.cwd(), "e2e/fixtures/sample-import.csv"));

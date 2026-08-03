@@ -116,6 +116,11 @@ export const executeImportSchema = z.object({
           }),
         ),
         totalAmountCents: z.coerce.bigint().positive(),
+        /**
+         * InstallmentGroup existente ao qual vincular esta sugestão (spec 73
+         * §2.3). Ausente = criar grupo novo. O service revalida o `accountId`.
+         */
+        existingGroupId: cuidSchema.optional(),
       }),
     )
     .optional()

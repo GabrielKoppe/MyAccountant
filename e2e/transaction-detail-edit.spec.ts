@@ -81,8 +81,15 @@ test("fechar o painel de parcelas devolve o foco ao badge que o abriu", async ({
 
   await page.goto(`/${m.mainAccountId}/months/${m.roMonthId}?tab=${m.roSectionId}`);
 
-  // Badge "1/3" (installmentNumber/installmentCount) — abre o painel lateral.
-  const badge = page.getByRole("button", { name: "1/3" });
+  // Badge de parcela — abre o painel lateral. O nome acessível vem do Tooltip
+  // (o MUI escreve `aria-label` com o título), não do rótulo "1/3" do Chip.
+  // Escopado na linha: o badge também aparece no modal de detalhe, e este teste
+  // cria a própria transação (uma por execução, incluindo retry).
+  const badge = page
+    .getByRole("row")
+    .filter({ hasText: "Notebook parcelado E2E" })
+    .first()
+    .getByRole("button", { name: /^Parcela 1 de 3/ });
   await badge.click();
 
   await expect(page.getByText("Notebook parcelado E2E")).toBeVisible();

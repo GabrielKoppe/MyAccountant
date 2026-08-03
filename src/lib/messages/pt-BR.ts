@@ -754,6 +754,33 @@ export const messages = {
     prevMonth: "Mês anterior",
     nextMonth: "Próximo mês",
     selectMonth: "Selecionar mês",
+    // Passo "Automações" do dialog de novo mês (spec 73 §2.4)
+    automations: {
+      title: (monthLabel: string) => `Automações · ${monthLabel}`,
+      description: "Revise o que será criado junto com o mês.",
+      continue: "Continuar",
+      back: "Voltar",
+      create: "Criar mês",
+      loading: "Verificando automações...",
+      loadError: "Não foi possível verificar as automações. O mês será criado sem elas.",
+      kindTableTemplate: "Modelos de tabela",
+      kindPendingInstallment: "Parcelas previstas",
+      selectedCount: (selected: number, total: number) =>
+        `${selected} de ${total} ${total === 1 ? "marcado" : "marcados"}`,
+      templateItems: (n: number) => `${n} ${n === 1 ? "item" : "itens"}`,
+      installmentPosition: (n: number, total: number) => `${n}/${total}`,
+      originManual: "criada na mão",
+      originImport: "vem da fatura (import)",
+      totalToLaunch: (amount: string, count: number) =>
+        `Total a lançar: ${amount} · ${count} ${count === 1 ? "transação" : "transações"}`,
+      blocked: {
+        missing_section: "seção não configurada no modelo",
+        missing_table_type: "tipo de tabela não configurado no modelo",
+        section_not_found: "seção destino não encontrada ou inativa",
+        table_type_not_found: "tipo de tabela destino não encontrado",
+      },
+      nothingSelected: "Nenhuma automação marcada — o mês será criado vazio.",
+    },
   },
   sections: {
     title: "Seções",
@@ -1009,6 +1036,19 @@ export const messages = {
         "As parcelas já lançadas viram transações normais (desvinculadas) e as parcelas futuras pendentes são removidas. Esta ação não pode ser desfeita.",
       undoConfirmCta: "Desfazer grupo",
       undoSuccess: "Grupo de parcelamento desfeito.",
+      // Parcela marcada como paga fora do app (spec 73 §2.5)
+      itemSettledSuffix: "paga (histórico)",
+      itemSettledNote: "paga fora do app",
+      markSettled: "Marcar como paga (histórico)",
+      unmarkSettled: "Desfazer marcação de paga",
+      markSettledSuccess: "Parcela marcada como paga (histórico).",
+      unmarkSettledSuccess: "Marcação de paga desfeita.",
+      // Criação automática ao abrir mês novo (spec 73 §2.4)
+      autoCreateLabel: "Criar automaticamente ao abrir mês novo",
+      autoCreateHintOn: "As parcelas futuras entram sozinhas quando você cria o mês.",
+      autoCreateHintOff:
+        "As parcelas vêm da fatura importada — não são lançadas na criação do mês.",
+      autoCreateUpdated: "Preferência de criação automática salva.",
     },
     rowState: {
       hasNote: "tem nota",
@@ -1678,6 +1718,22 @@ export const messages = {
       importAnother: "Importar outro arquivo",
       errorsTitle: "Linhas com erro",
       moreErrors: (n: number) => `... e mais ${n} erro(s)`,
+      installmentGroupsCreated: (n: number) => `${n} parcelamento(s) criado(s)`,
+      installmentGroupsLinked: (n: number) =>
+        `${n} parcela(s) vinculada(s) a parcelamento existente`,
+      installmentLinesSkipped: (n: number) =>
+        `${n} linha(s) importada(s) sem vínculo — a parcela já estava lançada no grupo`,
+    },
+    // Vínculo com parcelamento existente no preview (spec 73 §2.3)
+    installments: {
+      linkToExisting: "vincular ao existente",
+      createNewGroup: "criar novo grupo",
+      /** Nome acessível do seletor de vínculo (não é texto visível) */
+      linkChoiceLabel: (groupDescription: string) => `Vínculo de ${groupDescription}`,
+      matchDetail: (installmentCount: number, startDate: string, pendingCount: number) =>
+        `parcelamento existente · ${installmentCount} parcelas · início ${startDate} · ${pendingCount} prevista(s)`,
+      ambiguousMatch: (n: number) =>
+        `${n} parcelamentos existentes parecidos — não foi possível decidir; será criado um grupo novo.`,
     },
   },
   export: {
