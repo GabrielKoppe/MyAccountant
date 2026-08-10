@@ -66,6 +66,7 @@ export function SettingsFamilyCard({
       <Stack
         direction="row"
         alignItems="center"
+        justifyContent="space-between"
         spacing={layout.inline}
         sx={{
           px: layout.stack,
@@ -75,19 +76,21 @@ export function SettingsFamilyCard({
           borderColor: "divider",
         }}
       >
-        {/* Mostarda na Conta, accent nas outras — é o que o frame faz. O tom
+        <Box flexDirection={"row"} display="flex" alignItems="center" gap={layout.inline}>
+          {/* Mostarda na Conta, accent nas outras — é o que o frame faz. O tom
             marca "baixa frequência, alto impacto", e vem junto no ícone e no
             badge para o cabeçalho ler como uma coisa só. */}
-        <Box
-          aria-hidden
-          sx={{ display: "flex", color: tone === "warning" ? "warning.main" : "accent.primary" }}
-        >
-          {SETTINGS_FAMILY_ICONS[family.icon]}
-        </Box>
+          <Box
+            aria-hidden
+            sx={{ display: "flex", color: tone === "warning" ? "warning.main" : "accent.primary" }}
+          >
+            {SETTINGS_FAMILY_ICONS[family.icon]}
+          </Box>
 
-        <Typography variant="overline" component="h2">
-          {family.label}
-        </Typography>
+          <Typography variant="overline" component="h2">
+            {family.label}
+          </Typography>
+        </Box>
 
         {family.ownerBadge && (
           <Box sx={{ ml: "auto" }}>
