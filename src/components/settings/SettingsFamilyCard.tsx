@@ -34,6 +34,16 @@ export type SettingsFamilyCardProps = {
  * Cabeçalho com o ícone e o rótulo da família, e uma linha por página com
  * ícone, rótulo, subtítulo e contagem. A linha inteira é o link.
  *
+ * Duas disposições, ambas do frame de arquitetura:
+ *  - **coluna** (padrão) — entradas empilhadas, separadas por borda superior;
+ *  - **faixa** (`family.wide`, hoje só Conta) — entradas LADO A LADO, em colunas
+ *    de largura igual separadas por borda lateral. É o que isola a administração
+ *    no rodapé do hub sem que ela vire mais um card na grade.
+ *
+ * `height: 100%` para o card preencher a célula do grid: as famílias da mesma
+ * fileira têm quantidades diferentes de páginas (Estrutura tem 4, Apresentação e
+ * Entrada de dados têm 3) e, sem isso, os cards ficam com alturas desencontradas.
+ *
  * Sem `CardContent` de propósito: o padding de 24px do tema afastaria as linhas
  * das bordas e quebraria o separador de largura total do frame.
  *
@@ -48,9 +58,11 @@ export function SettingsFamilyCard({
   flaggedHrefs = [],
 }: SettingsFamilyCardProps) {
   const flagged = new Set(flaggedHrefs);
+  const isWide = family.wide === true && family.entries.length > 1;
+  const tone = family.tone ?? "accent";
 
   return (
-    <Card>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Stack
         direction="row"
         alignItems="center"
@@ -63,7 +75,13 @@ export function SettingsFamilyCard({
           borderColor: "divider",
         }}
       >
-        <Box aria-hidden sx={{ display: "flex", color: "accent.primary" }}>
+        {/* Mostarda na Conta, accent nas outras — é o que o frame faz. O tom
+            marca "baixa frequência, alto impacto", e vem junto no ícone e no
+            badge para o cabeçalho ler como uma coisa só. */}
+        <Box
+          aria-hidden
+          sx={{ display: "flex", color: tone === "warning" ? "warning.main" : "accent.primary" }}
+        >
           {SETTINGS_FAMILY_ICONS[family.icon]}
         </Box>
 
@@ -73,30 +91,74 @@ export function SettingsFamilyCard({
 
         {family.ownerBadge && (
           <Box sx={{ ml: "auto" }}>
-            {/* `neutral`, não `warning`: o mostarda deste card já significa "pede
-                atenção" (o ícone de alerta da linha, a 40px daqui). Duas semânticas
-                para a mesma cor quebram o "cor é informação" do design system. */}
-            <StatusBadge variant="neutral">{m.settings.hub.ownerOnlyBadge}</StatusBadge>
+            <StatusBadge variant={tone === "warning" ? "warning" : "neutral"}>
+              {m.settings.hub.ownerOnlyBadge}
+            </StatusBadge>
           </Box>
         )}
       </Stack>
 
-      <List disablePadding>
+      <List
+        disablePadding
+        sx={
+          isWide
+            ? {
+                // Faixa: colunas de largura igual. Em telas estreitas não cabem
+                // lado a lado, então volta a empilhar.
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: `repeat(${family.entries.length}, 1fr)`,
+                },
+                // `start`: a linha da grade mantém a altura do conteúdo. Sem
+                // isso ela absorve a folga do card esticado e as três entradas
+                // ficam com o dobro da altura das linhas dos outros cards.
+                alignContent: "start",
+                flex: 1,
+              }
+            : { flex: 1 }
+        }
+      >
         {family.entries.map((entry, index) => {
           const count = counts[entry.href];
+          // Na faixa o separador é vertical (a borda fica à ESQUERDA de cada
+          // entrada, menos a primeira); na coluna, horizontal.
+          //
+          // ARMADILHA: aqui é `borderXWidth`/`borderXStyle` e NUNCA o shorthand
+          // `borderLeft: 1`. O shorthand emitido dentro de media query (que é o
+          // caso de qualquer valor responsivo no `sx`) reseta
+          // `border-left-color` para `currentColor` — e, como a media query vem
+          // depois no CSS, ela vence o `borderColor` e o divider sai quase
+          // preto, na cor do texto. Longhand de width/style não toca a cor.
+          const separator =
+            index === 0
+              ? undefined
+              : isWide
+                ? {
+                    borderTopWidth: { xs: "1px", sm: 0 },
+                    borderLeftWidth: { xs: 0, sm: "1px" },
+                    borderStyle: "solid",
+                    borderRightWidth: 0,
+                    borderBottomWidth: 0,
+                    borderColor: "divider",
+                  }
+                : {
+                    borderTopWidth: "1px",
+                    borderStyle: "solid",
+                    borderRightWidth: 0,
+                    borderBottomWidth: 0,
+                    borderLeftWidth: 0,
+                    borderColor: "divider",
+                  };
 
           return (
-            <ListItem
-              key={entry.href}
-              disablePadding
-              // Separador entre linhas — a primeira encosta no cabeçalho, que já
-              // tem a sua própria borda inferior.
-              sx={index > 0 ? { borderTop: 1, borderColor: "border.subtle" } : undefined}
-            >
+            <ListItem key={entry.href} disablePadding sx={separator}>
               <ListItemButton
                 component={AppLink}
                 href={`/${accountId}/settings/${entry.href}`}
-                sx={{ px: layout.stack, py: layout.inline, gap: layout.inline }}
+                // `height: 100%` para que, na faixa, as três colunas tenham a
+                // mesma altura mesmo com subtítulos de tamanhos diferentes.
+                sx={{ px: layout.stack, py: layout.inline, gap: layout.inline, height: "100%" }}
               >
                 <Box aria-hidden sx={{ display: "flex", color: "text.tertiary" }}>
                   {SETTINGS_ENTRY_ICONS[entry.icon]}

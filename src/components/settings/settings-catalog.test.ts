@@ -114,6 +114,28 @@ describe("listSettingsRoutes", () => {
   });
 });
 
+describe("faixa larga (frame de arquitetura)", () => {
+  it("Conta é a única família em faixa — as outras quatro são cards em coluna", () => {
+    const wide = SETTINGS_FAMILIES.filter((family) => family.wide);
+
+    expect(wide.map((family) => family.key)).toEqual(["account"]);
+  });
+
+  it("editor mantém a faixa (duas entradas ainda ficam lado a lado)", () => {
+    const account = getSettingsFamilies("editor").find((family) => family.key === "account");
+
+    expect(account?.wide).toBe(true);
+    expect(account?.entries).toHaveLength(2);
+  });
+
+  it("viewer sai da faixa: uma entrada só não justifica ocupar duas colunas", () => {
+    const account = getSettingsFamilies("viewer").find((family) => family.key === "account");
+
+    expect(account?.wide).toBe(false);
+    expect(account?.entries).toHaveLength(1);
+  });
+});
+
 describe("getSettingsFamilies", () => {
   it("editor: as mesmas 5 famílias, só sem os itens ownerOnly", () => {
     const families = getSettingsFamilies("editor");

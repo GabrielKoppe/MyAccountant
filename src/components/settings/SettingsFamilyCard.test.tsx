@@ -118,3 +118,89 @@ describe("SettingsFamilyCard (Spec 67 §4 SET-02)", () => {
     expect(flaggedRow).toContainElement(alerts[0]);
   });
 });
+
+describe("SettingsFamilyCard — faixa larga (família Conta no frame de arquitetura)", () => {
+  const WIDE_FAMILY: SettingsFamily = {
+    key: "account",
+    label: "Conta",
+    icon: "account",
+    ownerBadge: true,
+    wide: true,
+    entries: [
+      { href: "general", label: "Geral", subtitle: "Nome, moeda, fuso", icon: "general" },
+      { href: "members", label: "Membros", subtitle: "Convites e papéis", icon: "members" },
+      { href: "audit", label: "Trilha de auditoria", subtitle: "Últimos 90 dias", icon: "audit" },
+    ],
+  };
+
+  /** A `<ul>` do card — em faixa vira grid de N colunas; em coluna, lista comum. */
+  function listOf(container: HTMLElement) {
+    const list = container.querySelector("ul");
+    if (!list) throw new Error("lista do card não encontrada");
+    return list;
+  }
+
+  /**
+   * O número de colunas vive dentro de uma media query (`sm`), e o jsdom não
+   * avalia media query — `toHaveStyle` só vê o valor base. Então a asserção é
+   * sobre o CSS que o Emotion emitiu para as classes DESTE elemento.
+   */
+  function cssOf(element: Element) {
+    const classes = Array.from(element.classList);
+    return Array.from(document.querySelectorAll("style"))
+      .map((style) => style.textContent ?? "")
+      .filter((css) => classes.some((className) => css.includes(className)))
+      .join("\n");
+  }
+
+  it("dispõe as entradas em colunas de largura igual, uma por página", () => {
+    const { container } = render(
+      <SettingsFamilyCard family={WIDE_FAMILY} accountId={ACCOUNT_ID} counts={{}} />,
+    );
+
+    const list = listOf(container);
+    expect(list).toHaveStyle({ display: "grid" });
+    expect(cssOf(list)).toMatch(/repeat\(\s*3\s*,\s*1fr\s*\)/);
+    expect(screen.getAllByRole("link")).toHaveLength(3);
+  });
+
+  it("empilha em tela estreita — uma coluna só antes do breakpoint `sm`", () => {
+    const { container } = render(
+      <SettingsFamilyCard family={WIDE_FAMILY} accountId={ACCOUNT_ID} counts={{}} />,
+    );
+
+    // MUI emite até o `xs` dentro de `@media (min-width:0px)`, então a checagem
+    // é sobre a regra e não sobre o estilo computado (jsdom ignora media query).
+    expect(cssOf(listOf(container))).toMatch(/grid-template-columns:\s*1fr\s*[;}]/);
+  });
+
+  it("acompanha o recorte por papel: com 2 entradas, 2 colunas", () => {
+    const { container } = render(
+      <SettingsFamilyCard
+        family={{ ...WIDE_FAMILY, entries: WIDE_FAMILY.entries.slice(0, 2) }}
+        accountId={ACCOUNT_ID}
+        counts={{}}
+      />,
+    );
+
+    expect(cssOf(listOf(container))).toMatch(/repeat\(\s*2\s*,\s*1fr\s*\)/);
+  });
+
+  it("com uma única entrada volta a ser coluna — faixa de um item é card estreito disfarçado", () => {
+    const { container } = render(
+      <SettingsFamilyCard
+        family={{ ...WIDE_FAMILY, entries: WIDE_FAMILY.entries.slice(0, 1) }}
+        accountId={ACCOUNT_ID}
+        counts={{}}
+      />,
+    );
+
+    expect(listOf(container)).not.toHaveStyle({ display: "grid" });
+  });
+
+  it("família sem `wide` continua empilhada", () => {
+    const { container } = renderCard();
+
+    expect(listOf(container)).not.toHaveStyle({ display: "grid" });
+  });
+});

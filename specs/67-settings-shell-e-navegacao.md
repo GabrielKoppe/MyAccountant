@@ -60,6 +60,18 @@ Nova rota `/[accountId]/settings` (index, hoje inexistente) com um card por fam�
 
 O botão "Revisar" leva ao destino do **primeiro** sinalizador presente, na ordem da tabela. O bloco inteiro não é renderizado quando não há nenhum sinalizador (sem placeholder vazio).
 
+**Grade do hub (D23)** — o frame de arquitetura não põe as 5 famílias como cards iguais:
+
+- grade de **3 colunas**; as famílias 1–4 são cards em **coluna** (entradas empilhadas);
+- **Conta** é uma **faixa**: ocupa **2 colunas** (`grid-column: span 2`) e dispõe as entradas **lado a lado**, em colunas de largura igual separadas por borda **lateral** — é o que isola a administração no rodapé do hub em vez de deixá-la disputando atenção com o resto;
+- cards da **mesma fileira têm a mesma altura**. Estrutura tem 4 páginas e as vizinhas têm 3: sem esticar, a fileira fica com as bases desencontradas. No CSS isso significa **não** usar `align-items: start` na grade e dar `height: 100%` ao card;
+- **o card estica, a linha não.** A entrada da faixa tem a mesma altura de uma linha dos outros cards; a folga do card esticado fica como espaço vazio no rodapé dele, não distribuída nas linhas (`align-content: start` na grade interna). Sem isso as três entradas da Conta ficavam com o dobro da altura das linhas vizinhas;
+- **tom do cabeçalho**: ícone e badge da Conta em `warning.main` (mostarda); as outras quatro famílias em `accent.primary`. É o que o frame faz — administração é baixa frequência e alto impacto, e o mostarda marca isso. Campo `tone` no catálogo.
+  > Medição para quem revisitar: `warning.main` sobre `warning.light` dá ~2,8:1 em light e ~6,5:1 em dark — abaixo de AA no light. Mantido por fidelidade ao frame, por decisão do autor; se virar problema de leitura, o caminho é escurecer o token de warning no light, não trocar a semântica da cor.
+- **separador entre as entradas da faixa**: borda **lateral** em `divider`. Atenção à armadilha do `sx` registrada em `skills/design-system/SKILL.md` — shorthand de borda com valor responsivo reseta a cor para `currentColor` e o divider sai quase preto; usar longhand de `width`/`style`.
+
+Recortes por papel: a faixa segue faixa para o `editor` (2 entradas, 2 colunas) e **volta a ser card em coluna** para o `viewer`, que só vê Membros — uma faixa de item único seria um card de 2/3 de largura sozinho na tela.
+
 ### 2.2 `SettingsPageShell` (SET-03) — **NOVO COMPONENTE**
 
 Componente único que todas as 15 páginas usam. Sete regras, todas visíveis no frame de arquitetura:
@@ -374,7 +386,7 @@ Formato do chip é livre por página (`count` é string). Ações listadas são 
 | Estrutura | Responsáveis | `4` | Novo responsável | Quem paga ou recebe. Um responsável pode agrupar vários membros da conta, ou nenhum — é só um rótulo da transação. |
 | Apresentação | Tipos de tabela | `5` | Novo tipo | Definem colunas visíveis, densidade e formato da linha para cada tabela do mês. |
 | Apresentação | Modelos de tabela | `7` | Novo modelo | Tabelas financeiras pré-montadas, com suas transações. Usadas ao criar um mês novo e ao adicionar uma tabela dentro de um mês. |
-| Apresentação | Dashboards | `2 de 3 personalizados` (D21) | — (secundárias: Restaurar padrão · Ver a página) | Monte cada página arrastando widgets no grid. O que você vê aqui é exatamente o que o usuário vê na página. |
+| Apresentação | Dashboards | — (D24) | — (secundárias: Restaurar padrão · Ver a página) | Monte cada página arrastando widgets no grid. O que você vê aqui é exatamente o que o usuário vê na página. |
 | Entrada de dados | Templates de importação | `4` | Novo (secundária: Criar a partir de um arquivo) | Cada etapa do parsing tem sua aba. O preview à direita reprocessa o arquivo de amostra a cada mudança. |
 | Entrada de dados | Apelidos | `132` | Novo apelido | Regra de reconhecimento por descrição do extrato. Pode preencher qualquer campo da transação — os que você deixar em branco continuam em branco, sem alerta. |
 | Entrada de dados | Conectores de IA | `1 conectado` | Nova conexão | Expõem os dados desta conta para a IA que você já usa, via MCP. A plataforma não guarda chave de IA nem chama modelo nenhum. |
@@ -385,7 +397,7 @@ Formato do chip é livre por página (`count` é string). Ações listadas são 
 | Conta | Trilha de auditoria | `últimos 90 dias` | — (secundária: Exportar CSV) | Toda alteração de estrutura, papel e exclusão em massa. Somente leitura. |
 
 > O chip de Checklist ("3 grupos") pressupõe `ChecklistGroup`, que **não existe** e ficou fora do escopo por D1 — no P4 o chip de Checklist mostra só a contagem de itens; agrupamento é decisão da Spec 71.
-> O chip de Dashboards **não** é `6 widgets · 4 linhas` como o frame sugeria: contar widgets exigiria abrir o Json de `DashboardLayout` dos três contextos só para somar, o que viola o SET-01 ("contagem barata"). Vale `N de 3 personalizados` — um `count` numa tabela de no máximo 3 linhas por conta (D21).
+> Dashboards **não tem contagem** (D24): as três páginas (mensal, anual, resumo) são fixas, então qualquer número ali é ruído — `3` é constante, e "N personalizados" mede algo que ninguém pediu para saber. A linha do hub e o item do nav saem só com rótulo e subtítulo.
 > As três sub-rotas de Dashboards (`monthly`, `yearly`, `month-summary`) usam o mesmo título "Dashboards" com o nome da página no chip.
 
 ### 7.6 Restrições do design system
@@ -514,8 +526,10 @@ Só então entram as Specs 68 → 69 → 70 → 71 → 72, na ordem.
 | D18 | `settings-counts` e `settings-attention` são leitura de RSC, não regra de negócio | Vivem em `src/server/queries/` (convenção real do repo, com `React.cache`), não em `services/` como dizia o §7.1 original |
 | D19 | **A spec se contradizia sobre `editor` × família Conta**: §4 dizia ao mesmo tempo "o card Conta só para owner" e "editor não acessa a família Conta" — mas hoje `editor` acessa `/settings/general` e `/settings/members` (só `viewer` é barrado em Geral, e só `owner` em Auditoria) | Mantido o comportamento atual, que é o menos destrutivo: a família Conta aparece com o badge "somente owner" e é **recortada por papel** — `owner` vê os 3 itens, `editor` vê Geral e Membros, `viewer` vê só Membros. Tirar acesso do `editor` seria uma regressão de permissão e precisa de decisão de produto explícita |
 | D20 | §7.2 mandava a frase de propósito em `text.secondary`, mas neste tema esse token é `#4A453C` — quase indistinguível do texto primário, então a frase competia visualmente com o título em vez de apoiá-lo (o frame usa o tom terciário) | Frase de propósito passa a **`text.tertiary`**. Só a cor muda: continua `body2` (14px), como D15 fixou. §7.2 atualizado |
+| D23 | O hub foi implementado com 5 cards iguais em coluna e `align-items: start`, mas o frame de arquitetura mostra **Conta como faixa de 2 colunas com as entradas lado a lado** e os cards de cada fileira com **altura igual** | Campo `wide` no catálogo (hoje só `account`): `grid-column: span 2` + entradas em `repeat(N, 1fr)` com separador lateral; grade sem `align-items: start` e card com `height: 100%`. `wide` cai para `false` no recorte do `viewer` (uma entrada só). Documentado em §2.1 |
+| D24 | A contagem de Dashboards foi de `N de 3 personalizados` (D21) para `N/3` e, por fim, para **nenhuma** | As três páginas de dashboard são **fixas**: `3` é constante e "personalizados" não é uma pergunta do usuário. A chave `dashboards` saiu de `settings-counts`, com a query de `DashboardLayout` e a revalidação do hub em `revalidateDashboardLayout` — contagem que não existe não precisa ser invalidada. No caminho descobriu-se que a versão em prosa também atropelava o rótulo no nav de 220px, o que motivou os rótulos do nav passarem a truncar (`noWrap` + `minWidth: 0`) |
 | D22 | **Onde a 67 termina e as 68–72 começam.** Os critérios de SET-04/07/08 e dos modais são sobre a TELA, mas o §9 P4 manda migrar "só o cabeçalho — conteúdo intacto" | Tabela explícita no topo da §4 separando o que está pronto na tela do que depende do redesenho da linha. Onde deu para fechar sem invadir o conteúdo, fechou-se: busca e paginação em Apelidos (SET-04) e `SettingsDialog` nos 26 modais existentes (D8) |
-| D21 | Dashboards não tem entidade "item" para contar: `DashboardLayout` é **uma linha por contexto** (`@@unique([accountId, context])`) com o layout inteiro num Json, e o frame pedia `6 widgets · 4 linhas` | O chip conta **contextos personalizados**, não widgets: `prisma.dashboardLayout.count({ where: { accountId } })` → `N de 3 personalizados`. É honesto (linha só existe quando o layout saiu do padrão) e barato (≤ 3 linhas, sem ler Json). Salvar um layout passa a revalidar o hub via `revalidateDashboardLayout` |
+| D21 | *(revogada por D24 — Dashboards não tem contagem)* | — |
 
 ### Correções pontuais aplicadas junto
 

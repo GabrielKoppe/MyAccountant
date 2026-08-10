@@ -1725,6 +1725,20 @@ Cuidados especificos:
   <Box sx={{ borderRadius: radius.lg }} />       // ❌ 12 × 8 = 96px
   <Box sx={{ borderRadius: `${radius.lg}px` }} />  // ✅ 12px
   ```
+- **Shorthand de borda RESPONSIVO + `borderColor`**: `borderLeft`/`borderTop`/`border` sao **shorthand** e resetam a cor para `currentColor`. Com valor responsivo o MUI emite o shorthand **dentro de media query**, que vem DEPOIS do `border-color` no CSS e vence — a borda sai na cor do TEXTO (quase preta), nao no token. Aconteceu de verdade nos separadores do card do hub (Spec 67). Use longhand de `width`/`style`, que nao tocam a cor.
+  ```tsx
+  // ❌ divider quase preto a partir do breakpoint `sm`
+  <Box sx={{ borderLeft: { xs: 0, sm: 1 }, borderColor: "divider" }} />
+
+  // ✅ cor preservada
+  <Box sx={{
+    borderLeftWidth: { xs: 0, sm: "1px" },
+    borderStyle: "solid",
+    borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: 0,
+    borderColor: "divider",
+  }} />
+  ```
+  Sem valor responsivo o shorthand funciona, **desde que** `borderColor` venha depois dele no objeto `sx` — o que e fragil de manter. Prefira longhand sempre que houver `borderColor` explicito.
 
 ### Componentes
 - **`<Dialog>` cru**: use `<DialogShell>`.

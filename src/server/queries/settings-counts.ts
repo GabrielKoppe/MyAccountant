@@ -8,7 +8,7 @@
 // Envolvido em React.cache: o layout (nav) e a página do hub consomem a mesma
 // função na mesma render e o Prisma roda uma vez só.
 
-import type { AccountMemberRole, DashboardLayoutContext } from "@prisma/client";
+import type { AccountMemberRole } from "@prisma/client";
 import { cache } from "react";
 
 import { m } from "@/lib/messages";
@@ -16,21 +16,6 @@ import { prisma } from "@/server/prisma";
 
 /** Contagens indexadas pelo `href` do link (mesma chave usada em `settings-nav-groups`). */
 export type SettingsCounts = Record<string, string>;
-
-/**
- * Contextos de dashboard personalizáveis (`DashboardLayout` tem
- * `@@unique([accountId, context])`, então há no máximo uma linha por contexto).
- *
- * Declarado como `Record<DashboardLayoutContext, true>` de propósito: se o enum
- * do Prisma ganhar um contexto novo, o typecheck quebra aqui em vez de a UI
- * passar a dizer "3 de 3" com um contexto fora da conta.
- */
-const DASHBOARD_CONTEXTS: Record<DashboardLayoutContext, true> = {
-  monthly: true,
-  yearly: true,
-  month_summary: true,
-};
-const DASHBOARD_CONTEXT_TOTAL = Object.keys(DASHBOARD_CONTEXTS).length;
 
 /**
  * @param accountId conta corrente (multi-tenancy — todo where filtra por ela)
@@ -57,7 +42,6 @@ export const getSettingsCounts = cache(async function getSettingsCounts(
     responsibles,
     tableTypes,
     models,
-    dashboardsCustomized,
     templates,
     aliases,
     connectors,
@@ -74,10 +58,6 @@ export const getSettingsCounts = cache(async function getSettingsCounts(
     prisma.responsibleParty.count({ where: { accountId, archivedAt: null } }),
     prisma.tableType.count({ where: { accountId } }),
     prisma.tableTemplate.count({ where: { accountId } }),
-    // B2: Dashboards não tem entidade "item" para contar — o JSON de widgets de
-    // cada contexto custaria três leituras de Json só para somar. Um `count` na
-    // tabela (≤ 3 linhas por conta) responde "quantos contextos você personalizou".
-    prisma.dashboardLayout.count({ where: { accountId } }),
     prisma.csvTemplate.count({ where: { accountId } }),
     prisma.transactionAlias.count({ where: { accountId, archivedAt: null } }),
     prisma.mcpGrant.count({ where: { accountId, userId, revokedAt: null } }),
@@ -95,7 +75,6 @@ export const getSettingsCounts = cache(async function getSettingsCounts(
     responsibles: String(responsibles),
     "table-types": String(tableTypes),
     models: String(models),
-    dashboards: m.settings.hub.counts.dashboards(dashboardsCustomized, DASHBOARD_CONTEXT_TOTAL),
     templates: String(templates),
     aliases: String(aliases),
     connectors: m.settings.hub.counts.connectors(connectors),

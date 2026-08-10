@@ -16,12 +16,34 @@ APP=my-accountant-app-e2e-1
 RUNNER=my-accountant-e2e-runner-1
 SPEC="${1:-}"
 
+# ATENÇÃO — NUNCA use `down -v` aqui.
+#
+# `docker compose down -v` remove TODOS os volumes top-level do projeto,
+# independente de `--profile`: isso inclui `postgres-data`, o banco de
+# DESENVOLVIMENTO. Este script já apagou o banco de dev de alguém exatamente
+# assim (o `-v` estava neste trap). O CLAUDE.md §8 documenta a armadilha.
+#
+# O jeito certo é `down` sem `-v` (para os containers) + remoção NOMINAL do
+# volume do e2e.
+E2E_VOLUME=my-accountant_postgres-e2e-data
+
 cleanup() {
   if [[ "${E2E_KEEP:-0}" != "1" ]]; then
     echo "==> Limpando stack e2e (E2E_KEEP=1 pula isto)"
-    docker compose "${PROFILE[@]}" down -v >/dev/null 2>&1 || true
+    docker compose "${PROFILE[@]}" down >/dev/null 2>&1 || true
+    docker volume rm "$E2E_VOLUME" >/dev/null 2>&1 || true
+    # `down` (mesmo sem `-v`) também para o app/postgres do dev, porque serviços
+    # sem `profiles:` entram no escopo. Restaura o stack de dev.
+    docker compose up -d >/dev/null 2>&1 || true
+    # O e2e-runner roda `prisma generate` no node_modules compartilhado com o
+    # dev: sem regenerar, o `pnpm typecheck` do app passa a falhar com
+    # "Module '@prisma/client' has no exported member 'Account'".
+    docker compose exec -T app pnpm prisma generate >/dev/null 2>&1 || true
+    docker compose restart app >/dev/null 2>&1 || true
   else
-    echo "==> Stack mantida de pé (E2E_KEEP=1). Rode 'docker compose --profile e2e down -v' p/ limpar."
+    echo "==> Stack mantida de pé (E2E_KEEP=1)."
+    echo "    Para limpar: docker compose --profile e2e down && docker volume rm $E2E_VOLUME"
+    echo "    NUNCA 'down -v' — apaga o banco de dev junto."
   fi
 }
 trap cleanup EXIT

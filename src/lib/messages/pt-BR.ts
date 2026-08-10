@@ -273,8 +273,10 @@ export const messages = {
         // Dashboards não tem "itens" para contar: `DashboardLayout` é 1 linha por
         // contexto e só existe quando o layout foi personalizado. A contagem
         // honesta e barata é quantos dos contextos saíram do padrão.
-        dashboards: (customized: number, total: number) =>
-          `${customized} de ${total} ${customized === 1 ? "personalizado" : "personalizados"}`,
+        // Dashboards NÃO tem contagem: as três páginas (mensal, anual, resumo)
+        // são fixas, então qualquer número ali é ruído — "3" é constante e
+        // "N personalizados" mede uma coisa que o usuário não pediu para saber.
+        // A linha do hub e o item do nav saem sem número, de propósito.
       },
       rows: {
         sections: "Abas de cada mês",

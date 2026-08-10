@@ -17,11 +17,22 @@ PROFILE=(--profile e2e)
 APP=my-accountant-app-e2e-1
 PORT="${E2E_UI_PORT:-8080}"
 
+# NUNCA `down -v` aqui: ele remove TODOS os volumes top-level do projeto,
+# incluindo `postgres-data` (o banco de DESENVOLVIMENTO), independente de
+# `--profile`. Ver o mesmo aviso em scripts/e2e.sh e no CLAUDE.md §8.
+E2E_VOLUME=my-accountant_postgres-e2e-data
+
 cleanup() {
   if [[ "${E2E_KEEP:-0}" != "1" ]]; then
     echo ""
     echo "==> Limpando stack e2e (E2E_KEEP=1 pula isto)"
-    docker compose "${PROFILE[@]}" down -v >/dev/null 2>&1 || true
+    docker compose "${PROFILE[@]}" down >/dev/null 2>&1 || true
+    docker volume rm "$E2E_VOLUME" >/dev/null 2>&1 || true
+    # `down` também para o app/postgres do dev (serviços sem `profiles:`), e o
+    # e2e-runner regenerou o Prisma Client no node_modules compartilhado.
+    docker compose up -d >/dev/null 2>&1 || true
+    docker compose exec -T app pnpm prisma generate >/dev/null 2>&1 || true
+    docker compose restart app >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT

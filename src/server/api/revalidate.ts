@@ -120,16 +120,14 @@ export function revalidateDashboards(accountId: string) {
 
 /**
  * Revalida a personalização de um dashboard (Spec 36): as páginas que o
- * renderizam, a página de edição em settings e o hub.
+ * renderizam e a página de edição em settings.
  *
- * O hub entra porque a contagem "N de 3 personalizados" (Spec 67 §4 B2) muda no
- * primeiro salvamento de cada contexto — e `revalidatePath("/settings/dashboards",
- * "layout")` NÃO alcança `/settings`, que é uma rota irmã, não ancestral.
+ * O hub NÃO entra: a linha de Dashboards não tem contagem (as três páginas são
+ * fixas), então salvar um layout não muda nada em `/settings`.
  */
 export function revalidateDashboardLayout(accountId: string) {
   revalidatePath(`/${accountId}/dashboards`, "layout");
   revalidatePath(`/${accountId}/settings/dashboards`, "layout");
-  revalidateSettingsHub(accountId);
 }
 
 /** Revalida a gestão de apelidos de transação. */

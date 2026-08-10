@@ -50,6 +50,24 @@ export type SettingsFamily = {
   icon: "structure" | "presentation" | "dataEntry" | "planning" | "account";
   /** A família inteira só aparece para `owner`? (Conta é marcada, mas ver §4.) */
   ownerBadge?: boolean;
+  /**
+   * Card largo do hub: ocupa duas colunas do grid e dispõe as entradas EM LINHA,
+   * lado a lado, em vez de empilhadas (frame de arquitetura, `grid-column: span 2`
+   * + `grid-template-columns: 1fr 1fr 1fr`).
+   *
+   * É o desenho da família Conta: administração de baixa frequência e alto
+   * impacto, isolada no rodapé do hub numa faixa própria — não mais um card
+   * igual aos outros quatro.
+   */
+  wide?: boolean;
+  /**
+   * Cor do ícone e do badge no cabeçalho do card.
+   *
+   * O frame de arquitetura usa `--accent` nas quatro primeiras famílias e
+   * `--warning` na Conta: administração é de baixa frequência e alto impacto, e
+   * o mostarda é o aviso disso. Default `accent`.
+   */
+  tone?: "accent" | "warning";
   entries: SettingsEntry[];
 };
 
@@ -173,6 +191,9 @@ export const SETTINGS_FAMILIES: SettingsFamily[] = [
     label: m.settings.nav.groups.account,
     icon: "account",
     ownerBadge: true,
+    // Faixa larga no rodapé do hub, com as entradas lado a lado — ver `wide`.
+    wide: true,
+    tone: "warning",
     entries: [
       {
         href: "general",
@@ -214,7 +235,10 @@ export function getSettingsFamilies(role: AccountMemberRole): SettingsFamily[] {
     const account = SETTINGS_FAMILIES.find((family) => family.key === "account");
     const members = account?.entries.find((entry) => entry.href === "members");
     if (!account || !members) return [];
-    return [{ ...account, ownerBadge: false, entries: [members] }];
+    // `wide: false` — a faixa larga existe para dispor VÁRIAS entradas lado a
+    // lado; com o único link de Membros ela viraria um card de 2/3 de largura
+    // sozinho no hub.
+    return [{ ...account, ownerBadge: false, wide: false, entries: [members] }];
   }
 
   if (role === "owner") return SETTINGS_FAMILIES;

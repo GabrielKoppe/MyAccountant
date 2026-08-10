@@ -292,9 +292,22 @@ docker volume rm my-accountant_postgres-e2e-data
 docker compose exec app-e2e pnpm exec tsx e2e/fixtures/seed.ts
 ```
 
+> 🔥 **JÁ ACONTECEU (2026-08-10): `scripts/e2e.sh` apagou o banco de dev.** O `trap EXIT` do script rodava `docker compose --profile e2e down -v`, e o `-v` levou o `postgres-data` junto — banco de desenvolvimento zerado, sem recuperação (volume removido não volta). Sintoma no app: `PrismaClientKnownRequestError … The table 'public.user_settings' does not exist`. Conserto de emergência: `docker compose exec app pnpm prisma migrate deploy` recria o **schema**, mas os **dados não voltam**. Os dois scripts (`e2e.sh` e `e2e-ui.sh`) foram corrigidos para `down` sem `-v` + `docker volume rm my-accountant_postgres-e2e-data`. **Nunca reintroduza o `-v` neles.**
+>
 > ⚠️ **Aviso de dados**: `docker compose down -v` é **global** — remove todos os volumes top-level do projeto, incluindo `postgres-data` (dev), independente de `--profile`. Para limpar só o DB de teste, use os comandos acima (`down` sem `-v` + `docker volume rm my-accountant_postgres-e2e-data`). O seed E2E (`e2e/fixtures/seed.ts`) faz um **reset global** das tabelas (deleta todas as linhas) — só deve rodar contra o container `app-e2e` (banco `myaccountant_e2e`), **nunca** contra `app` (dev), sob risco de apagar os dados de desenvolvimento.
 >
 > ⚠️ **`docker compose --profile e2e down` (sem `-v`) também para/remove os containers `app`/`postgres` do dev** (confirmado na prática) — serviços sem `profiles:` no compose são sempre considerados ativos, então entram no escopo do `down` junto com `postgres-e2e`/`app-e2e`/`e2e-runner`. Os dados do dev **não são perdidos** (o volume `postgres-data` não é tocado sem `-v`), mas o stack de dev fica fora do ar até você rodar `docker compose up -d` de novo. Se estiver com o dev rodando e só quiser limpar o e2e, rode `docker compose up -d` logo em seguida para restaurar o `app`/`postgres` do dev.
+>
+> ⚠️ **Rodar o e2e QUEBRA o typecheck do dev até você regenerar o Prisma Client** (confirmado na prática, duas vezes). O `e2e-runner` monta `./:/app` e o seu `command` roda `pnpm install --frozen-lockfile && pnpm prisma generate` — ou seja, escreve no **`node_modules` compartilhado com o host e com o container de dev**. Depois disso, `pnpm typecheck` no `app` falha com `Module '"@prisma/client"' has no exported member 'Account'` (e `AccountMember`, `Section`, `Transaction`…), e a suíte unitária desaba em massa (~23 falhas em 11 arquivos) — nada disso é regressão do código.
+>
+> ```bash
+> # Sempre DEPOIS de qualquer execução do e2e (scripts/e2e.sh ou o one-liner do compose):
+> docker compose up -d                      # o e2e derrubou o app/postgres do dev
+> docker compose exec app pnpm prisma generate
+> docker compose restart app                # o next dev segue com o client antigo em memória
+> ```
+>
+> Sintoma inverso e igualmente enganoso: um `typecheck`/`test` rodado **no host** (fora do container) pode acusar `UsageCount` inexistente ou tipos velhos, porque o client do host é outro. **Verificação só vale dentro do container.**
 
 ```bash
 # Email preview (React Email)

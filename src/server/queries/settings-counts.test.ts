@@ -18,7 +18,6 @@ type CountOverrides = Partial<{
   responsibles: number;
   tableTypes: number;
   models: number;
-  dashboards: number;
   templates: number;
   aliases: number;
   connectors: number;
@@ -38,7 +37,6 @@ function setupCounts(overrides: CountOverrides = {}) {
     responsibles: 0,
     tableTypes: 0,
     models: 0,
-    dashboards: 0,
     templates: 0,
     aliases: 0,
     connectors: 0,
@@ -59,7 +57,6 @@ function setupCounts(overrides: CountOverrides = {}) {
   prismaMock.responsibleParty.count.mockResolvedValue(v.responsibles);
   prismaMock.tableType.count.mockResolvedValue(v.tableTypes);
   prismaMock.tableTemplate.count.mockResolvedValue(v.models);
-  prismaMock.dashboardLayout.count.mockResolvedValue(v.dashboards);
   prismaMock.csvTemplate.count.mockResolvedValue(v.templates);
   prismaMock.transactionAlias.count.mockResolvedValue(v.aliases);
   prismaMock.mcpGrant.count.mockResolvedValue(v.connectors);
@@ -95,7 +92,6 @@ describe("getSettingsCounts", () => {
       prismaMock.responsibleParty.count.mock.calls[0]?.[0],
       prismaMock.tableType.count.mock.calls[0]?.[0],
       prismaMock.tableTemplate.count.mock.calls[0]?.[0],
-      prismaMock.dashboardLayout.count.mock.calls[0]?.[0],
       prismaMock.csvTemplate.count.mock.calls[0]?.[0],
       prismaMock.transactionAlias.count.mock.calls[0]?.[0],
       prismaMock.mcpGrant.count.mock.calls[0]?.[0],
@@ -126,7 +122,7 @@ describe("getSettingsCounts", () => {
     expect(prismaMock.accountMember.count).toHaveBeenCalledWith({
       where: { accountId: "acc-viewer" },
     });
-    // O carve-out existe para NÃO pagar as outras 14 contagens.
+    // O carve-out existe para NÃO pagar as outras contagens.
     expect(prismaMock.category.count).not.toHaveBeenCalled();
     expect(prismaMock.dashboardLayout.count).not.toHaveBeenCalled();
     expect(prismaMock.accountInvite.count).not.toHaveBeenCalled();
@@ -195,28 +191,13 @@ describe("getSettingsCounts", () => {
       expect(m.settings.hub.counts.members(3, 2)).toBe("3 · 2 convites");
     });
 
-    it("dashboards: quantos dos 3 contextos estão personalizados (B2)", async () => {
-      setupCounts({ dashboards: 0 });
-      expect((await getSettingsCounts("acc-dash-0", "owner", "u")).dashboards).toBe(
-        "0 de 3 personalizados",
-      );
+    it("dashboards NÃO tem contagem: as três páginas são fixas, número ali é ruído", async () => {
+      setupCounts({});
+      const counts = await getSettingsCounts("acc-dash", "owner", "u");
 
-      setupCounts({ dashboards: 1 });
-      expect((await getSettingsCounts("acc-dash-1", "owner", "u")).dashboards).toBe(
-        "1 de 3 personalizado",
-      );
-
-      setupCounts({ dashboards: 3 });
-      expect((await getSettingsCounts("acc-dash-3", "owner", "u")).dashboards).toBe(
-        m.settings.hub.counts.dashboards(3, 3),
-      );
-      // Uma linha por contexto (`@@unique([accountId, context])`) — um `count`
-      // simples, sem carregar o Json de widgets.
-      expect(prismaMock.dashboardLayout.count).toHaveBeenLastCalledWith({
-        where: { accountId: "acc-dash-3" },
-      });
-      expect(prismaMock.dashboardLayout.findMany).not.toHaveBeenCalled();
-      expect(prismaMock.dashboardLayout.findUnique).not.toHaveBeenCalled();
+      expect(counts).not.toHaveProperty("dashboards");
+      // E não paga query nenhuma por uma contagem que não existe.
+      expect(prismaMock.dashboardLayout.count).not.toHaveBeenCalled();
     });
 
     it("conta o que não tem plural especial como número puro", async () => {

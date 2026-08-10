@@ -56,17 +56,25 @@ export function SettingsHub({ accountId, role, counts, signals }: Props) {
           gap: layout.stack,
           // 1 coluna no celular, 2 no tablet, 3 no desktop — o frame mostra 3.
           gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" },
-          alignItems: "start",
+          // SEM `alignItems: start`: os cards da mesma fileira precisam esticar
+          // até a altura do mais alto. Estrutura tem 4 páginas e as vizinhas 3 —
+          // com `start`, Apresentação e Entrada de dados ficavam mais curtas.
         }}
       >
         {families.map((family) => (
-          <SettingsFamilyCard
+          <Box
             key={family.key}
-            family={family}
-            accountId={accountId}
-            counts={counts}
-            flaggedHrefs={flaggedHrefs}
-          />
+            // A família larga (Conta) ocupa duas colunas e fecha o hub numa
+            // faixa própria, como no frame de arquitetura.
+            sx={family.wide ? { gridColumn: { sm: "span 2" } } : undefined}
+          >
+            <SettingsFamilyCard
+              family={family}
+              accountId={accountId}
+              counts={counts}
+              flaggedHrefs={flaggedHrefs}
+            />
+          </Box>
         ))}
       </Box>
     </Stack>

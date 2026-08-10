@@ -40,9 +40,12 @@ export function CollapsibleNavItem({
     <>
       <ListItem disablePadding>
         <ListItemButton onClick={() => setOpen((v) => !v)} sx={{ borderRadius: 0 }}>
+          {/* Idem `SettingsNav`: rótulo truncável para a contagem (que não
+              encolhe) não colidir com ele nos 220px do nav. */}
           <ListItemText
             primary={label}
-            primaryTypographyProps={{ fontSize: "0.82rem", fontWeight: 500 }}
+            primaryTypographyProps={{ fontSize: "0.82rem", fontWeight: 500, noWrap: true }}
+            sx={{ minWidth: 0, my: 0 }}
           />
           {count !== undefined && <NavCount value={count} />}
           {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
@@ -71,7 +74,11 @@ export function CollapsibleNavItem({
                     },
                   }}
                 >
-                  <ListItemText primary={subLabel} primaryTypographyProps={{ variant: "body2" }} />
+                  <ListItemText
+                    primary={subLabel}
+                    primaryTypographyProps={{ variant: "body2", noWrap: true }}
+                    sx={{ minWidth: 0, my: 0 }}
+                  />
                   {subCount !== undefined && <NavCount value={subCount} />}
                 </ListItemButton>
               </ListItem>

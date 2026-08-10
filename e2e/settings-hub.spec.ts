@@ -117,14 +117,14 @@ test.describe("hub de Configurações — owner", () => {
     }
 
     // Contagem barata à direita da linha (§4 SET-02). Só onde o catálogo tem
-    // contagem — Geral e Auditoria saem sem número, de propósito.
+    // contagem — Geral, Auditoria e Dashboards saem sem número, de propósito.
     // Regex e não valor fixo: outros specs da suíte criam dados na conta principal.
     await expect(cards.nth(0).locator(`a[href="${settingsBase}/sections"]`)).toContainText(/\d/);
     await expect(cards.nth(4).locator(`a[href="${settingsBase}/members"]`)).toContainText(/\d/);
-    // Dashboards (B2) não conta itens: conta quantos dos 3 contextos foram
-    // personalizados — a linha existe mesmo numa conta que nunca salvou layout.
-    await expect(cards.nth(1).locator(`a[href="${settingsBase}/dashboards"]`)).toContainText(
-      /\d de \d personalizados?/,
+    // Dashboards sai SEM número: as três páginas (mensal, anual, resumo) são
+    // fixas, então contagem ali é ruído. Só o rótulo e o subtítulo.
+    await expect(cards.nth(1).locator(`a[href="${settingsBase}/dashboards"]`)).toHaveText(
+      /^Dashboards/,
     );
   });
 

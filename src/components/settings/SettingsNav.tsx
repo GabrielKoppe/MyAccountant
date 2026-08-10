@@ -80,7 +80,14 @@ function renderEntry(
           },
         }}
       >
-        <ListItemText primary={label} primaryTypographyProps={NAV_LABEL_TYPOGRAPHY} />
+        {/* `noWrap` + `minWidth: 0`: o nav tem 220px fixos e a contagem é
+            `flexShrink: 0` — sem isso, um rótulo comprido (ou uma contagem
+            comprida) empurra os dois para cima um do outro. */}
+        <ListItemText
+          primary={label}
+          primaryTypographyProps={{ ...NAV_LABEL_TYPOGRAPHY, noWrap: true }}
+          sx={{ minWidth: 0, my: 0 }}
+        />
         {count !== undefined && <NavCount value={count} />}
       </ListItemButton>
     </ListItem>
