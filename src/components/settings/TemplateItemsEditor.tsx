@@ -24,7 +24,7 @@ import { NumericFormat } from "react-number-format";
 import { useSnackbar } from "notistack";
 
 import { addTemplateItemAction, deleteTemplateItemAction } from "@/actions/table-templates";
-import { DialogShell } from "@/components/ui/DialogShell";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
 import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
@@ -165,10 +165,10 @@ export function TemplateItemsEditor({
 
   return (
     <>
-      <DialogShell
+      <SettingsDialog
         open={open}
         onClose={onClose}
-        maxWidth="md"
+        size="editor"
         title={`Editar itens — ${template.name}`}
         actions={
           <>
@@ -243,13 +243,13 @@ export function TemplateItemsEditor({
             </TableBody>
           </Table>
         )}
-      </DialogShell>
+      </SettingsDialog>
 
       {/* Add item dialog */}
-      <DialogShell
+      <SettingsDialog
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        maxWidth="sm"
+        size="form"
         title={m.tableModels.addItem}
         actions={
           <>
@@ -385,7 +385,7 @@ export function TemplateItemsEditor({
             label="Marcar como pendente ao aplicar"
           />
         </Stack>
-      </DialogShell>
+      </SettingsDialog>
     </>
   );
 }

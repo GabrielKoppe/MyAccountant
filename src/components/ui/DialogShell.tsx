@@ -40,6 +40,8 @@ export interface DialogShellProps {
   actions?: ReactNode;
   /** Largura maxima. Padrao: "sm" (640px). */
   maxWidth?: "xs" | "sm" | "md" | "lg" | "xl";
+  /** Largura máxima em px do Paper. Quando definida, vence o maxWidth de breakpoint. */
+  maxWidthPx?: number;
   /** Em mobile, abre fullscreen. Default: true. */
   fullScreenOnMobile?: boolean;
   /** Esconde o botao X (use somente se houver acoes obrigatorias) */
@@ -93,6 +95,7 @@ export function DialogShell({
   children,
   actions,
   maxWidth = "sm",
+  maxWidthPx,
   fullScreenOnMobile = true,
   hideCloseButton = false,
   hideContentScroll = false,
@@ -109,6 +112,12 @@ export function DialogShell({
       open={open}
       onClose={loading ? undefined : onClose}
       maxWidth={maxWidth}
+      // O `sx` do Paper vence as variantes do styled do MUI — inclusive o
+      // `maxWidth: 100%` do fullScreen. Por isso a largura em px só entra fora do
+      // fullScreen; senão o dialog ficaria estreito no meio da tela do celular.
+      PaperProps={
+        maxWidthPx !== undefined && !fullScreen ? { sx: { maxWidth: maxWidthPx } } : undefined
+      }
       fullWidth
       fullScreen={fullScreen}
       aria-labelledby={titleId}
@@ -120,11 +129,7 @@ export function DialogShell({
           // Titulo oculto: o header vira só a faixa do botao X (sem espaco morto);
           // o cabecalho de destaque do proprio conteudo assume o topo visual.
           pt: titleVisuallyHidden ? layout.inline : layout.card,
-          pb: titleVisuallyHidden
-            ? 0
-            : description !== undefined
-              ? layout.stack
-              : layout.card,
+          pb: titleVisuallyHidden ? 0 : description !== undefined ? layout.stack : layout.card,
         }}
       >
         <Stack

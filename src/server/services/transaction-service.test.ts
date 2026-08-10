@@ -1,12 +1,11 @@
 import type { SectionCountType } from "@prisma/client";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { NotFoundError } from "@/server/api/errors";
 
 import { TEST_CTX } from "@/../tests/fixtures/account";
 import { buildTransaction } from "@/../tests/fixtures/transaction";
 import { prismaMock } from "@/../tests/mocks/prisma";
-
 
 import {
   bulkDelete,
@@ -756,5 +755,323 @@ describe("moveTransactions — sinal ao mover (spec 59)", () => {
       expect((c[0].where as any).accountId).toBe("acc-test-1");
       expect((c[0].where as any).id.in).not.toContain("tx-2-outra-conta");
     }
+  });
+});
+
+describe("lastUsedAt — Spec 67 §2.4 (SET-07)", () => {
+  // `touchLastUsed` é fire-and-forget (`void`), mas as chamadas a `updateMany`
+  // são disparadas de forma SÍNCRONA (antes do primeiro `await` do helper) —
+  // por isso já estão registradas quando o service resolve.
+  const TOUCH_DATA = { data: { lastUsedAt: expect.any(Date) } };
+
+  /**
+   * Entidades que o helper pode tocar a partir deste service. O cast unifica os
+   * tipos de `updateMany` (um por entidade) num só — o teste só olha a lista de
+   * chamadas, não a assinatura.
+   */
+  const touchDelegates = () =>
+    [
+      prismaMock.category.updateMany,
+      prismaMock.subcategory.updateMany,
+      prismaMock.institution.updateMany,
+      prismaMock.responsibleParty.updateMany,
+      prismaMock.section.updateMany,
+    ] as unknown as Array<typeof prismaMock.section.updateMany>;
+
+  beforeEach(() => {
+    // Resolver explicitamente evita que o `Promise.all` interno do helper fique
+    // pendurado em algum retorno de deep mock.
+    for (const delegate of touchDelegates()) delegate.mockResolvedValue({ count: 1 });
+  });
+
+  function mockTableFound() {
+    prismaMock.financeTable.findUnique.mockResolvedValue({
+      accountId: "acc-test-1",
+      sectionId: "sec-test-1",
+      monthId: "month-test-1",
+    } as any);
+  }
+
+  /** Todo toque é escrita — o `where` SEMPRE carrega `accountId` (multi-tenancy). */
+  function expectTouched(delegate: unknown, ids: string[]) {
+    expect(delegate).toHaveBeenCalledWith({
+      where: { id: { in: ids }, accountId: "acc-test-1" },
+      ...TOUCH_DATA,
+    });
+  }
+
+  describe("createTransaction", () => {
+    it("toca categoria, subcategoria, instituição e responsável do input", async () => {
+      mockTableFound();
+      prismaMock.transaction.create.mockResolvedValue({ id: "tx-touch-1" } as any);
+
+      await createTransaction(
+        {
+          tableId: "table-test-1",
+          occurredOn: new Date("2026-01-15"),
+          amountCents: 10000n,
+          isPending: false,
+          isFavorite: false,
+          categoryId: "cat-1",
+          subcategoryId: "sub-1",
+          institutionId: "inst-1",
+          responsiblePartyId: "party-1",
+        },
+        TEST_CTX,
+      );
+
+      expectTouched(prismaMock.category.updateMany, ["cat-1"]);
+      expectTouched(prismaMock.subcategory.updateMany, ["sub-1"]);
+      expectTouched(prismaMock.institution.updateMany, ["inst-1"]);
+      expectTouched(prismaMock.responsibleParty.updateMany, ["party-1"]);
+    });
+
+    it("não toca entidade cujo id não veio no input", async () => {
+      mockTableFound();
+      prismaMock.transaction.create.mockResolvedValue({ id: "tx-touch-2" } as any);
+
+      await createTransaction(
+        {
+          tableId: "table-test-1",
+          occurredOn: new Date("2026-01-15"),
+          amountCents: 10000n,
+          isPending: false,
+          isFavorite: false,
+          categoryId: "cat-1",
+        },
+        TEST_CTX,
+      );
+
+      expectTouched(prismaMock.category.updateMany, ["cat-1"]);
+      expect(prismaMock.subcategory.updateMany).not.toHaveBeenCalled();
+      expect(prismaMock.institution.updateMany).not.toHaveBeenCalled();
+      expect(prismaMock.responsibleParty.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("não toca nada quando a tabela é de outra account (multi-tenancy)", async () => {
+      prismaMock.financeTable.findUnique.mockResolvedValue({
+        accountId: "acc-OUTRA",
+        sectionId: "sec-1",
+        monthId: "month-1",
+      } as any);
+
+      await expect(
+        createTransaction(
+          {
+            tableId: "table-test-1",
+            occurredOn: new Date("2026-01-15"),
+            amountCents: 10000n,
+            isPending: false,
+            isFavorite: false,
+            categoryId: "cat-de-outra-conta",
+          },
+          TEST_CTX,
+        ),
+      ).rejects.toThrow(NotFoundError);
+
+      for (const delegate of touchDelegates()) expect(delegate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateTransaction", () => {
+    function mockOwnedTransaction() {
+      prismaMock.transaction.findUnique.mockResolvedValue({
+        accountId: "acc-test-1",
+        tableId: "table-1",
+        sectionId: "sec-1",
+        monthId: "month-1",
+      } as any);
+      prismaMock.transaction.update.mockResolvedValue({} as any);
+    }
+
+    it("toca SOMENTE as entidades cujo campo veio no patch parcial", async () => {
+      mockOwnedTransaction();
+
+      await updateTransaction(
+        { transactionId: "tx-1", categoryId: "cat-nova", isPending: true },
+        TEST_CTX,
+      );
+
+      expectTouched(prismaMock.category.updateMany, ["cat-nova"]);
+      // subcategoria/instituição/responsável continuam gravados na transação,
+      // mas ninguém os escolheu agora — tocá-los seria mentira sobre o uso.
+      expect(prismaMock.subcategory.updateMany).not.toHaveBeenCalled();
+      expect(prismaMock.institution.updateMany).not.toHaveBeenCalled();
+      expect(prismaMock.responsibleParty.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("não toca nada quando o patch limpa o campo (id null)", async () => {
+      mockOwnedTransaction();
+
+      await updateTransaction({ transactionId: "tx-1", categoryId: null }, TEST_CTX);
+
+      expect(prismaMock.category.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("não toca nada quando o patch não traz nenhuma referência", async () => {
+      mockOwnedTransaction();
+
+      await updateTransaction({ transactionId: "tx-1", amountCents: 50000n }, TEST_CTX);
+
+      for (const delegate of touchDelegates()) expect(delegate).not.toHaveBeenCalled();
+    });
+
+    it("não toca nada quando a transação é de outra account (multi-tenancy)", async () => {
+      prismaMock.transaction.findUnique.mockResolvedValue({ accountId: "acc-OUTRA" } as any);
+
+      await expect(
+        updateTransaction({ transactionId: "tx-1", categoryId: "cat-1" }, TEST_CTX),
+      ).rejects.toThrow(NotFoundError);
+
+      for (const delegate of touchDelegates()) expect(delegate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("duplicateTransaction", () => {
+    it("toca as 4 entidades copiadas da origem", async () => {
+      prismaMock.transaction.findUnique.mockResolvedValue(
+        buildTransaction({
+          id: "tx-src",
+          accountId: "acc-test-1",
+          categoryId: "cat-1",
+          subcategoryId: "sub-1",
+          institutionId: "inst-1",
+          responsiblePartyId: "party-1",
+        }) as any,
+      );
+      prismaMock.transaction.create.mockResolvedValue({ id: "tx-dup" } as any);
+
+      await duplicateTransaction({ transactionId: "tx-src" }, TEST_CTX);
+
+      expectTouched(prismaMock.category.updateMany, ["cat-1"]);
+      expectTouched(prismaMock.subcategory.updateMany, ["sub-1"]);
+      expectTouched(prismaMock.institution.updateMany, ["inst-1"]);
+      expectTouched(prismaMock.responsibleParty.updateMany, ["party-1"]);
+    });
+
+    it("não toca nada ao duplicar transação de outra account (multi-tenancy)", async () => {
+      prismaMock.transaction.findUnique.mockResolvedValue(
+        buildTransaction({ accountId: "acc-OUTRA", categoryId: "cat-1" }) as any,
+      );
+
+      await expect(duplicateTransaction({ transactionId: "tx-1" }, TEST_CTX)).rejects.toThrow(
+        NotFoundError,
+      );
+
+      for (const delegate of touchDelegates()) expect(delegate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("bulkUpdate", () => {
+    it("toca categoria e instituição do patch em massa, restrito por accountId", async () => {
+      prismaMock.transaction.updateMany.mockResolvedValue({ count: 2 });
+
+      await bulkUpdate(
+        {
+          ids: ["tx-1", "tx-2"],
+          monthId: "month-1",
+          patch: { categoryId: "cat-massa", institutionId: "inst-massa" },
+        },
+        TEST_CTX,
+      );
+
+      expectTouched(prismaMock.category.updateMany, ["cat-massa"]);
+      expectTouched(prismaMock.institution.updateMany, ["inst-massa"]);
+      // bulkUpdate não grava subcategoria nem responsável
+      expect(prismaMock.subcategory.updateMany).not.toHaveBeenCalled();
+      expect(prismaMock.responsibleParty.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("não toca nada quando o patch em massa não traz referências", async () => {
+      prismaMock.transaction.updateMany.mockResolvedValue({ count: 2 });
+
+      await bulkUpdate({ ids: ["tx-1"], monthId: "month-1", patch: { isPending: true } }, TEST_CTX);
+
+      for (const delegate of touchDelegates()) expect(delegate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("moveTransactions", () => {
+    it("toca a seção de DESTINO ao mover para tabela existente", async () => {
+      prismaMock.financeTable.findUnique.mockResolvedValue({
+        accountId: "acc-test-1",
+        sectionId: "sec-dest",
+        monthId: "month-dest",
+        name: "Tabela Destino",
+      } as any);
+      prismaMock.section.findUnique.mockResolvedValue({ countType: "add" } as any);
+      prismaMock.$transaction.mockImplementation(async (fn: any) => fn(prismaMock));
+
+      await moveTransactions(
+        {
+          ids: ["tx-1"],
+          sourceMonthId: "month-src",
+          invertSign: false,
+          destination: { type: "existing", tableId: "table-dest" },
+        },
+        TEST_CTX,
+      );
+
+      expectTouched(prismaMock.section.updateMany, ["sec-dest"]);
+    });
+
+    it("toca a seção de DESTINO ao mover para tabela nova", async () => {
+      prismaMock.month.findFirst.mockResolvedValue({ id: "month-dest" } as any);
+      prismaMock.section.findFirst.mockResolvedValue({ id: "sec-dest" } as any);
+      prismaMock.tableType.findFirst.mockResolvedValue({ id: "tt-1" } as any);
+      prismaMock.$transaction.mockImplementation(async (fn: any) => fn(prismaMock));
+      prismaMock.transaction.updateMany.mockResolvedValue({ count: 1 });
+      prismaMock.financeTable.count.mockResolvedValue(0);
+      prismaMock.financeTable.create.mockResolvedValue({
+        id: "table-nova",
+        name: "Nova",
+      } as any);
+
+      await moveTransactions(
+        {
+          ids: ["tx-1"],
+          sourceMonthId: "month-src",
+          invertSign: false,
+          destination: {
+            type: "new",
+            monthId: "month-dest",
+            sectionId: "sec-dest",
+            tableTypeId: "tt-1",
+            name: "Nova",
+            countInMonth: true,
+          },
+        },
+        TEST_CTX,
+      );
+
+      expectTouched(prismaMock.section.updateMany, ["sec-dest"]);
+    });
+  });
+
+  describe("exclusão não é uso", () => {
+    it("deleteTransaction NÃO toca nenhuma entidade", async () => {
+      prismaMock.transaction.findUnique.mockResolvedValue({
+        accountId: "acc-test-1",
+        monthId: "month-1",
+        installmentGroupId: null,
+        installmentNumber: null,
+        categoryId: "cat-1",
+        subcategoryId: "sub-1",
+      } as any);
+      prismaMock.transaction.delete.mockResolvedValue({} as any);
+
+      await deleteTransaction({ transactionId: "tx-1" }, TEST_CTX);
+
+      for (const delegate of touchDelegates()) expect(delegate).not.toHaveBeenCalled();
+    });
+
+    it("bulkDelete NÃO toca nenhuma entidade", async () => {
+      prismaMock.transaction.findMany.mockResolvedValue([{ monthId: "month-1" } as any]);
+      prismaMock.transaction.deleteMany.mockResolvedValue({ count: 1 });
+
+      await bulkDelete({ ids: ["tx-1", "tx-2"] }, TEST_CTX);
+
+      for (const delegate of touchDelegates()) expect(delegate).not.toHaveBeenCalled();
+    });
   });
 });

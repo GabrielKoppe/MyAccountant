@@ -52,6 +52,49 @@ function setupTxMock() {
   return txMock;
 }
 
+// Registro cru de apelido como o Prisma devolve (antes do serializer).
+// Escopo de módulo porque os testes de apelido e os de `lastUsedAt` usam o mesmo.
+function mkAliasRecord(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "alias-1",
+    trigger: "CEG",
+    triggerNormalized: "ceg",
+    triggerMode: "contains",
+    priority: "medium",
+    conditionInstitutionId: null,
+    conditionInstitution: null,
+    minCents: null,
+    maxCents: null,
+    description: null,
+    notes: null,
+    amountCents: 999999n, // DD-09: nunca aplicado no import — deve ser ignorado
+    categoryId: "cat-alias-1",
+    category: { name: "Conta" },
+    subcategoryId: null,
+    subcategory: null,
+    institutionId: null,
+    institution: null,
+    institutionText: null,
+    responsiblePartyId: null,
+    responsibleParty: null,
+    expenseType: null,
+    paymentMethod: null,
+    investmentType: null,
+    cardInstallment: null,
+    isPending: null,
+    isFavorite: null,
+    originalCurrency: null,
+    originalAmountCents: null,
+    exchangeRate: null,
+    archivedAt: null,
+    createdById: "user-test-1",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    tags: [],
+    ...overrides,
+  };
+}
+
 describe("executeImport", () => {
   it("retorna tableId, imported e errors corretos para linhas válidas", async () => {
     setupFoundResources();
@@ -188,47 +231,6 @@ describe("executeImport", () => {
 
 describe("executeImport — apelidos (spec 61 Fase 5)", () => {
   const ALIAS_MAPPING = { columns: { date: "Data", amount: "Valor", description: "Desc" } };
-
-  function mkAliasRecord(overrides: Record<string, unknown> = {}) {
-    return {
-      id: "alias-1",
-      trigger: "CEG",
-      triggerNormalized: "ceg",
-      triggerMode: "contains",
-      priority: "medium",
-      conditionInstitutionId: null,
-      conditionInstitution: null,
-      minCents: null,
-      maxCents: null,
-      description: null,
-      notes: null,
-      amountCents: 999999n, // DD-09: nunca aplicado no import — deve ser ignorado
-      categoryId: "cat-alias-1",
-      category: { name: "Conta" },
-      subcategoryId: null,
-      subcategory: null,
-      institutionId: null,
-      institution: null,
-      institutionText: null,
-      responsiblePartyId: null,
-      responsibleParty: null,
-      expenseType: null,
-      paymentMethod: null,
-      investmentType: null,
-      cardInstallment: null,
-      isPending: null,
-      isFavorite: null,
-      originalCurrency: null,
-      originalAmountCents: null,
-      exchangeRate: null,
-      archivedAt: null,
-      createdById: "user-test-1",
-      createdAt: new Date("2026-01-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      tags: [],
-      ...overrides,
-    };
-  }
 
   function setupFoundResourcesWithAlias(overrides: Record<string, unknown> = {}) {
     setupFoundResources();
@@ -880,5 +882,205 @@ describe("executeImport — vínculo com parcelamento existente (spec 73 §2.3)"
     expect(rows[0].installmentGroupId).toBeNull();
     expect(result.installmentLinesSkipped).toBe(1);
     expect(txMock.pendingInstallment.delete).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Spec 67 §2.4/§7.4 (SET-07) — recência dos objetos de configuração ───────
+
+describe("executeImport — lastUsedAt dos objetos consumidos (spec 67 §7.4)", () => {
+  const DIM_MAPPING = {
+    columns: { date: "Data", amount: "Valor", category: "Cat", institution: "Inst" },
+  };
+  const DIM_ROWS = [{ Data: "03/01/2026", Valor: "100,00", Cat: "Casa", Inst: "Nubank" }];
+
+  function setupDims() {
+    setupFoundResources();
+    prismaMock.category.findMany.mockResolvedValue([{ id: "cat-1", name: "Casa" }] as any);
+    prismaMock.institution.findMany.mockResolvedValue([{ id: "inst-1", name: "Nubank" }] as any);
+  }
+
+  /** `where` de todos os toques disparados, de todas as entidades. */
+  function touchWheres() {
+    return [
+      ...prismaMock.section.updateMany.mock.calls,
+      ...prismaMock.tableType.updateMany.mock.calls,
+      ...prismaMock.category.updateMany.mock.calls,
+      ...prismaMock.subcategory.updateMany.mock.calls,
+      ...prismaMock.institution.updateMany.mock.calls,
+      ...prismaMock.responsibleParty.updateMany.mock.calls,
+      ...prismaMock.transactionAlias.updateMany.mock.calls,
+      ...prismaMock.csvTemplate.updateMany.mock.calls,
+    ].map(([args]) => (args as any).where);
+  }
+
+  it("marca seção, tipo de tabela e dimensões consumidas com o accountId do contexto", async () => {
+    setupDims();
+    setupTxMock();
+
+    await csvImportService.executeImport(
+      { ...EXEC_INPUT, mapping: DIM_MAPPING, rows: DIM_ROWS } as any,
+      EXEC_CTX,
+    );
+
+    expect(prismaMock.section.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["sec-1"] }, accountId: "acc-test-1" },
+      data: { lastUsedAt: expect.any(Date) },
+    });
+    expect(prismaMock.tableType.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["tt-1"] }, accountId: "acc-test-1" } }),
+    );
+    expect(prismaMock.category.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["cat-1"] }, accountId: "acc-test-1" } }),
+    );
+    expect(prismaMock.institution.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["inst-1"] }, accountId: "acc-test-1" } }),
+    );
+  });
+
+  it("multi-tenancy: nenhum toque de lastUsedAt roda sem o accountId da conta corrente", async () => {
+    setupDims();
+    setupTxMock();
+
+    await csvImportService.executeImport(
+      { ...EXEC_INPUT, mapping: DIM_MAPPING, rows: DIM_ROWS, templateId: "ctpl000000001" } as any,
+      { accountId: "acc-OUTRA", userId: "user-outro" },
+    );
+
+    const wheres = touchWheres();
+    expect(wheres.length).toBeGreaterThan(0);
+    for (const where of wheres) {
+      expect(where.accountId).toBe("acc-OUTRA");
+    }
+  });
+
+  it("dimensão auto-criada durante o import também conta como usada", async () => {
+    setupFoundResources(); // nenhuma categoria existente → onCategoryNotFound = "create"
+    prismaMock.category.upsert.mockResolvedValue({ id: "cat-nova-1", name: "Mercado" } as any);
+    setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: { columns: { date: "Data", amount: "Valor", category: "Cat" } },
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Cat: "Mercado" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    expect(prismaMock.category.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["cat-nova-1"] }, accountId: "acc-test-1" } }),
+    );
+  });
+
+  it("marca o apelido efetivamente aplicado nas linhas importadas", async () => {
+    setupFoundResources();
+    prismaMock.transactionAlias.findMany.mockResolvedValue([mkAliasRecord()] as any);
+    setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: { columns: { date: "Data", amount: "Valor", description: "Desc" } },
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }],
+      } as any,
+      EXEC_CTX,
+    );
+
+    expect(prismaMock.transactionAlias.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["alias-1"] }, accountId: "acc-test-1" } }),
+    );
+  });
+
+  it("apelido com opt-out na linha (DD-16) não é marcado como usado", async () => {
+    setupFoundResources();
+    prismaMock.transactionAlias.findMany.mockResolvedValue([mkAliasRecord()] as any);
+    setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: { columns: { date: "Data", amount: "Valor", description: "Desc" } },
+        rows: [{ Data: "03/01/2026", Valor: "100,00", Desc: "pagamento CEG" }],
+        aliasIgnoreRows: [0],
+      } as any,
+      EXEC_CTX,
+    );
+
+    expect(prismaMock.transactionAlias.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("linha ignorada manualmente não marca as dimensões dela como usadas", async () => {
+    setupFoundResources();
+    prismaMock.category.findMany.mockResolvedValue([
+      { id: "cat-usada", name: "Casa" },
+      { id: "cat-ignorada", name: "Lazer" },
+    ] as any);
+    setupTxMock();
+
+    await csvImportService.executeImport(
+      {
+        ...EXEC_INPUT,
+        mapping: { columns: { date: "Data", amount: "Valor", category: "Cat" } },
+        rows: [
+          { Data: "03/01/2026", Valor: "100,00", Cat: "Lazer" }, // rowIndex 0 — ignorada
+          { Data: "04/01/2026", Valor: "200,00", Cat: "Casa" },
+        ],
+        manualIgnoreRows: [0],
+      } as any,
+      EXEC_CTX,
+    );
+
+    expect(prismaMock.category.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["cat-usada"] }, accountId: "acc-test-1" } }),
+    );
+  });
+
+  it("marca o CsvTemplate escolhido no wizard e o salvo nesta importação", async () => {
+    setupFoundResources();
+    prismaMock.csvTemplate.upsert.mockResolvedValue({ id: "ctplsalvo00001" } as any);
+    setupTxMock();
+
+    await csvImportService.executeImport(
+      { ...EXEC_INPUT, templateId: "ctplescolhido1", saveTemplateAs: "Fatura Nubank" } as any,
+      EXEC_CTX,
+    );
+
+    expect(prismaMock.csvTemplate.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: { in: ["ctplescolhido1", "ctplsalvo00001"] },
+          accountId: "acc-test-1",
+        },
+      }),
+    );
+  });
+
+  it("importação sem template continua idêntica: nenhum toque em CsvTemplate", async () => {
+    setupFoundResources();
+    setupTxMock();
+
+    const result = await csvImportService.executeImport(EXEC_INPUT as any, EXEC_CTX);
+
+    expect(result.imported).toBe(1);
+    expect(prismaMock.csvTemplate.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.csvTemplate.upsert).not.toHaveBeenCalled();
+  });
+
+  it("falha ao gravar lastUsedAt não derruba a importação", async () => {
+    setupDims();
+    setupTxMock();
+    prismaMock.section.updateMany.mockRejectedValue(new Error("db indisponível"));
+    prismaMock.category.updateMany.mockRejectedValue(new Error("db indisponível"));
+
+    const result = await csvImportService.executeImport(
+      { ...EXEC_INPUT, mapping: DIM_MAPPING, rows: DIM_ROWS } as any,
+      EXEC_CTX,
+    );
+
+    expect(result.tableId).toBe("table-imported-1");
+    expect(result.imported).toBe(1);
+    expect(result.errors).toHaveLength(0);
+    // deixa o fire-and-forget assentar para o catch interno do helper rodar
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 });

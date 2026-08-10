@@ -5,84 +5,11 @@ import { TEST_CTX } from "@/../tests/fixtures/account";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/errors";
 
 import {
-  calculateMonthTotal,
   createMonth,
   deleteMonth,
   getSectionTotals,
   previewMonthAutomations,
 } from "./month-service";
-
-describe("calculateMonthTotal (função pura)", () => {
-  it("deve somar seções com countType=add", () => {
-    const sections = [
-      { id: "s1", countType: "add" as const },
-      { id: "s2", countType: "add" as const },
-    ];
-    const totals = { s1: 10000n, s2: 5000n };
-    expect(calculateMonthTotal(sections, totals)).toBe(15000n);
-  });
-
-  it("deve subtrair seções com countType=subtract", () => {
-    const sections = [
-      { id: "s1", countType: "add" as const },
-      { id: "s2", countType: "subtract" as const },
-    ];
-    const totals = { s1: 10000n, s2: 3000n };
-    expect(calculateMonthTotal(sections, totals)).toBe(7000n);
-  });
-
-  it("deve somar (não subtrair) seções com countType=neutral", () => {
-    const sections = [
-      { id: "s1", countType: "add" as const },
-      { id: "s2", countType: "neutral" as const },
-    ];
-    const totals = { s1: 10000n, s2: 5000n };
-    expect(calculateMonthTotal(sections, totals)).toBe(15000n);
-  });
-
-  it("deve ignorar seções com countType=ignore", () => {
-    const sections = [
-      { id: "s1", countType: "add" as const },
-      { id: "s2", countType: "ignore" as const },
-    ];
-    const totals = { s1: 10000n, s2: 99999n };
-    expect(calculateMonthTotal(sections, totals)).toBe(10000n);
-  });
-
-  it("deve tratar seção sem total como 0", () => {
-    const sections = [{ id: "s1", countType: "add" as const }];
-    expect(calculateMonthTotal(sections, {})).toBe(0n);
-  });
-
-  it("deve retornar 0 para lista vazia de seções", () => {
-    expect(calculateMonthTotal([], {})).toBe(0n);
-  });
-
-  it("deve calcular corretamente com combinação de todos os tipos", () => {
-    const sections = [
-      { id: "renda", countType: "add" as const },
-      { id: "gastos", countType: "subtract" as const },
-      { id: "investimentos", countType: "neutral" as const },
-      { id: "informativo", countType: "ignore" as const },
-    ];
-    const totals = {
-      renda: 500000n, // R$ 5.000
-      gastos: 200000n, // R$ 2.000
-      investimentos: 100000n, // R$ 1.000
-      informativo: 999999n, // ignorado
-    };
-    // 5.000 - 2.000 + 1.000 = 4.000
-    expect(calculateMonthTotal(sections, totals)).toBe(400000n);
-  });
-
-  it("deve lidar com totais negativos em seções subtract", () => {
-    // Um gasto negativo (crédito/estorno) em seção subtract
-    const sections = [{ id: "gastos", countType: "subtract" as const }];
-    const totals = { gastos: -5000n }; // crédito de R$ 50
-    // subtract(-50) = +50
-    expect(calculateMonthTotal(sections, totals)).toBe(5000n);
-  });
-});
 
 // Tipo parcial do retorno de transaction.groupBy usado nos mocks deste describe
 type GroupByRow = { sectionId: string; _sum: { amountCents: bigint | null } };
@@ -575,5 +502,151 @@ describe("previewMonthAutomations (spec 73 §2.4)", () => {
 
     const groups = await previewMonthAutomations({ year: 2026, month: 8 }, TEST_CTX);
     expect(groups[0].items[0].blockedReason).toBe("section_not_found");
+  });
+});
+
+// ─── Spec 67 §2.4/§7.4 (SET-07) — recência dos objetos de configuração ───────
+
+describe("createMonth — lastUsedAt dos objetos consumidos (spec 67 §7.4)", () => {
+  const TEMPLATE_ITEM = {
+    id: "item-1",
+    day: 5,
+    amountCents: 10000n,
+    description: "Aluguel",
+    notes: null,
+    isPending: false,
+    displayOrder: 0,
+    categoryId: "cat-1",
+    subcategoryId: "sub-1",
+    institutionId: "inst-1",
+    responsiblePartyId: "rp-1",
+    cardInstallment: null,
+    investmentType: null,
+    expenseType: null,
+  };
+
+  /** Cenário base: um modelo autoApply bem configurado, aplicado com sucesso. */
+  function setupAppliedTemplate(items: unknown[] = [TEMPLATE_ITEM]) {
+    const txMock = {
+      financeTable: {
+        count: vi.fn().mockResolvedValue(0),
+        create: vi.fn().mockResolvedValue({ id: "table-1" }),
+      },
+      transaction: { createMany: vi.fn().mockResolvedValue({ count: items.length }) },
+    };
+    prismaMock.pendingInstallment.findMany.mockResolvedValue([]);
+    prismaMock.month.findUnique.mockResolvedValue(null);
+    prismaMock.month.create.mockResolvedValue({ id: "month-novo-1" } as any);
+    prismaMock.tableTemplate.findMany.mockResolvedValue([
+      {
+        id: "tpl-1",
+        name: "Gastos Fixos",
+        autoApply: true,
+        autoSectionId: "sec-1",
+        autoTableTypeId: "tt-1",
+        countInMonth: true,
+        items,
+      },
+    ] as any);
+    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1", accountId: "acc-test-1" } as any);
+    prismaMock.tableType.findFirst.mockResolvedValue({
+      id: "tt-1",
+      accountId: "acc-test-1",
+    } as any);
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
+    return txMock;
+  }
+
+  it("marca modelo, seção e tipo de tabela aplicados com o accountId do contexto", async () => {
+    setupAppliedTemplate();
+
+    await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+    expect(prismaMock.tableTemplate.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["tpl-1"] }, accountId: "acc-test-1" },
+      data: { lastUsedAt: expect.any(Date) },
+    });
+    expect(prismaMock.section.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["sec-1"] }, accountId: "acc-test-1" } }),
+    );
+    expect(prismaMock.tableType.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["tt-1"] }, accountId: "acc-test-1" } }),
+    );
+  });
+
+  it("marca as dimensões vindas dos itens do modelo", async () => {
+    setupAppliedTemplate();
+
+    await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+    expect(prismaMock.category.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["cat-1"] }, accountId: "acc-test-1" } }),
+    );
+    expect(prismaMock.subcategory.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["sub-1"] }, accountId: "acc-test-1" } }),
+    );
+    expect(prismaMock.institution.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["inst-1"] }, accountId: "acc-test-1" } }),
+    );
+    expect(prismaMock.responsibleParty.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["rp-1"] }, accountId: "acc-test-1" } }),
+    );
+  });
+
+  it("multi-tenancy: nenhum toque roda sem o accountId da conta corrente", async () => {
+    setupAppliedTemplate();
+
+    await createMonth({ year: 2026, month: 6 }, { ...TEST_CTX, accountId: "acc-OUTRA" });
+
+    const wheres = [
+      ...prismaMock.tableTemplate.updateMany.mock.calls,
+      ...prismaMock.section.updateMany.mock.calls,
+      ...prismaMock.tableType.updateMany.mock.calls,
+      ...prismaMock.category.updateMany.mock.calls,
+      ...prismaMock.subcategory.updateMany.mock.calls,
+      ...prismaMock.institution.updateMany.mock.calls,
+      ...prismaMock.responsibleParty.updateMany.mock.calls,
+    ].map(([args]) => (args as unknown as { where: { accountId: string } }).where);
+
+    expect(wheres.length).toBeGreaterThan(0);
+    for (const where of wheres) {
+      expect(where.accountId).toBe("acc-OUTRA");
+    }
+  });
+
+  it("modelo que falhou não marca nada como usado", async () => {
+    setupAppliedTemplate();
+    prismaMock.section.findFirst.mockResolvedValue(null); // seção configurada sumiu
+
+    const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+    expect(result.autoApplied[0]).toMatchObject({ success: false });
+    expect(prismaMock.tableTemplate.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.section.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("mês sem modelos automáticos não dispara toque nenhum", async () => {
+    prismaMock.pendingInstallment.findMany.mockResolvedValue([]);
+    prismaMock.month.findUnique.mockResolvedValue(null);
+    prismaMock.month.create.mockResolvedValue({ id: "month-novo-1" } as any);
+    prismaMock.tableTemplate.findMany.mockResolvedValue([]);
+
+    await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+    expect(prismaMock.tableTemplate.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.section.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("falha ao gravar lastUsedAt não derruba a criação do mês", async () => {
+    setupAppliedTemplate();
+    prismaMock.tableTemplate.updateMany.mockRejectedValue(new Error("db indisponível"));
+    prismaMock.section.updateMany.mockRejectedValue(new Error("db indisponível"));
+
+    const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+    expect(result.monthId).toBe("month-novo-1");
+    expect(result.autoApplied[0]).toMatchObject({ templateName: "Gastos Fixos", success: true });
+    // deixa o fire-and-forget assentar para o catch interno do helper rodar
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 });

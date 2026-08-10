@@ -28,7 +28,9 @@ test("viewer vê /settings/members em modo leitura, sem ações de gestão", asy
 
   // Sem redirect: a página de membros abre normalmente para o viewer.
   await expect(page).toHaveURL(`/${m.mainAccountId}/settings/members`);
-  await expect(page.getByRole("heading", { name: "Membros" })).toBeVisible();
+  // Spec 67 §2.2 (SET-03): o título agora é o `h1` do `SettingsPageShell`
+  // (antes era um `h3` do PageSettingsContainer, já deletado).
+  await expect(page.getByRole("heading", { level: 1, name: "Membros" })).toBeVisible();
 
   // Ações de gestão restritas a owner (MembersTable/InviteForm já gateiam
   // por role) — nenhuma deve aparecer para o viewer.

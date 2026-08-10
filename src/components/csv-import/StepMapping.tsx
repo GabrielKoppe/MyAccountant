@@ -52,6 +52,13 @@ type Props = {
   templates: TemplateOption[];
   members: MemberOption[];
   onChange: (mapping: ImportMapping) => void;
+  /**
+   * Avisa o wizard qual template originou o mapeamento atual (`null` ao limpar).
+   * Só serve para o wizard mandar `templateId` no import e o servidor gravar
+   * `CsvTemplate.lastUsedAt` (spec 67 §7.4). O estado visual do seletor continua
+   * sendo deste componente — nada aqui muda de comportamento.
+   */
+  onTemplateSelect?: (templateId: string | null) => void;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +181,7 @@ export function StepMapping({
   templates,
   members,
   onChange,
+  onTemplateSelect,
 }: Props) {
   const [showRawLines, setShowRawLines] = useState(false);
   const [showAdditional, setShowAdditional] = useState(false);
@@ -218,12 +226,14 @@ export function StepMapping({
     const tpl = templates.find((t) => t.id === templateId);
     if (tpl) {
       setSelectedTemplateId(templateId);
+      onTemplateSelect?.(templateId);
       onChange({ ...tpl.mapping });
     }
   }
 
   function clearTemplate() {
     setSelectedTemplateId(null);
+    onTemplateSelect?.(null);
     onChange(DEFAULT_MAPPING);
   }
 

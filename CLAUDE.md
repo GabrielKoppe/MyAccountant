@@ -226,7 +226,7 @@ O projeto é dividido em fases independentemente testáveis. **Não pule fases**
 - ❌ Criar estado vazio customizado — usar **`<EmptyState>`** de `@/components/ui/EmptyState`.
 - ❌ Criar cabeçalho de página customizado — usar **`<PageHeader>`** de `@/components/ui/PageHeader`.
 - ❌ Espaçamentos mágicos (`sx={{ p: 8 }}`, `spacing={6}`) — usar tokens semânticos de layout (`layout.page`, `layout.section`, `layout.cluster`, etc.) de `@/lib/design-tokens`.
-- ❌ `success.50`, `error.50` — não existem no tema. Usar `success.subtle`, `danger.subtle`, `warning.subtle`.
+- ❌ `success.50`, `error.50` — não existem no tema. Usar `success.light`, `warning.light`, `error.light` (o tema mapeia `.light` para o hex "subtle") ou `danger.subtle`. ⚠️ `success.subtle`, `warning.subtle` e `error.subtle` **não existem** — só `danger.subtle` e `neutral.subtle` (palettes customizadas com `main`+`subtle`). Token inexistente resolve para `undefined` e o MUI descarta a regra **em silêncio**, sem erro.
 - ❌ `<Chip color="default" variant="outlined">` para status — usar `<StatusBadge variant="neutral">`.
 - ❌ `elevation={N}` em `<Card>` — tema força elevation 0 + borda. Remover o prop.
 - ❌ `fontWeight="bold"` em `<Typography variant="h1">` a `<Typography variant="h6">` — já vem do tema.

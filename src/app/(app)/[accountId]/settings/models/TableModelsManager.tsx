@@ -39,11 +39,14 @@ import {
 } from "@/actions/table-templates";
 import { formatCentsToBrl } from "@/lib/money";
 import { m } from "@/lib/messages";
-import { layout } from "@/lib/design-tokens";
-import { DialogShell } from "@/components/ui/DialogShell";
+import { containers, layout } from "@/lib/design-tokens";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { TemplateItemsEditor } from "../../../../../components/settings/TemplateItemsEditor";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
+import {
+  SettingsPageShell,
+  type SettingsPageShellProps,
+} from "@/components/settings/SettingsPageShell";
 
 type TemplateItem = {
   id: string;
@@ -185,9 +188,31 @@ export function TableModelsManager({
 
   const editTemplate = templates.find((t) => t.id === editItemsId);
 
+  // Título vem do RSC (evita duplicar a string com o generateMetadata); o
+  // fallback mantém o componente utilizável sem a prop.
+  const pageTitle = title ?? m.tableModels.title;
+
+  // O cabeçalho é o MESMO nos dois branches (lista vazia e lista cheia): o
+  // critério SET-03 exige breadcrumb + título + propósito em todas as páginas,
+  // inclusive quando não existe nenhum modelo. Daí as props ficarem extraídas.
+  const shellProps: Omit<SettingsPageShellProps, "children"> = {
+    family: "Apresentação",
+    title: pageTitle,
+    count: String(templates.length),
+    purpose: m.settings.purposes.models,
+    primaryAction: {
+      label: m.tableModels.createButton,
+      icon: <AddIcon />,
+      onClick: () => setCreateOpen(true),
+    },
+    itemCount: templates.length,
+  };
+
   if (templates.length === 0 && !createOpen) {
     return (
-      <Box>
+      <SettingsPageShell {...shellProps}>
+        {/* Corpo do estado vazio preservado como estava: o P4 troca só o
+            cabeçalho. Migrar para <SettingsEmptyState> é escopo da Spec 69. */}
         <Box sx={{ textAlign: "center", py: layout.page, color: "text.secondary" }}>
           <TableChartIcon sx={{ fontSize: 64, opacity: 0.3 }} />
           <Typography variant="h6" mt={1}>
@@ -208,117 +233,110 @@ export function TableModelsManager({
           onClose={() => setCreateOpen(false)}
           isPending={isPending}
         />
-      </Box>
+      </SettingsPageShell>
     );
   }
 
   return (
-    <PageSettingsContainer
-      title={title}
-      secondary={
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateOpen(true)}
-        >
-          {m.tableModels.createButton}
-        </Button>
-      }
-    >
-      <Stack spacing={1}>
-        {templates.map((t) => (
-          <Accordion key={t.id} variant="outlined">
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1, mr: 1 }}>
-                <TableChartIcon fontSize="small" color="action" />
-                <Typography fontWeight="medium">{t.name}</Typography>
-                <Chip
-                  label={m.tableModels.itemCount(t._count.items)}
-                  size="small"
-                  variant="outlined"
-                />
-                {t.tableType && <Chip label={t.tableType.name} size="small" />}
-                {t.autoApply && (
-                  <StatusBadge variant="success">{m.tableModels.autoApplyBadge}</StatusBadge>
-                )}
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              {t.items.length > 0 ? (
-                <Table size="small" sx={{ mb: layout.stack }}>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: "background.default" }}>
-                      <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Dia</TableCell>
-                      <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Descrição</TableCell>
-                      <TableCell sx={{ fontSize: 11, fontWeight: "bold" }} align="right">
-                        Valor
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {t.items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell sx={{ fontSize: 12 }}>Dia {item.day}</TableCell>
-                        <TableCell sx={{ fontSize: 12 }}>
-                          {item.description ?? (
-                            <Typography variant="caption" color="text.disabled">
-                              —
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: 12 }} align="right">
-                          <Typography
-                            variant="caption"
-                            color={BigInt(item.amountCents) < 0n ? "error.main" : "success.main"}
-                          >
-                            {formatCentsToBrl(BigInt(item.amountCents))}
-                          </Typography>
+    <SettingsPageShell {...shellProps}>
+      {/* Largura máxima que antes vinha do PageSettingsContainer. O shell não
+          impõe nenhuma (páginas de lista larga precisam da tela inteira), então
+          ela é reaplicada AQUI, no conteúdo, para não alterar o layout atual. */}
+      <Box sx={{ maxWidth: containers.md }}>
+        <Stack spacing={1}>
+          {templates.map((t) => (
+            <Accordion key={t.id} variant="outlined">
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1, mr: 1 }}>
+                  <TableChartIcon fontSize="small" color="action" />
+                  <Typography fontWeight="medium">{t.name}</Typography>
+                  <Chip
+                    label={m.tableModels.itemCount(t._count.items)}
+                    size="small"
+                    variant="outlined"
+                  />
+                  {t.tableType && <Chip label={t.tableType.name} size="small" />}
+                  {t.autoApply && (
+                    <StatusBadge variant="success">{m.tableModels.autoApplyBadge}</StatusBadge>
+                  )}
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails>
+                {t.items.length > 0 ? (
+                  <Table size="small" sx={{ mb: layout.stack }}>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "background.default" }}>
+                        <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Dia</TableCell>
+                        <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Descrição</TableCell>
+                        <TableCell sx={{ fontSize: 11, fontWeight: "bold" }} align="right">
+                          Valor
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: layout.stack }}>
-                  Sem itens. Clique em "Editar itens" para adicionar.
-                </Typography>
-              )}
+                    </TableHead>
+                    <TableBody>
+                      {t.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell sx={{ fontSize: 12 }}>Dia {item.day}</TableCell>
+                          <TableCell sx={{ fontSize: 12 }}>
+                            {item.description ?? (
+                              <Typography variant="caption" color="text.disabled">
+                                —
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: 12 }} align="right">
+                            <Typography
+                              variant="caption"
+                              color={BigInt(item.amountCents) < 0n ? "error.main" : "success.main"}
+                            >
+                              {formatCentsToBrl(BigInt(item.amountCents))}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: layout.stack }}>
+                    Sem itens. Clique em "Editar itens" para adicionar.
+                  </Typography>
+                )}
 
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <Button size="small" startIcon={<AddIcon />} onClick={() => setEditItemsId(t.id)}>
-                  {m.tableModels.editItems}
-                </Button>
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    setRenameId(t.id);
-                    setRenameValue(t.name);
-                  }}
-                >
-                  <DriveFileRenameOutlineIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  color="error"
-                  onClick={() => setDeleteId(t.id)}
-                  disabled={isPending}
-                >
-                  <DeleteOutlineIcon fontSize="small" />
-                </IconButton>
-              </Box>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <Button size="small" startIcon={<AddIcon />} onClick={() => setEditItemsId(t.id)}>
+                    {m.tableModels.editItems}
+                  </Button>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setRenameId(t.id);
+                      setRenameValue(t.name);
+                    }}
+                  >
+                    <DriveFileRenameOutlineIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => setDeleteId(t.id)}
+                    disabled={isPending}
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Box>
 
-              <AutoApplySection
-                template={t}
-                accountId={accountId}
-                sections={sections}
-                tableTypes={tableTypes}
-                onSaved={(update) => handleAutoApplySaved(t.id, update)}
-              />
-            </AccordionDetails>
-          </Accordion>
-        ))}
-      </Stack>
+                <AutoApplySection
+                  template={t}
+                  accountId={accountId}
+                  sections={sections}
+                  tableTypes={tableTypes}
+                  onSaved={(update) => handleAutoApplySaved(t.id, update)}
+                />
+              </AccordionDetails>
+            </Accordion>
+          ))}
+        </Stack>
+      </Box>
 
       <CreateDialog
         open={createOpen}
@@ -332,10 +350,10 @@ export function TableModelsManager({
         isPending={isPending}
       />
 
-      <DialogShell
+      <SettingsDialog
         open={!!renameId}
         onClose={() => setRenameId(null)}
-        maxWidth="xs"
+        size="form"
         title={m.tableModels.renameTitle}
         loading={isPending}
         actions={
@@ -364,12 +382,12 @@ export function TableModelsManager({
             }
           }}
         />
-      </DialogShell>
+      </SettingsDialog>
 
-      <DialogShell
+      <SettingsDialog
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
-        maxWidth="xs"
+        size="confirm"
         title={m.tableModels.deleteTitle}
         description={m.tableModels.deleteConfirm}
         actions={
@@ -394,7 +412,7 @@ export function TableModelsManager({
           onItemsChanged={(items) => handleItemsUpdated(editTemplate.id, items)}
         />
       )}
-    </PageSettingsContainer>
+    </SettingsPageShell>
   );
 }
 
@@ -587,10 +605,10 @@ function CreateDialog({
   isPending: boolean;
 }) {
   return (
-    <DialogShell
+    <SettingsDialog
       open={open}
       onClose={onClose}
-      maxWidth="xs"
+      size="form"
       title={m.tableModels.createButton}
       actions={
         <>
@@ -614,6 +632,6 @@ function CreateDialog({
           }
         }}
       />
-    </DialogShell>
+    </SettingsDialog>
   );
 }

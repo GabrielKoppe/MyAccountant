@@ -6,6 +6,7 @@ import ArrowRightAltRoundedIcon from "@mui/icons-material/ArrowRightAltRounded";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import SearchOffIcon from "@mui/icons-material/SearchOff";
 import UnarchiveIcon from "@mui/icons-material/Unarchive";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -30,7 +31,11 @@ import {
   archiveTransactionAliasAction,
   deleteTransactionAliasAction,
 } from "@/actions/transaction-aliases";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { SettingsEmptyState } from "@/components/settings/SettingsEmptyState";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
+import { SettingsPagination } from "@/components/settings/SettingsPagination";
+import { SettingsToolbar } from "@/components/settings/SettingsToolbar";
 import { tagChipSx } from "@/components/tags/tagChipSx";
 import { TransactionAliasFormDialog } from "@/components/transactions/aliases/TransactionAliasFormDialog";
 import type {
@@ -38,7 +43,6 @@ import type {
   InstitutionOption,
   ResponsiblePartyOption,
 } from "@/components/transactions/types";
-import { DialogShell } from "@/components/ui/DialogShell";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MoneyValue } from "@/components/ui/MoneyValue";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -75,6 +79,23 @@ const PRIORITY_LABEL: Record<AliasPriority, string> = {
   medium: ta.priorityMedium,
   low: ta.priorityLow,
 };
+
+/** Itens por página inicial (Spec 67 §4, SET-04 — menor opção do `SettingsPagination`). */
+const DEFAULT_ROWS_PER_PAGE = 20;
+
+/**
+ * Normaliza para comparação de busca: sem acento e sem caixa, para que "orcamento"
+ * ache "Orçamento". Fica local em vez de virar util de `@/lib`: é comparação de
+ * string de UI, não regra de domínio — e o `toAccountSlug` de `export-utils`, único
+ * normalizador existente, resolve outro problema (gerar slug) e trocaria espaço por
+ * hífen, quebrando a busca por frase.
+ */
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Mn}/gu, "")
+    .toLowerCase();
+}
 
 // Reconstrói o registro exibido a partir do payload do form + listas de opções já
 // carregadas na página — evita um round-trip só para atualizar a lista local
@@ -211,6 +232,13 @@ export function TransactionAliasesManager({
   const [editTarget, setEditTarget] = useState<SerializedTransactionAlias | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<SerializedTransactionAlias | null>(null);
 
+  // Busca e paginação são client-side sobre a lista JÁ carregada — a page entrega
+  // todos os apelidos da conta de uma vez, então filtrar no server só adicionaria
+  // round-trip para reduzir um array que já está na memória do browser.
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
+
   // Criação inline de opções no modal (DD-26). O dono da lista é a Manager: o
   // callback cria no server e injeta no state local, então a opção nova aparece
   // no seletor e o `toDisplayAlias` resolve o nome após salvar. Mesmo padrão do
@@ -231,7 +259,9 @@ export function TransactionAliasesManager({
   async function onCreateCategory(name: string): Promise<string | null> {
     const res = await createCategoryAction(accountId, { name });
     if (!res.ok) {
-      enqueueSnackbar(res.error.message || m.transactions.options.createError, { variant: "error" });
+      enqueueSnackbar(res.error.message || m.transactions.options.createError, {
+        variant: "error",
+      });
       return null;
     }
     setCategories((prev) =>
@@ -246,7 +276,9 @@ export function TransactionAliasesManager({
   async function onCreateSubcategory(categoryId: string, name: string): Promise<string | null> {
     const res = await createSubcategoryAction(accountId, { categoryId, name });
     if (!res.ok) {
-      enqueueSnackbar(res.error.message || m.transactions.options.createError, { variant: "error" });
+      enqueueSnackbar(res.error.message || m.transactions.options.createError, {
+        variant: "error",
+      });
       return null;
     }
     setCategories((prev) =>
@@ -268,7 +300,9 @@ export function TransactionAliasesManager({
   async function onCreateInstitution(name: string): Promise<string | null> {
     const res = await createInstitutionAction(accountId, { name });
     if (!res.ok) {
-      enqueueSnackbar(res.error.message || m.transactions.options.createError, { variant: "error" });
+      enqueueSnackbar(res.error.message || m.transactions.options.createError, {
+        variant: "error",
+      });
       return null;
     }
     setInstitutions((prev) =>
@@ -279,6 +313,52 @@ export function TransactionAliasesManager({
   }
 
   const tagColorById = useMemo(() => new Map(tags.map((t) => [t.id, t.color])), [tags]);
+
+  // Chip de contagem do cabeçalho (Spec 67 §7.5): só apelidos ativos — apelido
+  // arquivado não casa transação nenhuma, então contá-lo mentiria sobre quantas
+  // regras estão de fato valendo. Deriva do state local para acompanhar
+  // arquivar/reativar/excluir sem esperar revalidação do server.
+  const activeCount = useMemo(() => aliases.filter((a) => !a.isArchived).length, [aliases]);
+
+  // Filtra só pelos campos que a linha FECHADA mostra — o gatilho e o texto que
+  // ele produz. Buscar dentro do colapso devolveria linhas em que o termo digitado
+  // não aparece em lugar nenhum, e a lista pareceria ter casado por acaso.
+  const filteredAliases = useMemo(() => {
+    const query = normalizeForSearch(search.trim());
+    if (!query) return aliases;
+    return aliases.filter(
+      (alias) =>
+        normalizeForSearch(alias.trigger).includes(query) ||
+        normalizeForSearch(alias.description ?? "").includes(query),
+    );
+  }, [aliases, search]);
+
+  // Clampa a página em vez de ressincronizar por efeito: excluir o último item de
+  // uma página deixaria `page` fora do intervalo e a lista renderizaria vazia com
+  // apelidos existentes — e um `useEffect` para corrigir custaria um segundo render.
+  const lastPage = Math.max(0, Math.ceil(filteredAliases.length / rowsPerPage) - 1);
+  const currentPage = Math.min(page, lastPage);
+  const visibleAliases = useMemo(
+    () => filteredAliases.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage),
+    [filteredAliases, currentPage, rowsPerPage],
+  );
+
+  // O controle aparece pelo tamanho da lista INTEIRA (não da filtrada): amarrado ao
+  // filtrado, ele piscaria a cada tecla digitada na busca. Some só quando não há o
+  // que paginar — aí quem fala é o estado vazio de busca.
+  const showPagination = aliases.length > DEFAULT_ROWS_PER_PAGE && filteredAliases.length > 0;
+
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    // Sem o reset, buscar a partir da página 3 cairia numa página vazia de um
+    // resultado que cabe todo na página 1.
+    setPage(0);
+  }
+
+  function handleRowsPerPageChange(nextRowsPerPage: number) {
+    setRowsPerPage(nextRowsPerPage);
+    setPage(0);
+  }
 
   function openCreate() {
     setEditTarget(undefined);
@@ -346,23 +426,38 @@ export function TransactionAliasesManager({
   }
 
   return (
-    <PageSettingsContainer
-      title={ta.title}
-      secondary={
-        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openCreate}>
-          {ta.createButton}
-        </Button>
-      }
+    <SettingsPageShell
+      family="Entrada de dados"
+      title={m.settings.nav.aliases}
+      count={String(activeCount)}
+      purpose={m.settings.purposes.aliases}
+      // Conta a lista inteira (inclusive arquivados), porque é o tamanho do que é
+      // renderizado — é isso que o gate de toolbar (>12) do shell avalia. Tem de ser
+      // o TOTAL e não o filtrado: com o filtrado, uma busca que devolvesse 3 linhas
+      // derrubaria o gate e faria a própria busca sumir com o texto dentro.
+      itemCount={aliases.length}
+      // Quem decide se a faixa aparece é o shell (D6) — a página só a entrega.
+      toolbar={<SettingsToolbar search={{ value: search, onChange: handleSearchChange }} />}
+      // Apelido não cabe numa linha-fantasma (Spec 67 §2.5), então a primária
+      // continua abrindo o modal — mesmo handler de antes.
+      primaryAction={{ label: ta.createButton, icon: <AddIcon />, onClick: openCreate }}
     >
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {ta.subtitle}
-      </Typography>
+      {aliases.length === 0 && <EmptyState title={ta.empty} description={ta.emptyHint} />}
 
-      {aliases.length === 0 ? (
-        <EmptyState title={ta.empty} description={ta.emptyHint} />
-      ) : (
+      {/* Busca sem resultado NÃO é a lista vazia: com o texto de "nenhum apelido
+          cadastrado" o usuário concluiria que os apelidos foram apagados. */}
+      {aliases.length > 0 && filteredAliases.length === 0 && (
+        <SettingsEmptyState
+          icon={<SearchOffIcon sx={{ fontSize: 48 }} />}
+          title={m.settings.shell.searchNoResults}
+          description={m.settings.shell.searchNoResultsHint}
+          size="compact"
+        />
+      )}
+
+      {visibleAliases.length > 0 && (
         <Stack spacing={1}>
-          {aliases.map((alias) => (
+          {visibleAliases.map((alias) => (
             <AliasRow
               key={alias.id}
               alias={alias}
@@ -374,6 +469,18 @@ export function TransactionAliasesManager({
             />
           ))}
         </Stack>
+      )}
+
+      {showPagination && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: layout.stack }}>
+          <SettingsPagination
+            count={filteredAliases.length}
+            page={currentPage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setPage}
+            onRowsPerPageChange={handleRowsPerPageChange}
+          />
+        </Box>
       )}
 
       <TransactionAliasFormDialog
@@ -392,10 +499,10 @@ export function TransactionAliasesManager({
         onSuccess={handleFormSuccess}
       />
 
-      <DialogShell
+      <SettingsDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        maxWidth="xs"
+        size="confirm"
         title={ta.deleteTitle}
         description={ta.deleteConfirm}
         actions={
@@ -409,7 +516,7 @@ export function TransactionAliasesManager({
           </>
         }
       />
-    </PageSettingsContainer>
+    </SettingsPageShell>
   );
 }
 

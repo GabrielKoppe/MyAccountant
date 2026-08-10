@@ -16,7 +16,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useSnackbar } from "notistack";
 
 import { deleteAccountAction, leaveAccountAction } from "@/actions/members";
-import { DialogShell } from "@/components/ui/DialogShell";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
 
@@ -161,10 +161,10 @@ export function AccountDangerZone({ accountId, accountName, role }: Props) {
         </Stack>
       </Collapse>
 
-      <DialogShell
+      <SettingsDialog
         open={leaveOpen}
         onClose={() => setLeaveOpen(false)}
-        maxWidth="xs"
+        size="confirm"
         title={m.account.settings.leaveAccount}
         description={m.account.settings.leaveAccountConfirm}
         loading={isPending}
@@ -178,10 +178,10 @@ export function AccountDangerZone({ accountId, accountName, role }: Props) {
         }
       />
 
-      <DialogShell
+      <SettingsDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        maxWidth="xs"
+        size="form"
         title={m.account.settings.deleteAccount}
         loading={isPending}
         actions={
@@ -209,7 +209,7 @@ export function AccountDangerZone({ accountId, accountName, role }: Props) {
             size="small"
           />
         </Stack>
-      </DialogShell>
+      </SettingsDialog>
     </Paper>
   );
 }

@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
-import { m } from "@/lib/messages";
 import { InstitutionsManager } from "./InstitutionsManager";
 
 type Props = { params: Promise<{ accountId: string }> };
@@ -26,11 +25,7 @@ export default async function InstitutionsPage({ params }: Props) {
     select: { id: true, name: true },
   });
 
-  return (
-    <InstitutionsManager
-      accountId={accountId}
-      initialInstitutions={institutions}
-      title={m.settings.institutions.title}
-    />
-  );
+  // O título agora vem do SettingsPageShell (dentro do manager), junto com
+  // breadcrumb, contagem e propósito — a página não passa mais cabeçalho.
+  return <InstitutionsManager accountId={accountId} initialInstitutions={institutions} />;
 }

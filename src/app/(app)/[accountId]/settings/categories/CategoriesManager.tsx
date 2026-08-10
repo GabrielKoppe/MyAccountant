@@ -29,9 +29,9 @@ import {
   updateCategoryAction,
   updateSubcategoryAction,
 } from "@/actions/account-settings";
-import { DialogShell } from "@/components/ui/DialogShell";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 import { m } from "@/lib/messages";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type Subcategory = { id: string; name: string };
 type Category = { id: string; name: string; subcategories: Subcategory[] };
@@ -39,7 +39,6 @@ type Category = { id: string; name: string; subcategories: Subcategory[] };
 type Props = {
   accountId: string;
   initialCategories: Category[];
-  title?: string;
 };
 
 type DialogState =
@@ -51,7 +50,7 @@ type DialogState =
   | { type: "deleteSub"; categoryId: string; sub: Subcategory }
   | null;
 
-export function CategoriesManager({ accountId, initialCategories, title }: Props) {
+export function CategoriesManager({ accountId, initialCategories }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [categories, setCategories] = useState(initialCategories);
   const [isPending, startTransition] = useTransition();
@@ -190,19 +189,23 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
   const isDeleteDialog = dialog?.type === "deleteCategory" || dialog?.type === "deleteSub";
   const isNameDialog = !isDeleteDialog && dialog !== null;
 
+  // Chip do §7.5 ("18 · 47 sub"). Deriva do estado local — e não dos dados do
+  // servidor — para que criar/excluir categoria ou subcategoria atualize a
+  // contagem na hora, sem esperar um refetch.
+  const subcategoryCount = categories.reduce((total, c) => total + c.subcategories.length, 0);
+
   return (
-    <PageSettingsContainer
-      title={title}
-      secondary={
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddIcon />}
-          onClick={() => openDialog({ type: "createCategory" })}
-        >
-          {m.settings.categories.createButton}
-        </Button>
-      }
+    <SettingsPageShell
+      family="Estrutura"
+      title={m.settings.nav.categories}
+      count={`${categories.length} · ${subcategoryCount} sub`}
+      purpose={m.settings.purposes.categories}
+      itemCount={categories.length}
+      primaryAction={{
+        label: m.settings.categories.createButton,
+        icon: <AddIcon />,
+        onClick: () => openDialog({ type: "createCategory" }),
+      }}
     >
       {categories.length === 0 && (
         <Typography variant="body2" color="text.secondary">
@@ -288,10 +291,10 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
       ))}
 
       {/* Name input dialog */}
-      <DialogShell
+      <SettingsDialog
         open={isNameDialog}
         onClose={closeDialog}
-        maxWidth="xs"
+        size="form"
         title={
           (dialog?.type === "createCategory" && m.settings.categories.createButton) ||
           (dialog?.type === "editCategory" && m.settings.categories.editTitle) ||
@@ -331,13 +334,13 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
             }
           }}
         />
-      </DialogShell>
+      </SettingsDialog>
 
       {/* Delete dialog */}
-      <DialogShell
+      <SettingsDialog
         open={isDeleteDialog}
         onClose={closeDialog}
-        maxWidth="xs"
+        size="confirm"
         title={m.settings.categories.deleteTitle}
         description={
           dialog?.type === "deleteCategory"
@@ -355,6 +358,6 @@ export function CategoriesManager({ accountId, initialCategories, title }: Props
           </>
         }
       />
-    </PageSettingsContainer>
+    </SettingsPageShell>
   );
 }

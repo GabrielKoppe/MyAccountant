@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 import { useRef, useState, useTransition } from "react";
 
-import { DialogShell } from "@/components/ui/DialogShell";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { layout } from "@/lib/design-tokens";
 import { useExportDownload } from "@/lib/hooks/use-export-download";
 import { m } from "@/lib/messages";
@@ -204,10 +204,10 @@ export function AccountDataSection({ accountId, accountName, role }: Props) {
         }}
       />
 
-      <DialogShell
+      <SettingsDialog
         open={importOpen}
         onClose={handleCloseImport}
-        maxWidth="sm"
+        size="editor"
         title={m.settings.backup.dialogTitle}
         description={m.settings.backup.dialogDescription}
         loading={isPending}
@@ -316,7 +316,7 @@ export function AccountDataSection({ accountId, accountName, role }: Props) {
             </Stack>
           )}
         </Stack>
-      </DialogShell>
+      </SettingsDialog>
     </>
   );
 }

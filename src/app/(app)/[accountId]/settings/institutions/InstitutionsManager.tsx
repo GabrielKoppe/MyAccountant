@@ -20,19 +20,18 @@ import {
   deleteInstitutionAction,
   updateInstitutionAction,
 } from "@/actions/account-settings";
-import { DialogShell } from "@/components/ui/DialogShell";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 import { m } from "@/lib/messages";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type Institution = { id: string; name: string };
 
 type Props = {
   accountId: string;
   initialInstitutions: Institution[];
-  title?: string;
 };
 
-export function InstitutionsManager({ accountId, initialInstitutions, title }: Props) {
+export function InstitutionsManager({ accountId, initialInstitutions }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [institutions, setInstitutions] = useState(initialInstitutions);
   const [isPending, startTransition] = useTransition();
@@ -41,6 +40,13 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
   const [editTarget, setEditTarget] = useState<Institution | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Institution | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Extraído do onClick inline do botão antigo: agora é a ação primária do shell.
+  function openCreate() {
+    setCreateOpen(true);
+    setNameInput("");
+    setNameError("");
+  }
 
   function openEdit(inst: Institution) {
     setEditTarget(inst);
@@ -108,22 +114,20 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
   }
 
   return (
-    <PageSettingsContainer
-      title={title}
-      secondary={
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            setCreateOpen(true);
-            setNameInput("");
-            setNameError("");
-          }}
-        >
-          {m.settings.institutions.createButton}
-        </Button>
-      }
+    <SettingsPageShell
+      family="Estrutura"
+      title={m.settings.nav.institutions}
+      // Chip simples de contagem (§7.5: "9") — vem dos dados que a página já carregou.
+      count={String(institutions.length)}
+      purpose={m.settings.purposes.institutions}
+      // `itemCount` só alimenta o gate de toolbar do shell (>12). A página ainda não
+      // tem busca/filtro (escopo da Spec 68), então hoje não renderiza nada.
+      itemCount={institutions.length}
+      primaryAction={{
+        label: m.settings.institutions.createButton,
+        icon: <AddIcon />,
+        onClick: openCreate,
+      }}
     >
       {institutions.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
@@ -161,10 +165,10 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
       )}
 
       {/* Create / Edit dialog */}
-      <DialogShell
+      <SettingsDialog
         open={createOpen || !!editTarget}
         onClose={closeDialog}
-        maxWidth="xs"
+        size="form"
         title={editTarget ? m.common.edit : m.settings.institutions.createButton}
         loading={isPending}
         actions={
@@ -198,13 +202,13 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
             }
           }}
         />
-      </DialogShell>
+      </SettingsDialog>
 
       {/* Delete dialog */}
-      <DialogShell
+      <SettingsDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        maxWidth="xs"
+        size="confirm"
         title={m.settings.institutions.deleteTitle}
         description={m.settings.institutions.deleteConfirm}
         actions={
@@ -218,6 +222,6 @@ export function InstitutionsManager({ accountId, initialInstitutions, title }: P
           </>
         }
       />
-    </PageSettingsContainer>
+    </SettingsPageShell>
   );
 }

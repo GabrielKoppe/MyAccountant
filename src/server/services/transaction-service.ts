@@ -18,7 +18,7 @@ import { prisma } from "@/server/prisma";
 import * as notificationService from "@/server/services/notification-service";
 
 import * as installmentService from "./installment-service";
-
+import { touchLastUsed, type UsageTouch } from "./settings-usage-touch";
 
 const log = logger.child({ module: "transaction-service" });
 
@@ -79,6 +79,17 @@ export async function createTransaction(input: CreateTransactionInput, ctx: Acti
     monthId: table.monthId,
   });
 
+  // Spec 67 §2.4 (SET-07): `lastUsedAt` é gravado na escrita que consome o
+  // objeto, nunca calculado na leitura. Fire-and-forget e fora de qualquer
+  // transação — telemetria de uso não pode derrubar a criação da transação.
+  // Ids nulos são descartados pelo próprio helper.
+  void touchLastUsed(ctx.accountId, {
+    category: [input.categoryId],
+    subcategory: [input.subcategoryId],
+    institution: [input.institutionId],
+    responsibleParty: [input.responsiblePartyId],
+  });
+
   log.info({ transactionId: transaction.id, tableId: input.tableId }, "Transaction created");
   return { transactionId: transaction.id, monthId: table.monthId };
 }
@@ -113,6 +124,16 @@ export async function updateTransaction(
   if (input.exchangeRate !== undefined) data.exchangeRate = input.exchangeRate ?? null;
 
   await prisma.transaction.update({ where: { id: input.transactionId }, data });
+
+  // Spec 67 §2.4 (SET-07): o patch é PARCIAL — só toca as entidades cujo campo
+  // veio no patch. Tocar um id que não mudou seria mentira sobre o uso: o
+  // objeto continua referenciado, mas ninguém o escolheu agora.
+  const touch: UsageTouch = {};
+  if (input.categoryId !== undefined) touch.category = [input.categoryId];
+  if (input.subcategoryId !== undefined) touch.subcategory = [input.subcategoryId];
+  if (input.institutionId !== undefined) touch.institution = [input.institutionId];
+  if (input.responsiblePartyId !== undefined) touch.responsibleParty = [input.responsiblePartyId];
+  void touchLastUsed(ctx.accountId, touch);
 
   log.info({ transactionId: input.transactionId }, "Transaction updated");
   return { monthId: tx.monthId };
@@ -164,6 +185,10 @@ export async function deleteTransaction(
     monthId: tx.monthId,
   });
 
+  // Spec 67 §2.4 (SET-07): NÃO toca `lastUsedAt`. Apagar não é usar — marcar a
+  // categoria como "usada em ago/2026" porque alguém apagou a transação que a
+  // referenciava inverteria o sentido do rótulo. Intencional: não "completar".
+
   log.info({ transactionId: input.transactionId }, "Transaction deleted");
   return { monthId: tx.monthId };
 }
@@ -209,6 +234,16 @@ export async function duplicateTransaction(input: DuplicateTransactionInput, ctx
     monthId: source.monthId,
   });
 
+  // Spec 67 §2.4 (SET-07): a cópia grava os mesmos ids da origem — é uma nova
+  // escrita que consome esses objetos, então conta como uso (mesmo critério do
+  // create). Fire-and-forget, fora de transação.
+  void touchLastUsed(ctx.accountId, {
+    category: [source.categoryId],
+    subcategory: [source.subcategoryId],
+    institution: [source.institutionId],
+    responsibleParty: [source.responsiblePartyId],
+  });
+
   log.info({ sourceId: input.transactionId, newId: newTx.id }, "Transaction duplicated");
   return { transactionId: newTx.id, monthId: source.monthId };
 }
@@ -236,6 +271,9 @@ export async function bulkDelete(
     });
   }
 
+  // Spec 67 §2.4 (SET-07): NÃO toca `lastUsedAt` — mesmo motivo do
+  // `deleteTransaction`. Apagar em massa não é usar em massa. Intencional.
+
   log.info({ count: input.ids.length, accountId: ctx.accountId }, "Bulk transactions deleted");
   return { uniqueMonthIds };
 }
@@ -255,6 +293,15 @@ export async function bulkUpdate(input: BulkUpdateInput, ctx: ActionContext) {
     where: { id: { in: input.ids }, accountId: ctx.accountId },
     data,
   });
+
+  // Spec 67 §2.4 (SET-07): igual ao update individual — só o que o patch em
+  // massa realmente gravou. `bulkUpdate` não mexe em subcategoria nem em
+  // responsável, então essas duas nunca são tocadas aqui.
+  const touch: UsageTouch = {};
+  if (input.patch.categoryId !== undefined) touch.category = [input.patch.categoryId];
+  if (input.patch.institutionId !== undefined) touch.institution = [input.patch.institutionId];
+  void touchLastUsed(ctx.accountId, touch);
+
   log.info({ count: input.ids.length, accountId: ctx.accountId }, "Bulk transactions updated");
 }
 
@@ -336,6 +383,11 @@ export async function moveTransactions(
       }),
     );
 
+    // Spec 67 §2.4 (SET-07): mover consome a seção de DESTINO (a de origem
+    // deixou de ser usada, não passou a ser). Fora da `$transaction`, depois do
+    // commit — telemetria não pode fazer o move inteiro dar rollback.
+    void touchLastUsed(ctx.accountId, { section: [targetTable.sectionId] });
+
     const full = await prisma.financeTable.findUnique({
       where: { id: destination.tableId },
       select: { name: true },
@@ -396,6 +448,10 @@ export async function moveTransactions(
     });
     return newTable;
   });
+
+  // Spec 67 §2.4 (SET-07): mesma regra do ramo "existing" — a seção de destino
+  // foi consumida. Fora da `$transaction`, depois do commit.
+  void touchLastUsed(ctx.accountId, { section: [destination.sectionId] });
 
   log.info({ count: input.ids.length, newTableId: result.id }, "Transactions moved to new table");
   return {

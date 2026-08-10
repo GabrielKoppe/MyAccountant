@@ -157,7 +157,7 @@ export const spacing = {
 // Como theme.spacing(1) = 4px, multiplique por 4 para obter o valor em px.
 
 export const layout = {
-  /** Padding interno de pagina (32px) — use em <main> ou Container */
+  /** Padding interno de pagina (16px) — use em <main> ou Container */
   page: 4,
 
   /** Gap vertical entre secoes principais de uma pagina (48px) */

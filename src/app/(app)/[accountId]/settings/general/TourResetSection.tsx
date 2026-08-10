@@ -9,7 +9,7 @@ import TravelExploreIcon from "@mui/icons-material/TravelExplore";
 import { useSnackbar } from "notistack";
 
 import { resetOnboardingAction } from "@/actions/onboarding";
-import { DialogShell } from "@/components/ui/DialogShell";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { layout } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 
@@ -70,10 +70,10 @@ export function TourResetSection({ accountId }: Props) {
         </Button>
       </Box>
 
-      <DialogShell
+      <SettingsDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        maxWidth="xs"
+        size="confirm"
         title={m.setup.tour.resetConfirmTitle}
         description={m.setup.tour.resetConfirmDescription}
         loading={isPending}

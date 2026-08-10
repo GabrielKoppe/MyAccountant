@@ -96,6 +96,14 @@ export const executeImportSchema = z.object({
   tableName: z.string().min(1, "Nome é obrigatório").max(80).trim(),
   countInMonth: z.boolean().default(true),
   mapping: importMappingSchema,
+  /**
+   * Template de importação que originou o `mapping` (spec 67 §7.4 / SET-07).
+   * Puramente informativo: o servidor NÃO relê o template — o `mapping` inline
+   * continua sendo a única fonte da verdade do parse. Serve só para gravar
+   * `CsvTemplate.lastUsedAt`. Ausente = importação sem template (fluxo antigo,
+   * inalterado). Id de outra account simplesmente não casa no `updateMany`.
+   */
+  templateId: cuidSchema.optional(),
   saveTemplateAs: z.string().min(1).max(80).optional(),
   rows: z.array(z.record(z.string(), z.string())).max(5000),
   fileType: z.enum(["csv", "xlsx"]).default("csv"),

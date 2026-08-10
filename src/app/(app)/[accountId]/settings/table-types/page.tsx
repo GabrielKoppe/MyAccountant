@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
-import { m } from "@/lib/messages";
 import { parseHiddenColumns, type RowLayout } from "@/lib/schemas/settings";
 import { TableTypesManager } from "./TableTypesManager";
 
@@ -52,11 +51,6 @@ export default async function TableTypesPage({ params }: Props) {
     }),
   );
 
-  return (
-    <TableTypesManager
-      accountId={accountId}
-      initialTypes={types}
-      title={m.settings.tableTypes.title}
-    />
-  );
+  // O título deixou de ser prop: quem o renderiza agora é o SettingsPageShell (Spec 67 §2.2).
+  return <TableTypesManager accountId={accountId} initialTypes={types} />;
 }

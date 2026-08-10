@@ -1,10 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { revokeConnectorSchema } from "@/lib/schemas/mcp-connectors";
 import { defineAction } from "@/server/api/define-action";
 import { NotFoundError } from "@/server/api/errors";
+import { revalidateConnectors } from "@/server/api/revalidate";
 import { revokeGrant } from "@/server/mcp/oauth/store";
 import { prisma } from "@/server/prisma";
 
@@ -35,6 +34,6 @@ export const revokeConnectorAction = defineAction({
     }
 
     await revokeGrant(grant.id);
-    revalidatePath(`/${ctx.accountId}/settings/connectors`);
+    revalidateConnectors(ctx.accountId);
   },
 });

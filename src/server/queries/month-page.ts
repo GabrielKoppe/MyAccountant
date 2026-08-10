@@ -9,11 +9,8 @@ import { cache } from "react";
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel, getCurrentFiscalMonth } from "@/lib/dates";
 import { parseHiddenColumns, type RowLayout } from "@/lib/schemas/settings";
-import {
-  getMonthSections,
-  getSectionTotals,
-  calculateMonthTotal,
-} from "@/server/services/month-service";
+import { calculateMonthTotal } from "@/lib/month-total";
+import { getMonthSections, getSectionTotals } from "@/server/services/month-service";
 import { getBudgetsWithProgress } from "@/server/queries/budgets";
 import { getLayout } from "@/server/services/dashboard-layout-service";
 import { getKpiCustomDataMap } from "@/server/queries/kpi-custom";

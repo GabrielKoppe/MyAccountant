@@ -90,7 +90,9 @@ export function ForecastSettingsForm({ accountId, defaultValues }: Props) {
           control={form.control}
           render={({ field, fieldState }) => (
             <FormControl error={!!fieldState.error} fullWidth>
-              <InputLabel id="forecast-horizon-label">{m.settings.forecast.horizonLabel}</InputLabel>
+              <InputLabel id="forecast-horizon-label">
+                {m.settings.forecast.horizonLabel}
+              </InputLabel>
               <Select
                 size="small"
                 labelId="forecast-horizon-label"
@@ -116,7 +118,9 @@ export function ForecastSettingsForm({ accountId, defaultValues }: Props) {
           control={form.control}
           render={({ field, fieldState }) => (
             <FormControl error={!!fieldState.error} fullWidth>
-              <InputLabel id="forecast-scenario-label">{m.settings.forecast.scenarioLabel}</InputLabel>
+              <InputLabel id="forecast-scenario-label">
+                {m.settings.forecast.scenarioLabel}
+              </InputLabel>
               <Select
                 {...field}
                 size="small"
@@ -179,7 +183,9 @@ export function ForecastSettingsForm({ accountId, defaultValues }: Props) {
           control={form.control}
           render={({ field, fieldState }) => (
             <FormControl error={!!fieldState.error} fullWidth>
-              <InputLabel id="forecast-window-label">{m.settings.forecast.variableWindowLabel}</InputLabel>
+              <InputLabel id="forecast-window-label">
+                {m.settings.forecast.variableWindowLabel}
+              </InputLabel>
               <Select
                 size="small"
                 labelId="forecast-window-label"

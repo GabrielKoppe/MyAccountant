@@ -16,10 +16,10 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { useSnackbar } from "notistack";
 
 import { deleteTemplateAction, updateTemplateAction } from "@/actions/csv-import";
-import { DialogShell } from "@/components/ui/DialogShell";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 import { m } from "@/lib/messages";
 import type { ImportMapping } from "@/lib/schemas/csv-import";
-import PageSettingsContainer from "../../../../../components/settings/PageSettingsContainer";
 
 type TemplateItem = {
   id: string;
@@ -89,7 +89,20 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
   }
 
   return (
-    <PageSettingsContainer title={m.templates.title}>
+    // Spec 67 §2.2 (SET-03): a moldura (breadcrumb, título, chip de contagem e
+    // frase de propósito) vem toda do shell — a página só declara conteúdo.
+    // Sem `primaryAction`: no P4 migra-se apenas o que a página JÁ tem, e hoje
+    // template de importação nasce dentro do wizard de importação, não aqui.
+    // Sem `dirtyCount`: esta lista salva inline (via diálogos), não tem rodapé.
+    <SettingsPageShell
+      family="Entrada de dados"
+      title={m.settings.nav.templates}
+      // Estado local, não a prop inicial: a contagem tem que cair junto com a
+      // exclusão otimista feita em `handleDelete`.
+      count={String(templates.length)}
+      itemCount={templates.length}
+      purpose={m.settings.purposes.templates}
+    >
       {templates.length === 0 ? (
         <Box
           sx={{
@@ -146,10 +159,10 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
       )}
 
       {/* Rename dialog */}
-      <DialogShell
+      <SettingsDialog
         open={!!renameId}
         onClose={() => setRenameId(null)}
-        maxWidth="xs"
+        size="form"
         title={m.templates.renameTitle}
         loading={isPending}
         actions={
@@ -181,13 +194,13 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
             }
           }}
         />
-      </DialogShell>
+      </SettingsDialog>
 
       {/* Delete dialog */}
-      <DialogShell
+      <SettingsDialog
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
-        maxWidth="xs"
+        size="confirm"
         title={m.templates.deleteTitle}
         description={m.templates.deleteConfirm}
         actions={
@@ -201,6 +214,6 @@ export function TemplatesManager({ accountId, initialTemplates }: Props) {
           </>
         }
       />
-    </PageSettingsContainer>
+    </SettingsPageShell>
   );
 }

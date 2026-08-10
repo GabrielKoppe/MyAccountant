@@ -1,16 +1,19 @@
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
 import type { Metadata } from "next";
-import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { redirect } from "next/navigation";
 
-import { requireAccountAccess } from "@/server/auth/session";
-import { prisma } from "@/server/prisma";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
+import { containers } from "@/lib/design-tokens";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
 import { m } from "@/lib/messages";
 import { toResponsiblePartyOption } from "@/lib/party-display";
-import { GeneralSettingsForm } from "./GeneralSettingsForm";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
-import { Divider } from "@mui/material";
+import { requireAccountAccess } from "@/server/auth/session";
+import { prisma } from "@/server/prisma";
+
 import { AccountDangerZone } from "./AccountDangerZone";
 import { AccountDataSection } from "./AccountDataSection";
+import { GeneralSettingsForm } from "./GeneralSettingsForm";
 import { TourResetSection } from "./TourResetSection";
 
 type Props = { params: Promise<{ accountId: string }> };
@@ -56,30 +59,43 @@ export default async function GeneralSettingsPage({ params }: Props) {
   if (!account || !settings) redirect("/home");
 
   return (
-    <PageSettingsContainer title={m.settings.general.title}>
-      <GeneralSettingsForm
-        accountId={accountId}
-        defaultValues={{
-          accountName: account.name,
-          currency: settings.currency as "BRL",
-          monthStartDay: settings.monthStartDay,
-          defaultResponsiblePartyId: settings.defaultResponsiblePartyId ?? null,
-          invertSignOnMoveByDefault: settings.invertSignOnMoveByDefault,
-        }}
-        parties={parties}
-      />
+    // Spec 67 §2.2/§7.5 — cabeçalho (breadcrumb, título, propósito) vem do shell.
+    // Sem `count` e sem ação primária: a linha "Conta / Geral" da tabela do §7.5 não tem
+    // nenhum dos dois. Sem `ownerOnly` porque o guard real acima só barra `viewer` — o
+    // `editor` acessa esta página, então o badge de owner seria falso.
+    <SettingsPageShell
+      family="Conta"
+      title={m.settings.nav.general}
+      purpose={m.settings.purposes.general}
+    >
+      {/* O padding agora é do shell; só a largura de leitura que o container antigo de
+          settings aplicava (containers.md) precisa continuar aqui, senão o formulário
+          estica na largura toda da tela. */}
+      <Box sx={{ maxWidth: containers.md, display: "flex", flexDirection: "column" }}>
+        <GeneralSettingsForm
+          accountId={accountId}
+          defaultValues={{
+            accountName: account.name,
+            currency: settings.currency as "BRL",
+            monthStartDay: settings.monthStartDay,
+            defaultResponsiblePartyId: settings.defaultResponsiblePartyId ?? null,
+            invertSignOnMoveByDefault: settings.invertSignOnMoveByDefault,
+          }}
+          parties={parties}
+        />
 
-      <Divider sx={{ my: 3 }} />
+        <Divider sx={{ my: 3 }} />
 
-      <TourResetSection accountId={accountId} />
+        <TourResetSection accountId={accountId} />
 
-      <Divider sx={{ my: 3 }} />
+        <Divider sx={{ my: 3 }} />
 
-      <AccountDataSection accountId={accountId} accountName={account.name} role={member.role} />
+        <AccountDataSection accountId={accountId} accountName={account.name} role={member.role} />
 
-      <Divider sx={{ my: 3 }} />
+        <Divider sx={{ my: 3 }} />
 
-      <AccountDangerZone accountId={accountId} accountName={account.name} role={member.role} />
-    </PageSettingsContainer>
+        <AccountDangerZone accountId={accountId} accountName={account.name} role={member.role} />
+      </Box>
+    </SettingsPageShell>
   );
 }

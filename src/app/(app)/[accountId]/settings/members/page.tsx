@@ -1,17 +1,15 @@
-import type { Metadata } from "next";
-import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
-import { redirect } from "next/navigation";
-
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
+import { InvitesList } from "@/components/members/InvitesList";
+import { MembersSettingsShell } from "@/components/members/MembersSettingsShell";
+import { MembersTable } from "@/components/members/MembersTable";
+import { generateSettingsMetadata } from "@/lib/generate-settings-metadata";
+import { m } from "@/lib/messages";
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
-import { InviteForm } from "@/components/members/InviteForm";
-import { InvitesList } from "@/components/members/InvitesList";
-import { MembersTable } from "@/components/members/MembersTable";
-import { m } from "@/lib/messages";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
 
 type Props = { params: Promise<{ accountId: string }> };
 
@@ -48,28 +46,31 @@ export default async function MembersPage({ params }: Props) {
   const isOwner = currentMember.role === "owner";
 
   return (
-    <PageSettingsContainer
-      title={m.account.members.title}
-      secondary={isOwner ? <InviteForm accountId={accountId} /> : undefined}
+    // Sem `ownerOnly`: a página é acessível a todos os papéis em leitura
+    // (Spec 65 §4 NAV-04 / Spec 67 §4). O gate de escrita continua dentro de
+    // `MembersTable` e da ação de convidar.
+    <MembersSettingsShell
+      accountId={accountId}
+      count={String(members.length)}
+      memberCount={members.length}
+      canInvite={isOwner}
     >
-      <>
-        <MembersTable
-          accountId={accountId}
-          members={members}
-          currentUserId={user.id}
-          currentUserRole={currentMember.role}
-        />
+      <MembersTable
+        accountId={accountId}
+        members={members}
+        currentUserId={user.id}
+        currentUserRole={currentMember.role}
+      />
 
-        {isOwner && (
-          <>
-            <Divider sx={{ my: 4 }} />
-            <Typography variant="h6" fontWeight="medium" mb={2}>
-              {m.account.members.pendingInvites}
-            </Typography>
-            <InvitesList accountId={accountId} invites={pendingInvites} />
-          </>
-        )}
-      </>
-    </PageSettingsContainer>
+      {isOwner && (
+        <>
+          <Divider sx={{ my: 4 }} />
+          <Typography variant="h6" fontWeight="medium" mb={2}>
+            {m.account.members.pendingInvites}
+          </Typography>
+          <InvitesList accountId={accountId} invites={pendingInvites} />
+        </>
+      )}
+    </MembersSettingsShell>
   );
 }

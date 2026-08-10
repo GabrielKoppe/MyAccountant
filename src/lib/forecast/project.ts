@@ -1,10 +1,66 @@
+// ─── Spec 48 / Spec 71 §7.2 — matemática da projeção de fluxo de caixa ──────
+//
+// Módulo PURO e client-safe (sem Prisma, sem `server-only`): é a MESMA função
+// que a página `/forecast` usa no servidor e que o preview ao vivo de
+// Configurações → Projeção usa no client. Nunca aproximar o preview com um
+// cálculo paralelo (anti-padrão explícito da spec 71 §7.2).
+//
+// Duas camadas:
+//   1. `deriveForecastInput(basis, params)` — aplica os PARÂMETROS sobre o
+//      material bruto da conta (`ForecastBasis`, independente de parâmetro).
+//   2. `composeForecast(input)` — projeta saldo mês a mês nos 3 cenários.
+//
+// Assim o servidor busca o `basis` uma única vez e o client recalcula a cada
+// movimento de slider sem round-trip.
+
 import type { SectionCountType } from "@prisma/client";
 
 import { formatMonthLabel } from "@/lib/dates";
+import { calculateMonthTotal } from "@/lib/month-total";
 import type { Scenario } from "@/lib/schemas/forecast";
-import { calculateMonthTotal } from "@/server/services/month-service";
+
+/** Teto do horizonte configurável — dimensiona o range de parcelas do `basis`. */
+export const MAX_HORIZON_MONTHS = 24;
+/** Teto da janela de estimativa — dimensiona quantos meses fechados o `basis` carrega. */
+export const MAX_ESTIMATION_WINDOW = 12;
 
 type SectionRef = { id: string; countType: SectionCountType };
+
+/** Um mês fechado e seu resultado líquido (já netado por `countType`). */
+export type MonthlyAggregate = { yearMonth: string; netCents: bigint };
+
+/**
+ * Material da conta que NÃO depende de nenhum parâmetro de projeção — buscado
+ * uma vez por request (`getForecastBasis`) e reaproveitado em todo recálculo.
+ */
+export type ForecastBasis = {
+  sections: SectionRef[];
+  /** Meses fechados em ordem crescente; `netCents` = total do mês (tabelas que contam no mês). */
+  closedMonths: MonthlyAggregate[];
+  /**
+   * Últimos ≤ `MAX_ESTIMATION_WINDOW` meses fechados, em ordem crescente, com o
+   * resultado líquido NÃO-COMPROMETIDO (exclui recorrentes, parcelas e gastos
+   * únicos) — é a base da média por janela.
+   */
+  uncommittedMonths: MonthlyAggregate[];
+  /** sectionId → Σ recorrentes mensais (igual em todo mês do horizonte). */
+  recurringSectionTotals: Record<string, bigint>;
+  /** "YYYY-MM" → sectionId → Σ parcelas previstas, até `MAX_HORIZON_MONTHS`. */
+  installmentsByMonth: Record<string, Record<string, bigint>>;
+  /** Último mês fechado — ponto-âncora do gráfico; a projeção começa no mês SEGUINTE. */
+  anchorMonth: { year: number; month: number };
+};
+
+/** Os parâmetros configuráveis da projeção (spec 71 §2.1). */
+export type ForecastParams = {
+  horizonMonths: number;
+  scenarioDefault: Scenario;
+  optimisticPct: number;
+  conservativePct: number;
+  variableWindow: number;
+  /** Saldo de partida informado à mão; `null` = calcular dos meses fechados. */
+  startBalanceOverrideCents: bigint | null;
+};
 
 export type ForecastInput = {
   startingBalanceCents: bigint;
@@ -59,6 +115,46 @@ const ym = (y: number, m: number) => `${y}-${String(m).padStart(2, "0")}`;
 const nextMonth = (y: number, m: number) =>
   m === 12 ? { year: y + 1, month: 1 } : { year: y, month: m + 1 };
 
+/**
+ * Aplica os parâmetros sobre o material da conta. É aqui que a **janela** vira
+ * média, a **origem do saldo** vira saldo de partida e o **horizonte** delimita
+ * o que será iterado — tudo o que antes era derivado dentro da query.
+ */
+export function deriveForecastInput(basis: ForecastBasis, params: ForecastParams): ForecastInput {
+  const closedMonthCount = basis.closedMonths.length;
+  const effectiveWindow = Math.min(params.variableWindow, closedMonthCount);
+
+  // Média sobre a janela: soma os nets dos N meses mais recentes e divide UMA
+  // vez (nunca bigint/bigint, que truncaria — skill money-handling).
+  let estimatedNetBaseCents = 0n;
+  if (effectiveWindow > 0) {
+    const window = basis.uncommittedMonths.slice(-effectiveWindow);
+    const netOverWindow = window.reduce((acc, m) => acc + m.netCents, 0n);
+    estimatedNetBaseCents = BigInt(Math.round(Number(netOverWindow) / effectiveWindow));
+  }
+
+  const startingBalanceIsOverride = params.startBalanceOverrideCents !== null;
+  const startingBalanceCents = startingBalanceIsOverride
+    ? params.startBalanceOverrideCents!
+    : basis.closedMonths.reduce((acc, m) => acc + m.netCents, 0n);
+
+  return {
+    startingBalanceCents,
+    startingBalanceIsOverride,
+    horizonMonths: params.horizonMonths,
+    scenarioDefault: params.scenarioDefault,
+    optimisticPct: params.optimisticPct,
+    conservativePct: params.conservativePct,
+    variableWindow: params.variableWindow,
+    closedMonthCount,
+    estimatedNetBaseCents,
+    recurringSectionTotals: basis.recurringSectionTotals,
+    installmentsByMonth: basis.installmentsByMonth,
+    sections: basis.sections,
+    anchorMonth: basis.anchorMonth,
+  };
+}
+
 /** Projeta o saldo mês a mês (âncora + horizonte) nos 3 cenários, decompondo cada ponto em recorrente/parcelas/estimado. */
 export function composeForecast(input: ForecastInput): ForecastResult {
   const effectiveWindow = Math.min(input.variableWindow, input.closedMonthCount);
@@ -90,7 +186,7 @@ export function composeForecast(input: ForecastInput): ForecastResult {
 
   const points: ForecastPointDomain[] = [];
   // O ponto-âncora (último mês fechado, isProjected: false) usa a própria data de
-  // `anchorMonth`; a projeção em si começa no mês seguinte (ver nota no service
+  // `anchorMonth`; a projeção em si começa no mês seguinte (ver nota na query
   // sobre o alinhamento de calendário exigido pelos testes de runway/trough).
   const anchor = input.anchorMonth;
   points.push({

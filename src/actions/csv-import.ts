@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { defineAction } from "@/server/api/define-action";
+import { revalidateCsvTemplates, revalidateMonth } from "@/server/api/revalidate";
 import { csvImportService } from "@/server/services/csv-import-service";
 import {
   createTemplateSchema,
@@ -23,7 +23,9 @@ export const createTemplateAction = defineAction({
   schema: createTemplateSchema,
   requireRoles: ["owner", "editor"],
   handler: async (input, ctx) => {
-    return csvImportService.createTemplate(input, ctx);
+    const result = await csvImportService.createTemplate(input, ctx);
+    revalidateCsvTemplates(ctx.accountId);
+    return result;
   },
 });
 
@@ -31,7 +33,9 @@ export const updateTemplateAction = defineAction({
   schema: updateTemplateSchema,
   requireRoles: ["owner", "editor"],
   handler: async (input, ctx) => {
-    return csvImportService.updateTemplate(input, ctx);
+    const result = await csvImportService.updateTemplate(input, ctx);
+    revalidateCsvTemplates(ctx.accountId);
+    return result;
   },
 });
 
@@ -40,6 +44,7 @@ export const deleteTemplateAction = defineAction({
   requireRoles: ["owner", "editor"],
   handler: async (input, ctx) => {
     await csvImportService.deleteTemplate(input.templateId, ctx);
+    revalidateCsvTemplates(ctx.accountId);
   },
 });
 
@@ -48,7 +53,10 @@ export const executeImportAction = defineAction({
   requireRoles: ["owner", "editor"],
   handler: async (input, ctx) => {
     const result = await csvImportService.executeImport(input, ctx);
-    revalidatePath(`/${ctx.accountId}/months/${input.monthId}`);
+    revalidateMonth(ctx.accountId, input.monthId);
+    // `saveTemplateAs` faz um upsert de `CsvTemplate` dentro do import — sem isto,
+    // um template criado pelo fluxo de importação não aparece na contagem do hub.
+    if (input.saveTemplateAs) revalidateCsvTemplates(ctx.accountId);
     return result;
   },
 });

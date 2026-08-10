@@ -5,6 +5,7 @@ import {
   isCollapsibleNavEntry,
   type NavEntry,
   type NavGroup,
+  type NavLink,
 } from "./settings-nav-groups";
 
 /** Achata grupos → lista de hrefs (entradas colapsáveis viram seus subLinks). */
@@ -43,10 +44,46 @@ describe("buildSettingsNavGroups", () => {
     expect(hrefs.sort()).toEqual([...EXPECTED_OWNER_HREFS].sort());
   });
 
-  it("owner: 6 famílias com cabeçalho overline", () => {
+  it("owner: sem órfão nem duplicata — cada href aparece uma única vez (Spec 67 §8)", () => {
+    const hrefs = flattenHrefs(buildSettingsNavGroups("owner"));
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+    expect(hrefs).toHaveLength(EXPECTED_OWNER_HREFS.length);
+  });
+
+  it("owner: 5 famílias na ordem da Spec 67 §6", () => {
     const groups = buildSettingsNavGroups("owner");
-    expect(groups).toHaveLength(6);
-    expect(groups.every((g) => g.label.length > 0)).toBe(true);
+    expect(groups.map((g) => g.label)).toEqual([
+      "Estrutura",
+      "Apresentação",
+      "Entrada de dados",
+      "Planejamento",
+      "Conta",
+    ]);
+  });
+
+  it("reclassificação da Spec 67 §6: table-types e models em Apresentação, connectors em Entrada de dados", () => {
+    const groups = buildSettingsNavGroups("owner");
+    const byLabel = (label: string) => flattenHrefs(groups.filter((g) => g.label === label));
+
+    expect(byLabel("Apresentação")).toEqual([
+      "table-types",
+      "models",
+      "dashboards/monthly",
+      "dashboards/yearly",
+      "dashboards/month-summary",
+    ]);
+    expect(byLabel("Entrada de dados")).toEqual(["templates", "aliases", "connectors"]);
+  });
+
+  it("aplica as contagens baratas recebidas, e omite as ausentes", () => {
+    const groups = buildSettingsNavGroups("owner", { categories: "18 · 47 sub", aliases: "132" });
+    const entries = groups
+      .flatMap((g) => g.entries)
+      .filter((e): e is NavLink => !isCollapsibleNavEntry(e));
+
+    expect(entries.find((e) => e.href === "categories")?.count).toBe("18 · 47 sub");
+    expect(entries.find((e) => e.href === "aliases")?.count).toBe("132");
+    expect(entries.find((e) => e.href === "sections")?.count).toBeUndefined();
   });
 
   it("nunca inclui 'budgets' (não existe rota settings/budgets — orçamentos moram em /planning)", () => {
@@ -61,11 +98,11 @@ describe("buildSettingsNavGroups", () => {
     expect(hrefs).toContain("audit");
   });
 
-  it("editor: as mesmas 6 famílias, mas sem 'audit' (owner-only)", () => {
+  it("editor: as mesmas 5 famílias, mas sem 'audit' (owner-only)", () => {
     const groups = buildSettingsNavGroups("editor");
     const hrefs = flattenHrefs(groups);
 
-    expect(groups).toHaveLength(6);
+    expect(groups).toHaveLength(5);
     expect(hrefs).not.toContain("audit");
     expect(hrefs.sort()).toEqual(EXPECTED_OWNER_HREFS.filter((href) => href !== "audit").sort());
     expect(hrefs).toContain("forecast");

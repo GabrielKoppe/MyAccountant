@@ -29,6 +29,8 @@ export function buildSection(overrides: Partial<Section> = {}): Section {
     countType: "subtract",
     isActive: true,
     order: 0,
+    // Spec 67 §7.4: gravado só na escrita que consome a seção; legado nasce nulo.
+    lastUsedAt: null,
     createdAt: new Date("2026-01-01"),
     ...overrides,
   };

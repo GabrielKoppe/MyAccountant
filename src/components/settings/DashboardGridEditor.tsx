@@ -16,7 +16,7 @@ import {
 } from "@/components/dashboards/_core/widget-registry";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import type { WidgetConfigOptions } from "@/server/queries/widget-config-options";
-import { DialogShell } from "@/components/ui/DialogShell";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { DashboardGridCanvas } from "./DashboardGridCanvas";
 
 const DEBOUNCE_MS = 600;
@@ -110,11 +110,17 @@ export function DashboardGridEditor({ accountId, context, initialWidgets, config
 
   return (
     <>
+      {/*
+        O `mt: -34px` daqui existia só para puxar este botão até a linha do título
+        do `PageSettingsContainer` (que tinha o slot `secondary` vazio). Com o
+        `SettingsPageShell` (Spec 67 §2.2) o cabeçalho é uma faixa própria, e a
+        margem negativa faria o botão invadi-la — por isso saiu. O botão segue no
+        topo do conteúdo, com o mesmo comportamento.
+      */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "flex-end",
-          mt: "-34px",
         }}
       >
         <Button
@@ -139,9 +145,10 @@ export function DashboardGridEditor({ accountId, context, initialWidgets, config
         onLayoutChange={handleLayoutChange}
       />
 
-      <DialogShell
+      <SettingsDialog
         open={resetDialogOpen}
         onClose={() => setResetDialogOpen(false)}
+        size="confirm"
         title={m.settings.dashboards.resetToDefaultConfirmTitle}
         description={m.settings.dashboards.resetToDefaultConfirmDescription}
         actions={

@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { type ActionResult, actionError, actionSuccess } from "@/lib/action-result";
@@ -12,6 +11,7 @@ import {
 } from "@/lib/schemas/account";
 import { AppError } from "@/server/api/errors";
 import { defineAction } from "@/server/api/define-action";
+import { revalidateMembers } from "@/server/api/revalidate";
 import { requireUser } from "@/server/auth/session";
 import { logger } from "@/server/logger";
 import * as memberService from "@/server/services/member-service";
@@ -23,7 +23,7 @@ export const inviteMemberAction = defineAction({
   requireRoles: ["owner"],
   handler: async (input, ctx) => {
     const result = await memberService.inviteMember(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/members`);
+    revalidateMembers(ctx.accountId);
     return result;
   },
 });
@@ -33,7 +33,7 @@ export const revokeInviteAction = defineAction({
   requireRoles: ["owner"],
   handler: async (input, ctx) => {
     await memberService.revokeInvite(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/members`);
+    revalidateMembers(ctx.accountId);
   },
 });
 
@@ -42,7 +42,7 @@ export const removeMemberAction = defineAction({
   requireRoles: ["owner"],
   handler: async (input, ctx) => {
     await memberService.removeMember(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/members`);
+    revalidateMembers(ctx.accountId);
   },
 });
 
@@ -51,7 +51,7 @@ export const updateMemberRoleAction = defineAction({
   requireRoles: ["owner"],
   handler: async (input, ctx) => {
     await memberService.updateMemberRole(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/members`);
+    revalidateMembers(ctx.accountId);
   },
 });
 

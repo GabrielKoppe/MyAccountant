@@ -45,7 +45,13 @@ test("projeção de fluxo de caixa: hero, configurações e alternância de cen�
   await page.waitForURL((url) => url.pathname.endsWith("/settings/forecast"), {
     timeout: 15_000,
   });
-  await expect(page.getByRole("heading", { name: "Projeção de fluxo de caixa" })).toBeVisible();
+  // Spec 67 §2.2 (SET-03): o cabeçalho da página passou a ser o do
+  // `SettingsPageShell` — o título virou o `h1` "Projeção"
+  // (`m.settings.nav.forecast`) e o antigo "Projeção de fluxo de caixa"
+  // (`m.settings.forecast.title`) deixou de ser renderizado como heading.
+  // Ancorar no nível 1 mantém a asserção forte: prova que estamos no cabeçalho
+  // da página de settings, não num rótulo qualquer da sidebar.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projeção");
 
   await page.getByLabel("Horizonte da projeção").click();
   await page.getByRole("option", { name: "12 meses" }).click();

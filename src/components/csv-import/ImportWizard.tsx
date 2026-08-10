@@ -82,6 +82,10 @@ export function ImportWizard({
   // Step 1
   const [mapping, setMapping] = useState<ImportMapping>(DEFAULT_MAPPING);
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  // Template que originou o mapeamento — só viaja no payload do import para o
+  // servidor gravar `CsvTemplate.lastUsedAt` (spec 67 §7.4). Não influencia o
+  // parse: o `mapping` inline continua sendo a fonte da verdade.
+  const [usedTemplateId, setUsedTemplateId] = useState<string | null>(null);
 
   // headers/rows derivados da matriz conforme skipRows + hasHeader (reativo)
   const { headers, rows } = useMemo(
@@ -169,6 +173,7 @@ export function ImportWizard({
     setFileType("csv");
     setParseError(null);
     setMapping(DEFAULT_MAPPING);
+    setUsedTemplateId(null);
     setPreviewRows([]);
     setManualIgnoredRows(new Set());
     setAliasIgnoredRows(new Set());
@@ -321,6 +326,7 @@ export function ImportWizard({
         tableName: config.tableName.trim(),
         countInMonth: config.countInMonth,
         mapping,
+        templateId: usedTemplateId ?? undefined,
         saveTemplateAs: config.saveTemplate ? config.templateName.trim() : undefined,
         rows,
         fileType,
@@ -442,6 +448,7 @@ export function ImportWizard({
                   templates={templates}
                   members={members}
                   onChange={setMapping}
+                  onTemplateSelect={setUsedTemplateId}
                 />
               )}
               {step === 2 && (
@@ -506,6 +513,7 @@ export function ImportWizard({
                     setPreviewRows([]);
                     setManualIgnoredRows(new Set());
                     setAliasIgnoredRows(new Set());
+                    setUsedTemplateId(null);
                     setResult(null);
                   }}
                 />

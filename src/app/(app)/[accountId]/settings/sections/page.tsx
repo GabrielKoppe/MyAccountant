@@ -36,7 +36,8 @@ export default async function SectionsPage({ params }: Props) {
     <SectionsManager
       accountId={accountId}
       initialSections={sections}
-      title={m.settings.sections.title}
+      // Spec 67 §7.5: o título do cabeçalho é o mesmo rótulo do nav da família Estrutura.
+      title={m.settings.nav.sections}
     />
   );
 }

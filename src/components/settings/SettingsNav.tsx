@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { CollapsibleNavItem } from "@/components/settings/CollapsibleNavItem";
+import { NavCount } from "@/components/settings/NavCount";
 import { isCollapsibleNavEntry } from "@/components/settings/settings-nav-groups";
 import type { NavEntry, NavGroup } from "@/components/settings/settings-nav-groups";
 import { AppLink } from "@/components/ui/AppLink";
@@ -52,13 +53,14 @@ function renderEntry(
         subLinks={entry.subLinks}
         accountId={accountId}
         pathname={pathname}
+        count={entry.count}
         defaultOpen={isAnySubActive}
         onNavigate={onNavigate}
       />
     );
   }
 
-  const { href, label } = entry;
+  const { href, label, count } = entry;
   const fullHref = `/${accountId}/settings/${href}`;
   const isActive = pathname === fullHref || pathname.startsWith(`${fullHref}/`);
   return (
@@ -79,6 +81,7 @@ function renderEntry(
         }}
       >
         <ListItemText primary={label} primaryTypographyProps={NAV_LABEL_TYPOGRAPHY} />
+        {count !== undefined && <NavCount value={count} />}
       </ListItemButton>
     </ListItem>
   );

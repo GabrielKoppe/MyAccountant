@@ -330,7 +330,10 @@ function SidebarContent({
       ? [
           {
             key: "settings",
-            href: `${settingsBase}/general`,
+            // Spec 67 §4 (SET-02) — destino é o HUB (`/settings`), não mais o
+            // formulário `/settings/general` (que é owner-only e não dá visão
+            // do que já está configurado).
+            href: settingsBase,
             label: m.nav.settings,
             icon: <SettingsIcon fontSize="small" />,
             // Configurações = prefixo /settings E NÃO /settings/members (§10.3 P1).

@@ -41,9 +41,9 @@ import {
   TOGGLEABLE_COLUMNS,
 } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
-import { layout } from "@/lib/design-tokens";
-import { DialogShell } from "@/components/ui/DialogShell";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
+import { containers, layout } from "@/lib/design-tokens";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 
 type TableTypeItem = {
   id: string;
@@ -57,7 +57,6 @@ type TableTypeItem = {
 type Props = {
   accountId: string;
   initialTypes: TableTypeItem[];
-  title?: string;
 };
 
 const ALWAYS_VISIBLE = [
@@ -66,7 +65,7 @@ const ALWAYS_VISIBLE = [
   { key: "description", label: "Descrição" },
 ];
 
-export function TableTypesManager({ accountId, initialTypes, title }: Props) {
+export function TableTypesManager({ accountId, initialTypes }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const [types, setTypes] = useState(initialTypes);
   const [isPending, startTransition] = useTransition();
@@ -186,186 +185,198 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
   }
 
   return (
-    <PageSettingsContainer
-      title={title}
-      secondary={
-        <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openCreate}>
-          {m.settings.tableTypes.createButton}
-        </Button>
-      }
+    <SettingsPageShell
+      family="Apresentação"
+      title={m.settings.nav.tableTypes}
+      // Chip do §7.5: só a contagem de tipos — é o dado que a página já carrega.
+      count={String(types.length)}
+      purpose={m.settings.purposes.tableTypes}
+      // A ação primária é a mesma de antes (abre o diálogo de criação); só mudou de lugar.
+      primaryAction={{
+        label: m.settings.tableTypes.createButton,
+        icon: <AddIcon />,
+        onClick: openCreate,
+      }}
+      itemCount={types.length}
     >
-      {types.length === 0 && (
-        <Typography variant="body2" color="text.secondary">
-          {m.settings.tableTypes.noTableTypes}
-        </Typography>
-      )}
+      {/* O container antigo limitava o conteúdo a containers.md; o shell não limita
+          largura, então a restrição passa a viver no conteúdo para a lista não esticar. */}
+      <Box sx={{ maxWidth: containers.md }}>
+        {types.length === 0 && (
+          <Typography variant="body2" color="text.secondary">
+            {m.settings.tableTypes.noTableTypes}
+          </Typography>
+        )}
 
-      <Stack spacing={1}>
-        {types.map((type) => {
-          const isExpanded = expandedId === type.id;
-          const hiddenKeys = Object.keys(type.hiddenColumns).filter((k) => type.hiddenColumns[k]);
+        <Stack spacing={1}>
+          {types.map((type) => {
+            const isExpanded = expandedId === type.id;
+            const hiddenKeys = Object.keys(type.hiddenColumns).filter((k) => type.hiddenColumns[k]);
 
-          return (
-            <Paper key={type.id} variant="outlined">
-              {/* Header */}
-              <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, gap: 1 }}>
-                {/* Edit inline or show name */}
-                {editTarget?.id === type.id ? (
-                  <EditableNameField
-                    initialName={type.name}
-                    onSave={(name) => handleRename(type.id, name)}
-                    onCancel={() => setEditTarget(null)}
-                    disabled={isPending}
-                  />
-                ) : (
-                  <>
-                    <Typography
-                      variant="body2"
-                      fontWeight="medium"
-                      noWrap
-                      sx={{ flex: 1, minWidth: 0 }}
-                    >
-                      {type.name}
-                    </Typography>
-                    {type.isDefault && (
-                      <Chip
-                        label={m.settings.tableTypes.defaultBadge}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
-                    )}
-                    {hiddenKeys.length > 0 && (
-                      <Typography variant="caption" color="text.secondary">
-                        {hiddenKeys.length} coluna(s) oculta(s)
+            return (
+              <Paper key={type.id} variant="outlined">
+                {/* Header */}
+                <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, gap: 1 }}>
+                  {/* Edit inline or show name */}
+                  {editTarget?.id === type.id ? (
+                    <EditableNameField
+                      initialName={type.name}
+                      onSave={(name) => handleRename(type.id, name)}
+                      onCancel={() => setEditTarget(null)}
+                      disabled={isPending}
+                    />
+                  ) : (
+                    <>
+                      <Typography
+                        variant="body2"
+                        fontWeight="medium"
+                        noWrap
+                        sx={{ flex: 1, minWidth: 0 }}
+                      >
+                        {type.name}
                       </Typography>
-                    )}
-                    <Tooltip title={m.common.edit}>
-                      <IconButton size="small" onClick={() => openEdit(type)}>
-                        <EditIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip>
-                    {!type.isDefault && (
-                      <Tooltip title={m.common.delete}>
-                        <IconButton
+                      {type.isDefault && (
+                        <Chip
+                          label={m.settings.tableTypes.defaultBadge}
                           size="small"
-                          color="error"
-                          onClick={() => setDeleteTarget(type)}
-                          disabled={isPending}
-                        >
-                          <DeleteIcon sx={{ fontSize: 16 }} />
+                          color="primary"
+                          variant="outlined"
+                        />
+                      )}
+                      {hiddenKeys.length > 0 && (
+                        <Typography variant="caption" color="text.secondary">
+                          {hiddenKeys.length} coluna(s) oculta(s)
+                        </Typography>
+                      )}
+                      <Tooltip title={m.common.edit}>
+                        <IconButton size="small" onClick={() => openEdit(type)}>
+                          <EditIcon sx={{ fontSize: 16 }} />
                         </IconButton>
                       </Tooltip>
-                    )}
-                    <IconButton
-                      size="small"
-                      onClick={() => setExpandedId(isExpanded ? null : type.id)}
-                    >
-                      {isExpanded ? (
-                        <ExpandLessIcon sx={{ fontSize: 16 }} />
-                      ) : (
-                        <ExpandMoreIcon sx={{ fontSize: 16 }} />
+                      {!type.isDefault && (
+                        <Tooltip title={m.common.delete}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setDeleteTarget(type)}
+                            disabled={isPending}
+                          >
+                            <DeleteIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
                       )}
-                    </IconButton>
-                  </>
-                )}
-              </Box>
-
-              {/* Colunas expandidas */}
-              <Collapse in={isExpanded}>
-                <Divider />
-                <Box sx={{ px: 2, py: 1.5 }}>
-                  <Typography variant="caption" fontWeight="bold" color="text.secondary">
-                    {m.settings.tableTypes.alwaysVisible}
-                  </Typography>
-                  <List dense disablePadding>
-                    {ALWAYS_VISIBLE.map(({ key, label }) => (
-                      <ListItem key={key} dense disableGutters>
-                        <FormControlLabel
-                          sx={{ m: 0 }}
-                          control={<Switch size="small" checked disabled />}
-                          label={label}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-
-                  <Typography
-                    variant="caption"
-                    fontWeight="bold"
-                    color="text.secondary"
-                    sx={{ mt: 1, display: "block" }}
-                  >
-                    {m.settings.tableTypes.configurable}
-                  </Typography>
-                  <List dense disablePadding>
-                    {TOGGLEABLE_COLUMNS.map(({ key, label }) => (
-                      <ListItem key={key} dense disableGutters>
-                        <FormControlLabel
-                          sx={{ m: 0 }}
-                          control={
-                            <Switch
-                              size="small"
-                              checked={!type.hiddenColumns[key]}
-                              disabled={type.isDefault || isPending}
-                              onChange={(e) => handleToggleColumn(type.id, key, !e.target.checked)}
-                            />
-                          }
-                          label={label}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                  {type.isDefault && (
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                      O tipo padrão sempre exibe todas as colunas.
-                    </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() => setExpandedId(isExpanded ? null : type.id)}
+                      >
+                        {isExpanded ? (
+                          <ExpandLessIcon sx={{ fontSize: 16 }} />
+                        ) : (
+                          <ExpandMoreIcon sx={{ fontSize: 16 }} />
+                        )}
+                      </IconButton>
+                    </>
                   )}
-
-                  <Typography
-                    variant="caption"
-                    fontWeight="bold"
-                    color="text.secondary"
-                    sx={{ mt: 2, display: "block" }}
-                  >
-                    {m.settings.tableTypes.layoutLabel}
-                  </Typography>
-                  <ToggleButtonGroup
-                    size="small"
-                    exclusive
-                    value={type.rowLayout}
-                    disabled={isPending}
-                    onChange={(_e, value: RowLayout | null) => {
-                      if (value) handleChangeLayout(type.id, value);
-                    }}
-                    sx={{ mt: 0.5 }}
-                  >
-                    <ToggleButton value="columns">
-                      {m.settings.tableTypes.layoutColumns}
-                    </ToggleButton>
-                    <ToggleButton value="rich">{m.settings.tableTypes.layoutRich}</ToggleButton>
-                  </ToggleButtonGroup>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mt: 0.5, display: "block" }}
-                  >
-                    {type.rowLayout === "rich"
-                      ? m.settings.tableTypes.layoutRichHelp
-                      : m.settings.tableTypes.layoutColumnsHelp}
-                  </Typography>
                 </Box>
-              </Collapse>
-            </Paper>
-          );
-        })}
-      </Stack>
+
+                {/* Colunas expandidas */}
+                <Collapse in={isExpanded}>
+                  <Divider />
+                  <Box sx={{ px: 2, py: 1.5 }}>
+                    <Typography variant="caption" fontWeight="bold" color="text.secondary">
+                      {m.settings.tableTypes.alwaysVisible}
+                    </Typography>
+                    <List dense disablePadding>
+                      {ALWAYS_VISIBLE.map(({ key, label }) => (
+                        <ListItem key={key} dense disableGutters>
+                          <FormControlLabel
+                            sx={{ m: 0 }}
+                            control={<Switch size="small" checked disabled />}
+                            label={label}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+
+                    <Typography
+                      variant="caption"
+                      fontWeight="bold"
+                      color="text.secondary"
+                      sx={{ mt: 1, display: "block" }}
+                    >
+                      {m.settings.tableTypes.configurable}
+                    </Typography>
+                    <List dense disablePadding>
+                      {TOGGLEABLE_COLUMNS.map(({ key, label }) => (
+                        <ListItem key={key} dense disableGutters>
+                          <FormControlLabel
+                            sx={{ m: 0 }}
+                            control={
+                              <Switch
+                                size="small"
+                                checked={!type.hiddenColumns[key]}
+                                disabled={type.isDefault || isPending}
+                                onChange={(e) =>
+                                  handleToggleColumn(type.id, key, !e.target.checked)
+                                }
+                              />
+                            }
+                            label={label}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                    {type.isDefault && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                        O tipo padrão sempre exibe todas as colunas.
+                      </Typography>
+                    )}
+
+                    <Typography
+                      variant="caption"
+                      fontWeight="bold"
+                      color="text.secondary"
+                      sx={{ mt: 2, display: "block" }}
+                    >
+                      {m.settings.tableTypes.layoutLabel}
+                    </Typography>
+                    <ToggleButtonGroup
+                      size="small"
+                      exclusive
+                      value={type.rowLayout}
+                      disabled={isPending}
+                      onChange={(_e, value: RowLayout | null) => {
+                        if (value) handleChangeLayout(type.id, value);
+                      }}
+                      sx={{ mt: 0.5 }}
+                    >
+                      <ToggleButton value="columns">
+                        {m.settings.tableTypes.layoutColumns}
+                      </ToggleButton>
+                      <ToggleButton value="rich">{m.settings.tableTypes.layoutRich}</ToggleButton>
+                    </ToggleButtonGroup>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ mt: 0.5, display: "block" }}
+                    >
+                      {type.rowLayout === "rich"
+                        ? m.settings.tableTypes.layoutRichHelp
+                        : m.settings.tableTypes.layoutColumnsHelp}
+                    </Typography>
+                  </Box>
+                </Collapse>
+              </Paper>
+            );
+          })}
+        </Stack>
+      </Box>
 
       {/* Create dialog */}
-      <DialogShell
+      <SettingsDialog
         open={createOpen}
         onClose={closeDialog}
-        maxWidth="xs"
+        size="form"
         title={m.settings.tableTypes.createTitle}
         loading={form.formState.isSubmitting}
         actions={
@@ -407,13 +418,13 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
             />
           </Stack>
         </form>
-      </DialogShell>
+      </SettingsDialog>
 
       {/* Delete dialog */}
-      <DialogShell
+      <SettingsDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        maxWidth="xs"
+        size="confirm"
         title={m.settings.tableTypes.deleteTitle}
         description={m.settings.tableTypes.deleteConfirm}
         actions={
@@ -432,8 +443,8 @@ export function TableTypesManager({ accountId, initialTypes, title }: Props) {
             {m.settings.tableTypes.deleteWarning(deleteTarget.tableCount)}
           </Alert>
         ) : null}
-      </DialogShell>
-    </PageSettingsContainer>
+      </SettingsDialog>
+    </SettingsPageShell>
   );
 }
 

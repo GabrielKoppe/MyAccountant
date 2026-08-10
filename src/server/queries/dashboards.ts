@@ -3,7 +3,7 @@ import type { SectionCountType, TransactionExpenseType, TransactionSource } from
 
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel } from "@/lib/dates";
-import { calculateMonthTotal } from "@/server/services/month-service";
+import { calculateMonthTotal } from "@/lib/month-total";
 
 // ─── Shared types ─────────────────────────────────────────────────
 

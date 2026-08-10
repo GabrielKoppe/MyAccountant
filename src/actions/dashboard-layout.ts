@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { defineAction } from "@/server/api/define-action";
 import { AppError } from "@/server/api/errors";
+import { revalidateDashboardLayout } from "@/server/api/revalidate";
 import { updateDashboardLayoutSchema } from "@/lib/schemas/dashboard-layout";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import { sandboxConfigSchema } from "@/lib/schemas/sandbox";
@@ -20,9 +21,9 @@ export const updateDashboardLayoutAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     await dashboardLayoutService.upsertLayout(input, ctx);
-    // Invalida dashboards (RSCs cacheados) e a própria página de settings
-    revalidatePath(`/${ctx.accountId}/dashboards`, "layout");
-    revalidatePath(`/${ctx.accountId}/settings/dashboards`, "layout");
+    // Invalida dashboards (RSCs cacheados), a página de settings e o hub.
+    revalidateDashboardLayout(ctx.accountId);
+    // O resumo do mês embute o mesmo layout dentro de `/months/[monthId]`.
     revalidatePath(`/${ctx.accountId}/months`, "layout");
   },
 });
@@ -110,7 +111,6 @@ export const addAnalysisToDashboardAction = defineAction({
 
     const updated = [...existing, newInstance];
     await dashboardLayoutService.upsertLayout({ context, widgets: updated }, ctx);
-    revalidatePath(`/${ctx.accountId}/dashboards`, "layout");
-    revalidatePath(`/${ctx.accountId}/settings/dashboards`, "layout");
+    revalidateDashboardLayout(ctx.accountId);
   },
 });

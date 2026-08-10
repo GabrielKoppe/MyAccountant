@@ -36,8 +36,8 @@ import {
 import { createSectionSchema, type CreateSectionInput } from "@/lib/schemas/settings";
 import { m } from "@/lib/messages";
 import { layout } from "@/lib/design-tokens";
-import { DialogShell } from "@/components/ui/DialogShell";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 
 type Section = {
   id: string;
@@ -140,19 +140,26 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
     });
   }
 
+  // Chip de contagem do cabeçalho (Spec 67 §7.5: "6 · 1 inativa"). Deriva do estado
+  // local `sections`, então acompanha criação/edição/exclusão sem consultar o servidor.
+  const inactiveCount = sections.filter((section) => !section.isActive).length;
+  const countLabel =
+    inactiveCount > 0
+      ? `${sections.length} · ${inactiveCount} ${inactiveCount === 1 ? "inativa" : "inativas"}`
+      : String(sections.length);
+
   return (
-    <PageSettingsContainer
-      title={title}
-      secondary={
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateOpen(true)}
-        >
-          {m.settings.sections.createButton}
-        </Button>
-      }
+    <SettingsPageShell
+      family="Estrutura"
+      title={title ?? m.settings.nav.sections}
+      count={countLabel}
+      purpose={m.settings.purposes.sections}
+      itemCount={sections.length}
+      primaryAction={{
+        label: m.settings.sections.createButton,
+        icon: <AddIcon />,
+        onClick: () => setCreateOpen(true),
+      }}
     >
       {sections.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
@@ -217,10 +224,10 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
       )}
 
       {/* Create / Edit dialog */}
-      <DialogShell
+      <SettingsDialog
         open={createOpen || !!editTarget}
         onClose={closeDialog}
-        maxWidth="xs"
+        size="form"
         title={editTarget ? m.settings.sections.editTitle : m.settings.sections.createTitle}
         loading={form.formState.isSubmitting}
         actions={
@@ -335,13 +342,13 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
             />
           </Stack>
         </form>
-      </DialogShell>
+      </SettingsDialog>
 
       {/* Delete confirmation */}
-      <DialogShell
+      <SettingsDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        maxWidth="xs"
+        size="confirm"
         title={m.settings.sections.deleteTitle}
         description={m.settings.sections.deleteConfirm}
         actions={
@@ -355,6 +362,6 @@ export function SectionsManager({ accountId, initialSections, title }: Props) {
           </>
         }
       />
-    </PageSettingsContainer>
+    </SettingsPageShell>
   );
 }

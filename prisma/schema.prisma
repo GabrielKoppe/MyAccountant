@@ -40,6 +40,22 @@ enum SectionCountType {
   @@map("section_count_type")
 }
 
+/// Spec 67 §7.4 (decisão D2) — estado ativo/inativo dos objetos de configuração.
+///
+/// Aplicado APENAS às entidades que ainda não tinham mecanismo próprio. Três já
+/// tinham o seu antes desta spec e continuam com ele, para não criar dupla fonte
+/// de verdade nem exigir migração destrutiva:
+///   Section          -> isActive: Boolean
+///   ResponsibleParty -> archivedAt: DateTime?
+///   TransactionAlias -> archivedAt: DateTime?
+/// A normalização para um único booleano vive em `src/lib/settings-status.ts`.
+enum SettingsStatus {
+  active
+  inactive
+
+  @@map("settings_status")
+}
+
 enum TableSourceMethod {
   empty
   copy
@@ -217,6 +233,7 @@ model Account {
   balanceSnapshots     BalanceSnapshot[]
   goals                Goal[]
   goalContributions    GoalContribution[]
+  usageCounts          UsageCount[]
 
   @@map("accounts")
 }
@@ -299,6 +316,7 @@ model ResponsibleParty {
   icon       String? // chave do set curado (src/lib/persona-icons.ts)
   color      String? // chave de cor accent (src/lib/accent-colors.ts)
   archivedAt DateTime?            @map("archived_at")
+  lastUsedAt DateTime?            @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
   createdAt  DateTime             @default(now()) @map("created_at")
   updatedAt  DateTime             @updatedAt @map("updated_at")
 
@@ -328,13 +346,15 @@ model ResponsiblePartyMember {
 }
 
 model TableType {
-  id            String   @id @default(cuid())
-  accountId     String   @map("account_id")
+  id            String         @id @default(cuid())
+  accountId     String         @map("account_id")
   name          String
-  isDefault     Boolean  @default(false) @map("is_default")
-  hiddenColumns Json     @default("{}") @map("hidden_columns")
-  rowLayout     String   @default("columns") @map("row_layout")
-  createdAt     DateTime @default(now()) @map("created_at")
+  isDefault     Boolean        @default(false) @map("is_default")
+  hiddenColumns Json           @default("{}") @map("hidden_columns")
+  rowLayout     String         @default("columns") @map("row_layout")
+  status        SettingsStatus @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt    DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt     DateTime       @default(now()) @map("created_at")
 
   account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   financeTables     FinanceTable[]
@@ -383,13 +403,14 @@ model Month {
 }
 
 model Section {
-  id        String           @id @default(cuid())
-  accountId String           @map("account_id")
-  name      String
-  countType SectionCountType @map("count_type")
-  order     Int              @default(0)
-  isActive  Boolean          @default(true) @map("is_active")
-  createdAt DateTime         @default(now()) @map("created_at")
+  id         String           @id @default(cuid())
+  accountId  String           @map("account_id")
+  name       String
+  countType  SectionCountType @map("count_type")
+  order      Int              @default(0)
+  isActive   Boolean          @default(true) @map("is_active")
+  lastUsedAt DateTime?        @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt  DateTime         @default(now()) @map("created_at")
 
   account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   tables            FinanceTable[]
@@ -497,11 +518,13 @@ model Transaction {
 }
 
 model Category {
-  id          String   @id @default(cuid())
-  accountId   String   @map("account_id")
+  id          String         @id @default(cuid())
+  accountId   String         @map("account_id")
   name        String
-  createdById String   @map("created_by_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String         @map("created_by_id")
+  status      SettingsStatus @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt  DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt   DateTime       @default(now()) @map("created_at")
 
   account            Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdBy          User               @relation("CategoryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -515,11 +538,13 @@ model Category {
 }
 
 model Subcategory {
-  id         String   @id @default(cuid())
-  categoryId String   @map("category_id")
-  accountId  String   @map("account_id")
+  id         String         @id @default(cuid())
+  categoryId String         @map("category_id")
+  accountId  String         @map("account_id")
   name       String
-  createdAt  DateTime @default(now()) @map("created_at")
+  status     SettingsStatus @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt  DateTime       @default(now()) @map("created_at")
 
   category           Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   account            Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -531,11 +556,13 @@ model Subcategory {
 }
 
 model Institution {
-  id          String   @id @default(cuid())
-  accountId   String   @map("account_id")
+  id          String         @id @default(cuid())
+  accountId   String         @map("account_id")
   name        String
-  createdById String   @map("created_by_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String         @map("created_by_id")
+  status      SettingsStatus @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt  DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt   DateTime       @default(now()) @map("created_at")
 
   account                    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdBy                  User               @relation("InstitutionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -549,12 +576,14 @@ model Institution {
 }
 
 model CsvTemplate {
-  id          String   @id @default(cuid())
-  accountId   String   @map("account_id")
+  id          String         @id @default(cuid())
+  accountId   String         @map("account_id")
   name        String
   mapping     Json
-  createdById String   @map("created_by_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String         @map("created_by_id")
+  status      SettingsStatus @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt  DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt   DateTime       @default(now()) @map("created_at")
 
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdBy User    @relation("TemplateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -568,18 +597,20 @@ model CsvTemplate {
 // =========================================
 
 model TableTemplate {
-  id              String   @id @default(cuid())
-  accountId       String   @map("account_id")
+  id              String         @id @default(cuid())
+  accountId       String         @map("account_id")
   name            String
   description     String?
-  tableTypeId     String?  @map("table_type_id")
-  countInMonth    Boolean  @default(true) @map("count_in_month")
-  autoApply       Boolean  @default(false) @map("auto_apply")
-  autoSectionId   String?  @map("auto_section_id")
-  autoTableTypeId String?  @map("auto_table_type_id")
-  createdById     String   @map("created_by_id")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  tableTypeId     String?        @map("table_type_id")
+  countInMonth    Boolean        @default(true) @map("count_in_month")
+  autoApply       Boolean        @default(false) @map("auto_apply")
+  autoSectionId   String?        @map("auto_section_id")
+  autoTableTypeId String?        @map("auto_table_type_id")
+  createdById     String         @map("created_by_id")
+  status          SettingsStatus @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt      DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   account   Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
   tableType TableType?          @relation(fields: [tableTypeId], references: [id], onDelete: SetNull)
@@ -770,6 +801,7 @@ model TransactionAlias {
 
   archivedAt  DateTime? @map("archived_at")
   createdById String    @map("created_by_id")
+  lastUsedAt  DateTime? @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
@@ -899,13 +931,15 @@ model TransactionLink {
 
 // Template recorrente compartilhado pela Account. Aparece em qualquer mês.
 model ChecklistItem {
-  id          String   @id @default(cuid())
-  accountId   String   @map("account_id")
+  id          String         @id @default(cuid())
+  accountId   String         @map("account_id")
   label       String
   position    Int
-  createdById String   @map("created_by_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdById String         @map("created_by_id")
+  status      SettingsStatus @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt  DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
 
   account     Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdBy   User                  @relation("ChecklistItemCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -1146,4 +1180,38 @@ model GoalContribution {
   @@index([accountId])
   @@index([goalId])
   @@map("goal_contributions")
+}
+
+// =========================================
+// Domain — Contagem de uso sob demanda (Spec 67 §2.4 / §7.4)
+// =========================================
+
+/// Cache da contagem CARA de uso de um objeto de configuração.
+///
+/// A Spec 67 (SET-07) tirou a coluna "Uso" de todas as listas: varrer todas as
+/// transações de todos os meses tem custo que cresce com a conta. A contagem
+/// real existe em exatamente três lugares, sempre SOB DEMANDA — "Ver uso" no
+/// menu da linha, a aba "Onde é usado" do arquétipo C, e o diálogo de exclusão
+/// com realocação. Esta tabela guarda o resultado por 24 h para que reabrir o
+/// modal não pague a conta de novo.
+///
+/// `entity` é o nome do model ("Category", "Institution", …) e `entityId` a PK
+/// dele. Sem FK de propósito: a tabela serve 10 entidades diferentes e é cache
+/// descartável — se o objeto sumir, a linha vira lixo inofensivo e o TTL a mata.
+model UsageCount {
+  id           String   @id @default(cuid())
+  accountId    String   @map("account_id")
+  entity       String
+  entityId     String   @map("entity_id")
+  transactions Int      @default(0)
+  months       Int      @default(0)
+  countedAt    DateTime @default(now()) @map("counted_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, entity, entityId])
+  @@index([accountId])
+  // Varredura de expiração do TTL de 24 h.
+  @@index([countedAt])
+  @@map("usage_counts")
 }

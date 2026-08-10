@@ -360,6 +360,23 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
         },
       },
 
+      // Anel de foco de teclado para TODA superfície clicável — IconButton,
+      // ListItemButton, ButtonBase cru, Tab, MenuItem. O `ButtonBase` do MUI zera
+      // `outline`, então sem este override só o `MuiButton` (que tem o seu próprio
+      // `:focus-visible`, abaixo) fica navegável por teclado. Aqui usamos a classe
+      // `.Mui-focusVisible`, que o MUI só aplica em foco por teclado — mouse e
+      // touch continuam sem anel.
+      MuiButtonBase: {
+        styleOverrides: {
+          root: {
+            "&.Mui-focusVisible": {
+              outline: `2px solid ${ac.primary}`,
+              outlineOffset: 2,
+            },
+          },
+        },
+      },
+
       MuiButton: {
         defaultProps: {
           disableElevation: true,

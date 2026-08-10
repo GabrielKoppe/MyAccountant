@@ -18,6 +18,8 @@ import { prisma } from "@/server/prisma";
 import { personalPartyMapForAccount } from "@/server/queries/responsible-party-filter";
 import { ALIAS_INCLUDE } from "@/server/queries/transaction-aliases";
 
+import { touchLastUsed } from "./settings-usage-touch";
+
 const log = logger.child({ module: "csv-import-service" });
 
 // `createManyAndReturn` não garante a ordem das linhas retornadas (a API não
@@ -150,8 +152,12 @@ async function executeImport(
   const previewRows = applyMappingToRows(input.rows, mapping, aliases);
 
   // Optionally save template
+  // `savedTemplateId`: o template gravado agora também foi USADO por esta
+  // importação (spec 67 §7.4) — o `select` existe só para conhecer o id no toque
+  // de `lastUsedAt` lá embaixo. Nenhum outro comportamento muda.
+  let savedTemplateId: string | null = null;
   if (input.saveTemplateAs) {
-    await prisma.csvTemplate.upsert({
+    const saved = await prisma.csvTemplate.upsert({
       where: { accountId_name: { accountId: ctx.accountId, name: input.saveTemplateAs } },
       create: {
         accountId: ctx.accountId,
@@ -160,7 +166,9 @@ async function executeImport(
         createdById: ctx.userId,
       },
       update: { mapping: mapping as object },
+      select: { id: true },
     });
+    savedTemplateId = saved.id;
   }
 
   const importErrors: { rowIndex: number; message: string }[] = [];
@@ -605,6 +613,33 @@ async function executeImport(
     { accountId: ctx.accountId, tableId: result.table.id, aliasesApplied },
     "CSV import concluído",
   );
+
+  // ─── lastUsedAt (spec 67 §2.4/§7.4, SET-07) ─────────────────────────────────
+  // A importação é uma das escritas que "consomem" objetos de configuração, então
+  // é aqui que a recência deles é registrada. Regras:
+  //  • FORA da `$transaction` e sem `await`: é telemetria de rótulo, não pode
+  //    atrasar a resposta nem desfazer um import já commitado;
+  //  • só objetos que de fato entraram em `transactionData` (linhas realmente
+  //    importadas) — linhas com erro ou ignoradas não contam como uso;
+  //  • `touchLastUsed` dedupe ids, descarta nulos e filtra por `accountId`.
+  void touchLastUsed(ctx.accountId, {
+    section: [input.sectionId],
+    tableType: [input.tableTypeId],
+    // Categorias/subcategorias/instituições auto-criadas pelo upsert
+    // (`onCategoryNotFound: "create"` etc.) também entram: nasceram para atender
+    // uma linha deste arquivo, logo foram usadas agora.
+    category: transactionData.map((t) => t.categoryId),
+    subcategory: transactionData.map((t) => t.subcategoryId),
+    institution: transactionData.map((t) => t.institutionId),
+    // Responsável pode vir do apelido OU do de-para de responsável do mapeamento
+    // (`responsibleUserMappings` → party pessoal). Os dois são uso real.
+    responsibleParty: transactionData.map((t) => t.responsiblePartyId),
+    transactionAlias: transactionData.map((t) => t.appliedAliasId),
+    // `templateId`: modelo escolhido no passo de mapeamento (informado pelo
+    // wizard). `savedTemplateId`: modelo gravado por "salvar como template"
+    // nesta mesma importação.
+    csvTemplate: [input.templateId, savedTemplateId],
+  });
 
   return {
     tableId: result.table.id,

@@ -26,9 +26,9 @@ import {
   deleteResponsiblePartyAction,
   updateResponsiblePartyAction,
 } from "@/actions/responsible-parties";
-import { DialogShell } from "@/components/ui/DialogShell";
 import { EmptyState } from "@/components/ui/EmptyState";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 import { PersonaStyleFields } from "@/components/settings/PersonaStyleFields";
 import { PartyAvatar } from "@/components/transactions/PartyAvatar";
 import type { PersonaIconKey } from "@/lib/persona-icons";
@@ -248,34 +248,36 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
   const personal = parties.filter((p) => p.kind === "personal");
   const isGroupForm = editTarget ? editTarget.kind === "group" : formKind === "group";
 
-  return (
-    <PageSettingsContainer
-      title={rp.title}
-      secondary={
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={() => openCreate("external")}
-          >
-            {rp.createExternal}
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={() => openCreate("group")}
-          >
-            {rp.createGroup}
-          </Button>
-        </Stack>
-      }
-    >
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {rp.subtitle}
-      </Typography>
+  // Chip do cabeçalho (Spec 67 §7.5): responsáveis ativos. Arquivado não conta —
+  // ele continua listado (com badge), mas não é uma opção viva de transação.
+  // Deriva de `parties`, então acompanha criar/arquivar/excluir sem refetch.
+  const activeCount = parties.filter((p) => !p.isArchived).length;
 
+  return (
+    <SettingsPageShell
+      family="Estrutura"
+      title={m.settings.nav.responsibles}
+      count={String(activeCount)}
+      purpose={m.settings.purposes.responsibles}
+      // Ordem da regra 4 (§2.2): a contained é a primária ("Novo grupo"); a
+      // outlined ("Nova pessoa externa") vira secundária e o shell já a coloca
+      // à esquerda — mesma disposição visual de antes.
+      primaryAction={{
+        label: rp.createGroup,
+        icon: <AddIcon />,
+        onClick: () => openCreate("group"),
+      }}
+      secondaryActions={[
+        {
+          label: rp.createExternal,
+          icon: <AddIcon />,
+          onClick: () => openCreate("external"),
+        },
+      ]}
+      // Só alimenta o gate de toolbar do shell (>12). Sem toolbar aqui: a lista
+      // de responsáveis é curta por natureza (§2.2 regra 5).
+      itemCount={managed.length}
+    >
       {managed.length === 0 ? (
         <EmptyState title={rp.empty} />
       ) : (
@@ -367,10 +369,10 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
       )}
 
       {/* Create / Edit dialog */}
-      <DialogShell
+      <SettingsDialog
         open={dialogOpen}
         onClose={closeDialog}
-        maxWidth="xs"
+        size="form"
         title={editTarget ? m.common.edit : isGroupForm ? rp.createGroup : rp.createExternal}
         loading={isPending}
         actions={
@@ -437,13 +439,13 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
             </Box>
           )}
         </Stack>
-      </DialogShell>
+      </SettingsDialog>
 
       {/* Delete dialog */}
-      <DialogShell
+      <SettingsDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        maxWidth="xs"
+        size="confirm"
         title={rp.deleteTitle}
         description={
           deleteTarget && deleteTarget.transactionCount > 0
@@ -461,6 +463,6 @@ export function ResponsiblePartiesManager({ accountId, initialParties, members }
           </>
         }
       />
-    </PageSettingsContainer>
+    </SettingsPageShell>
   );
 }

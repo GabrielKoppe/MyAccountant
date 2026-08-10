@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { defineAction } from "@/server/api/define-action";
+import { revalidateMonth, revalidateTableTemplates } from "@/server/api/revalidate";
 import * as svc from "@/server/services/table-template-service";
 import {
   addTemplateItemSchema,
@@ -28,7 +28,7 @@ export const createFromTableAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     const result = await svc.createFromTable(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/models`);
+    revalidateTableTemplates(ctx.accountId);
     return result;
   },
 });
@@ -38,7 +38,7 @@ export const createTemplateManualAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     const result = await svc.createManual(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/models`);
+    revalidateTableTemplates(ctx.accountId);
     return result;
   },
 });
@@ -48,7 +48,7 @@ export const updateTemplateAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     const result = await svc.updateTemplate(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/models`);
+    revalidateTableTemplates(ctx.accountId);
     return result;
   },
 });
@@ -58,7 +58,7 @@ export const deleteTemplateAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     await svc.deleteTemplate(input, ctx);
-    revalidatePath(`/${ctx.accountId}/settings/models`);
+    revalidateTableTemplates(ctx.accountId);
   },
 });
 
@@ -85,8 +85,7 @@ export const applyTemplateAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     const result = await svc.applyTemplate(input, ctx);
-    revalidatePath(`/${ctx.accountId}/months/${input.monthId}`);
-    revalidatePath(`/${ctx.accountId}/dashboards/monthly/${input.monthId}`);
+    revalidateMonth(ctx.accountId, input.monthId);
     return result;
   },
 });

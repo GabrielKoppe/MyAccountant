@@ -1,15 +1,21 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { m } from "@/lib/messages";
 
 import { AppSidebar } from "./AppSidebar";
 
+// Pathname mutável: `vi.hoisted` porque a factory de `vi.mock` é içada acima
+// das declarações do módulo. O objeto (não o valor) é capturado no closure, de
+// modo que cada teste pode reescrever `.value` antes do `render` para
+// exercitar o estado ativo dos itens de navegação.
+const { mockPathname } = vi.hoisted(() => ({ mockPathname: { value: "/acc-1" } }));
+
 // Router/pathname mockados — fora de uma árvore App Router real.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
-  usePathname: () => "/acc-1",
+  usePathname: () => mockPathname.value,
 }));
 vi.mock("@/actions/auth", () => ({
   logoutAction: vi.fn(),
@@ -28,6 +34,12 @@ vi.mock("@/actions/user-settings", () => ({
 vi.mock("@/actions/months", () => ({
   createMonthAction: vi.fn(),
 }));
+
+// Restaura o pathname default (raiz da account) entre testes — os que o
+// sobrescrevem não podem vazar para os demais.
+afterEach(() => {
+  mockPathname.value = "/acc-1";
+});
 
 const baseProps = {
   accountId: "acc-1",
@@ -183,5 +195,46 @@ describe("AppSidebar — Drawer mobile (Spec 65 §10.3 P4, NAV-05)", () => {
     // não): deve existir exatamente 1 (o da coluna permanente). O Drawer
     // recebe `onToggleCollapse=undefined` e não renderiza o toggle.
     expect(screen.getAllByLabelText(m.nav.collapse)).toHaveLength(1);
+  });
+});
+
+describe("AppSidebar — destino e estado ativo de 'Configurações' (Spec 67 §4 SET-02)", () => {
+  /** Link "Configurações" da coluna permanente. */
+  function getSettingsLink() {
+    return within(getPermanentNav()).getByRole("link", { name: m.nav.settings });
+  }
+
+  it("aponta para o hub /{accountId}/settings — regressão: não mais /settings/general", () => {
+    render(<AppSidebar {...baseProps} role="owner" />);
+    expect(getSettingsLink()).toHaveAttribute("href", "/acc-1/settings");
+  });
+
+  it("fica ativo no próprio hub /settings", () => {
+    mockPathname.value = "/acc-1/settings";
+    render(<AppSidebar {...baseProps} role="owner" />);
+    expect(getSettingsLink()).toHaveClass("Mui-selected");
+  });
+
+  it("continua ativo nas páginas filhas (ex.: /settings/general)", () => {
+    mockPathname.value = "/acc-1/settings/general";
+    render(<AppSidebar {...baseProps} role="owner" />);
+    expect(getSettingsLink()).toHaveClass("Mui-selected");
+  });
+
+  it("NÃO fica ativo em /settings/members — quem acende é 'Membros' (Spec 65 §10.3 P1)", () => {
+    mockPathname.value = "/acc-1/settings/members";
+    render(<AppSidebar {...baseProps} role="owner" />);
+    const nav = getPermanentNav();
+
+    expect(getSettingsLink()).not.toHaveClass("Mui-selected");
+    expect(within(nav).getByRole("link", { name: m.settings.nav.members })).toHaveClass(
+      "Mui-selected",
+    );
+  });
+
+  it("NÃO fica ativo em sub-rota de /settings/members", () => {
+    mockPathname.value = "/acc-1/settings/members/invite";
+    render(<AppSidebar {...baseProps} role="owner" />);
+    expect(getSettingsLink()).not.toHaveClass("Mui-selected");
   });
 });

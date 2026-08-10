@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Button from "@mui/material/Button";
@@ -18,10 +17,16 @@ import { DialogShell } from "@/components/ui/DialogShell";
 
 type Props = {
   accountId: string;
+  /**
+   * Spec 67 §2.2 (P4): o botão "Convidar membro" deixou de morar aqui e virou a
+   * ação primária do `SettingsPageShell` — por isso a abertura do diálogo é
+   * controlada de fora. O componente segue sendo só o formulário.
+   */
+  open: boolean;
+  onClose: () => void;
 };
 
-export function InviteForm({ accountId }: Props) {
-  const [open, setOpen] = useState(false);
+export function InviteForm({ accountId, open, onClose }: Props) {
   const { enqueueSnackbar } = useSnackbar();
 
   const form = useForm<InviteMemberInput>({
@@ -45,77 +50,71 @@ export function InviteForm({ accountId }: Props) {
 
     enqueueSnackbar(m.account.invite.success, { variant: "success" });
     form.reset();
-    setOpen(false);
+    onClose();
   }
 
   return (
-    <>
-      <Button variant="contained" onClick={() => setOpen(true)}>
-        {m.account.inviteMember}
-      </Button>
-
-      <DialogShell
-        open={open}
-        onClose={() => setOpen(false)}
-        maxWidth="xs"
-        title={m.account.invite.title}
-        loading={form.formState.isSubmitting}
-        actions={
-          <>
-            <Button onClick={() => setOpen(false)}>{m.common.cancel}</Button>
-            <Button
-              type="submit"
-              form="invite-form"
-              variant="contained"
-              endIcon={
-                form.formState.isSubmitting ? (
-                  <CircularProgress size={16} color="inherit" />
-                ) : undefined
-              }
-            >
-              {m.account.invite.sendButton}
-            </Button>
-          </>
-        }
-      >
-        <form id="invite-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
-          <Stack spacing={layout.stack}>
-            <Controller
-              name="email"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <TextField
-                  {...field}
-                  label={m.account.invite.emailLabel}
-                  type="email"
-                  error={!!fieldState.error}
-                  helperText={fieldState.error?.message}
-                  fullWidth
-                  autoFocus
-                />
-              )}
-            />
-            <Controller
-              name="role"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <TextField
-                  {...field}
-                  select
-                  label={m.account.invite.roleLabel}
-                  error={!!fieldState.error}
-                  helperText={fieldState.error?.message}
-                  fullWidth
-                >
-                  <MenuItem value="owner">{m.account.roles.owner}</MenuItem>
-                  <MenuItem value="editor">{m.account.roles.editor}</MenuItem>
-                  <MenuItem value="viewer">{m.account.roles.viewer}</MenuItem>
-                </TextField>
-              )}
-            />
-          </Stack>
-        </form>
-      </DialogShell>
-    </>
+    <DialogShell
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      title={m.account.invite.title}
+      loading={form.formState.isSubmitting}
+      actions={
+        <>
+          <Button onClick={onClose}>{m.common.cancel}</Button>
+          <Button
+            type="submit"
+            form="invite-form"
+            variant="contained"
+            endIcon={
+              form.formState.isSubmitting ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : undefined
+            }
+          >
+            {m.account.invite.sendButton}
+          </Button>
+        </>
+      }
+    >
+      <form id="invite-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+        <Stack spacing={layout.stack}>
+          <Controller
+            name="email"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                label={m.account.invite.emailLabel}
+                type="email"
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                fullWidth
+                autoFocus
+              />
+            )}
+          />
+          <Controller
+            name="role"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                select
+                label={m.account.invite.roleLabel}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                fullWidth
+              >
+                <MenuItem value="owner">{m.account.roles.owner}</MenuItem>
+                <MenuItem value="editor">{m.account.roles.editor}</MenuItem>
+                <MenuItem value="viewer">{m.account.roles.viewer}</MenuItem>
+              </TextField>
+            )}
+          />
+        </Stack>
+      </form>
+    </DialogShell>
   );
 }

@@ -23,8 +23,9 @@ import {
   reorderChecklistAction,
   updateChecklistItemAction,
 } from "@/actions/checklist";
-import PageSettingsContainer from "@/components/settings/PageSettingsContainer";
-import { DialogShell } from "@/components/ui/DialogShell";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
+import { containers } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 
 type ChecklistItem = { id: string; label: string; position: number };
@@ -122,89 +123,91 @@ export function ChecklistManager({ accountId, initialItems, title }: Props) {
   }
 
   return (
-    <PageSettingsContainer
-      title={title}
-      secondary={
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            setCreateOpen(true);
-            setLabelInput("");
-            setLabelError("");
-          }}
-        >
-          {cm.createButton}
-        </Button>
-      }
+    <SettingsPageShell
+      family="Planejamento"
+      // `title` continua vindo da page (RSC) — o fallback existe só porque a prop é opcional.
+      title={title ?? cm.title}
+      // Chip do §7.5 sem a parte "· N grupos": `ChecklistGroup` não existe (D1),
+      // agrupamento é decisão da Spec 71.
+      count={m.months.automations.templateItems(items.length)}
+      purpose={m.settings.purposes.checklist}
+      itemCount={items.length}
+      primaryAction={{
+        label: cm.createButton,
+        icon: <AddIcon />,
+        onClick: () => {
+          setCreateOpen(true);
+          setLabelInput("");
+          setLabelError("");
+        },
+      }}
     >
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        {cm.subtitle}
-      </Typography>
-
-      {items.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          {cm.empty}
-        </Typography>
-      ) : (
-        <Stack spacing={1}>
-          {items.map((item, index) => (
-            <Paper key={item.id} variant="outlined" sx={{ px: 2, py: 1.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography
-                  variant="body2"
-                  fontWeight="medium"
-                  noWrap
-                  sx={{ flex: 1, minWidth: 0 }}
-                >
-                  {item.label}
-                </Typography>
-                <Box sx={{ display: "flex", gap: 0.25, flexShrink: 0 }}>
-                  <Tooltip title={cm.moveUp}>
-                    <span>
-                      <IconButton
-                        size="small"
-                        disabled={index === 0 || isPending}
-                        onClick={() => move(index, -1)}
-                      >
-                        <ArrowUpwardIcon sx={{ fontSize: 16 }} />
+      {/* O shell não limita a largura do conteúdo; este Box preserva a largura de
+          leitura (containers.md) que a lista tinha antes da migração. */}
+      <Box sx={{ maxWidth: containers.md }}>
+        {items.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {cm.empty}
+          </Typography>
+        ) : (
+          <Stack spacing={1}>
+            {items.map((item, index) => (
+              <Paper key={item.id} variant="outlined" sx={{ px: 2, py: 1.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography
+                    variant="body2"
+                    fontWeight="medium"
+                    noWrap
+                    sx={{ flex: 1, minWidth: 0 }}
+                  >
+                    {item.label}
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 0.25, flexShrink: 0 }}>
+                    <Tooltip title={cm.moveUp}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={index === 0 || isPending}
+                          onClick={() => move(index, -1)}
+                        >
+                          <ArrowUpwardIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title={cm.moveDown}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={index === items.length - 1 || isPending}
+                          onClick={() => move(index, 1)}
+                        >
+                          <ArrowDownwardIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title={m.common.edit}>
+                      <IconButton size="small" onClick={() => openEdit(item)}>
+                        <EditIcon sx={{ fontSize: 16 }} />
                       </IconButton>
-                    </span>
-                  </Tooltip>
-                  <Tooltip title={cm.moveDown}>
-                    <span>
-                      <IconButton
-                        size="small"
-                        disabled={index === items.length - 1 || isPending}
-                        onClick={() => move(index, 1)}
-                      >
-                        <ArrowDownwardIcon sx={{ fontSize: 16 }} />
+                    </Tooltip>
+                    <Tooltip title={m.common.delete}>
+                      <IconButton size="small" color="error" onClick={() => setDeleteTarget(item)}>
+                        <DeleteIcon sx={{ fontSize: 16 }} />
                       </IconButton>
-                    </span>
-                  </Tooltip>
-                  <Tooltip title={m.common.edit}>
-                    <IconButton size="small" onClick={() => openEdit(item)}>
-                      <EditIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title={m.common.delete}>
-                    <IconButton size="small" color="error" onClick={() => setDeleteTarget(item)}>
-                      <DeleteIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
+                    </Tooltip>
+                  </Box>
                 </Box>
-              </Box>
-            </Paper>
-          ))}
-        </Stack>
-      )}
+              </Paper>
+            ))}
+          </Stack>
+        )}
+      </Box>
 
       {/* Create / Edit dialog */}
-      <DialogShell
+      <SettingsDialog
         open={createOpen || !!editTarget}
         onClose={closeDialog}
-        maxWidth="xs"
+        size="form"
         title={editTarget ? m.common.edit : cm.createButton}
         loading={isPending}
         actions={
@@ -238,13 +241,13 @@ export function ChecklistManager({ accountId, initialItems, title }: Props) {
             }
           }}
         />
-      </DialogShell>
+      </SettingsDialog>
 
       {/* Delete dialog */}
-      <DialogShell
+      <SettingsDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        maxWidth="xs"
+        size="confirm"
         title={cm.deleteTitle}
         description={cm.deleteConfirm}
         actions={
@@ -258,6 +261,6 @@ export function ChecklistManager({ accountId, initialItems, title }: Props) {
           </>
         }
       />
-    </PageSettingsContainer>
+    </SettingsPageShell>
   );
 }

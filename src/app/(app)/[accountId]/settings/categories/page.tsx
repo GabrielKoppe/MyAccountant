@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 
 import { requireAccountAccess } from "@/server/auth/session";
 import { prisma } from "@/server/prisma";
-import { m } from "@/lib/messages";
 import { CategoriesManager } from "./CategoriesManager";
 
 type Props = { params: Promise<{ accountId: string }> };
@@ -33,11 +32,7 @@ export default async function CategoriesPage({ params }: Props) {
     },
   });
 
-  return (
-    <CategoriesManager
-      accountId={accountId}
-      initialCategories={categories}
-      title={m.settings.categories.title}
-    />
-  );
+  // O título deixou de ser prop da página: quem o define agora é o
+  // SettingsPageShell (Spec 67 §2.2 — a moldura é do shell, não da página).
+  return <CategoriesManager accountId={accountId} initialCategories={categories} />;
 }

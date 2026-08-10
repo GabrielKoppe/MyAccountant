@@ -155,7 +155,7 @@ export const messages = {
       responsibles: "Responsáveis",
       checklist: "Checklist mensal",
       aliases: "Apelidos",
-      connectors: "Connectors de IA",
+      connectors: "Conectores de IA",
       audit: "Trilha de auditoria",
       account: "Conta",
       visualization: "Visualização",
@@ -165,15 +165,168 @@ export const messages = {
         monthSummary: "Resumo do Mês",
       },
       // Spec 65 §7.2/§10.3 (P7) — famílias do sidebar de Configurações.
+      // Spec 67 §6 — reclassificado para 5 famílias por intenção:
+      // Estrutura · Apresentação · Entrada de dados · Planejamento · Conta.
       groups: {
         structure: "Estrutura",
-        import: "Importação",
+        presentation: "Apresentação",
+        dataEntry: "Entrada de dados",
         planning: "Planejamento",
-        visualization: "Visualização",
-        integrations: "Integrações",
         account: "Conta",
         dashboardsLabel: "Dashboards",
       },
+    },
+
+    // Spec 67 §2.2 — moldura única de todas as páginas de configuração.
+    shell: {
+      breadcrumbRoot: "Configurações",
+      breadcrumbLabel: "Trilha de navegação",
+      ownerOnly: "owner",
+      searchPlaceholder: "Buscar…",
+      searchLabel: "Buscar nesta lista",
+      // Busca sem resultado ≠ lista vazia. O texto da lista vazia é do objeto da
+      // página ("Nenhum apelido cadastrado"); aqui o que falhou foi o filtro, e
+      // dizer a mesma coisa nos dois casos faria parecer que os itens sumiram.
+      searchNoResults: "Nenhum resultado",
+      searchNoResultsHint: "Nenhum item desta lista corresponde ao que você buscou.",
+      noChanges: "Nenhuma alteração",
+      unsavedChanges: (n: number) =>
+        n === 1 ? "1 alteração não salva" : `${n} alterações não salvas`,
+      // Texto ESTÁVEL da live region da barra de salvar. O contador muda a cada
+      // tecla; se ele estivesse dentro do `aria-live`, o leitor de tela enfileiraria
+      // "1 alteração…", "2 alterações…", "3…" a cada digitação. A contagem fica
+      // visível (e `aria-hidden`) e o que se anuncia é só a virada de estado.
+      unsavedChangesLive: "Há alterações não salvas",
+      save: "Salvar",
+      discard: "Descartar",
+      addRow: "Adicionar…",
+      cancelRow: "Cancelar",
+      rowMenu: {
+        trigger: "Ações desta linha",
+        edit: "Editar",
+        duplicate: "Duplicar",
+        activate: "Ativar",
+        deactivate: "Desativar",
+        viewUsage: "Ver uso",
+        merge: "Mesclar",
+        delete: "Excluir",
+      },
+      status: {
+        toggleLabel: "Ativo",
+        deactivated: "desativado",
+        neverUsed: (gender: "f" | "m") => (gender === "f" ? "nunca usada" : "nunca usado"),
+      },
+      pagination: {
+        rowsPerPage: "Por página",
+        // MUI passa { from, to, count }; count = -1 enquanto o total é desconhecido.
+        displayedRows: ({ from, to, count }: { from: number; to: number; count: number }) =>
+          `${from}–${to} de ${count !== -1 ? count : `mais de ${to}`}`,
+        // Rótulo acessível dos botões de navegação — o default do MUI é em inglês
+        // ("Go to next page") e vazaria para leitores de tela.
+        itemAriaLabel: (type: "first" | "last" | "next" | "previous") =>
+          type === "first"
+            ? "Primeira página"
+            : type === "last"
+              ? "Última página"
+              : type === "next"
+                ? "Próxima página"
+                : "Página anterior",
+      },
+    },
+
+    // Spec 67 §2.1 — hub em /settings.
+    hub: {
+      title: "Configurações",
+      subtitle: "Estrutura, entrada e apresentação dos dados desta conta.",
+      ownerOnlyBadge: "somente owner",
+      attention: (n: number) => (n === 1 ? "1 item pede atenção" : `${n} itens pedem atenção`),
+      review: "Revisar",
+      // Rótulo acessível do ícone de alerta na linha do card — a cor de aviso
+      // sozinha não informa nada a quem não a distingue.
+      rowNeedsAttention: "Este item pede atenção",
+      signals: {
+        aliasIncomplete: (n: number) =>
+          n === 1
+            ? "1 apelido não preenche nenhum campo"
+            : `${n} apelidos não preenchem nenhum campo`,
+        templateBroken: (n: number) =>
+          n === 1
+            ? "1 template de importação com referência quebrada"
+            : `${n} templates de importação com referência quebrada`,
+        checklistNotStarted: (monthLabel: string) => `Checklist de ${monthLabel} não iniciado`,
+      },
+      // Rótulos das contagens baratas do chip (hub + nav). Cada função devolve a
+      // string COMPLETA do chip para que a lógica de plural viva num lugar só —
+      // `getSettingsCounts` só passa os números.
+      counts: {
+        sections: (total: number, inactive: number) =>
+          inactive > 0
+            ? `${total} · ${inactive} ${inactive === 1 ? "inativa" : "inativas"}`
+            : String(total),
+        categories: (categories: number, subcategories: number) =>
+          subcategories > 0 ? `${categories} · ${subcategories} sub` : String(categories),
+        connectors: (n: number) => (n === 1 ? "1 conectado" : n > 0 ? `${n} conectados` : "0"),
+        members: (members: number, invites: number) =>
+          invites > 0
+            ? `${members} · ${invites} ${invites === 1 ? "convite" : "convites"}`
+            : String(members),
+        // Dashboards não tem "itens" para contar: `DashboardLayout` é 1 linha por
+        // contexto e só existe quando o layout foi personalizado. A contagem
+        // honesta e barata é quantos dos contextos saíram do padrão.
+        dashboards: (customized: number, total: number) =>
+          `${customized} de ${total} ${customized === 1 ? "personalizado" : "personalizados"}`,
+      },
+      rows: {
+        sections: "Abas de cada mês",
+        categories: "Classificação das transações",
+        institutions: "Bancos e cartões",
+        responsibles: "Quem paga ou recebe",
+        tableTypes: "Colunas, densidade e layout da linha",
+        models: "Tabelas criadas a cada novo mês",
+        dashboards: "Mensal · anual · resumo",
+        templates: "Mapeamento de CSV/XLSX",
+        aliases: "Descrição bruta → nome limpo",
+        connectors: "Classificação automática",
+        forecast: "Parâmetros da projeção",
+        checklist: "Ritual de fechamento",
+        general: "Nome, moeda, fuso",
+        members: "Convites e papéis",
+        audit: "Últimos 90 dias",
+      },
+    },
+
+    // Spec 67 §2.2 regra 3 e §7.5 — a frase de propósito de cada página,
+    // extraída do frame v2. É o que desfaz a ambiguidade entre "Tipos de
+    // tabela", "Modelos de tabela" e "Templates de importação" sem renomear
+    // nada. Centralizadas aqui porque são o texto da MOLDURA, não do conteúdo.
+    purposes: {
+      sections:
+        "As abas de cada mês. A ordem aqui é a ordem das abas. Seção inativa não aparece em meses novos nem aceita modelos.",
+      categories:
+        "Classificam cada transação. Usadas por apelidos, templates de importação e widgets de dashboard.",
+      institutions:
+        "Bancos, cartões, corretoras e empresas. Campo opcional da transação e agrupador da importação.",
+      responsibles:
+        "Quem paga ou recebe. Um responsável pode agrupar vários membros da conta, ou nenhum — é só um rótulo da transação.",
+      tableTypes: "Definem colunas visíveis, densidade e formato da linha para cada tabela do mês.",
+      models:
+        "Tabelas financeiras pré-montadas, com suas transações. Usadas ao criar um mês novo e ao adicionar uma tabela dentro de um mês.",
+      dashboards:
+        "Monte cada página arrastando widgets no grid. O que você vê aqui é exatamente o que o usuário vê na página.",
+      templates:
+        "Cada etapa do parsing tem sua aba. O preview à direita reprocessa o arquivo de amostra a cada mudança.",
+      aliases:
+        "Regra de reconhecimento por descrição do extrato. Pode preencher qualquer campo da transação — os que você deixar em branco continuam em branco, sem alerta.",
+      connectors:
+        "Expõem os dados desta conta para a IA que você já usa, via MCP. A plataforma não guarda chave de IA nem chama modelo nenhum.",
+      forecast:
+        "Parâmetros que alimentam o gráfico da página de projeção. Cada campo explica o que muda — e o gráfico reage na hora.",
+      checklist:
+        "A definição do ritual de fechamento. Não há progresso aqui — quem marca é o widget de Checklist, dentro de cada mês.",
+      general: "Identidade, padrões e manutenção desta conta. Afetam todos os membros.",
+      members:
+        "Quem acessa esta conta e com qual papel. Owner vê tudo; editor não acessa a família Conta; viewer só lê.",
+      audit: "Toda alteração de estrutura, papel e exclusão em massa. Somente leitura.",
     },
     audit: {
       emptyTitle: "Nenhum evento registrado",

@@ -1,5 +1,3 @@
-import type { SectionCountType } from "@prisma/client";
-
 import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/errors";
 import type { ActionContext } from "@/server/api/define-action";
 import { applyDayToMonth, utcMonthRange } from "@/lib/dates";
@@ -15,6 +13,7 @@ import {
   convertPendingInstallmentsForMonth,
   type InstallmentConvertResult,
 } from "./installment-service";
+import { touchLastUsed } from "./settings-usage-touch";
 
 const log = logger.child({ module: "month-service" });
 
@@ -244,6 +243,22 @@ async function applyAutoTemplates(
 
   const results: AutoApplyResult[] = [];
 
+  // ─── lastUsedAt (spec 67 §2.4/§7.4, SET-07) ─────────────────────────────────
+  // Criar o mês a partir dos modelos é uma das escritas que "consomem" objetos de
+  // configuração. Acumulamos aqui e disparamos UM toque só depois do laço — cada
+  // modelo tem sua própria `$transaction`, e o toque tem que vir sempre DEPOIS do
+  // commit. Só modelos aplicados com sucesso entram: um modelo que falhou não
+  // lançou nada, logo não usou nada.
+  const used = {
+    tableTemplate: [] as Array<string | null>,
+    section: [] as Array<string | null>,
+    tableType: [] as Array<string | null>,
+    category: [] as Array<string | null>,
+    subcategory: [] as Array<string | null>,
+    institution: [] as Array<string | null>,
+    responsibleParty: [] as Array<string | null>,
+  };
+
   for (const template of templates) {
     try {
       if (!template.autoSectionId || !template.autoTableTypeId) {
@@ -308,6 +323,18 @@ async function applyAutoTemplates(
         }
       });
 
+      // Commit feito: registra o consumo deste modelo (ids ficam para o toque
+      // único no fim). `touchLastUsed` dedupe e descarta nulos.
+      used.tableTemplate.push(template.id);
+      used.section.push(template.autoSectionId);
+      used.tableType.push(template.autoTableTypeId);
+      for (const item of template.items) {
+        used.category.push(item.categoryId);
+        used.subcategory.push(item.subcategoryId);
+        used.institution.push(item.institutionId);
+        used.responsibleParty.push(item.responsiblePartyId);
+      }
+
       log.info(
         { templateId: template.id, monthId, items: template.items.length },
         "Auto-applied template",
@@ -322,6 +349,10 @@ async function applyAutoTemplates(
       results.push({ templateName: template.name, success: false, error: message });
     }
   }
+
+  // Fora de qualquer transação e sem `await`: rótulo de recência não pode atrasar
+  // a criação do mês nem desfazê-la se o UPDATE falhar (o helper já engole o erro).
+  if (used.tableTemplate.length > 0) void touchLastUsed(ctx.accountId, used);
 
   return results;
 }
@@ -382,19 +413,4 @@ export async function getSectionTotals(
   });
 
   return Object.fromEntries(rows.map((r) => [r.sectionId, r._sum.amountCents ?? 0n]));
-}
-
-export function calculateMonthTotal(
-  sections: { id: string; countType: SectionCountType }[],
-  sectionTotals: Record<string, bigint>,
-): bigint {
-  let total = 0n;
-  for (const section of sections) {
-    const sectionTotal = sectionTotals[section.id] ?? 0n;
-    if (section.countType === "add") total += sectionTotal;
-    else if (section.countType === "subtract") total -= sectionTotal;
-    else if (section.countType === "neutral") total += sectionTotal;
-    // "ignore" → não soma
-  }
-  return total;
 }

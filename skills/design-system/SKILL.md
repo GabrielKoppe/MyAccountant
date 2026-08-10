@@ -160,7 +160,7 @@ import { layout } from "@/lib/design-tokens";
 
 | Token | Valor | Quando usar |
 |---|---|---|
-| `layout.page` | 8 (32px) | Padding interno de pagina (em `<main>` ou Container) |
+| `layout.page` | 4 (16px) | Padding interno de pagina (em `<main>` ou Container) |
 | `layout.section` | 12 (48px) | Gap vertical entre secoes principais de uma pagina |
 | `layout.cluster` | 6 (24px) | Gap entre cards/itens relacionados em um grupo |
 | `layout.card` | 6 (24px) | Padding interno de Cards |
@@ -1720,6 +1720,11 @@ Cuidados especificos:
 - **`style={}` inline com cores/tamanhos**: sempre `sx` com tokens.
 - **Misturar fontes**: nunca mais de 2 (Inter + JetBrains Mono).
 - **Border radius inconsistente**: nunca `borderRadius: 7` ou `9`. Sempre dos tokens.
+- **`borderRadius: radius.lg` no `sx`**: no `sx` do MUI, `borderRadius` numerico e **multiplicado** por `theme.shape.borderRadius` (= 8 neste tema), entao `radius.lg` (12) vira 96px, nao 12px. Com token, passe string em px.
+  ```tsx
+  <Box sx={{ borderRadius: radius.lg }} />       // ❌ 12 × 8 = 96px
+  <Box sx={{ borderRadius: `${radius.lg}px` }} />  // ✅ 12px
+  ```
 
 ### Componentes
 - **`<Dialog>` cru**: use `<DialogShell>`.
@@ -1729,7 +1734,12 @@ Cuidados especificos:
 - **`<Fab>`**: nao se encaixa no estilo, nao usar.
 - **`<TextField variant="filled">`**: tema configura `outlined`.
 - **`<Typography fontWeight="bold">`** em headings: ja vem do tema.
-- **`success.50`, `error.50`**: nao existem no tema. Use `success.light`, `error.light` ou `success.subtle`.
+- **`success.50`, `error.50`**: nao existem no tema. Use `success.light`, `warning.light`, `error.light` (o tema mapeia `.light` para o hex "subtle") ou `danger.subtle`.
+- **`success.subtle`, `warning.subtle`, `error.subtle`**: nao existem na `palette` do MUI — so `danger.subtle` e `neutral.subtle` (palettes customizadas com `main`+`subtle`). Token inexistente resolve para `undefined` e o MUI **descarta a regra em silencio**, sem erro: o estilo simplesmente nao aparece.
+  ```tsx
+  <Box sx={{ bgcolor: "success.subtle" }} />  // ❌ undefined — regra descartada, sem erro
+  <Box sx={{ bgcolor: "success.light" }} />   // ✅
+  ```
 
 ### Acessibilidade
 - **`<IconButton>` sem `aria-label`**.
