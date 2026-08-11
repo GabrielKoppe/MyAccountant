@@ -1,9 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Box from "@mui/material/Box";
-import { useSnackbar } from "notistack";
-
 import {
   DndContext,
   DragOverlay,
@@ -20,9 +16,10 @@ import {
   type DragMoveEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import Box from "@mui/material/Box";
+import { useSnackbar } from "notistack";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { m } from "@/lib/messages";
-import type { DashboardContext, WidgetDef } from "@/components/dashboards/_core/widget-registry";
 import {
   applyMoveWithPush,
   applyResizeWithPush,
@@ -30,8 +27,11 @@ import {
   insertWithPush,
   snapToNearestVariant,
 } from "@/components/dashboards/_core/grid-layout";
+import type { DashboardContext, WidgetDef } from "@/components/dashboards/_core/widget-registry";
+import { m } from "@/lib/messages";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import type { WidgetConfigOptions } from "@/server/queries/widget-config-options";
+
 import { WidgetCardBody } from "./WidgetCardBody";
 import { PALETTE_DRAG_PREFIX, WidgetPalette } from "./WidgetPalette";
 import { WidgetSettingsPanel } from "./WidgetSettingsPanel";

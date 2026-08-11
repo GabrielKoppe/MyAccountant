@@ -539,6 +539,299 @@ export const messages = {
       startBalanceHint: "Deixe vazio para usar o acumulado dos meses já lançados.",
       saved: "Configurações de projeção salvas.",
     },
+    // Spec 68 — Família 1 · Estrutura. Strings das quatro listas (Seções, Categorias,
+    // Instituições, Responsáveis) e do que elas compartilham. As chaves de CRUD legadas
+    // continuam nos blocos `sections`/`categories`/… abaixo.
+    structure: {
+      dragHandleLabel: "Reordenar",
+      ghostHint: "Enter cria e abre a próxima linha · Esc cancela",
+      reordered: "Ordem salva.",
+
+      // ── Seções ──────────────────────────────────────────────────────────
+      sections: {
+        columnName: "Nome",
+        columnKind: "Tipo",
+        columnModels: "Modelos",
+        columnStatus: "Status",
+        addRow: "Adicionar seção…",
+        // Spec 68 D1 — os quatro rótulos SÃO os quatro valores de `countType`. Os
+        // nomes antigos ("Somar"/"Subtrair") descreviam a operação aritmética; estes
+        // descrevem o que acontece com o dinheiro, que é o que o usuário pensa.
+        kindLabels: {
+          subtract: "Saída",
+          add: "Entrada",
+          neutral: "Neutra",
+          ignore: "Ignorada",
+        },
+        kindHints: {
+          subtract: "sai da conta",
+          add: "entra na conta",
+          neutral: "entra no total como informativo",
+          ignore: "não entra no total do mês",
+        },
+        legendLabel: "Tipos",
+        colorLabel: "Cor da seção",
+        colorNone: "Sem cor definida",
+        modelsEmpty: "—",
+        modelsHint:
+          "Modelos = quantos Modelos de tabela criam tabelas nesta seção. Contagem barata; a de transações fica no menu da linha.",
+        colorHint:
+          "A cor é a identidade da seção — a mesma usada em Categorias e nos dashboards. O tipo fica no badge, nunca na cor.",
+        // Estado vazio da lista (P2/Spec 68) — sem seção nenhuma cadastrada ainda.
+        emptyTitle: "Nenhuma seção ainda",
+        emptyDescription: "As seções são as abas de cada mês. Crie a primeira pela linha abaixo.",
+        deactivateTitle: (name: string) => `Desativar "${name}"?`,
+        deactivateBody:
+          "A seção deixa de aparecer em meses novos e não aceita modelos. Os meses já criados continuam intactos e você pode reativar quando quiser.",
+      },
+
+      // ── Categorias ──────────────────────────────────────────────────────
+      // "Seção padrão" saiu da lista nesta revisão de estilo (decisão do
+      // desenvolvedor: a coluna nunca fez sentido). `Category.defaultSectionId`
+      // continua no schema do banco, deprecado — ver o comentário lá.
+      categories: {
+        columnName: "Nome",
+        columnStatus: "Status",
+        addRow: "Adicionar categoria…",
+        addSubRow: "Adicionar subcategoria…",
+        subCount: (n: number) => `${n} sub`,
+        searchPlaceholder: "Buscar categoria…",
+        sortLabel: "Ordenar",
+        sortManual: "Ordem manual",
+        sortAlphabetical: "Alfabética",
+        // NÃO é "mais usadas": contar uso varreria `Transaction` em lista, o que o
+        // SET-07 da Spec 67 proíbe. `lastUsedAt` responde de graça.
+        sortRecent: "Usadas recentemente",
+        collapseAll: "Recolher tudo",
+        expandAll: "Expandir tudo",
+        expandRow: (name: string) => `Expandir ${name}`,
+        collapseRow: (name: string) => `Recolher ${name}`,
+        importExport: "Importar / Exportar",
+        importMenuItem: "Importar categorias…",
+        exportCsvMenuItem: "Exportar CSV",
+        exportJsonMenuItem: "Exportar JSON",
+        footnote:
+          'O botão "Nova categoria" do cabeçalho rola até a última linha e foca o campo — não abre modal.',
+        deactivateTitle: (name: string) => `Desativar "${name}"?`,
+        deactivateBody:
+          "A categoria deixa de aparecer nos seletores de transação. As transações já classificadas com ela continuam como estão.",
+      },
+
+      // ── Instituições ────────────────────────────────────────────────────
+      institutions: {
+        columnName: "Nome",
+        columnKind: "Tipo",
+        columnDetails: "Detalhes",
+        columnStatus: "Status",
+        addRow: "Adicionar instituição…",
+        kindLabels: {
+          bank: "Banco",
+          card: "Cartão",
+          broker: "Corretora",
+          wallet: "Carteira",
+          company: "Empresa",
+        },
+        // `kind` é nullable: as instituições anteriores à Spec 68 têm só nome, e nada
+        // é inferido a partir dele (§4).
+        kindUnset: "—",
+        kindUnsetOption: "Sem tipo",
+        kindUnsetHint: "defina o tipo para ver os detalhes",
+        emptyTitle: "Nenhuma instituição ainda",
+        emptyDescription:
+          "Bancos, cartões, corretoras e empresas. Cadastre a primeira pela linha abaixo.",
+        /** "corretora não tem detalhes" — o tipo em minúscula, como no frame. */
+        noDetailsFor: (kindLabel: string) => `${kindLabel.toLowerCase()} não tem detalhes`,
+        detailsEmpty: "—",
+        fields: {
+          last4: "Final",
+          closingDay: "Fecha dia",
+          dueDay: "Vence dia",
+          branch: "Agência",
+          accountNo: "Conta",
+          taxId: "CNPJ",
+        },
+        /** "•••• 4471 · fecha 8 / vence 15" */
+        cardDetails: (last4: string | null, closingDay: number | null, dueDay: number | null) => {
+          const parts: string[] = [];
+          if (last4) parts.push(`•••• ${last4}`);
+          if (closingDay !== null && dueDay !== null) parts.push(`fecha ${closingDay} / vence ${dueDay}`);
+          else if (closingDay !== null) parts.push(`fecha ${closingDay}`);
+          else if (dueDay !== null) parts.push(`vence ${dueDay}`);
+          return parts.join(" · ");
+        },
+        /** "ag. 0192 · cc 34567-8" */
+        bankDetails: (branch: string | null, accountNo: string | null) => {
+          const parts: string[] = [];
+          if (branch) parts.push(`ag. ${branch}`);
+          if (accountNo) parts.push(`cc ${accountNo}`);
+          return parts.join(" · ");
+        },
+        companyDetails: (taxId: string) => `CNPJ ${taxId}`,
+        footnote:
+          "Detalhes renderiza só o que existe para o tipo: cartão mostra final + fechamento/vencimento; banco, agência e conta; empresa, CNPJ; carteira e corretora, nada.",
+        deactivateTitle: (name: string) => `Desativar "${name}"?`,
+        deactivateBody:
+          "A instituição deixa de aparecer nos seletores de transação e no agrupamento da importação. As transações já vinculadas continuam como estão.",
+      },
+
+      // ── Responsáveis ────────────────────────────────────────────────────
+      // "Tudo é responsável": UMA tabela para todo mundo — pessoal (automático) e
+      // comum (0..N membros) lado a lado, como o frame v2 desenha. Não há mais uma
+      // listagem separada para os "pessoais".
+      responsibles: {
+        columnName: "Nome",
+        columnMembers: "Membros vinculados",
+        columnStatus: "Status",
+        addRow: "Adicionar responsável…",
+        // Spec 68 D4 — 0..N para qualquer responsável comum. Sem ninguém, o
+        // responsável é só um rótulo da transação, e a célula precisa dizer isso em
+        // vez de ficar vazia.
+        noMembers: "nenhum — só rótulo",
+        linkMember: "Vincular membro",
+        linkMemberFor: (name: string) => `Vincular membro a ${name}`,
+        unlinkMember: (memberName: string) => `Desvincular ${memberName}`,
+        allMembersLinked: "Todos os membros já estão vinculados",
+        // Indicativo discreto na célula de membros da linha `personal` — não vira uma
+        // segunda coluna: só troca o botão "+" por um ícone de cadeado com esta dica.
+        autoLinked: "Vínculo automático — criado para o membro da conta",
+        // Aria-label do avatar clicável (ícone/cor/membros) — distinto do "Editar: nome"
+        // do clique no texto do nome (renomear inline), que usa outro gesto.
+        personalizeFor: (name: string) => `Personalizar ${name}`,
+        footnote:
+          'Sem toolbar de busca (lista curta). A coluna "Padrão em" não existe: modelos de tabela são da conta e não carregam responsável — o responsável vive em cada transação do modelo.',
+        deactivateTitle: (name: string) => `Desativar "${name}"?`,
+        deactivateBody:
+          "O responsável deixa de aparecer nos seletores de transação. As transações já atribuídas a ele continuam como estão.",
+      },
+    },
+
+    // Spec 68 §2.5 / §2.6 — os quatro diálogos compartilhados pelas páginas de
+    // Estrutura: M5 (mesclar), M3 (ver uso), M2 (excluir com realocação) e M4
+    // (importar categorias).
+    structureDialogs: {
+      /** Nome da entidade no título e nos textos. */
+      entityLabels: {
+        category: "categoria",
+        subcategory: "subcategoria",
+        institution: "instituição",
+        responsibleParty: "responsável",
+      },
+      /** Rótulo de cada tipo de referência de configuração (`ReferenceKind`). */
+      referenceKinds: {
+        aliases: "Apelidos",
+        templateDefaults: "De-para em templates",
+        templateItems: "Transações de modelos",
+        widgetFilters: "Filtros de widget",
+        accountDefault: "Padrão da conta",
+      },
+
+      // ── M5 · Mesclar ────────────────────────────────────────────────────
+      merge: {
+        title: "Mesclar",
+        description:
+          "Resolve o caso mais comum de bagunça: dois objetos que significam a mesma coisa.",
+        absorbLabel: "Absorver",
+        absorbHint: "Será excluída",
+        keepLabel: "Manter",
+        keepHint: "Recebe tudo",
+        placeholder: "Escolha…",
+        whatMoves: "O que será movido",
+        transactionsChip: (n: number) => (n === 1 ? "1 transação" : `${n} transações`),
+        countingTransactions: "contando transações…",
+        // D5 — não há undo. O aviso diz isso com todas as letras: é o único momento
+        // em que o usuário pode desistir.
+        irreversible:
+          "A mesclagem é registrada na Trilha de auditoria e NÃO pode ser desfeita. Confira antes de confirmar.",
+        confirm: "Mesclar",
+        // §2.5 — o botão nomeia o total movido, como o do M2. Numa operação sem undo,
+        // o tamanho do que está sendo movido precisa estar no próprio gesto de
+        // confirmar, não só numa lista acima dele.
+        confirmWithTotal: (total: number) =>
+          `Mesclar ${total} ${total === 1 ? "item" : "itens"}`,
+        sameObject: "Escolha dois objetos diferentes.",
+        success: (absorbed: string, kept: string) => `"${absorbed}" foi mesclada em "${kept}".`,
+      },
+
+      // ── M3 · Ver uso ────────────────────────────────────────────────────
+      usage: {
+        title: (name: string) => `Uso de "${name}"`,
+        transactions: "Transações",
+        months: "Meses",
+        lastUse: "Último uso",
+        never: "nunca",
+        byMonth: "Por mês",
+        noUsage: "Nenhuma transação usa este objeto.",
+        countedAt: (when: string) => `Contado em ${when} · cache de 24 h`,
+        recount: "Recontar",
+        viewTransactions: "Ver as transações",
+        close: "Fechar",
+      },
+
+      // ── M2 · Excluir com realocação ─────────────────────────────────────
+      remove: {
+        title: (entityLabel: string, name: string) => `Excluir a ${entityLabel} "${name}"?`,
+        description:
+          "Referências de configuração são verificadas na hora. O uso em transações precisa ser contado — é o que trava a exclusão.",
+        configRefs: "Referências de configuração",
+        verified: "verificadas",
+        noRefs: "Nenhuma configuração aponta para este objeto.",
+        realTransactions: "Transações reais",
+        transactionCount: (transactions: number, months: number) =>
+          `${transactions} ${transactions === 1 ? "transação" : "transações"} em ${months} ${
+            months === 1 ? "mês" : "meses"
+          }`,
+        countedNow: "contado agora",
+        noTransactions: "Nenhuma transação usa este objeto.",
+        reallocateTo: "Realocar para",
+        // "Sem categoria" é escolha explícita, nunca default silencioso (§2.6).
+        noneOption: (entityLabel: string) => `Sem ${entityLabel}`,
+        requiredHint:
+          'Obrigatório enquanto houver referências. Escolher "sem destino" também é uma opção explícita.',
+        // O botão nomeia o total: quem clica sabe o tamanho do que está movendo.
+        confirmWithTotal: (total: number) =>
+          `Realocar ${total} ${total === 1 ? "item" : "itens"} e excluir`,
+        confirmSimple: "Excluir",
+        success: "Excluído.",
+      },
+
+      // ── M4 · Importar categorias ────────────────────────────────────────
+      import: {
+        title: "Importar categorias",
+        description: "Nada é gravado antes de você conferir esta lista.",
+        chooseFile: "Escolher arquivo",
+        changeFile: "Trocar arquivo",
+        // "Seção padrão" saiu da UI (revisão de estilo) — `seção` e `cor` continuam
+        // aceitas no arquivo (planilha antiga não pode quebrar), só que sem destino:
+        // a classificação as reporta como ignoradas, nunca as grava.
+        fileHint:
+          "CSV, XLSX ou JSON com as colunas: nome, pai (seção e cor são aceitas, mas ignoradas)",
+        fileSummary: (rows: number) => `${rows} ${rows === 1 ? "linha" : "linhas"}`,
+        create: "Criar",
+        update: "Atualizar",
+        skip: "Ignorar",
+        error: "Erro",
+        columnAction: "Ação",
+        columnName: "Nome",
+        columnParent: "Pai",
+        columnNote: "Observação",
+        actionLabels: {
+          create: "criar",
+          update: "atualizar",
+          skip: "ignorar",
+          error: "erro",
+        },
+        deactivateMissing: "Desativar categorias que não estão no arquivo",
+        deactivateMissingHint: "Elas continuam existindo, com as transações intactas.",
+        apply: (changes: number) =>
+          `Aplicar ${changes} ${changes === 1 ? "mudança" : "mudanças"}`,
+        nothingToApply: "Nada a aplicar",
+        emptyFile: "O arquivo não tem linhas legíveis.",
+        parseError: "Não foi possível ler o arquivo.",
+        success: (created: number, updated: number) =>
+          `${created} criadas · ${updated} atualizadas.`,
+      },
+    },
+
     sections: {
       title: "Seções",
       createButton: "Nova seção",
@@ -649,39 +942,40 @@ export const messages = {
       moveUp: "Mover para cima",
       moveDown: "Mover para baixo",
     },
+    // "Tudo é responsável" (revisão da Spec 68 D4): a UI não distingue mais "grupo" de
+    // "pessoa externa" — os dois eram só "responsável com 0..N membros". Criar pela
+    // lista nasce sempre `group`, com 0 (nomear alguém externo), 1 (uma persona) ou N
+    // membros (um grupo de verdade). `createGroup`/`createExternal`/`addButton` e os
+    // textos de modal antigos (`deleteTitle`, `deleteConfirm`, `deleteWarnCount`,
+    // `archive`/`unarchive`/`archivedBadge`) saíram: eram do fluxo por modal que o
+    // `SettingsGhostRow` + M2/M8 (`structureDialogs`) substituíram, e já estavam
+    // mortos (zero referência) antes desta revisão.
     responsibleParties: {
       title: "Responsáveis",
-      subtitle:
-        "Grupos (ex.: Casal) e pessoas sem login (ex.: um filho). Os membros da conta já têm um responsável próprio.",
-      createGroup: "Novo grupo",
-      createExternal: "Nova pessoa externa",
-      addButton: "Novo responsável",
       nameLabel: "Nome",
       iconLabel: "Ícone",
       iconHint: "Opcional — escolha um ícone para representar visualmente.",
       colorLabel: "Cor",
       colorHint: "Opcional — dá um destaque de cor à persona.",
       noneOption: "Nenhum",
-      membersLabel: "Membros do grupo",
-      membersHint: "Selecione ao menos 2 membros.",
+      membersLabel: "Membros vinculados",
+      // A frase anterior ("Selecione ao menos 2 membros.") descrevia uma regra que não
+      // existe mais e mentiria para o usuário: sem ninguém vinculado, o responsável é
+      // só um rótulo da transação — é esse o caminho que hoje nomeia alguém externo.
+      membersHint: "Vincule quantos membros quiser. Sem nenhum, o responsável é só um rótulo.",
+      // Linha de propósito do diálogo, como os outros modais da família Estrutura.
+      styleDialogDescription: "Identidade visual e quem este responsável representa.",
       kindPersonal: "Pessoal",
+      // `kindGroup`/`kindExternal` só sobrevivem para o agrupamento do seletor de
+      // responsável da transação (`ResponsiblePartySelect`, que preserva `kind` no
+      // banco). A criação em Configurações não escolhe mais entre eles.
       kindGroup: "Grupo",
       kindExternal: "Externo",
       created: "Responsável criado.",
       updated: "Responsável atualizado.",
-      deleted: "Responsável excluído.",
       archived: "Responsável arquivado.",
       unarchived: "Responsável reativado.",
-      archive: "Arquivar",
-      unarchive: "Reativar",
-      archivedBadge: "Arquivado",
-      deleteTitle: "Excluir responsável",
-      deleteConfirm:
-        "Tem certeza? As transações associadas mantêm o histórico (ficam sem responsável).",
-      deleteWarnCount: (n: number) =>
-        `Atenção: ${n} transação(ões) usam este responsável e ficarão sem responsável. Considere arquivar para preservar o rótulo no histórico.`,
-      empty: "Nenhum grupo ou pessoa externa cadastrado.",
-      personalHint: "(membro da conta)",
+      personalHint: "(automático — membro da conta)",
     },
     tableTypes: {
       title: "Tipos de tabela",

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { ACCENT_COLOR_KEYS } from "@/lib/accent-colors";
+
 // Aceita cuid (dados novos — `@default(cuid())`) OU uuid (dados LEGADOS do MVP: muitas
 // entidades do usuário — categorias, instituições, tipos de tabela, etc. criadas antes da
 // migração para cuid — têm id no formato uuid). O `z.string().cuid()` estrito rejeitava os
@@ -37,3 +39,16 @@ export const optionalDimensionIdNullable = z.preprocess(
   (v) => (v === "" ? null : v),
   cuidSchema.optional().nullable(),
 );
+
+/**
+ * Cor de entidade = **chave** da paleta accent (`src/lib/accent-colors.ts`), nunca hex.
+ *
+ * É o que impede cor fora do tema de chegar ao banco: o valor guardado é um nome
+ * ("indigo", "sage"), e quem resolve o hex é `getAccentPreset(key, mode)` — no light
+ * e no dark. Um hex gravado seria a mesma cor nos dois temas, que é precisamente o
+ * bug que o design system proíbe.
+ *
+ * Fonte única (CLAUDE.md §5.4): usada por `ResponsibleParty.color` e, desde a Spec 68,
+ * por `Section.color`.
+ */
+export const accentColorKeySchema = z.enum(ACCENT_COLOR_KEYS as [string, ...string[]]);

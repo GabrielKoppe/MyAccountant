@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Children,
-  Fragment,
-  cloneElement,
-  isValidElement,
-  useId,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import CloseIcon from "@mui/icons-material/Close";
 import {
   Box,
   Dialog,
@@ -21,7 +13,15 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
+import {
+  Children,
+  Fragment,
+  cloneElement,
+  isValidElement,
+  useId,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 import { layout } from "@/lib/design-tokens";
 
@@ -53,6 +53,18 @@ export interface DialogShellProps {
    * competiria com ele. O header colapsa para a altura do botao X.
    */
   titleVisuallyHidden?: boolean;
+  /**
+   * Ícone à esquerda do título. No desenho dos modais, cada diálogo se anuncia por um
+   * ícone com a cor da intenção (perigo em "excluir", atenção em "desativar", accent
+   * no resto) — é o que faz a natureza da ação ser lida antes do texto.
+   */
+  titleIcon?: ReactNode;
+  /**
+   * Variante tipográfica do título. Default `h3` (20px) para não mexer nos diálogos
+   * que já existiam; a família de Configurações passa `h5` (16px), que é a medida do
+   * desenho.
+   */
+  titleVariant?: "h3" | "h4" | "h5";
   /** Esconde scroll do conteudo (raro, para conteudo pequeno) */
   hideContentScroll?: boolean;
   /** Estado de carregamento: bloqueia fechar (ESC, backdrop, X) e desabilita todos os botoes de actions. */
@@ -101,6 +113,8 @@ export function DialogShell({
   hideContentScroll = false,
   loading = false,
   titleVisuallyHidden = false,
+  titleIcon,
+  titleVariant = "h3",
 }: DialogShellProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -138,9 +152,16 @@ export function DialogShell({
           justifyContent="space-between"
           spacing={layout.inline}
         >
+          {titleIcon && !titleVisuallyHidden && (
+            // `aria-hidden` implícito: o ícone repete o que o título já diz; anunciá-lo
+            // faria o leitor de tela ler duas vezes a mesma informação.
+            <Box aria-hidden sx={{ display: "flex", alignItems: "center", flexShrink: 0, mt: "1px" }}>
+              {titleIcon}
+            </Box>
+          )}
           <Typography
             id={titleId}
-            variant="h3"
+            variant={titleVariant}
             component="div"
             sx={
               titleVisuallyHidden

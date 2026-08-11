@@ -320,6 +320,55 @@ const normalized = myNestedSchema.parse(input.nested); // preenche defaults
 
 > **Por quê acontece**: `defineAction` usa `schema: z.ZodType<TInput>` onde o primeiro parâmetro é o tipo OUTPUT. Mas para schemas com objetos aninhados e `.default()`, TypeScript às vezes não consegue propagar corretamente o tipo output dos campos nested, inferindo o tipo input em vez disso. A solução com `z.input<>` + `schema.parse()` no service é pragmática e segura.
 
+## Pitfall: `undefined` × `null` em update parcial
+
+No `data` do Prisma, `undefined` significa **"não mencionei"** (campo ignorado, valor atual sobrevive) e `null` significa **"apague"**. Quando o service **deriva** campos a partir de outro campo do input, essa distinção precisa sobreviver à derivação — senão um payload parcial apaga dado que ninguém pediu para apagar.
+
+**Caso real (Spec 68, `institution-service`)**: `stripInapplicableDetails(kind, …)` zera os campos de detalhe que não pertencem ao tipo da instituição. Com `kind: undefined` — que é exatamente o payload do toggle de status inline, `{ institutionId, name, status }` — a função entendia "sem tipo, logo nenhum campo se aplica" e devolvia `null` para os seis campos. Resultado: ligar/desligar o Switch de uma instituição apagaria em silêncio o final do cartão, a agência e o CNPJ.
+
+```ts
+// ❌ Errado — trata "não mencionei" como "sem valor"
+function detailsFor(input: UpdateInput) {
+  return stripInapplicableDetails(input.kind, given);
+}
+
+// ✅ Certo — `undefined` tem ramo próprio; os campos ausentes seguem undefined
+//    e o Prisma os ignora. Só normaliza quando o tipo foi de fato informado.
+function detailsFor(kind: Kind | null | undefined, input: UpdateInput) {
+  if (kind === undefined) return given;
+  return stripInapplicableDetails(kind, given);
+}
+```
+
+Na **criação** o raciocínio é o oposto: campo ausente ali é mesmo "não tem", então normalize explicitamente (`input.kind ?? null`) antes de derivar.
+
+> **Regra**: antes de derivar um campo a partir de outro, pergunte o que acontece quando esse outro **não veio**. Se a resposta apaga dados, `undefined` precisa de ramo próprio — e de um teste que mande um payload parcial e afirme que os demais campos saem `undefined`, não `null`.
+
+## Pitfall: normalizador que faz spread da entrada devolve mais do que promete
+
+Uma função que "normaliza" um objeto deve **construir** a saída campo a campo. Se ela faz `{ ...values }`, devolve tudo o que o chamador passou — inclusive campos que o tipo do parâmetro não menciona. O TypeScript **não** protege contra isso: a checagem de excesso de propriedades só vale para literais de objeto, não para variáveis.
+
+**Caso real (Spec 68, `stripInapplicableDetails`)**: o parâmetro era `InstitutionDetails` (só os 6 campos de detalhe), mas o componente chamava com o rascunho **inteiro** da linha (`{ name, kind, ...detalhes }`). Como a função spreadava a entrada, o `kind` **antigo** saía no retorno; o chamador montava `{ ...prev, kind: nextKind, ...stripped }` e o `kind` vazado sobrescrevia o novo **depois**. Efeito: trocar o tipo da instituição não fazia nada, e não havia erro em lugar nenhum.
+
+```ts
+// ❌ Errado — devolve tudo o que entrou, inclusive o que não é da alçada da função
+function strip(kind: Kind, values: Details): Details {
+  const out = { ...values };
+  for (const f of ALL) if (!applies(kind, f)) out[f] = null;
+  return out;
+}
+
+// ✅ Certo — a saída é construída; nada atravessa por acidente
+function strip(kind: Kind, values: Details): Details {
+  return {
+    last4: applies(kind, "last4") ? values.last4 : null,
+    // … um campo por linha, explicitamente
+  };
+}
+```
+
+> **Regra**: se o retorno da função vai ser spreadado pelo chamador (`{ ...prev, ...resultado }`), ela **não pode** spreadar a entrada. Um teste que passe um objeto com campos extra e afirme que eles NÃO voltam custa três linhas.
+
 ## Anti-patterns
 
 ❌ Action retornando erro como `throw` (cliente recebe Error genérico, sem código)

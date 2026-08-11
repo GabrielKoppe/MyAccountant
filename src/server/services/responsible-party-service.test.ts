@@ -15,13 +15,12 @@ import {
 } from "./responsible-party-service";
 
 describe("createResponsibleParty", () => {
-  it("cria party group com >= 2 membros e os links, escopo por accountId", async () => {
+  it("cria responsável com N membros e os links, sempre kind 'group', escopo por accountId", async () => {
     prismaMock.accountMember.count.mockResolvedValue(2);
     prismaMock.responsibleParty.create.mockResolvedValue({ id: "party1" } as never);
 
     const r = await createResponsibleParty(
       {
-        kind: "group",
         name: "Casal",
         icon: "home",
         color: "green",
@@ -39,22 +38,27 @@ describe("createResponsibleParty", () => {
     expect(arg.data.members.create).toHaveLength(2);
   });
 
-  it("cria party external sem membros", async () => {
+  // "Tudo é responsável" — nascer sem membro é o caminho de "nomear alguém externo"
+  // (o antigo `kind: "external""); o `kind` gravado continua sendo `group`.
+  it("cria responsável sem membros (era o caminho de 'pessoa externa')", async () => {
     prismaMock.responsibleParty.create.mockResolvedValue({ id: "party2" } as never);
 
-    await createResponsibleParty({ kind: "external", name: "Filho", icon: "child" }, TEST_CTX);
+    await createResponsibleParty(
+      { name: "Filho", icon: "child", memberUserIds: [] },
+      TEST_CTX,
+    );
 
     const arg = prismaMock.responsibleParty.create.mock.calls[0][0] as any;
-    expect(arg.data.kind).toBe("external");
-    expect(arg.data.members).toBeUndefined();
+    expect(arg.data.kind).toBe("group");
+    expect(arg.data.members.create).toHaveLength(0);
   });
 
-  it("rejeita group cujo membro não pertence à Account", async () => {
+  it("rejeita responsável cujo membro não pertence à Account", async () => {
     prismaMock.accountMember.count.mockResolvedValue(1); // só 1 dos 2 é membro
 
     await expect(
       createResponsibleParty(
-        { kind: "group", name: "Casal", memberUserIds: ["user-test-1", "estranho"] },
+        { name: "Casal", memberUserIds: ["user-test-1", "estranho"] },
         TEST_CTX,
       ),
     ).rejects.toBeInstanceOf(AppError);
@@ -80,13 +84,13 @@ describe("deleteResponsibleParty", () => {
     ).rejects.toBeInstanceOf(AppError);
   });
 
-  it("exclui group/external (onDelete SetNull preserva transações)", async () => {
-    prismaMock.responsibleParty.findFirst.mockResolvedValue({ kind: "external" } as never);
-    prismaMock.responsibleParty.delete.mockResolvedValue({ id: "ext-1" } as never);
+  it("exclui responsável comum (onDelete SetNull preserva transações)", async () => {
+    prismaMock.responsibleParty.findFirst.mockResolvedValue({ kind: "group" } as never);
+    prismaMock.responsibleParty.delete.mockResolvedValue({ id: "grp-1" } as never);
 
-    await deleteResponsibleParty({ partyId: "ext-1" }, TEST_CTX);
+    await deleteResponsibleParty({ partyId: "grp-1" }, TEST_CTX);
 
-    expect(prismaMock.responsibleParty.delete).toHaveBeenCalledWith({ where: { id: "ext-1" } });
+    expect(prismaMock.responsibleParty.delete).toHaveBeenCalledWith({ where: { id: "grp-1" } });
   });
 });
 

@@ -79,7 +79,18 @@ export function SettingsToolbar({ search, filters, sort, end }: Props) {
               </InputAdornment>
             ),
           }}
-          sx={{ flex: 1, minWidth: SEARCH_MIN_WIDTH, maxWidth: SEARCH_MAX_WIDTH }}
+          // Densidade da faixa (Spec 68, revisão de estilo): o `size="small"` do tema
+          // é medida de formulário (40px de altura, texto de 14px) e numa faixa de
+          // controles fica desproporcional ao lado dos 28px dos botões — o campo
+          // dominava a linha. 28px e 13px alinham busca, filtro e ordenação na mesma
+          // altura, como no frame (`.tb` + `.srch`).
+          sx={{
+            flex: 1,
+            minWidth: SEARCH_MIN_WIDTH,
+            maxWidth: SEARCH_MAX_WIDTH,
+            "& .MuiOutlinedInput-root": { height: 28, fontSize: "0.8125rem" },
+            "& .MuiOutlinedInput-input": { py: 0 },
+          }}
         />
       )}
 

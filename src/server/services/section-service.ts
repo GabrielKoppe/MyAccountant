@@ -29,6 +29,9 @@ export async function createSection(input: CreateSectionInput, ctx: ActionContex
       name: input.name,
       countType: input.countType,
       isActive: input.isActive,
+      // Spec 68 §2.1 — chave de accent-colors. `undefined` (campo ausente) e `null`
+      // caem no mesmo lugar: sem cor gravada, a apresentação usa o fallback por índice.
+      color: input.color ?? null,
       order: nextOrder,
     },
     select: { id: true, name: true },
@@ -62,6 +65,9 @@ export async function updateSection(input: UpdateSectionInput, ctx: ActionContex
       name: input.name,
       countType: input.countType,
       isActive: input.isActive,
+      // `undefined` = o chamador não mencionou a cor (ex.: toggle de status inline),
+      // e o Prisma ignora o campo. `null` = "tirar a cor", e é gravado.
+      color: input.color,
     },
   });
 

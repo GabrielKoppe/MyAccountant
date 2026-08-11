@@ -1,23 +1,24 @@
 "use client";
 
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
-import { m } from "@/lib/messages";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import type {
   DashboardContext,
   WidgetDef,
   WidgetSizeVariant,
 } from "@/components/dashboards/_core/widget-registry";
+import { m } from "@/lib/messages";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import type { WidgetConfigOptions } from "@/server/queries/widget-config-options";
+
 import { widgetLabel } from "./widget-display";
 import { WidgetConfigForm } from "./WidgetConfigForm";
 

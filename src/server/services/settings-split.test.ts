@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { prismaMock } from "@/../tests/mocks/prisma";
-import { TEST_CTX } from "@/../tests/fixtures/account";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/server/api/errors";
+
+import { TEST_CTX } from "@/../tests/fixtures/account";
+import { prismaMock } from "@/../tests/mocks/prisma";
 
 import { createCategory, deleteCategory, updateCategory } from "./category-service";
 import { createInstitution, deleteInstitution, updateInstitution } from "./institution-service";
@@ -112,8 +113,9 @@ describe("deleteSection", () => {
 // ─── Categories ──────────────────────────────────────────────────
 
 describe("createCategory", () => {
-  it("deve criar categoria com sucesso", async () => {
+  it("deve criar categoria no fim da ordem manual (Spec 68 §2.2)", async () => {
     prismaMock.category.findUnique.mockResolvedValue(null);
+    prismaMock.category.aggregate.mockResolvedValue({ _max: { order: 4 } } as any);
     prismaMock.category.create.mockResolvedValue({ id: "cat-nova" } as any);
 
     const result = await createCategory({ name: "Alimentação" }, TEST_CTX);
@@ -121,7 +123,13 @@ describe("createCategory", () => {
     expect(result.categoryId).toBe("cat-nova");
     expect(prismaMock.category.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ accountId: "acc-test-1", name: "Alimentação" }),
+        data: expect.objectContaining({
+          accountId: "acc-test-1",
+          name: "Alimentação",
+          // A linha-fantasma vive no FIM da lista: a categoria criada por ela precisa
+          // aparecer ali, e não no topo.
+          order: 5, // max(4) + 1
+        }),
       }),
     );
   });

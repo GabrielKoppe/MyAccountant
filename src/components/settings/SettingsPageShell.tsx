@@ -9,7 +9,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import NextLink from "next/link";
 import { useParams } from "next/navigation";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 import { SETTINGS_GUTTER } from "@/components/settings/settings-layout";
 import { SettingsSaveBar } from "@/components/settings/SettingsSaveBar";
@@ -28,7 +28,14 @@ export type SettingsFamily =
 export type SettingsPageAction = {
   label: string;
   icon?: ReactNode;
-  onClick: () => void;
+  /**
+   * Recebe o evento de clique (opcional para quem não precisa dele — uma função
+   * `() => void` continua compatível). Existe para a Spec 68 §2.2: o menu
+   * "Importar / Exportar" de Categorias precisa do `currentTarget` do botão para
+   * ancorar o `<Menu>` do MUI, e a ação secundária não expõe outro jeito de obter
+   * uma ref para o botão que o próprio shell renderiza.
+   */
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
 };
 
@@ -76,6 +83,14 @@ export type SettingsPageShellProps = {
    * (master-detail), em que a lista mestre encosta na borda do painel (D16).
    */
   disableContentPadding?: boolean;
+  /**
+   * Conteúdo de largura total, sem o cap de leitura (Spec 68, revisão de estilo).
+   *
+   * Ligue nas páginas de LISTA: a tabela ocupa o painel inteiro, como no frame. Deixe
+   * desligado nos formulários, onde o cap existe para o campo não esticar de ponta a
+   * ponta num monitor largo.
+   */
+  wideContent?: boolean;
   children: ReactNode;
 };
 
@@ -112,6 +127,7 @@ export function SettingsPageShell({
   onSave,
   onDiscard,
   disableContentPadding = false,
+  wideContent = false,
   children,
 }: SettingsPageShellProps) {
   // accountId vem da rota em vez de virar prop obrigatória nas 15 páginas.
@@ -122,10 +138,13 @@ export function SettingsPageShell({
   const showSaveBar = dirtyCount !== undefined;
 
   return (
-    <Stack sx={{ minHeight: "100%" }}>
+    // `height: 100%` + `overflow: hidden`: a moldura não rola. Quem rola é só a área
+    // de conteúdo, mais abaixo — o cabeçalho e a toolbar ficam onde estão.
+    <Stack sx={{ height: "100%", minHeight: 0, overflow: "hidden" }}>
       <Box
         component="header"
         sx={{
+          flexShrink: 0,
           px: SETTINGS_GUTTER,
           pt: layout.stack,
           pb: layout.inline,
@@ -240,18 +259,28 @@ export function SettingsPageShell({
       {showToolbar && toolbar}
 
       {/*
-        `maxWidth` só quando há padding: o arquétipo C (master-detail, que usa
-        `disableContentPadding`) precisa da largura toda do painel — capar ali
-        deixaria o detalhe truncado num monitor largo. Nos demais, sem o cap os
-        campos de formulário esticariam junto com a janela.
+        A ÚNICA área que rola. O cabeçalho da página fica parado acima dela.
+
+        `maxWidth`: os formulários mantêm o cap (um `TextField` esticado por um monitor
+        de 2560px é ilegível). As LISTAS não — o frame não tem tabela mais estreita que
+        o painel, e o cap deixava uma faixa morta à direita da tabela em tela larga.
+        Por isso `wideContent`, e não um cap global.
       */}
       <Box
         sx={{
           flex: 1,
           minWidth: 0,
+          minHeight: 0,
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
           ...(disableContentPadding
             ? {}
-            : { px: SETTINGS_GUTTER, py: layout.stack, maxWidth: containers.lg }),
+            : {
+                px: SETTINGS_GUTTER,
+                py: wideContent ? 0 : layout.stack,
+                ...(wideContent ? {} : { maxWidth: containers.lg }),
+              }),
         }}
       >
         {children}

@@ -1,22 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useSnackbar } from "notistack";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import { useSnackbar } from "notistack";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { updateDashboardLayoutAction } from "@/actions/dashboard-layout";
-import { m } from "@/lib/messages";
 import {
   GRID_CONFIG,
   WIDGET_REGISTRY,
   resolveLayout,
   type DashboardContext,
 } from "@/components/dashboards/_core/widget-registry";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { m } from "@/lib/messages";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import type { WidgetConfigOptions } from "@/server/queries/widget-config-options";
-import { SettingsDialog } from "@/components/settings/SettingsDialog";
+
 import { DashboardGridCanvas } from "./DashboardGridCanvas";
 
 const DEBOUNCE_MS = 600;

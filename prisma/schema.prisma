@@ -56,6 +56,26 @@ enum SettingsStatus {
   @@map("settings_status")
 }
 
+/// Spec 68 §2.3 (EST-05) — tipo da instituição. Decide QUAIS campos de detalhe
+/// existem para ela: o mapa `DETAIL_FIELDS` em
+/// `src/components/settings/institutions/InstitutionDetailsFields.tsx` é a fonte
+/// única desse vínculo, e a célula nunca renderiza campo morto.
+///
+///   card    -> last4, closingDay, dueDay
+///   bank    -> branch, accountNo
+///   company -> taxId
+///   wallet  -> nenhum
+///   broker  -> nenhum
+enum InstitutionKind {
+  bank
+  card
+  broker
+  wallet
+  company
+
+  @@map("institution_kind")
+}
+
 enum TableSourceMethod {
   empty
   copy
@@ -300,6 +320,17 @@ model AccountSettings {
   @@map("account_settings")
 }
 
+// "Tudo é responsável": a UI e os schemas (`createResponsiblePartySchema`) só
+// produzem mais dois papéis a partir de agora:
+//   - `personal`  — auto-gerido, um por membro da Account (vínculo fixo, não editável).
+//   - `group`     — responsável comum, com 0..N membros livres. Cobre o que antes
+//                   era "grupo" E "pessoa externa" (a distinção não fazia sentido:
+//                   os dois eram "responsável com 0..N membros").
+// `external` PERMANECE no enum só porque removê-lo do Postgres exigiria recriar o
+// tipo e as colunas que o usam — uma operação destrutiva sem ganho, já que nenhuma
+// linha nova nasce com esse valor (a migração que introduziu esta regra converteu
+// as existentes para `group`). Não recrie a UI de "pessoa externa" achando este
+// valor vivo: ele é só um resquício de enum que o Postgres tolera de graça.
 enum ResponsiblePartyKind {
   personal
   group
@@ -406,17 +437,28 @@ model Section {
   id         String           @id @default(cuid())
   accountId  String           @map("account_id")
   name       String
+  // Spec 68 D1 — é ESTE campo que a coluna "Tipo" da página de Seções renderiza
+  // (subtract=Saída, add=Entrada, neutral=Neutra, ignore=Ignorada). Nenhum enum
+  // `SectionKind` paralelo: `countType` já é lido por ~55 arquivos (month-total,
+  // forecast, widgets, MCP, backup, export) e um segundo enum criaria duas fontes
+  // de verdade para a mesma pergunta.
   countType  SectionCountType @map("count_type")
   order      Int              @default(0)
+  // Spec 68 §2.1 (D2) — identidade visual da seção, reusada no ponto de Categorias.
+  // Guarda a CHAVE de `src/lib/accent-colors.ts`, nunca hex: cor fora do tema não
+  // entra no banco. `null` cai no fallback `getChartColors(mode)` por índice, então
+  // nenhuma seção existente fica sem cor e o backfill é desnecessário.
+  color      String?
   isActive   Boolean          @default(true) @map("is_active")
   lastUsedAt DateTime?        @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
   createdAt  DateTime         @default(now()) @map("created_at")
 
-  account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  tables            FinanceTable[]
-  transactions      Transaction[]
-  installmentGroups InstallmentGroup[]
-  goals             Goal[]
+  account             Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tables              FinanceTable[]
+  transactions        Transaction[]
+  installmentGroups   InstallmentGroup[]
+  goals               Goal[]
+  defaultOfCategories Category[]         @relation("CategoryDefaultSection") // Spec 68 §2.2
 
   @@unique([accountId, name])
   @@map("sections")
@@ -517,23 +559,38 @@ model Transaction {
   @@map("transactions")
 }
 
+// NÃO existe (nem existiu) campo `kind`/`type` nesta tabela: o "tipo da categoria"
+// que a Spec 68 original mandava remover da UI nunca chegou ao schema. O que faltava
+// era o vínculo com a seção — `defaultSectionId`, abaixo.
 model Category {
-  id          String         @id @default(cuid())
-  accountId   String         @map("account_id")
-  name        String
-  createdById String         @map("created_by_id")
-  status      SettingsStatus @default(active) // Spec 67 §7.4 (D2)
-  lastUsedAt  DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
-  createdAt   DateTime       @default(now()) @map("created_at")
+  id               String         @id @default(cuid())
+  accountId        String         @map("account_id")
+  name             String
+  createdById      String         @map("created_by_id")
+  // DEPRECADO (Spec 68, revisão de estilo — "Categorias"): a UI abandonou a coluna
+  // "Seção padrão" nesta revisão ("erro de projeto", decisão do desenvolvedor — a
+  // categoria não deriva mais cor nem filtro de uma seção). Sem migração destrutiva:
+  // o campo continua no schema e no banco, só parou de ser lido/gravado pelos
+  // schemas Zod e pelo `category-service`/`category-import-service`. Candidato a
+  // `DROP COLUMN` numa limpeza futura, quando não houver mais leitores.
+  defaultSectionId String?        @map("default_section_id")
+  // Spec 68 §2.2 — ordem manual da árvore (alça de arraste). Backfill alfabético
+  // na migração, para preservar a ordem que o usuário já vê hoje.
+  order            Int            @default(0)
+  status           SettingsStatus @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt       DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt        DateTime       @default(now()) @map("created_at")
 
   account            Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdBy          User               @relation("CategoryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  defaultSection     Section?           @relation("CategoryDefaultSection", fields: [defaultSectionId], references: [id], onDelete: SetNull)
   subcategories      Subcategory[]
   transactions       Transaction[]
   transactionAliases TransactionAlias[]
   goals              Goal[]
 
   @@unique([accountId, name])
+  @@index([accountId, order])
   @@map("categories")
 }
 
@@ -542,6 +599,7 @@ model Subcategory {
   categoryId String         @map("category_id")
   accountId  String         @map("account_id")
   name       String
+  order      Int            @default(0) // Spec 68 §2.2 — ordem dentro do pai; backfill alfabético
   status     SettingsStatus @default(active) // Spec 67 §7.4 (D2)
   lastUsedAt DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
   createdAt  DateTime       @default(now()) @map("created_at")
@@ -552,17 +610,34 @@ model Subcategory {
   transactionAliases TransactionAlias[]
 
   @@unique([categoryId, name])
+  @@index([categoryId, order])
   @@map("subcategories")
 }
 
 model Institution {
-  id          String         @id @default(cuid())
-  accountId   String         @map("account_id")
+  id          String           @id @default(cuid())
+  accountId   String           @map("account_id")
   name        String
-  createdById String         @map("created_by_id")
-  status      SettingsStatus @default(active) // Spec 67 §7.4 (D2)
-  lastUsedAt  DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
-  createdAt   DateTime       @default(now()) @map("created_at")
+  createdById String           @map("created_by_id")
+  // ─── Spec 68 §2.3 — tipo + detalhes adaptativos (EST-05) ───
+  // NULLABLE de propósito: as instituições existentes têm só `name`, e inferir que
+  // "Nubank" é cartão e "Itaú" é banco rotularia dado do usuário por adivinhação.
+  // Sem tipo, a coluna mostra "—" e a célula Detalhes fica vazia até classificarem.
+  kind        InstitutionKind?
+  // Só se aplicam a `card`. `closingDay`/`dueDay` são persistidos e EXIBIDOS; D3
+  // deixa explícito que NÃO alimentam o cálculo de `InstallmentGroup` nesta spec
+  // (não existe hoje nenhum vínculo Institution→InstallmentGroup a preservar).
+  last4       String?
+  closingDay  Int?             @map("closing_day")
+  dueDay      Int?             @map("due_day")
+  // Só se aplicam a `bank`.
+  branch      String?
+  accountNo   String?          @map("account_no")
+  // Só se aplica a `company`.
+  taxId       String?          @map("tax_id")
+  status      SettingsStatus   @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt  DateTime?        @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt   DateTime         @default(now()) @map("created_at")
 
   account                    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdBy                  User               @relation("InstitutionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -1205,6 +1280,11 @@ model UsageCount {
   entityId     String   @map("entity_id")
   transactions Int      @default(0)
   months       Int      @default(0)
+  // Spec 68 §2.6 — série do histograma do modal "Ver uso" (M3):
+  // `[{ month: "2026-07", transactions: 12 }, …]`, ordenada por mês.
+  // Preenchida na MESMA varredura que calcula `transactions`/`months`; contar duas
+  // vezes a mesma coisa é exatamente o que o cache de 24 h existe para evitar.
+  byMonth      Json?    @map("by_month")
   countedAt    DateTime @default(now()) @map("counted_at")
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)

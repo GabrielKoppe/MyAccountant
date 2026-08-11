@@ -18,6 +18,11 @@ import { useId, useState } from "react";
 
 import { m } from "@/lib/messages";
 
+import {
+  SETTINGS_MENU_ITEM_SX,
+  SETTINGS_MENU_SLOT_PROPS,
+} from "./table/settings-menu-props";
+
 export type RowAction = "edit" | "duplicate" | "toggleActive" | "viewUsage" | "merge" | "delete";
 
 /**
@@ -37,8 +42,9 @@ export const ROW_ACTION_ORDER = [
   "delete",
 ] as const satisfies readonly RowAction[];
 
-// Ícone menor que o padrão do ListItemIcon para não competir com o rótulo.
-const ICON_SX = { fontSize: 18 } as const;
+// A MEDIDA do ícone vem de `SETTINGS_MENU_ITEM_SX` (seletor descendente, que é o
+// único que vence o default do MUI). Aqui fica só a cor do item destrutivo.
+const DANGER_ICON_SX = { color: "danger.main" } as const;
 
 /**
  * Rótulo + ícone de cada ação. `toggleActive` é a única que depende do estado: o item
@@ -48,23 +54,23 @@ function actionMeta(action: RowAction, active: boolean): { label: string; icon: 
   const t = m.settings.shell.rowMenu;
   switch (action) {
     case "edit":
-      return { label: t.edit, icon: <EditOutlinedIcon sx={ICON_SX} /> };
+      return { label: t.edit, icon: <EditOutlinedIcon /> };
     case "duplicate":
-      return { label: t.duplicate, icon: <ContentCopyOutlinedIcon sx={ICON_SX} /> };
+      return { label: t.duplicate, icon: <ContentCopyOutlinedIcon /> };
     case "toggleActive":
       return active
-        ? { label: t.deactivate, icon: <ToggleOffIcon sx={ICON_SX} /> }
-        : { label: t.activate, icon: <ToggleOnIcon sx={ICON_SX} /> };
+        ? { label: t.deactivate, icon: <ToggleOffIcon /> }
+        : { label: t.activate, icon: <ToggleOnIcon /> };
     case "viewUsage":
-      return { label: t.viewUsage, icon: <VisibilityOutlinedIcon sx={ICON_SX} /> };
+      return { label: t.viewUsage, icon: <VisibilityOutlinedIcon /> };
     case "merge":
-      return { label: t.merge, icon: <MergeTypeIcon sx={ICON_SX} /> };
+      return { label: t.merge, icon: <MergeTypeIcon /> };
     case "delete":
       // `color="error"` não é aplicável a MenuItem (não é PaletteColor lá); o tom
       // destrutivo vem do token `danger.main` via sx, no rótulo e no ícone.
       return {
         label: t.delete,
-        icon: <DeleteOutlineIcon sx={{ ...ICON_SX, color: "danger.main" }} />,
+        icon: <DeleteOutlineIcon sx={DANGER_ICON_SX} />,
       };
   }
 }
@@ -116,9 +122,14 @@ export function RowActionsMenu({ actions, active = true, name }: Props) {
       <MenuItem
         key={action}
         onClick={() => handleSelect(action)}
-        sx={action === "delete" ? { color: "danger.main" } : undefined}
+        // Densidade compartilhada por TODOS os menus de Configurações — ver
+        // `settings-menu-props.ts` (inclusive a armadilha de especificidade do ícone).
+        sx={{
+          ...SETTINGS_MENU_ITEM_SX,
+          ...(action === "delete" ? { color: "danger.main" } : {}),
+        }}
       >
-        <ListItemIcon sx={{ minWidth: 32 }}>{icon}</ListItemIcon>
+        <ListItemIcon sx={{ minWidth: 26 }}>{icon}</ListItemIcon>
         {label}
       </MenuItem>,
     );
@@ -140,7 +151,10 @@ export function RowActionsMenu({ actions, active = true, name }: Props) {
           setAnchorEl(event.currentTarget);
         }}
       >
-        <MoreHorizIcon fontSize="small" />
+        {/* Pequeno e cinza, como no frame. `fontSize="small"` do MUI dá 20px e a cor
+            default do IconButton é a do texto (branco no dark) — o atalho de ações
+            ficava com mais peso visual que o nome do objeto na mesma linha. */}
+        <MoreHorizIcon sx={{ fontSize: 16, color: "text.tertiary" }} />
       </IconButton>
 
       <Menu
@@ -148,7 +162,10 @@ export function RowActionsMenu({ actions, active = true, name }: Props) {
         anchorEl={anchorEl}
         open={open}
         onClose={() => setAnchorEl(null)}
-        slotProps={{ list: { "aria-labelledby": triggerId } }}
+        slotProps={{
+          ...SETTINGS_MENU_SLOT_PROPS,
+          list: { ...SETTINGS_MENU_SLOT_PROPS.list, "aria-labelledby": triggerId },
+        }}
       >
         {menuItems}
       </Menu>

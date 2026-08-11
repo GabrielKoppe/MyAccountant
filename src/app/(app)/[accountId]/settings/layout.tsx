@@ -35,7 +35,25 @@ export default async function SettingsLayout({ children, params }: Props) {
       }}
     >
       <SettingsNav accountId={accountId} groups={groups} />
-      <Box sx={{ flex: 1, overflow: "auto" }}>{children}</Box>
+      {/*
+        `overflow: hidden` + coluna flex: o scroll passa a ser da ÁREA DE CONTEÚDO do
+        `SettingsPageShell`, não deste wrapper. Enquanto ele rolava, o cabeçalho da
+        página (breadcrumb, título, propósito) e a toolbar subiam junto com as linhas —
+        numa lista de 37 categorias, o usuário perdia de vista onde estava e o campo de
+        busca que acabou de usar.
+      */}
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {children}
+      </Box>
     </Box>
   );
 }

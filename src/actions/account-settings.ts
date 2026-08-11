@@ -12,7 +12,9 @@ import {
   deleteSectionSchema,
   deleteSubcategorySchema,
   deleteTableTypeSchema,
+  reorderCategoriesSchema,
   reorderSectionsSchema,
+  reorderSubcategoriesSchema,
   updateAccountSettingsSchema,
   updateCategorySchema,
   updateInstitutionSchema,
@@ -152,6 +154,26 @@ export const deleteSubcategoryAction = defineAction({
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => {
     await categoryService.deleteSubcategory(input, ctx);
+    revalidateCategories(ctx.accountId);
+  },
+});
+
+// Spec 68 §2.2 — arraste da árvore de categorias.
+
+export const reorderCategoriesAction = defineAction({
+  schema: reorderCategoriesSchema,
+  requireRoles: [...EDITOR_ROLES],
+  handler: async (input, ctx) => {
+    await categoryService.reorderCategories(input, ctx);
+    revalidateCategories(ctx.accountId);
+  },
+});
+
+export const reorderSubcategoriesAction = defineAction({
+  schema: reorderSubcategoriesSchema,
+  requireRoles: [...EDITOR_ROLES],
+  handler: async (input, ctx) => {
+    await categoryService.reorderSubcategories(input, ctx);
     revalidateCategories(ctx.accountId);
   },
 });

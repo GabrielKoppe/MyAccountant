@@ -39,6 +39,7 @@ describe("countUsageAction — transporte", () => {
     serviceMock.countUsage.mockResolvedValue({
       transactions: 12,
       months: 3,
+      byMonth: [{ month: "2026-07", transactions: 12 }],
       countedAt: COUNTED_AT,
       fromCache: false,
     });
@@ -87,6 +88,7 @@ describe("countUsageAction — validação", () => {
     serviceMock.countUsage.mockResolvedValue({
       transactions: 0,
       months: 0,
+      byMonth: [],
       countedAt: COUNTED_AT,
       fromCache: true,
     });

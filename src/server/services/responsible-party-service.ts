@@ -84,25 +84,24 @@ export async function createResponsibleParty(
   input: CreateResponsiblePartyInput,
   ctx: ActionContext,
 ) {
-  if (input.kind === "group") {
-    await assertMembers(ctx.accountId, input.memberUserIds);
-  }
+  await assertMembers(ctx.accountId, input.memberUserIds);
 
+  // "Tudo é responsável": a criação pela UI nasce sempre `group` — 0 membros é um
+  // rótulo para alguém externo, 1 é uma persona, N é um grupo de verdade. `personal`
+  // não passa por aqui (é auto-gerido por `ensurePersonalParty`).
   const party = await prisma.responsibleParty.create({
     data: {
       accountId: ctx.accountId,
       name: input.name,
-      kind: input.kind,
+      kind: "group",
       icon: input.icon ?? null,
       color: input.color ?? null,
-      ...(input.kind === "group"
-        ? { members: { create: input.memberUserIds.map((userId) => ({ userId })) } }
-        : {}),
+      members: { create: input.memberUserIds.map((userId) => ({ userId })) },
     },
     select: { id: true },
   });
 
-  log.info({ accountId: ctx.accountId, partyId: party.id, kind: input.kind }, "Party created");
+  log.info({ accountId: ctx.accountId, partyId: party.id }, "Party created");
   return party;
 }
 
@@ -117,8 +116,14 @@ export async function updateResponsibleParty(
   if (!existing) throw new AppError("NOT_FOUND", "Responsável não encontrado");
 
   if (input.memberUserIds) {
-    if (existing.kind !== "group") {
-      throw new AppError("VALIDATION", "Somente grupos têm membros");
+    // "Tudo é responsável" — o vínculo é 0..N para qualquer responsável comum
+    // (`group`), então o botão "+" da célula de membros nunca precisa checar `kind`.
+    //
+    // `personal` continua protegido: ele é criado automaticamente para cada membro da
+    // conta e o vínculo dele é o próprio usuário — mexer nisso pela mão do usuário
+    // deixaria um membro sem responsável pessoal, ou dois apontando para o mesmo.
+    if (existing.kind === "personal") {
+      throw new AppError("VALIDATION", "O responsável pessoal não aceita vínculo manual");
     }
     await assertMembers(ctx.accountId, input.memberUserIds);
   }

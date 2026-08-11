@@ -1,16 +1,16 @@
 "use client";
 
+import CloseIcon from "@mui/icons-material/Close";
 import Box from "@mui/material/Box";
 import ButtonBase from "@mui/material/ButtonBase";
+import { useTheme } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
-import CloseIcon from "@mui/icons-material/Close";
 
 import { PERSONA_ICON_COMPONENTS } from "@/components/transactions/PartyAvatar";
-import { PERSONA_ICONS, type PersonaIconKey } from "@/lib/persona-icons";
 import { ACCENT_COLORS, getAccentPreset, type AccentColorKey } from "@/lib/accent-colors";
 import { m } from "@/lib/messages";
+import { PERSONA_ICONS, type PersonaIconKey } from "@/lib/persona-icons";
 
 const rp = m.settings.responsibleParties;
 

@@ -1,15 +1,17 @@
-import { ConflictError, NotFoundError } from "@/server/api/errors";
-import type { ActionContext } from "@/server/api/define-action";
-import { logger } from "@/server/logger";
-import { prisma } from "@/server/prisma";
 import type {
   CreateCategoryInput,
   CreateSubcategoryInput,
   DeleteCategoryInput,
   DeleteSubcategoryInput,
+  ReorderCategoriesInput,
+  ReorderSubcategoriesInput,
   UpdateCategoryInput,
   UpdateSubcategoryInput,
 } from "@/lib/schemas/settings";
+import type { ActionContext } from "@/server/api/define-action";
+import { ConflictError, NotFoundError } from "@/server/api/errors";
+import { logger } from "@/server/logger";
+import { prisma } from "@/server/prisma";
 
 const log = logger.child({ module: "category-service" });
 
@@ -19,11 +21,18 @@ export async function createCategory(input: CreateCategoryInput, ctx: ActionCont
   });
   if (existing) throw new ConflictError("Já existe uma categoria com este nome.");
 
+  // A categoria nova entra no FIM da ordem manual — que é onde a linha-fantasma está.
+  const maxOrder = await prisma.category.aggregate({
+    where: { accountId: ctx.accountId },
+    _max: { order: true },
+  });
+
   const category = await prisma.category.create({
     data: {
       accountId: ctx.accountId,
       name: input.name,
       createdById: ctx.userId,
+      order: (maxOrder._max.order ?? -1) + 1,
     },
     select: { id: true },
   });
@@ -44,9 +53,14 @@ export async function updateCategory(input: UpdateCategoryInput, ctx: ActionCont
   });
   if (nameConflict) throw new ConflictError("Já existe uma categoria com este nome.");
 
+  // `defaultSectionId` não é mais lido daqui — a UI abandonou "Seção padrão" nesta
+  // revisão (o campo continua no banco, deprecado, sem migração destrutiva).
   await prisma.category.update({
     where: { id: input.categoryId },
-    data: { name: input.name },
+    data: {
+      name: input.name,
+      status: input.status,
+    },
   });
 
   log.info({ categoryId: input.categoryId, accountId: ctx.accountId }, "Category updated");
@@ -77,11 +91,17 @@ export async function createSubcategory(input: CreateSubcategoryInput, ctx: Acti
   if (existing)
     throw new ConflictError("Já existe uma subcategoria com este nome nesta categoria.");
 
+  const maxOrder = await prisma.subcategory.aggregate({
+    where: { categoryId: input.categoryId },
+    _max: { order: true },
+  });
+
   const sub = await prisma.subcategory.create({
     data: {
       categoryId: input.categoryId,
       accountId: ctx.accountId,
       name: input.name,
+      order: (maxOrder._max.order ?? -1) + 1,
     },
     select: { id: true },
   });
@@ -108,7 +128,7 @@ export async function updateSubcategory(input: UpdateSubcategoryInput, ctx: Acti
 
   await prisma.subcategory.update({
     where: { id: input.subcategoryId },
-    data: { name: input.name },
+    data: { name: input.name, status: input.status },
   });
 
   log.info({ subcategoryId: input.subcategoryId, accountId: ctx.accountId }, "Subcategory updated");
@@ -124,4 +144,50 @@ export async function deleteSubcategory(input: DeleteSubcategoryInput, ctx: Acti
   await prisma.subcategory.delete({ where: { id: input.subcategoryId } });
 
   log.info({ subcategoryId: input.subcategoryId, accountId: ctx.accountId }, "Subcategory deleted");
+}
+
+/**
+ * Spec 68 §2.2 — persiste a ordem manual das categorias de topo.
+ *
+ * Mesmo padrão de `reorderSections`: `updateMany` com `accountId` no where, dentro de
+ * uma transação. Um id de outra conta não casa e vira um no-op silencioso — a operação
+ * não pode reordenar o que não é dela, nem falhar por causa de um id intruso no meio
+ * de um arraste legítimo.
+ */
+export async function reorderCategories(input: ReorderCategoriesInput, ctx: ActionContext) {
+  await prisma.$transaction(
+    input.orderedIds.map((id, index) =>
+      prisma.category.updateMany({
+        where: { id, accountId: ctx.accountId },
+        data: { order: index },
+      }),
+    ),
+  );
+
+  log.info({ accountId: ctx.accountId, count: input.orderedIds.length }, "Categories reordered");
+}
+
+/** Ordem das subcategorias DENTRO de uma categoria. */
+export async function reorderSubcategories(input: ReorderSubcategoriesInput, ctx: ActionContext) {
+  const category = await prisma.category.findUnique({
+    where: { id: input.categoryId },
+    select: { accountId: true },
+  });
+  if (!category || category.accountId !== ctx.accountId) throw new NotFoundError("Categoria");
+
+  await prisma.$transaction(
+    input.orderedIds.map((id, index) =>
+      prisma.subcategory.updateMany({
+        // `categoryId` no where além do `accountId`: impede reordenar uma subcategoria
+        // de OUTRA categoria da mesma conta passando o id dela na lista.
+        where: { id, accountId: ctx.accountId, categoryId: input.categoryId },
+        data: { order: index },
+      }),
+    ),
+  );
+
+  log.info(
+    { accountId: ctx.accountId, categoryId: input.categoryId, count: input.orderedIds.length },
+    "Subcategories reordered",
+  );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
@@ -18,19 +19,18 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import AddIcon from "@mui/icons-material/Add";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import { NumericFormat } from "react-number-format";
 import { useSnackbar } from "notistack";
+import { useState, useTransition } from "react";
+import { NumericFormat } from "react-number-format";
 
 import { addTemplateItemAction, deleteTemplateItemAction } from "@/actions/table-templates";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
-import { formatCentsToBrl } from "@/lib/money";
-import { m } from "@/lib/messages";
-import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
-import type { InvestmentType } from "@/lib/schemas/transaction";
 import { ResponsiblePartySelect } from "@/components/transactions/ResponsiblePartySelect";
 import type { ResponsiblePartyOption } from "@/components/transactions/types";
+import { m } from "@/lib/messages";
+import { formatCentsToBrl } from "@/lib/money";
+import { INVESTMENT_TYPES } from "@/lib/schemas/transaction";
+import type { InvestmentType } from "@/lib/schemas/transaction";
 
 type Item = {
   id: string;

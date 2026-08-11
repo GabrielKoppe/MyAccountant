@@ -10,8 +10,11 @@ import { assertSafeSeedTarget } from "../../prisma/seed-guard";
 const prisma = new PrismaClient();
 const PASSWORD = "E2ePass123";
 
+// Spec 68 §2.1 — `color` é CHAVE de `src/lib/accent-colors.ts`, nunca hex. Só uma seção
+// recebe cor: as outras duas ficam `null` para o e2e cobrir também o fallback da paleta
+// por índice, que é o estado de toda seção anterior à spec.
 const BASE_SECTIONS = [
-  { name: "Entradas", countType: "add" as const, order: 0 },
+  { name: "Entradas", countType: "add" as const, order: 0, color: "green" },
   { name: "Saídas", countType: "subtract" as const, order: 1 },
   { name: "Investimentos", countType: "neutral" as const, order: 2 },
 ];
@@ -23,7 +26,28 @@ const BASE_CATEGORIES = [
   { name: "Alimentação", subs: ["Mercado", "Restaurante"] },
   { name: "Transporte", subs: ["Combustível", "Uber/Táxi"] },
 ];
-const BASE_INSTITUTIONS = ["Banco A", "Banco B"];
+// Spec 68 §2.3 — instituições com TIPO e detalhes, para o e2e exercitar a célula
+// adaptativa de verdade. "Banco A"/"Banco B" ficam sem `kind` de propósito: é o estado
+// de toda instituição anterior à spec, e a lista precisa mostrar "—" para elas sem
+// inventar tipo nenhum.
+const BASE_INSTITUTIONS: Array<{
+  name: string;
+  kind?: "bank" | "card" | "broker" | "wallet" | "company";
+  last4?: string;
+  closingDay?: number;
+  dueDay?: number;
+  branch?: string;
+  accountNo?: string;
+}> = [
+  { name: "Banco A" },
+  { name: "Banco B" },
+  // Cartão: final + fecha/vence. É a linha que o e2e troca para Corretora, provando
+  // que os campos somem e o valor é descartado (critério da §4).
+  { name: "Cartão E2E", kind: "card", last4: "4471", closingDay: 8, dueDay: 15 },
+  { name: "Banco E2E", kind: "bank", branch: "0192", accountNo: "34567-8" },
+  // Corretora: nenhum detalhe se aplica — a célula mostra o texto explicativo.
+  { name: "Corretora E2E", kind: "broker" },
+];
 
 // Títulos das notificações semeadas (Spec 65 P5). Mantidos como literais estáveis para o
 // e2e localizar os itens — se mudar aqui, atualize e2e/notifications-menu.spec.ts.
@@ -61,13 +85,25 @@ async function createUser(email: string, name: string) {
 async function seedConfig(accountId: string, ownerId: string) {
   await prisma.section.createMany({ data: BASE_SECTIONS.map((s) => ({ ...s, accountId })) });
   await prisma.tableType.createMany({ data: BASE_TABLE_TYPES.map((t) => ({ ...t, accountId })) });
-  for (const name of BASE_INSTITUTIONS) {
-    await prisma.institution.create({ data: { accountId, name, createdById: ownerId } });
+  for (const institution of BASE_INSTITUTIONS) {
+    await prisma.institution.create({ data: { ...institution, accountId, createdById: ownerId } });
   }
-  for (const { name, subs } of BASE_CATEGORIES) {
-    const cat = await prisma.category.create({ data: { accountId, name, createdById: ownerId } });
+
+  // `order` explícito: a lista de Categorias tem ordenação manual arrastável, e sem
+  // isto todas nascem em 0 e a ordem exibida vira indeterminada entre execuções.
+  // (A coluna "Seção padrão" saiu na revisão de estilo da Spec 68 — a categoria não
+  // aponta mais para seção nenhuma.)
+  for (const [index, { name, subs }] of BASE_CATEGORIES.entries()) {
+    const cat = await prisma.category.create({
+      data: { accountId, name, createdById: ownerId, order: index },
+    });
     await prisma.subcategory.createMany({
-      data: subs.map((n) => ({ accountId, categoryId: cat.id, name: n })),
+      data: subs.map((n, subIndex) => ({
+        accountId,
+        categoryId: cat.id,
+        name: n,
+        order: subIndex,
+      })),
     });
   }
   // Responsável (Spec 60): a dimensão "member" do Budget virou "Responsável" e suas opções
@@ -76,8 +112,12 @@ async function seedConfig(accountId: string, ownerId: string) {
   // então sem esta linha a combobox "Responsável" ficaria vazia e não haveria o que
   // selecionar em planning-dimensions.spec.ts. `external` usa o próprio `name` como
   // display (sem resolução por User), garantindo um rótulo determinístico p/ o teste.
+  // `group` e não `external`: a revisão da Spec 68 unificou o modelo — todo
+  // responsável criado pela UI é comum, com 0..N membros. `external` continua no enum
+  // do Postgres (remover valor de enum é destrutivo) mas não é mais produzido.
+  // Este nasce SEM membro, que é o caso de "nenhum — só rótulo" do e2e.
   await prisma.responsibleParty.create({
-    data: { accountId, name: "Responsável E2E", kind: "external" },
+    data: { accountId, name: "Responsável E2E", kind: "group" },
   });
 }
 

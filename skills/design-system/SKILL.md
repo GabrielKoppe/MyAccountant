@@ -1711,6 +1711,31 @@ Cuidados especificos:
 
 ---
 
+## 8.1 Armadilha: `sx` que perde a especificidade para o próprio MUI
+
+`sx` gera uma classe do emotion, injetada **depois** dos estilos base do MUI. Isso faz o `sx` vencer **quando a especificidade é igual**. Quando o MUI usa um seletor descendente mais profundo, ele ganha — e o `sx` é ignorado em silêncio, sem erro nenhum.
+
+**Caso real (Spec 68, `RowActionsMenu`)**: os ícones do menu da linha insistiam em 20px. Três tentativas falharam antes de eu inspecionar a folha de estilo e achar o culpado:
+
+```css
+/* emitido pelo próprio MUI, 3 níveis */
+.MuiMenuItem-root .MuiListItemIcon-root svg { font-size: 1.25rem }
+```
+
+| Tentativa | Especificidade | Resultado |
+|---|---|---|
+| `<EditIcon sx={{ fontSize: 16 }} />` | 1 classe | ❌ perde |
+| `sx` no `MenuList`: `"& .MuiListItemIcon-root svg"` | 3, mas ancorado na classe da LISTA | ❌ perde (não casa a cadeia vencedora) |
+| `sx` no `MenuItem`: `"& svg"` | 2 níveis | ❌ perde |
+| `sx` no `MenuItem`: `"& .MuiListItemIcon-root svg"` | **3 níveis, mesma cadeia** | ✅ vence por ordem |
+
+```tsx
+// ✅ Iguale o seletor do MUI, ancorado no MESMO componente que ele ancora
+<MenuItem sx={{ "& .MuiListItemIcon-root svg": { fontSize: 16 } }}>
+```
+
+> **Como diagnosticar em 30 segundos**, em vez de tentar variações: varra `document.styleSheets`, filtre as regras cujo `selectorText` casa o elemento (`el.matches(sel)`) e que mexem na propriedade, e leia qual sobrou por último. O seletor que aparecer ali é o que você precisa igualar — e o `!important` continua proibido.
+
 ## 9. Anti-patterns
 
 ### Estilo

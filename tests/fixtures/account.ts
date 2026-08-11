@@ -29,6 +29,9 @@ export function buildSection(overrides: Partial<Section> = {}): Section {
     countType: "subtract",
     isActive: true,
     order: 0,
+    // Spec 68 §2.1: chave de accent-colors. Nulo = fallback da paleta por índice,
+    // que é o estado de toda seção anterior à spec.
+    color: null,
     // Spec 67 §7.4: gravado só na escrita que consome a seção; legado nasce nulo.
     lastUsedAt: null,
     createdAt: new Date("2026-01-01"),

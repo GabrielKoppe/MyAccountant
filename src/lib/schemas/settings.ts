@@ -3,7 +3,7 @@ import { z } from "zod";
 import { m } from "@/lib/messages";
 
 import { partyIdSchema } from "./responsible-party";
-import { cuidSchema } from "./shared";
+import { accentColorKeySchema, cuidSchema } from "./shared";
 
 // ─── Account General ──────────────────────────────────────────────
 
@@ -20,17 +20,33 @@ export type UpdateAccountSettingsInput = z.infer<typeof updateAccountSettingsSch
 
 // ─── Sections ─────────────────────────────────────────────────────
 
+/**
+ * Spec 68 D1 — os quatro tipos de seção da coluna "Tipo" SÃO os quatro valores de
+ * `SectionCountType`. Nenhum enum paralelo: este campo já decide o sinal do valor no
+ * total do mês e é lido por ~55 arquivos; um segundo enum criaria duas fontes de
+ * verdade para a mesma pergunta.
+ */
+export const SECTION_COUNT_TYPES = ["add", "subtract", "ignore", "neutral"] as const;
+export const sectionCountTypeSchema = z.enum(SECTION_COUNT_TYPES);
+export type SectionCountTypeValue = (typeof SECTION_COUNT_TYPES)[number];
+
+const sectionNameSchema = z.string().min(1, "Nome obrigatório").max(40).trim();
+
 export const createSectionSchema = z.object({
-  name: z.string().min(1, "Nome obrigatório").max(40).trim(),
-  countType: z.enum(["add", "subtract", "ignore", "neutral"]),
+  name: sectionNameSchema,
+  countType: sectionCountTypeSchema,
   isActive: z.boolean(),
+  // Spec 68 §2.1 (D2) — chave de accent-colors, nunca hex. `null` = usa o fallback
+  // da paleta por índice na apresentação.
+  color: accentColorKeySchema.nullable().optional(),
 });
 
 export const updateSectionSchema = z.object({
   sectionId: cuidSchema,
-  name: z.string().min(1, "Nome obrigatório").max(40).trim(),
-  countType: z.enum(["add", "subtract", "ignore", "neutral"]),
+  name: sectionNameSchema,
+  countType: sectionCountTypeSchema,
   isActive: z.boolean(),
+  color: accentColorKeySchema.nullable().optional(),
 });
 
 export const reorderSectionsSchema = z.object({
@@ -48,13 +64,24 @@ export type DeleteSectionInput = z.infer<typeof deleteSectionSchema>;
 
 // ─── Categories ───────────────────────────────────────────────────
 
+const categoryNameSchema = z.string().min(1, "Nome obrigatório").max(50).trim();
+
+/** Spec 67 §7.4 (D2) — estado ativo/inativo. Alimenta o `Switch` do `StatusCell`. */
+export const settingsStatusSchema = z.enum(["active", "inactive"]);
+
 export const createCategorySchema = z.object({
-  name: z.string().min(1, "Nome obrigatório").max(50).trim(),
+  name: categoryNameSchema,
 });
 
+// `defaultSectionId` saiu (revisão de estilo — "essa coluna Seção Padrão não faz
+// sentido nenhum", decisão do desenvolvedor): a UI abandonou "Seção padrão" nesta
+// revisão. `Category.defaultSectionId` continua no schema do banco (deprecado, sem
+// migração destrutiva — ver `prisma/schema.prisma`), mas o formulário e o service
+// pararam de lê-lo/gravá-lo.
 export const updateCategorySchema = z.object({
   categoryId: cuidSchema,
-  name: z.string().min(1, "Nome obrigatório").max(50).trim(),
+  name: categoryNameSchema,
+  status: settingsStatusSchema.optional(),
 });
 
 export const deleteCategorySchema = z.object({
@@ -63,16 +90,30 @@ export const deleteCategorySchema = z.object({
 
 export const createSubcategorySchema = z.object({
   categoryId: cuidSchema,
-  name: z.string().min(1, "Nome obrigatório").max(50).trim(),
+  name: categoryNameSchema,
 });
 
 export const updateSubcategorySchema = z.object({
   subcategoryId: cuidSchema,
-  name: z.string().min(1, "Nome obrigatório").max(50).trim(),
+  name: categoryNameSchema,
+  // Subcategoria NÃO tem seção própria — ela herda a do pai (§2.2). Por isso não há
+  // `defaultSectionId` aqui: o campo simplesmente não existe nesse nível.
+  status: settingsStatusSchema.optional(),
 });
 
 export const deleteSubcategorySchema = z.object({
   subcategoryId: cuidSchema,
+});
+
+/** Spec 68 §2.2 — arraste da árvore. Categorias de topo, na ordem final. */
+export const reorderCategoriesSchema = z.object({
+  orderedIds: z.array(cuidSchema).min(1),
+});
+
+/** Arraste dentro de um pai: as subcategorias de UMA categoria, na ordem final. */
+export const reorderSubcategoriesSchema = z.object({
+  categoryId: cuidSchema,
+  orderedIds: z.array(cuidSchema).min(1),
 });
 
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
@@ -81,16 +122,67 @@ export type DeleteCategoryInput = z.infer<typeof deleteCategorySchema>;
 export type CreateSubcategoryInput = z.infer<typeof createSubcategorySchema>;
 export type UpdateSubcategoryInput = z.infer<typeof updateSubcategorySchema>;
 export type DeleteSubcategoryInput = z.infer<typeof deleteSubcategorySchema>;
+export type ReorderCategoriesInput = z.infer<typeof reorderCategoriesSchema>;
+export type ReorderSubcategoriesInput = z.infer<typeof reorderSubcategoriesSchema>;
 
 // ─── Institutions ─────────────────────────────────────────────────
 
+export const INSTITUTION_KINDS = ["bank", "card", "broker", "wallet", "company"] as const;
+export const institutionKindSchema = z.enum(INSTITUTION_KINDS);
+export type InstitutionKindValue = (typeof INSTITUTION_KINDS)[number];
+
+const institutionNameSchema = z.string().min(1, "Nome obrigatório").max(80).trim();
+
+/** Dia do mês. 28 é o teto (mesmo de `month_start_day`): 29–31 não existem em todo mês. */
+const dayOfMonthSchema = z.coerce.number().int().min(1).max(28);
+
+/**
+ * Campos de detalhe (Spec 68 §2.3). Todos opcionais aqui: **quem decide quais valem é o
+ * tipo**, e o descarte dos inaplicáveis acontece no service via `stripInapplicableDetails`
+ * — em um lugar só, compartilhado por criação, edição inline e importação.
+ *
+ * `""` vira `null`: um <TextField> limpo entrega string vazia, e gravar `""` faria a
+ * célula "Detalhes" renderizar um separador solto ("•••• · fecha").
+ *
+ * `undefined` NÃO vira `null` — os dois significam coisas diferentes na atualização:
+ * `null` é "apagar este campo", `undefined` é "não mencionei" (o Prisma ignora e o
+ * valor atual sobrevive). Um toggle de status que só manda `{ institutionId, name,
+ * status }` não pode zerar o final do cartão de tabela.
+ */
+const emptyToNull = (v: unknown) => (v === "" ? null : v);
+
+const institutionDetailFields = {
+  // card
+  last4: z.preprocess(
+    emptyToNull,
+    z
+      .string()
+      .regex(/^\d{4}$/, "Informe os 4 últimos dígitos")
+      .nullable()
+      .optional(),
+  ),
+  closingDay: z.preprocess(emptyToNull, dayOfMonthSchema.nullable().optional()),
+  dueDay: z.preprocess(emptyToNull, dayOfMonthSchema.nullable().optional()),
+  // bank
+  branch: z.preprocess(emptyToNull, z.string().max(20).trim().nullable().optional()),
+  accountNo: z.preprocess(emptyToNull, z.string().max(30).trim().nullable().optional()),
+  // company
+  taxId: z.preprocess(emptyToNull, z.string().max(20).trim().nullable().optional()),
+};
+
 export const createInstitutionSchema = z.object({
-  name: z.string().min(1, "Nome obrigatório").max(80).trim(),
+  name: institutionNameSchema,
+  // `null` = ainda não classificada. Nada é inferido do nome (§4).
+  kind: institutionKindSchema.nullable().optional(),
+  ...institutionDetailFields,
 });
 
 export const updateInstitutionSchema = z.object({
   institutionId: cuidSchema,
-  name: z.string().min(1, "Nome obrigatório").max(80).trim(),
+  name: institutionNameSchema,
+  kind: institutionKindSchema.nullable().optional(),
+  status: settingsStatusSchema.optional(),
+  ...institutionDetailFields,
 });
 
 export const deleteInstitutionSchema = z.object({
@@ -100,6 +192,83 @@ export const deleteInstitutionSchema = z.object({
 export type CreateInstitutionInput = z.infer<typeof createInstitutionSchema>;
 export type UpdateInstitutionInput = z.infer<typeof updateInstitutionSchema>;
 export type DeleteInstitutionInput = z.infer<typeof deleteInstitutionSchema>;
+
+// ─── Importar categorias (Spec 68 §2.2 — modal M4) ────────────────
+
+/**
+ * Uma linha do arquivo, já com as colunas mapeadas.
+ *
+ * `color` é aceita para a planilha do desenho importar sem erro, mas **não tem
+ * destino** (D2: categoria não tem cor própria) — a classificação a reporta como
+ * ignorada, em vez de silenciar e deixar o usuário achar que foi aplicada. `section`
+ * segue a MESMA regra desde a revisão de estilo que removeu "Seção padrão" da UI:
+ * aceita para uma planilha antiga não quebrar, nunca validada, sempre ignorada.
+ */
+/**
+ * Teto de SANIDADE do campo, não regra de produto.
+ *
+ * O bound apertado (50) que existia aqui rejeitava o arquivo INTEIRO quando uma única
+ * linha passava do limite — e passava de verdade: o import de transações cria
+ * categorias sem passar por `createCategorySchema`, então o banco tem nomes de 60
+ * caracteres que o próprio app exporta. Reimportar o export do app dava "Dados
+ * inválidos", sem dizer qual linha.
+ *
+ * Quem julga o conteúdo linha a linha é `classifyCategoryImport`, que marca a linha
+ * como erro e deixa as outras passarem (§4). Este schema só barra payload absurdo.
+ */
+const IMPORT_FIELD_MAX = 500;
+
+export const categoryImportRowSchema = z.object({
+  name: z.string().max(IMPORT_FIELD_MAX),
+  parent: z.string().max(IMPORT_FIELD_MAX).optional(),
+  section: z.string().max(IMPORT_FIELD_MAX).optional(),
+  color: z.string().max(IMPORT_FIELD_MAX).optional(),
+});
+
+/** Teto de linhas: o preview é lido na tela e a gravação cabe numa transação. */
+const MAX_IMPORT_ROWS = 500;
+
+export const categoryImportSchema = z.object({
+  rows: z.array(categoryImportRowSchema).min(1, "Arquivo sem linhas").max(MAX_IMPORT_ROWS),
+  deactivateMissing: z.boolean().optional(),
+});
+
+export type CategoryImportRowInput = z.infer<typeof categoryImportRowSchema>;
+export type CategoryImportInput = z.infer<typeof categoryImportSchema>;
+
+// ─── Mesclar / referências (Spec 68 §2.5 e §2.6) ──────────────────
+
+/** Objetos que podem ser mesclados ou excluídos com realocação. Seção fica de fora. */
+export const REFERENCED_ENTITIES = [
+  "category",
+  "subcategory",
+  "institution",
+  "responsibleParty",
+] as const;
+export const referencedEntitySchema = z.enum(REFERENCED_ENTITIES);
+
+export const configReferencesSchema = z.object({
+  entity: referencedEntitySchema,
+  entityId: cuidSchema,
+});
+
+export const mergeEntitySchema = z
+  .object({
+    entity: referencedEntitySchema,
+    /** Será excluída. */
+    absorbedId: cuidSchema,
+    /** Recebe tudo. */
+    keptId: cuidSchema,
+  })
+  // Mesclar um objeto nele mesmo excluiria o objeto depois de mover tudo para ele —
+  // ou seja, apagaria os dados. Barrado no schema, antes de chegar ao service.
+  .refine((v) => v.absorbedId !== v.keptId, {
+    message: "Escolha dois objetos diferentes para mesclar.",
+    path: ["absorbedId"],
+  });
+
+export type ConfigReferencesInput = z.infer<typeof configReferencesSchema>;
+export type MergeEntityInput = z.infer<typeof mergeEntitySchema>;
 
 // ─── Table Types ──────────────────────────────────────────────────
 

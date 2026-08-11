@@ -1,12 +1,13 @@
 "use client";
 
+import { useDraggable } from "@dnd-kit/core";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { useDraggable } from "@dnd-kit/core";
 
-import { m } from "@/lib/messages";
 import type { DashboardContext, WidgetDef } from "@/components/dashboards/_core/widget-registry";
+import { m } from "@/lib/messages";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+
 import { WidgetCardBody } from "./WidgetCardBody";
 
 // Prefixo do id de arrasto da paleta — o canvas distingue add (paleta) de

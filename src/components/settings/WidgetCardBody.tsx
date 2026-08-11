@@ -1,18 +1,19 @@
 "use client";
 
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
-import { m } from "@/lib/messages";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
-import { WIDGET_TYPE } from "@/components/dashboards/_core/widget-types";
 import type { DashboardContext } from "@/components/dashboards/_core/widget-registry";
+import { WIDGET_TYPE } from "@/components/dashboards/_core/widget-types";
+import { m } from "@/lib/messages";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
+
 import { widgetDescription, widgetLabel } from "./widget-display";
 
 // Card visual compartilhado pelo canvas (instâncias na grade) e pela paleta
