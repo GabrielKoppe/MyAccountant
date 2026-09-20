@@ -243,6 +243,49 @@ Para imports grandes, configure timeout:
 await prisma.$transaction(async (tx) => { ... }, { timeout: 30000 });
 ```
 
+#### Round-trips sequenciais dentro da transação
+
+⚠️ **O default do Prisma para transação interativa é `timeout: 5000ms` / `maxWait: 2000ms`.** Cada `await tx.*` é uma ida ao banco. Em dev (Postgres no mesmo Docker) uma ida custa <1ms e 40 delas somam ~50ms — cabe folgado. Em produção contra Postgres gerenciado (Neon, Supabase) a mesma ida custa 80–150ms de rede, e 40 delas passam de 5s.
+
+Sintoma: `PrismaClientKnownRequestError` **P2028** — `"Transaction already closed: … The timeout for this transaction was 5000 ms, however 5116 ms passed"`. **Reproduz só em produção**, nunca localmente. Subir o timeout mascara; a correção é reduzir o número de idas.
+
+Duas regras:
+
+**1. Leitura sai da transação.** Um `findFirst` por item vira um `findMany` com `id: { in: [...] }` ANTES de abrir a transação — mantendo o filtro de `accountId`. Valide a ausência já ali (nada foi escrito ainda).
+
+```ts
+// ❌ 1 round-trip por item, dentro da transação
+await prisma.$transaction(async (tx) => {
+  for (const item of items) {
+    const g = await tx.installmentGroup.findFirst({ where: { id: item.groupId, accountId } });
+    if (!g) throw new NotFoundError("Grupo");
+  }
+});
+
+// ✅ 1 round-trip para todos, fora da transação
+const groups = await prisma.installmentGroup.findMany({
+  where: { id: { in: ids }, accountId },   // ✅ multi-tenancy preservada
+});
+const byId = new Map(groups.map((g) => [g.id, g]));
+if (byId.size !== ids.length) throw new NotFoundError("Grupo");
+```
+
+**2. Escrita acumula em memória e sai em lote.** `create`/`delete` em laço viram um `createMany`/`deleteMany`. Para usar `createMany` e ainda referenciar a linha criada (FK, tag pivot), **gere o id no app** — `createMany` não devolve ids, e `createManyAndReturn` não garante ordem:
+
+```ts
+// id "cuid-like": passa em `z.string().cuid()` (regex `/^c[^\s-]{8,}$/i`)
+const id = `c${randomUUID().replace(/-/g, "")}`;
+rows.push({ id, ... });                 // acumula no laço
+// ...
+await tx.group.createMany({ data: rows });          // pai antes
+await tx.child.createMany({ data: childRows });     // filho depois (FK)
+await tx.pending.deleteMany({ where: { id: { in: [...consumedIds] }, accountId } });
+```
+
+Ordem importa: pai antes de filho quando há FK. O `deleteMany` mantém `accountId` no `where` mesmo com ids já validados.
+
+Referência: `src/server/services/csv-import-service.ts` — o import de fatura saiu de `2 + 2N` round-trips (N = parcelamentos do arquivo) para **7 fixos**. Teste de regressão trava a contagem, não o tempo: tempo não reproduz fora de produção.
+
 ### Pagination
 Sempre paginar listas:
 
@@ -414,3 +457,5 @@ prisma.$extends({
 ❌ Migrations sem nome descritivo
 ❌ Editar migration já aplicada
 ❌ Múltiplas instâncias de PrismaClient (vazamento de connection)
+❌ `create`/`delete`/`findFirst` em laço dentro de `$transaction` — vira P2028 só em produção; use `createMany`/`deleteMany` e tire as leituras da transação
+❌ `$transaction` sem `timeout` explícito quando o corpo escreve volume variável — o default de 5s não cobre latência de banco gerenciado

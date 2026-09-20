@@ -656,15 +656,14 @@ describe("executeImport — ancoragem no mês de competência (spec 73 §2.1)", 
       transaction: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
       transactionTag: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
       installmentGroup: {
-        create: vi.fn().mockResolvedValue({ id: "grp-new" }),
-        findFirst: vi.fn(),
+        createMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       pendingInstallment: {
         createMany: vi.fn().mockResolvedValue({ count: 3 }),
-        delete: vi.fn().mockResolvedValue({}),
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
     };
-    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
+    prismaMock.$transaction.mockImplementation(async (fn: any, _opts?: unknown) => fn(txMock));
     return txMock;
   }
 
@@ -709,7 +708,7 @@ describe("executeImport — ancoragem no mês de competência (spec 73 §2.1)", 
 
     await csvImportService.executeImport(EINSCRICAO_INPUT as any, EXEC_CTX);
 
-    const data = txMock.installmentGroup.create.mock.calls[0][0].data as {
+    const data = txMock.installmentGroup.createMany.mock.calls[0][0].data[0] as {
       startDate: Date;
       autoCreateOnNewMonth: boolean;
     };
@@ -776,6 +775,11 @@ describe("executeImport — vínculo com parcelamento existente (spec 73 §2.3)"
     prismaMock.institution.findMany.mockResolvedValue([]);
     prismaMock.responsiblePartyMember.findMany.mockResolvedValue([]);
     prismaMock.transactionAlias.findMany.mockResolvedValue([]);
+    // O grupo a vincular é pré-carregado FORA da `$transaction` (um `findMany`
+    // para todas as sugestões, em vez de um `findFirst` por sugestão).
+    prismaMock.installmentGroup.findMany.mockResolvedValue(
+      (existingGroup ? [existingGroup] : []) as any,
+    );
 
     const txMock = {
       financeTable: {
@@ -785,15 +789,14 @@ describe("executeImport — vínculo com parcelamento existente (spec 73 §2.3)"
       transaction: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
       transactionTag: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
       installmentGroup: {
-        create: vi.fn().mockResolvedValue({ id: "grp-new" }),
-        findFirst: vi.fn().mockResolvedValue(existingGroup),
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       pendingInstallment: {
         createMany: vi.fn().mockResolvedValue({ count: 0 }),
-        delete: vi.fn().mockResolvedValue({}),
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
-    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
+    prismaMock.$transaction.mockImplementation(async (fn: any, _opts?: unknown) => fn(txMock));
     return txMock;
   }
 
@@ -826,9 +829,12 @@ describe("executeImport — vínculo com parcelamento existente (spec 73 §2.3)"
 
     const result = await csvImportService.executeImport(CYAN_INPUT as any, EXEC_CTX);
 
-    expect(txMock.installmentGroup.create).not.toHaveBeenCalled();
+    expect(txMock.installmentGroup.createMany).not.toHaveBeenCalled();
     expect(txMock.pendingInstallment.createMany).not.toHaveBeenCalled();
-    expect(txMock.pendingInstallment.delete).toHaveBeenCalledWith({ where: { id: "pi-3" } });
+    // Pendentes consumidas saem num único deleteMany, ainda escopado por account
+    expect(txMock.pendingInstallment.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["pi-3"] }, accountId: "acc-test-1" },
+    });
 
     const rows = txMock.transaction.createMany.mock.calls[0][0].data as {
       installmentGroupId: string | null;
@@ -843,7 +849,7 @@ describe("executeImport — vínculo com parcelamento existente (spec 73 §2.3)"
   });
 
   it("multi-tenancy: busca o grupo escopada por accountId", async () => {
-    const txMock = setupJulyImport({
+    setupJulyImport({
       id: "grp-jun",
       transactions: [],
       pendingInstallments: [{ id: "pi-3", installmentNumber: 3 }],
@@ -851,9 +857,9 @@ describe("executeImport — vínculo com parcelamento existente (spec 73 §2.3)"
 
     await csvImportService.executeImport(CYAN_INPUT as any, EXEC_CTX);
 
-    expect(txMock.installmentGroup.findFirst).toHaveBeenCalledWith(
+    expect(prismaMock.installmentGroup.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "grp-jun", accountId: "acc-test-1" },
+        where: { id: { in: ["grp-jun"] }, accountId: "acc-test-1" },
       }),
     );
   });
@@ -864,6 +870,53 @@ describe("executeImport — vínculo com parcelamento existente (spec 73 §2.3)"
     await expect(
       csvImportService.executeImport(CYAN_INPUT as any, EXEC_CTX),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  // Regressão: a fatura real que quebrou em produção (P2028 — "Transaction
+  // already closed", 5116ms > timeout de 5000ms) tinha 17 parcelamentos, e o
+  // código antigo fazia 1+ round-trip por sugestão DENTRO da `$transaction`.
+  // Local o teste passaria de qualquer jeito (Postgres na mesma máquina); o que
+  // o travamento precisa garantir é a CONTAGEM de idas ao banco, não o tempo.
+  it("N parcelamentos não viram N round-trips dentro da transação", async () => {
+    const LINES = 17;
+    const txMock = setupJulyImport(null);
+    prismaMock.installmentGroup.findMany.mockResolvedValue([]);
+
+    await csvImportService.executeImport(
+      {
+        monthId: "month-jul",
+        sectionId: "sec-1",
+        tableTypeId: "tt-1",
+        tableName: "Fatura com muitos parcelamentos",
+        countInMonth: true,
+        mapping: MAPPING,
+        rows: Array.from({ length: LINES }, () => ({ Data: "04/05/2026", Valor: "100,00" })),
+        acceptedInstallments: Array.from({ length: LINES }, (_, i) => ({
+          groupDescription: `compra ${i}`,
+          installmentCount: 10,
+          lines: [{ rowIndex: i, installmentNumber: 2 }],
+          totalAmountCents: "10000",
+        })),
+      } as any,
+      EXEC_CTX,
+    );
+
+    // Um createMany para TODOS os grupos, um para TODAS as pendentes
+    expect(txMock.installmentGroup.createMany).toHaveBeenCalledTimes(1);
+    expect(txMock.pendingInstallment.createMany).toHaveBeenCalledTimes(1);
+    expect(txMock.installmentGroup.createMany.mock.calls[0][0].data).toHaveLength(LINES);
+    // 9 pendentes por grupo (a parcela 2 veio no CSV)
+    expect(txMock.pendingInstallment.createMany.mock.calls[0][0].data).toHaveLength(LINES * 9);
+
+    // Cada grupo tem id próprio, gerado pelo app (createMany não devolve ids)
+    const groupIds = (
+      txMock.installmentGroup.createMany.mock.calls[0][0].data as { id: string }[]
+    ).map((g) => g.id);
+    expect(new Set(groupIds).size).toBe(LINES);
+
+    // Timeout explícito: 5s do default do Prisma não cobre uma fatura real
+    const opts = prismaMock.$transaction.mock.calls[0][1] as { timeout: number };
+    expect(opts.timeout).toBeGreaterThanOrEqual(20_000);
   });
 
   it("número já lançado no grupo: importa sem vínculo e reporta", async () => {
@@ -881,7 +934,7 @@ describe("executeImport — vínculo com parcelamento existente (spec 73 §2.3)"
     }[];
     expect(rows[0].installmentGroupId).toBeNull();
     expect(result.installmentLinesSkipped).toBe(1);
-    expect(txMock.pendingInstallment.delete).not.toHaveBeenCalled();
+    expect(txMock.pendingInstallment.deleteMany).not.toHaveBeenCalled();
   });
 });
 

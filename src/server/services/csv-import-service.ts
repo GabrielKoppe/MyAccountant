@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 
-import type { TransactionExpenseType, TransactionPaymentMethod } from "@prisma/client";
+import type { Prisma, TransactionExpenseType, TransactionPaymentMethod } from "@prisma/client";
 
 import { applyMappingToRows } from "@/lib/csv-parser";
 import { shiftYearMonth, utcDateOnly } from "@/lib/dates";
@@ -28,7 +28,11 @@ const log = logger.child({ module: "csv-import-service" });
 // financeiros. Geramos o id nós mesmos e usamos createMany simples. O id não
 // precisa ser um cuid "de verdade": só precisa passar em todo `z.string().cuid()`
 // espalhado pelo app (regex de Zod: `/^c[^\s-]{8,}$/i`) — por isso o prefixo "c".
-function generateTransactionId(): string {
+//
+// Usado para Transaction e para InstallmentGroup: conhecer o id de antemão é o
+// que permite trocar N `create()` sequenciais por um único `createMany()` e
+// ainda referenciar o grupo nas PendingInstallment/Transaction do mesmo lote.
+function generateId(): string {
   return `c${randomUUID().replace(/-/g, "")}`;
 }
 
@@ -370,7 +374,7 @@ async function executeImport(
     }
 
     transactionData.push({
-      id: generateTransactionId(),
+      id: generateId(),
       rowIndex: row.rowIndex,
       occurredOn: new Date(row.parsed.occurredOn),
       amountCents: row.parsed.amountCents,
@@ -400,114 +404,158 @@ async function executeImport(
   const rowIndexToTxIdx = new Map<number, number>();
   transactionData.forEach((t, i) => rowIndexToTxIdx.set(t.rowIndex, i));
 
-  // Create FinanceTable + Transactions atomically
-  const result = await prisma.$transaction(async (tx) => {
-    const tableCount = await tx.financeTable.count({
-      where: { monthId: input.monthId, sectionId: input.sectionId },
-    });
-
-    const table = await tx.financeTable.create({
-      data: {
-        accountId: ctx.accountId,
-        monthId: input.monthId,
-        sectionId: input.sectionId,
-        tableTypeId: input.tableTypeId,
-        name: input.tableName,
-        countInMonth: input.countInMonth,
-        sourceMethod: "import",
-        displayOrder: tableCount,
-        createdById: ctx.userId,
-      },
-    });
-
-    // Create/link InstallmentGroups for accepted suggestions and link transactions
-    let installmentGroupsCreated = 0;
-    let installmentGroupsLinked = 0;
-    let installmentLinesSkipped = 0;
-
-    for (const suggestion of input.acceptedInstallments ?? []) {
-      // ─── Âncora do cronograma (spec 73 §2.1) ──────────────────────────────
-      // A parcela de MAIOR número presente no arquivo é a que pertence à fatura
-      // sendo importada, então ela ocupa o mês de competência escolhido no
-      // wizard. `occurredOn` é a data da COMPRA — o extrato a repete em todas as
-      // parcelas, então ela NÃO serve de âncora (spec 73 §1 BUG-01).
-      const anchor = [...suggestion.lines].sort(
-        (a, b) => b.installmentNumber - a.installmentNumber,
-      )[0];
-      const anchorTx = anchor
-        ? transactionData.find((t) => t.rowIndex === anchor.rowIndex)
-        : undefined;
-      if (!anchor || !anchorTx) continue;
-
-      // Dia da compra, reaplicado em cada competência (ajustado ao último dia
-      // válido do mês por `utcDateOnly` — compra dia 31 → fevereiro dia 28).
-      const anchorDay = anchorTx.occurredOn.getUTCDate();
-      const expectedDateFor = (installmentNumber: number) => {
-        const slot = shiftYearMonth(
-          { year: month.year, month: month.month },
-          installmentNumber - anchor.installmentNumber,
-        );
-        return utcDateOnly(slot.year, slot.month, anchorDay);
-      };
-
-      // ─── Vínculo com parcelamento existente (spec 73 §2.3) ────────────────
-      if (suggestion.existingGroupId) {
-        const existing = await tx.installmentGroup.findFirst({
-          where: { id: suggestion.existingGroupId, accountId: ctx.accountId }, // ✅ multi-tenancy
-          select: {
-            id: true,
-            transactions: { select: { installmentNumber: true } },
-            pendingInstallments: {
-              where: { settledAt: null },
-              select: { id: true, installmentNumber: true },
-            },
+  // ─── Pré-carga dos grupos a vincular (spec 73 §2.3) ─────────────────────────
+  // Uma fatura real traz dezenas de parcelamentos distintos (cada compra é um
+  // grupo). Buscar um por um DENTRO da `$transaction` custava um round-trip
+  // sequencial por sugestão — contra o Postgres gerenciado em produção isso
+  // estourava o timeout de transação interativa do Prisma (P2028). É leitura
+  // pura e já filtrada por `accountId`, então sai da transação e vira um único
+  // `findMany`.
+  const suggestions = input.acceptedInstallments ?? [];
+  const existingGroupIds = Array.from(
+    new Set(suggestions.map((s) => s.existingGroupId).filter((id): id is string => Boolean(id))),
+  );
+  const existingGroups = existingGroupIds.length
+    ? await prisma.installmentGroup.findMany({
+        where: { id: { in: existingGroupIds }, accountId: ctx.accountId }, // ✅ multi-tenancy
+        select: {
+          id: true,
+          transactions: { select: { installmentNumber: true } },
+          pendingInstallments: {
+            where: { settledAt: null },
+            select: { id: true, installmentNumber: true },
           },
-        });
-        if (!existing) throw new NotFoundError("Parcelamento a vincular");
+        },
+      })
+    : [];
+  const existingGroupById = new Map(existingGroups.map((g) => [g.id, g]));
+  // Id pedido que não voltou: ou não existe, ou é de outra account. Falha antes
+  // de abrir a transação — nada foi escrito ainda.
+  if (existingGroupById.size !== existingGroupIds.length) {
+    throw new NotFoundError("Parcelamento a vincular");
+  }
 
-        const takenNumbers = new Set(
-          existing.transactions
-            .map((t) => t.installmentNumber)
-            .filter((n): n is number => n !== null),
-        );
+  // Create FinanceTable + Transactions atomically
+  const result = await prisma.$transaction(
+    async (tx) => {
+      const tableCount = await tx.financeTable.count({
+        where: { monthId: input.monthId, sectionId: input.sectionId },
+      });
 
-        for (const line of suggestion.lines) {
-          const txIdx = rowIndexToTxIdx.get(line.rowIndex);
-          if (txIdx === undefined) continue;
+      const table = await tx.financeTable.create({
+        data: {
+          accountId: ctx.accountId,
+          monthId: input.monthId,
+          sectionId: input.sectionId,
+          tableTypeId: input.tableTypeId,
+          name: input.tableName,
+          countInMonth: input.countInMonth,
+          sourceMethod: "import",
+          displayOrder: tableCount,
+          createdById: ctx.userId,
+        },
+      });
 
-          // Número já lançado no grupo: importa a linha SEM vínculo. Dois itens
-          // com o mesmo installmentNumber quebrariam o cronograma e o progresso.
-          if (takenNumbers.has(line.installmentNumber)) {
-            installmentLinesSkipped++;
-            continue;
+      // ─── Parcelamentos (spec 73 §2.3/§2.4) ────────────────────────────────
+      // Resolução toda em memória; a escrita sai em 3 statements no fim do laço
+      // (grupos novos, pendentes novas, pendentes consumidas). Antes era ao
+      // menos 1 round-trip por sugestão DENTRO da transação — numa fatura real
+      // (dezenas de compras parceladas) isso estourava o timeout do Prisma
+      // (P2028) contra Postgres gerenciado, onde cada ida ao banco custa rede.
+      let installmentGroupsCreated = 0;
+      let installmentGroupsLinked = 0;
+      let installmentLinesSkipped = 0;
+
+      const newGroupRows: Prisma.InstallmentGroupCreateManyInput[] = [];
+      const newPendingRows: Prisma.PendingInstallmentCreateManyInput[] = [];
+      const consumedPendingIds = new Set<string>();
+      // Números já ocupados, por grupo existente, acumulados ENTRE sugestões:
+      // duas sugestões podem apontar para o mesmo grupo, e os números desta
+      // importação ainda não estão no banco para serem relidos.
+      const takenByGroup = new Map<string, Set<number>>();
+
+      for (const suggestion of suggestions) {
+        // ─── Âncora do cronograma (spec 73 §2.1) ──────────────────────────────
+        // A parcela de MAIOR número presente no arquivo é a que pertence à fatura
+        // sendo importada, então ela ocupa o mês de competência escolhido no
+        // wizard. `occurredOn` é a data da COMPRA — o extrato a repete em todas as
+        // parcelas, então ela NÃO serve de âncora (spec 73 §1 BUG-01).
+        const anchor = [...suggestion.lines].sort(
+          (a, b) => b.installmentNumber - a.installmentNumber,
+        )[0];
+        const anchorTx = anchor
+          ? transactionData.find((t) => t.rowIndex === anchor.rowIndex)
+          : undefined;
+        if (!anchor || !anchorTx) continue;
+
+        // Dia da compra, reaplicado em cada competência (ajustado ao último dia
+        // válido do mês por `utcDateOnly` — compra dia 31 → fevereiro dia 28).
+        const anchorDay = anchorTx.occurredOn.getUTCDate();
+        const expectedDateFor = (installmentNumber: number) => {
+          const slot = shiftYearMonth(
+            { year: month.year, month: month.month },
+            installmentNumber - anchor.installmentNumber,
+          );
+          return utcDateOnly(slot.year, slot.month, anchorDay);
+        };
+
+        // ─── Vínculo com parcelamento existente (spec 73 §2.3) ────────────────
+        if (suggestion.existingGroupId) {
+          // Pré-carregado fora da transação, já filtrado por accountId. A
+          // ausência de qualquer id pedido foi rejeitada antes de abrir a tx.
+          const existing = existingGroupById.get(suggestion.existingGroupId);
+          if (!existing) throw new NotFoundError("Parcelamento a vincular");
+
+          let takenNumbers = takenByGroup.get(existing.id);
+          if (!takenNumbers) {
+            takenNumbers = new Set(
+              existing.transactions
+                .map((t) => t.installmentNumber)
+                .filter((n): n is number => n !== null),
+            );
+            takenByGroup.set(existing.id, takenNumbers);
           }
 
-          transactionData[txIdx].installmentGroupId = existing.id;
-          transactionData[txIdx].installmentNumber = line.installmentNumber;
-          takenNumbers.add(line.installmentNumber);
+          for (const line of suggestion.lines) {
+            const txIdx = rowIndexToTxIdx.get(line.rowIndex);
+            if (txIdx === undefined) continue;
 
-          // A pendente deste número acabou de ser materializada por esta linha.
-          const consumed = existing.pendingInstallments.find(
-            (pi) => pi.installmentNumber === line.installmentNumber,
-          );
-          if (consumed) await tx.pendingInstallment.delete({ where: { id: consumed.id } });
+            // Número já lançado no grupo: importa a linha SEM vínculo. Dois itens
+            // com o mesmo installmentNumber quebrariam o cronograma e o progresso.
+            if (takenNumbers.has(line.installmentNumber)) {
+              installmentLinesSkipped++;
+              continue;
+            }
+
+            transactionData[txIdx].installmentGroupId = existing.id;
+            transactionData[txIdx].installmentNumber = line.installmentNumber;
+            takenNumbers.add(line.installmentNumber);
+
+            // A pendente deste número acabou de ser materializada por esta linha.
+            const consumed = existing.pendingInstallments.find(
+              (pi) => pi.installmentNumber === line.installmentNumber,
+            );
+            if (consumed) consumedPendingIds.add(consumed.id);
+          }
+
+          installmentGroupsLinked++;
+          continue;
         }
 
-        installmentGroupsLinked++;
-        continue;
-      }
+        // ─── Novo grupo ───────────────────────────────────────────────────────
+        // Estima o total real da compra: totalAmountCents representa apenas as parcelas
+        // presentes no CSV; escalamos pelo total de parcelas.
+        // `BigInt(...)`: o tipo de entrada é `z.input<>` (z.coerce.bigint aceita
+        // string), então não dá para assumir bigint sem coagir.
+        const estimatedTotalCents =
+          (BigInt(suggestion.totalAmountCents) * BigInt(suggestion.installmentCount)) /
+          BigInt(suggestion.lines.length);
 
-      // ─── Novo grupo ───────────────────────────────────────────────────────
-      // Estima o total real da compra: totalAmountCents representa apenas as parcelas
-      // presentes no CSV; escalamos pelo total de parcelas.
-      // `BigInt(...)`: o tipo de entrada é `z.input<>` (z.coerce.bigint aceita
-      // string), então não dá para assumir bigint sem coagir.
-      const estimatedTotalCents =
-        (BigInt(suggestion.totalAmountCents) * BigInt(suggestion.installmentCount)) /
-        BigInt(suggestion.lines.length);
-
-      const group = await tx.installmentGroup.create({
-        data: {
+        // Id gerado aqui (não pelo banco): é o que permite empilhar o grupo num
+        // `createMany` e mesmo assim referenciá-lo nas pendentes e transações.
+        const groupId = generateId();
+        newGroupRows.push({
+          id: groupId,
           accountId: ctx.accountId,
           description: suggestion.groupDescription,
           totalCents: estimatedTotalCents,
@@ -518,95 +566,112 @@ async function executeImport(
           // A fatura é a fonte das parcelas deste grupo: lançar na criação do
           // mês duplicaria a linha do CSV (spec 73 §2.4).
           autoCreateOnNewMonth: false,
-        },
-        select: { id: true },
-      });
-      installmentGroupsCreated++;
+        });
+        installmentGroupsCreated++;
 
-      for (const line of suggestion.lines) {
-        const txIdx = rowIndexToTxIdx.get(line.rowIndex);
-        if (txIdx !== undefined) {
-          transactionData[txIdx].installmentGroupId = group.id;
-          transactionData[txIdx].installmentNumber = line.installmentNumber;
+        for (const line of suggestion.lines) {
+          const txIdx = rowIndexToTxIdx.get(line.rowIndex);
+          if (txIdx !== undefined) {
+            transactionData[txIdx].installmentGroupId = groupId;
+            transactionData[txIdx].installmentNumber = line.installmentNumber;
+          }
+        }
+
+        // Criar PendingInstallments para parcelas ausentes no CSV (instâncias suspensas)
+        const presentNumbers = new Set(suggestion.lines.map((l) => l.installmentNumber));
+        const missingNumbers = Array.from(
+          { length: suggestion.installmentCount },
+          (_, i) => i + 1,
+        ).filter((n) => !presentNumbers.has(n));
+
+        if (missingNumbers.length > 0) {
+          const amounts = calcInstallmentAmounts(estimatedTotalCents, suggestion.installmentCount);
+          for (const num of missingNumbers) {
+            newPendingRows.push({
+              accountId: ctx.accountId,
+              installmentGroupId: groupId,
+              installmentNumber: num,
+              amountCents: amounts[num - 1],
+              expectedDate: expectedDateFor(num),
+              description: suggestion.groupDescription,
+            });
+          }
         }
       }
 
-      // Criar PendingInstallments para parcelas ausentes no CSV (instâncias suspensas)
-      const presentNumbers = new Set(suggestion.lines.map((l) => l.installmentNumber));
-      const missingNumbers = Array.from(
-        { length: suggestion.installmentCount },
-        (_, i) => i + 1,
-      ).filter((n) => !presentNumbers.has(n));
-
-      if (missingNumbers.length > 0) {
-        const amounts = calcInstallmentAmounts(estimatedTotalCents, suggestion.installmentCount);
-        await tx.pendingInstallment.createMany({
-          data: missingNumbers.map((num) => ({
-            accountId: ctx.accountId,
-            installmentGroupId: group.id,
-            installmentNumber: num,
-            amountCents: amounts[num - 1],
-            expectedDate: expectedDateFor(num),
-            description: suggestion.groupDescription,
-          })),
+      // Grupos ANTES das pendentes: `pending_installments.installment_group_id`
+      // é FK para eles.
+      if (newGroupRows.length > 0) {
+        await tx.installmentGroup.createMany({ data: newGroupRows });
+      }
+      if (newPendingRows.length > 0) {
+        await tx.pendingInstallment.createMany({ data: newPendingRows });
+      }
+      if (consumedPendingIds.size > 0) {
+        await tx.pendingInstallment.deleteMany({
+          where: { id: { in: [...consumedPendingIds] }, accountId: ctx.accountId }, // ✅ multi-tenancy
         });
       }
-    }
 
-    if (transactionData.length > 0) {
-      const txSource = input.fileType === "xlsx" ? "xlsx_import" : "csv_import";
-      // id gerado por nós (generateTransactionId) — createMany não retorna as
-      // linhas criadas, e createManyAndReturn não garante a ordem de retorno
-      // (sem orderBy; um import grande pode ser chunkado em vários INSERTs).
-      // Conhecer o id de antemão é o que permite vincular as tags do apelido
-      // em transaction_tags logo abaixo sem depender de nenhuma ordem.
-      await tx.transaction.createMany({
-        data: transactionData.map((t) => ({
-          id: t.id,
-          accountId: ctx.accountId,
-          monthId: input.monthId,
-          tableId: table.id,
-          sectionId: input.sectionId,
-          occurredOn: t.occurredOn,
-          amountCents: t.amountCents,
-          description: t.description,
-          notes: t.notes,
-          subcategoryId: t.subcategoryId,
-          cardInstallment: t.cardInstallment,
-          investmentType: t.investmentType,
-          responsiblePartyId: t.responsiblePartyId,
-          categoryId: t.categoryId,
-          institutionId: t.institutionId,
-          institutionText: t.institutionText,
-          expenseType: t.expenseType,
-          paymentMethod: t.paymentMethod,
-          isPending: t.isPending,
-          isFavorite: t.isFavorite,
-          source: txSource,
-          installmentGroupId: t.installmentGroupId ?? null,
-          installmentNumber: t.installmentNumber ?? null,
-          originalAmountCents: t.originalAmountCents ?? null,
-          originalCurrency: t.originalCurrency ?? null,
-          exchangeRate: t.exchangeRate ?? null,
-          createdById: ctx.userId,
-          metadata: t.appliedAliasId
-            ? { appliedAliasId: t.appliedAliasId, aliasTrigger: t.aliasTrigger }
-            : {},
-        })),
-      });
+      if (transactionData.length > 0) {
+        const txSource = input.fileType === "xlsx" ? "xlsx_import" : "csv_import";
+        // id gerado por nós (generateId) — createMany não retorna as
+        // linhas criadas, e createManyAndReturn não garante a ordem de retorno
+        // (sem orderBy; um import grande pode ser chunkado em vários INSERTs).
+        // Conhecer o id de antemão é o que permite vincular as tags do apelido
+        // em transaction_tags logo abaixo sem depender de nenhuma ordem.
+        await tx.transaction.createMany({
+          data: transactionData.map((t) => ({
+            id: t.id,
+            accountId: ctx.accountId,
+            monthId: input.monthId,
+            tableId: table.id,
+            sectionId: input.sectionId,
+            occurredOn: t.occurredOn,
+            amountCents: t.amountCents,
+            description: t.description,
+            notes: t.notes,
+            subcategoryId: t.subcategoryId,
+            cardInstallment: t.cardInstallment,
+            investmentType: t.investmentType,
+            responsiblePartyId: t.responsiblePartyId,
+            categoryId: t.categoryId,
+            institutionId: t.institutionId,
+            institutionText: t.institutionText,
+            expenseType: t.expenseType,
+            paymentMethod: t.paymentMethod,
+            isPending: t.isPending,
+            isFavorite: t.isFavorite,
+            source: txSource,
+            installmentGroupId: t.installmentGroupId ?? null,
+            installmentNumber: t.installmentNumber ?? null,
+            originalAmountCents: t.originalAmountCents ?? null,
+            originalCurrency: t.originalCurrency ?? null,
+            exchangeRate: t.exchangeRate ?? null,
+            createdById: ctx.userId,
+            metadata: t.appliedAliasId
+              ? { appliedAliasId: t.appliedAliasId, aliasTrigger: t.aliasTrigger }
+              : {},
+          })),
+        });
 
-      // tagIds do apelido substitui o conjunto (não faz união) — cada linha só
-      // entra aqui quando o próprio apelido define ≥1 tag (DD-04).
-      const tagPairs = transactionData.flatMap((t) =>
-        t.tagIds.map((tagId) => ({ transactionId: t.id, tagId })),
-      );
-      if (tagPairs.length > 0) {
-        await tx.transactionTag.createMany({ data: tagPairs, skipDuplicates: true });
+        // tagIds do apelido substitui o conjunto (não faz união) — cada linha só
+        // entra aqui quando o próprio apelido define ≥1 tag (DD-04).
+        const tagPairs = transactionData.flatMap((t) =>
+          t.tagIds.map((tagId) => ({ transactionId: t.id, tagId })),
+        );
+        if (tagPairs.length > 0) {
+          await tx.transactionTag.createMany({ data: tagPairs, skipDuplicates: true });
+        }
       }
-    }
 
-    return { table, installmentGroupsCreated, installmentGroupsLinked, installmentLinesSkipped };
-  });
+      return { table, installmentGroupsCreated, installmentGroupsLinked, installmentLinesSkipped };
+    },
+    // Uma fatura pode trazer dezenas de parcelamentos; mesmo com tudo em lote, o
+    // `createMany` das transações é grande. 5s (default do Prisma) é curto demais
+    // contra Postgres gerenciado, onde cada round-trip custa latência de rede.
+    { timeout: 20_000, maxWait: 10_000 },
+  );
 
   const aliasesApplied = transactionData.filter((t) => t.appliedAliasId !== null).length;
   log.info(
