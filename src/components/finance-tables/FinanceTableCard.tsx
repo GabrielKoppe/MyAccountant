@@ -48,8 +48,15 @@ import type {
 import { ExpandableIconButton } from "@/components/ui/ExpandableIconButton";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
-import type { RowLayout } from "@/lib/schemas/settings";
+import type {
+  DefaultSort,
+  GroupBy,
+  InheritOnNewRowField,
+  RowLayout,
+} from "@/lib/schemas/settings";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+import type { TableColumnKey } from "@/lib/table-columns";
+import type { Density } from "@/lib/table-density";
 
 import { MoneyValue } from "../ui/MoneyValue";
 
@@ -71,6 +78,31 @@ type TableData = {
   transactionCount: number;
   hiddenColumns: HiddenColumns;
   rowLayout: RowLayout;
+  /** Spec 69 P1 — densidade do tipo de tabela; repassada à `TransactionTable`. */
+  density: Density;
+  /**
+   * Spec 69 §2.1 (D8) — "Mostrar linha de total" do tipo de tabela. `false`
+   * esconde o total desta tabela (e o total filtrado que o acompanha).
+   * Tabela sem tipo chega aqui com `true`, o comportamento de sempre.
+   */
+  showFooterTotal: boolean;
+  /** Spec 69 §2.1 — campos que a linha-fantasma herda do lançamento anterior. */
+  inheritOnNewRow: InheritOnNewRowField[];
+  /** Spec 69 §2.1 — ordenação com que a tabela abre (ponto de partida do sort). */
+  defaultSort: DefaultSort;
+  /**
+   * Spec 69 §2.1 — agrupamento em blocos do TIPO. Convive com `groupByDate`
+   * (por tabela, no menu ⋮); a precedência está em `group-rows.ts`.
+   */
+  groupBy: GroupBy;
+  /** Spec 69 §2.1 — soma de cada bloco no cabeçalho do grupo. */
+  showGroupSubtotal: boolean;
+  /** Spec 69 §2.1 — `false` desliga seleção e edição em massa nesta tabela. */
+  allowBulkEdit: boolean;
+  /** Spec 69 §2.1 — `true` mantém a linha-fantasma de criação sempre visível. */
+  keepGhostRow: boolean;
+  /** Spec 69 §16 — colunas fixadas à esquerda (cru; a tabela é quem resolve). */
+  pinnedColumns: TableColumnKey[];
 };
 
 type TableTypeOption = { id: string; name: string; isDefault: boolean };
@@ -283,27 +315,44 @@ export function FinanceTableCard({
               sx={{ color: "text.secondary" }}
             />
           )}
-          <Box sx={{ textAlign: "left", minWidth: 120 }}>
-            <MoneyValue
-              cents={BigInt(total)}
-              sx={{ fontSize: "0.925rem", color: totalIsPositive ? "success.main" : "error.main" }}
-            />
-            {filteredTotal !== null && (
-              <Box
-                sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 1 }}
-              >
-                <Typography variant="caption" color="warning.main" fontWeight={500}>
-                  {formatCentsToBrl(filteredTotal)}
-                </Typography>
-                {total !== 0n && (
-                  <Typography variant="caption" color="text.tertiary">
-                    ({Math.round((Math.abs(Number(filteredTotal)) / Math.abs(Number(total))) * 100)}
-                    %)
+          {/* Spec 69 §2.1 — o toggle "Mostrar linha de total" do tipo de tabela
+              some com o bloco inteiro: o total filtrado é uma leitura DESTE
+              total, e mantê-lo sozinho seria mostrar metade do que foi
+              desligado. */}
+          {table.showFooterTotal && (
+            <Box sx={{ textAlign: "left", minWidth: 120 }}>
+              <MoneyValue
+                cents={BigInt(total)}
+                sx={{
+                  fontSize: "0.925rem",
+                  color: totalIsPositive ? "success.main" : "error.main",
+                }}
+              />
+              {filteredTotal !== null && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "flex-start",
+                    gap: 1,
+                  }}
+                >
+                  <Typography variant="caption" color="warning.main" fontWeight={500}>
+                    {formatCentsToBrl(filteredTotal)}
                   </Typography>
-                )}
-              </Box>
-            )}
-          </Box>
+                  {total !== 0n && (
+                    <Typography variant="caption" color="text.tertiary">
+                      (
+                      {Math.round(
+                        (Math.abs(Number(filteredTotal)) / Math.abs(Number(total))) * 100,
+                      )}
+                      %)
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </Box>
+          )}
         </Box>
 
         {!isReadOnly && (
@@ -474,6 +523,14 @@ export function FinanceTableCard({
           sectionCountType={sectionCountType}
           hiddenColumns={table.hiddenColumns}
           rowLayout={table.rowLayout}
+          density={table.density}
+          inheritOnNewRow={table.inheritOnNewRow}
+          defaultSort={table.defaultSort}
+          typeGroupBy={table.groupBy}
+          showGroupSubtotal={table.showGroupSubtotal}
+          allowBulkEdit={table.allowBulkEdit}
+          keepGhostRow={table.keepGhostRow}
+          pinnedColumns={table.pinnedColumns}
           initialTransactions={transactions}
           categories={categories}
           institutions={institutions}

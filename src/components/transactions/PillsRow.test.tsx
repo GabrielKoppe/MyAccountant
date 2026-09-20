@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { RichRow, type RichRowProps } from "./RichRow";
+import { PillsRow, type PillsRowProps } from "./PillsRow";
 import type { TransactionRow as TxRow } from "./types";
 
 function makeTx(overrides: Partial<TxRow> = {}): TxRow {
@@ -41,7 +41,7 @@ function makeTx(overrides: Partial<TxRow> = {}): TxRow {
   };
 }
 
-function makeProps(overrides: Partial<RichRowProps> = {}): RichRowProps {
+function makeProps(overrides: Partial<PillsRowProps> = {}): PillsRowProps {
   return {
     tx: makeTx(),
     isSelected: false,
@@ -73,17 +73,17 @@ function makeProps(overrides: Partial<RichRowProps> = {}): RichRowProps {
   };
 }
 
-function renderInTable(props: RichRowProps) {
+function renderInTable(props: PillsRowProps) {
   return render(
     <table>
       <tbody>
-        <RichRow {...props} />
+        <PillsRow {...props} />
       </tbody>
     </table>,
   );
 }
 
-describe("RichRow", () => {
+describe("PillsRow", () => {
   it("renderiza a pílula de categoria quando o campo é visível", () => {
     renderInTable(makeProps());
     expect(screen.getByText("Alimentação")).toBeInTheDocument();

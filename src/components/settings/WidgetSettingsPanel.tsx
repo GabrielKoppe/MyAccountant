@@ -1,8 +1,11 @@
 "use client";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import BlockIcon from "@mui/icons-material/Block";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
@@ -15,10 +18,17 @@ import type {
   WidgetDef,
   WidgetSizeVariant,
 } from "@/components/dashboards/_core/widget-registry";
+import {
+  currentVizKey,
+  vizAvailabilityAt,
+  type VizAvailability,
+} from "@/components/dashboards/_core/widget-viz";
+import { motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import type { WidgetConfigOptions } from "@/server/queries/widget-config-options";
 
+import { vizLabel } from "./viz-display";
 import { widgetLabel } from "./widget-display";
 import { WidgetConfigForm } from "./WidgetConfigForm";
 
@@ -31,6 +41,8 @@ type Props = {
   def: WidgetDef;
   configOptions: WidgetConfigOptions;
   onSelectVariant: (variantId: string) => void;
+  /** Escolha de visualização (07b) — aplica a variante que a produz. */
+  onSelectViz: (vizKey: string) => void;
   onSaveConfig: (config: unknown) => void;
   onDuplicate: () => void;
   onRemove: () => void;
@@ -38,6 +50,7 @@ type Props = {
 };
 
 const MINI_UNIT = 12; // px por célula na miniatura
+const T_FAST = `${motion.duration.fast}ms ${motion.easing.standard}`;
 
 function variantLabel(variant: WidgetSizeVariant): string {
   const labels = m.settings.dashboards.variants as Record<string, string>;
@@ -72,13 +85,16 @@ function VariantThumbnail({
         p: 1,
         borderRadius: 1,
         border: 1,
-        borderColor: selected ? "primary.main" : "border.default",
-        bgcolor: selected ? "action.selected" : "background.surface",
+        // Vocabulário semântico do design system: `accent.primary` /
+        // `accent.primarySubtle` no lugar de `primary.main` / `action.selected`.
+        // `action.*` é o cinza calculado do MUI, sem variante dark documentada.
+        borderColor: selected ? "accent.primary" : "border.default",
+        bgcolor: selected ? "accent.primarySubtle" : "background.surface",
         cursor: "pointer",
         outline: "none",
-        transition: "border-color 120ms, background-color 120ms",
-        "&:hover": { borderColor: "primary.main" },
-        "&:focus-visible": { borderColor: "primary.main", boxShadow: 2 },
+        transition: `border-color ${T_FAST}, background-color ${T_FAST}`,
+        "&:hover": { borderColor: "accent.primary" },
+        "&:focus-visible": { borderColor: "accent.primary", boxShadow: 2 },
       }}
     >
       {/* Representação proporcional da pegada w×h na grade */}
@@ -87,7 +103,11 @@ function VariantThumbnail({
           width: variant.w * MINI_UNIT,
           height: variant.h * MINI_UNIT,
           borderRadius: 0.5,
-          bgcolor: selected ? "primary.main" : "action.disabledBackground",
+          // Família `background` (token) no lugar de `action.disabledBackground`.
+          // `muted` e não `subtle`: a pegada é um bloco CHEIO sobre
+          // `background.surface` — com `subtle` (#F5F4F0 sobre #FFFFFF, 1,05:1)
+          // ela some. `muted` é o degrau seguinte da mesma família.
+          bgcolor: selected ? "accent.primary" : "background.muted",
           opacity: selected ? 0.85 : 1,
         }}
       />
@@ -101,12 +121,104 @@ function VariantThumbnail({
   );
 }
 
+/**
+ * Item de visualização (07b) com os três estados: aceita · aceita com dados
+ * reduzidos · indisponível **com o motivo visível** — a opção inválida nunca
+ * some da lista, senão o usuário não descobre por que ela não está lá (§7.3).
+ */
+function VizOption({
+  availability,
+  selected,
+  onSelect,
+}: {
+  availability: VizAvailability;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const { viz, state, reason } = availability;
+  const disabled = state === "unavailable";
+  const reasonText =
+    reason?.kind === "needsColumns"
+      ? m.settings.presentation.dashboards.viz.needsColumns(reason.cols)
+      : reason?.kind === "onlyAtSize"
+        ? m.settings.presentation.dashboards.viz.onlyAtSize(reason.size)
+        : state === "reduced"
+          ? m.settings.presentation.dashboards.viz.reducedData
+          : null;
+
+  return (
+    <Box
+      role="radio"
+      aria-checked={selected}
+      aria-disabled={disabled || undefined}
+      tabIndex={disabled ? -1 : 0}
+      onClick={disabled ? undefined : onSelect}
+      onKeyDown={(e) => {
+        if (disabled) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: 1,
+        py: 0.75,
+        borderRadius: 1,
+        border: 1,
+        borderColor: selected ? "accent.primary" : "border.default",
+        bgcolor: selected ? "accent.primarySubtle" : "transparent",
+        opacity: disabled ? 0.6 : 1,
+        cursor: disabled ? "default" : "pointer",
+        outline: "none",
+        transition: `border-color ${T_FAST}, background-color ${T_FAST}`,
+        ...(!disabled && {
+          "&:hover": { borderColor: "accent.primary" },
+          "&:focus-visible": { borderColor: "accent.primary", boxShadow: 2 },
+        }),
+      }}
+    >
+      {disabled ? (
+        <BlockIcon sx={{ fontSize: 15, color: "text.tertiary", flexShrink: 0 }} />
+      ) : selected ? (
+        <RadioButtonCheckedIcon sx={{ fontSize: 15, color: "accent.primary", flexShrink: 0 }} />
+      ) : (
+        <RadioButtonUncheckedIcon sx={{ fontSize: 15, color: "text.tertiary", flexShrink: 0 }} />
+      )}
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            lineHeight: 1.3,
+            fontWeight: selected ? 600 : 400,
+            color: disabled ? "text.tertiary" : "text.primary",
+          }}
+        >
+          {vizLabel(viz)}
+        </Typography>
+        {reasonText && (
+          <Typography
+            variant="caption"
+            sx={{ display: "block", fontSize: "0.65rem", lineHeight: 1.3, color: "text.tertiary" }}
+          >
+            {reasonText}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
 export function WidgetSettingsPanel({
   context,
   widget,
   def,
   configOptions,
   onSelectVariant,
+  onSelectViz,
   onSaveConfig,
   onDuplicate,
   onRemove,
@@ -114,6 +226,8 @@ export function WidgetSettingsPanel({
 }: Props) {
   const Icon = WIDGET_ICONS[def.id];
   const label = widgetLabel(context, def.id);
+  const vizOptions = vizAvailabilityAt(def, { w: widget.w, h: widget.h });
+  const currentViz = currentVizKey(def, widget);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -177,6 +291,31 @@ export function WidgetSettingsPanel({
         </Box>
       </Box>
 
+      {/* Seção: visualização (07b) — só quando há mais de uma opção real */}
+      {vizOptions.length > 1 && (
+        <Box>
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: 500, display: "block", mb: 0.75, color: "text.secondary" }}
+          >
+            {m.settings.presentation.dashboards.inspector.vizTitle}{" "}
+            <Box component="span" sx={{ color: "text.tertiary", fontWeight: 400 }}>
+              · {m.settings.presentation.dashboards.inspector.vizHint}
+            </Box>
+          </Typography>
+          <Box role="radiogroup" sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+            {vizOptions.map((availability) => (
+              <VizOption
+                key={availability.viz.key}
+                availability={availability}
+                selected={availability.viz.key === currentViz}
+                onSelect={() => onSelectViz(availability.viz.key)}
+              />
+            ))}
+          </Box>
+        </Box>
+      )}
+
       {/* Seção: configuração (apenas widgets com configSchema) */}
       {def.configSchema && (
         <>
@@ -188,9 +327,13 @@ export function WidgetSettingsPanel({
             >
               {m.settings.dashboards.configSection}
             </Typography>
-            {/* key por instanceId → reseta o form ao trocar de widget selecionado */}
+            {/*
+              key por instanceId + visualização: reseta o form ao trocar de widget
+              e também quando o seletor de Visualização grava `config.chartType`
+              por fora — sem isso o form seguiria mostrando o tipo de gráfico antigo.
+            */}
             <WidgetConfigForm
-              key={widget.instanceId}
+              key={`${widget.instanceId}:${currentViz ?? ""}`}
               context={context}
               def={def}
               widget={widget}

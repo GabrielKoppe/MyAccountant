@@ -11,7 +11,11 @@ import TextField, { type TextFieldProps } from "@mui/material/TextField";
 import { radius } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 
-import { SETTINGS_FIELD_HEIGHT, SETTINGS_ROW_ICON, SETTINGS_TABLE_FONT } from "./settings-table-tokens";
+import {
+  SETTINGS_FIELD_HEIGHT,
+  SETTINGS_ROW_ICON,
+  SETTINGS_TABLE_FONT,
+} from "./settings-table-tokens";
 
 /**
  * Campo de texto dentro de uma linha em edição (Spec 68, revisão de estilo).
@@ -36,9 +40,29 @@ export type SettingsRowFieldProps = Omit<TextFieldProps, "label" | "size" | "var
    * campo mantém nome acessível, que um `placeholder` sozinho não dá.
    */
   label?: string;
+  /**
+   * Altura do contorno, quando o campo NÃO está dentro de uma linha de tabela — os
+   * 33px dos formulários das abas de Tipos e Modelos (`.fld` do frame) contra os 28px
+   * de `SETTINGS_FIELD_HEIGHT`, que existem para caber numa linha de 36px.
+   *
+   * **Por que uma prop, e não `sx`**: o `sx` do chamador é espalhado por ÚLTIMO, e
+   * `& .MuiOutlinedInput-root` é um objeto aninhado — passar
+   * `{ "& .MuiOutlinedInput-root": { height: 33 } }` substituía o objeto inteiro e
+   * levava embora o `fontSize` e o `borderRadius` definidos aqui. O campo voltava aos
+   * 16px do tema (era exatamente o "Nome do tipo" com letra grande), e nada no code
+   * review denunciava: o seletor está certo, só não é somado. Com a altura entrando
+   * pela prop, nenhum chamador precisa mais tocar nesse seletor.
+   */
+  fieldHeight?: number | string;
 };
 
-export function SettingsRowField({ sx, label, inputProps, ...rest }: SettingsRowFieldProps) {
+export function SettingsRowField({
+  sx,
+  label,
+  inputProps,
+  fieldHeight = SETTINGS_FIELD_HEIGHT,
+  ...rest
+}: SettingsRowFieldProps) {
   return (
     <TextField
       {...rest}
@@ -48,7 +72,7 @@ export function SettingsRowField({ sx, label, inputProps, ...rest }: SettingsRow
       fullWidth
       sx={{
         "& .MuiOutlinedInput-root": {
-          height: SETTINGS_FIELD_HEIGHT,
+          height: fieldHeight,
           fontSize: SETTINGS_TABLE_FONT.field.size,
           // String em px — numérico seria multiplicado por `theme.shape.borderRadius`.
           borderRadius: `${radius.sm + 3}px`,
@@ -116,9 +140,7 @@ export function SettingsEditActions({
  * renderiza; exportado aqui para que a medida viva junto das outras da tabela.
  */
 export function SettingsRowMenuIcon() {
-  return (
-    <MoreHorizIcon sx={{ fontSize: SETTINGS_ROW_ICON.menuSize, color: "text.tertiary" }} />
-  );
+  return <MoreHorizIcon sx={{ fontSize: SETTINGS_ROW_ICON.menuSize, color: "text.tertiary" }} />;
 }
 
 /** Ícone da alça de arraste, na medida da tabela. */

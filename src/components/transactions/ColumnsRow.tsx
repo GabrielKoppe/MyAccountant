@@ -22,9 +22,12 @@ import { tagChipSx } from "@/components/tags/tagChipSx";
 import { formatDateShort } from "@/lib/dates";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
+import type { PinnableColumnKey } from "@/lib/table-columns";
+import { DENSITY_VAR } from "@/lib/table-density";
 
 import { PartyAvatar } from "./PartyAvatar";
 import { pillOutlineSx, pillSx, rowCheckboxCheckedIconSx, rowCheckboxIconSx } from "./pill-sx";
+import { pinnedBodyCellSx, pinnedSelectCellSx } from "./pinned-columns";
 import { describeRowState } from "./row-state";
 import { TransactionRowActions } from "./TransactionRowActions";
 import type {
@@ -46,6 +49,19 @@ export type ColumnsRowProps = {
   tx: TxRow;
   isSelected: boolean;
   isReadOnly: boolean;
+  /**
+   * Spec 69 §2.1 (`allowBulkEdit`) — desenha (ou não) a caixa de seleção da
+   * linha. A CÉLULA continua sendo emitida em qualquer caso: ela é a coluna que
+   * alinha o cabeçalho e o "+" da linha-fantasma. Default `true` para quem
+   * renderiza a linha fora do mês.
+   */
+  selectable?: boolean;
+  /**
+   * Spec 69 §16 — colunas fixadas à esquerda, **já resolvidas** pela
+   * `TransactionTable` (∩ `PINNABLE_COLUMNS` ∩ visíveis, na ordem das visíveis,
+   * e vazio no layout de pílulas). A linha só aplica o `sx`; ela não decide.
+   */
+  pinnedColumns?: readonly PinnableColumnKey[];
   sectionCountType: SectionCountType;
   hiddenColumns: HiddenColumns;
   categories: CategoryOption[];
@@ -74,10 +90,72 @@ export type ColumnsRowProps = {
   onOpenMenu: (e: React.MouseEvent<HTMLButtonElement>, items: RowMenuItem[]) => void;
 };
 
+/**
+ * Spec 69 §7.2 — recipe de célula sob densidade: fonte em `--row-fs` e padding
+ * vertical zerado. Quem manda na altura é o `height` do `<tr>` (que em tabelas
+ * o CSS trata como MÍNIMO) — sem isso, o padding fixo somado ao conteúdo
+ * impediria a linha de chegar aos 36/44/52px da escala. Nenhuma medição em JS.
+ */
+const CELL_SX = { fontSize: DENSITY_VAR.fontSize, py: 0 } as const;
+
+/**
+ * Spec 69 · acabamento visual — esmaecimento da linha PENDENTE.
+ *
+ * `opacity` num ancestral compõe o subárvore inteira como um GRUPO: o navegador
+ * desenha tudo opaco e só então aplica o alfa uma vez. Por isso um descendente
+ * com `opacity: 1` NÃO se resgata — ele continua saindo a 60%. A única saída é
+ * tirar o elemento de dentro do escopo opaco.
+ *
+ * Então o fade não mora mais no `<tr>`: desce para as células (`& > td`), e a
+ * célula que hospeda o chip "Pendente" fica de fora (`.row-pending-host`). Lá
+ * dentro o fade é reaplicado item a item (`.row-dim`) em tudo que NÃO é o chip.
+ *
+ * O porquê: o esmaecimento comunica "esta linha ainda não aconteceu"; o chip é
+ * justamente o rótulo que diz isso, e tem de continuar legível. Dentro do grupo
+ * opaco o par do chip desabava para ~1,8:1 no light (medido sobre
+ * `background.surface`) — abaixo até do mínimo de 3:1 de componente. Fora dele
+ * o chip fica em `warning.onSubtle` sobre `warning.light`, que mede 4,51:1
+ * (o antigo `warning.main` dava 2,77:1). Ver src/lib/theme-contrast.test.ts.
+ */
+export const PENDING_ROW_OPACITY = 0.6;
+/** Célula que hospeda o chip de estado — não é esmaecida como um todo. */
+export const PENDING_HOST_CLASS = "row-pending-host";
+/** Elementos dentro da célula-host que ainda devem esmaecer (tudo menos o chip). */
+export const PENDING_DIM_CLASS = "row-dim";
+
+/**
+ * Spec 69 §16 — célula de coluna FIXADA. Precisa sair do escopo opaco pelo mesmo
+ * motivo que a célula-host, mas por uma razão diferente e mais dura: uma célula
+ * presa a 60% de opacidade tem o **fundo** a 60% também, e o conteúdo que rola
+ * por baixo dela aparece através. O fade volta item a item (`.row-dim`), como na
+ * host — o esmaecimento continua valendo, só deixa de valer em bloco.
+ */
+export const PINNED_CELL_CLASS = "row-pinned-cell";
+
+/** `sx` do esmaecimento da linha pendente — aplicar no `<TableRow>`. */
+export const pendingRowSx = {
+  "& > td": { opacity: PENDING_ROW_OPACITY },
+  // Especificidade maior que `& > td` (0,2,1 × 0,1,1) → a célula-host reverte.
+  [`& > td.${PENDING_HOST_CLASS}`]: { opacity: 1 },
+  [`& > td.${PENDING_HOST_CLASS} .${PENDING_DIM_CLASS}`]: { opacity: PENDING_ROW_OPACITY },
+  [`& > td.${PINNED_CELL_CLASS}`]: { opacity: 1 },
+  [`& > td.${PINNED_CELL_CLASS} .${PENDING_DIM_CLASS}`]: { opacity: PENDING_ROW_OPACITY },
+} as const;
+
+/** Junta classes opcionais; `undefined` quando não sobra nenhuma. */
+export function rowCellClass(
+  ...parts: (string | false | null | undefined)[]
+): string | undefined {
+  const kept = parts.filter(Boolean);
+  return kept.length > 0 ? kept.join(" ") : undefined;
+}
+
 export function ColumnsRow({
   tx,
   isSelected,
   isReadOnly,
+  selectable = true,
+  pinnedColumns = [],
   sectionCountType,
   hiddenColumns,
   categories,
@@ -107,12 +185,21 @@ export function ColumnsRow({
 
   const subcatsForCategory = categories.find((c) => c.id === tx.categoryId)?.subcategories ?? [];
 
+  // Spec 69 §16 — `false` quando a coluna não está presa (item neutro do `sx`
+  // em array), então o caminho "nada fixado" não muda uma linha sequer do DOM.
+  const pinnedSelect = pinnedSelectCellSx(pinnedColumns);
+  const pinnedDate = pinnedBodyCellSx(pinnedColumns, "occurredOn");
+  const pinnedDescription = pinnedBodyCellSx(pinnedColumns, "description");
+
   return (
     <TableRow
       hover
       selected={isSelected}
       sx={{
-        opacity: tx.isPending ? 0.6 : 1,
+        height: DENSITY_VAR.rowHeight,
+        // Esmaecimento por célula (ver `pendingRowSx`): o chip "Pendente" fica
+        // fora do escopo opaco para continuar legível.
+        ...(tx.isPending ? pendingRowSx : null),
         // Linha selecionada (frame 66 §4): fundo accent sutil — não o
         // `action.selected` cinza padrão do MUI.
         "&.Mui-selected, &.Mui-selected:hover": { bgcolor: "accent.primarySubtle" },
@@ -132,53 +219,84 @@ export function ColumnsRow({
         "&:hover .row-more-vert, &:focus-within .row-more-vert": { color: "text.secondary" },
       }}
     >
-      <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-        <Checkbox
-          checked={isSelected}
-          onChange={(e) => onSelect(tx.id, e.target.checked)}
-          size="small"
-          disabled={isReadOnly}
-          icon={<Box component="span" sx={rowCheckboxIconSx} />}
-          checkedIcon={
-            <Box component="span" sx={rowCheckboxCheckedIconSx}>
-              <CheckIcon sx={{ fontSize: 12 }} />
-            </Box>
-          }
-        />
+      <TableCell
+        padding="checkbox"
+        className={rowCellClass(pinnedSelect && PINNED_CELL_CLASS)}
+        sx={[pinnedSelect]}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {selectable && (
+          <Checkbox
+            className={rowCellClass(pinnedSelect && PENDING_DIM_CLASS)}
+            checked={isSelected}
+            onChange={(e) => onSelect(tx.id, e.target.checked)}
+            size="small"
+            disabled={isReadOnly}
+            icon={<Box component="span" sx={rowCheckboxIconSx} />}
+            checkedIcon={
+              <Box component="span" sx={rowCheckboxCheckedIconSx}>
+                <CheckIcon sx={{ fontSize: 12 }} />
+              </Box>
+            }
+          />
+        )}
       </TableCell>
 
       <TableCell
-        sx={{
-          fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
-          fontSize: 13,
-          color: "text.secondary",
-          whiteSpace: "nowrap",
-          py: 1.5,
-          cursor: isReadOnly ? "default" : "pointer",
-        }}
+        className={rowCellClass(pinnedDate && PINNED_CELL_CLASS)}
+        sx={[
+          {
+            ...CELL_SX,
+            fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
+            color: "text.secondary",
+            whiteSpace: "nowrap",
+            cursor: isReadOnly ? "default" : "pointer",
+          },
+          pinnedDate,
+        ]}
         onClick={() => !isReadOnly && onStartEdit("occurredOn")}
       >
-        {formatDateShort(tx.occurredOn)}
+        {pinnedDate ? (
+          // Presa, a célula sai do escopo opaco da linha pendente (senão o fundo
+          // ficaria translúcido) — o fade volta aqui dentro.
+          <Box component="span" className={PENDING_DIM_CLASS}>
+            {formatDateShort(tx.occurredOn)}
+          </Box>
+        ) : (
+          formatDateShort(tx.occurredOn)
+        )}
       </TableCell>
 
       <TableCell
-        sx={{
-          fontSize: 13,
-          maxWidth: 200,
-          py: 1.5,
-          cursor: isReadOnly ? "default" : "pointer",
-          // Frame 66 §4: na linha selecionada a descrição vai para o accent.
-          ...(isSelected && { color: "accent.primary" }),
-        }}
+        // Célula-host do chip de estado: quando a linha está pendente ela NÃO é
+        // esmaecida em bloco; o fade é reaplicado nos irmãos do chip (`.row-dim`).
+        className={rowCellClass(
+          tx.isPending && PENDING_HOST_CLASS,
+          pinnedDescription && PINNED_CELL_CLASS,
+        )}
+        sx={[
+          {
+            ...CELL_SX,
+            maxWidth: 200,
+            cursor: isReadOnly ? "default" : "pointer",
+            // Frame 66 §4: na linha selecionada a descrição vai para o accent.
+            ...(isSelected && { color: "accent.primary" }),
+          },
+          pinnedDescription,
+        ]}
         onClick={() => !isReadOnly && onStartEdit("description")}
         aria-label={describeRowState(tx)}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
           {tx.isFavorite && (
-            <StarIcon sx={{ fontSize: 14, color: "warning.main", mr: 0.5, flexShrink: 0 }} />
+            <StarIcon
+              className={PENDING_DIM_CLASS}
+              sx={{ fontSize: 14, color: "warning.main", mr: 0.5, flexShrink: 0 }}
+            />
           )}
           <Box
             component="span"
+            className={PENDING_DIM_CLASS}
             sx={{
               minWidth: 0,
               overflow: "hidden",
@@ -188,14 +306,16 @@ export function ColumnsRow({
           >
             {tx.description}
           </Box>
+          {/* Sem `.row-dim`: é o rótulo que explica o esmaecimento da linha. */}
           {tx.isPending && (
             <Chip
               label={m.transactions.fields.isPendingChip}
               size="small"
               sx={{
                 ...pillSx,
-                bgcolor: "warning.subtle",
-                color: "warning.main",
+                bgcolor: "warning.light",
+                // Texto sobre fundo sutil → `onSubtle` (AA); `main` da 2,77:1.
+                color: "warning.onSubtle",
                 ml: 0.5,
                 flexShrink: 0,
               }}
@@ -204,6 +324,7 @@ export function ColumnsRow({
           {hasSuggestion && (
             <Tooltip title={m.transactions.aliasSuggestion.header}>
               <IconButton
+                className={PENDING_DIM_CLASS}
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -221,7 +342,7 @@ export function ColumnsRow({
 
       {!hiddenColumns.category && (
         <TableCell
-          sx={{ fontSize: 13, py: 1.5, cursor: isReadOnly ? "default" : "pointer" }}
+          sx={{ ...CELL_SX, cursor: isReadOnly ? "default" : "pointer" }}
           onClick={() => !isReadOnly && onStartEdit("categoryId")}
         >
           {categories.find((c) => c.id === tx.categoryId)?.name ?? null}
@@ -230,7 +351,7 @@ export function ColumnsRow({
 
       {!hiddenColumns.subcategory && (
         <TableCell
-          sx={{ fontSize: 13, py: 1.5, cursor: isReadOnly ? "default" : "pointer" }}
+          sx={{ ...CELL_SX, cursor: isReadOnly ? "default" : "pointer" }}
           onClick={() => !isReadOnly && onStartEdit("subcategoryId")}
         >
           {subcatsForCategory.find((s) => s.id === tx.subcategoryId)?.name ?? null}
@@ -239,7 +360,7 @@ export function ColumnsRow({
 
       {!hiddenColumns.institution && (
         <TableCell
-          sx={{ fontSize: 13, py: 1.5, cursor: isReadOnly ? "default" : "pointer" }}
+          sx={{ ...CELL_SX, cursor: isReadOnly ? "default" : "pointer" }}
           onClick={() => !isReadOnly && onStartEdit("institutionId")}
         >
           {institutions.find((i) => i.id === tx.institutionId)?.name ?? tx.institutionText ?? null}
@@ -248,7 +369,7 @@ export function ColumnsRow({
 
       {!hiddenColumns.paymentMethod && (
         <TableCell
-          sx={{ fontSize: 13, py: 1.5, cursor: isReadOnly ? "default" : "pointer" }}
+          sx={{ ...CELL_SX, cursor: isReadOnly ? "default" : "pointer" }}
           onClick={() => !isReadOnly && onStartEdit("paymentMethod")}
         >
           {tx.paymentMethod ? m.transactions.paymentMethods[tx.paymentMethod] : null}
@@ -258,12 +379,11 @@ export function ColumnsRow({
       <TableCell
         align="right"
         sx={{
+          ...CELL_SX,
           fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
           fontVariantNumeric: "tabular-nums",
           fontWeight: "medium",
-          fontSize: 13,
           whiteSpace: "nowrap",
-          py: 1.5,
           color: isPositive ? "success.main" : "error.main",
           cursor: isReadOnly ? "default" : "pointer",
         }}
@@ -291,7 +411,7 @@ export function ColumnsRow({
 
       {!hiddenColumns.responsibleUser && (
         <TableCell
-          sx={{ py: 1.5, cursor: isReadOnly ? "default" : "pointer" }}
+          sx={{ ...CELL_SX, cursor: isReadOnly ? "default" : "pointer" }}
           onClick={() => !isReadOnly && onStartEdit("responsibleUserId")}
         >
           {(() => {
@@ -321,7 +441,7 @@ export function ColumnsRow({
 
       {!hiddenColumns.investmentType && (
         <TableCell
-          sx={{ fontSize: 13, py: 1.5, cursor: isReadOnly ? "default" : "pointer" }}
+          sx={{ ...CELL_SX, cursor: isReadOnly ? "default" : "pointer" }}
           onClick={() => !isReadOnly && onStartEdit("investmentType")}
         >
           {tx.investmentType ?? null}
@@ -330,7 +450,7 @@ export function ColumnsRow({
 
       {/* Parcela estruturada ou texto legado */}
       {!hiddenColumns.cardInstallment && (
-        <TableCell sx={{ px: 1, py: 1.5 }}>
+        <TableCell sx={{ ...CELL_SX, px: 1 }}>
           {tx.installmentGroupId && tx.installmentNumber && tx.installmentGroupCount ? (
             <Tooltip
               title={m.transactions.installments.badgeTooltip(
@@ -361,9 +481,15 @@ export function ColumnsRow({
         </TableCell>
       )}
       {!hiddenColumns.expenseType && tx.expenseType && (
-        <TableCell sx={{ px: 0.5, width: 28 }}>
+        <TableCell sx={{ ...CELL_SX, px: 0.5, width: 28 }}>
           <Tooltip title={m.transactions.expenseTypeTooltips[tx.expenseType] ?? ""}>
-            <span style={{ display: "inline-flex", alignItems: "center", marginTop: 6 }}>
+            {/* `verticalAlign: middle` no lugar do antigo `marginTop: 6`: aquele
+                offset compensava o padding vertical fixo da célula, que a
+                densidade (Spec 69) zerou — quem centraliza agora é a linha. */}
+            <Box
+              component="span"
+              sx={{ display: "inline-flex", alignItems: "center", verticalAlign: "middle" }}
+            >
               {tx.expenseType === "fixed" && (
                 <LockOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
               )}
@@ -373,16 +499,18 @@ export function ColumnsRow({
               {tx.expenseType === "one_time" && (
                 <FlashOnOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
               )}
-            </span>
+            </Box>
           </Tooltip>
         </TableCell>
       )}
-      {!hiddenColumns.expenseType && !tx.expenseType && <TableCell sx={{ px: 0.5, width: 28 }} />}
+      {!hiddenColumns.expenseType && !tx.expenseType && (
+        <TableCell sx={{ ...CELL_SX, px: 0.5, width: 28 }} />
+      )}
 
       {/* Célula de tags */}
       {!hiddenColumns.tags && (
         <TableCell
-          sx={{ cursor: "pointer", maxWidth: 160, minWidth: 60, px: 1, py: 1.5 }}
+          sx={{ ...CELL_SX, cursor: "pointer", maxWidth: 160, minWidth: 60, px: 1 }}
           onClick={(e) => onOpenTags(e.currentTarget)}
         >
           {localTags.length > 0 ? (
@@ -397,7 +525,11 @@ export function ColumnsRow({
             >
               {localTags.slice(0, 2).map((tag) => (
                 <Tooltip key={tag.id} title={tag.name} disableInteractive>
-                  <Chip label={tag.name} size="small" sx={{ ...tagChipSx(tag.color), maxWidth: 72 }} />
+                  <Chip
+                    label={tag.name}
+                    size="small"
+                    sx={{ ...tagChipSx(tag.color), maxWidth: 72 }}
+                  />
                 </Tooltip>
               ))}
               {localTags.length > 2 && (

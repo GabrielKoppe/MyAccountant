@@ -44,7 +44,7 @@ function Cell({
           borderRadius: 1.5,
           border: "1px solid",
           borderColor: selected ? "accent.primary" : "divider",
-          bgcolor: selected ? "accent.subtle" : "transparent",
+          bgcolor: selected ? "accent.primarySubtle" : "transparent",
           color: "text.secondary",
           transition: "all 120ms ease",
           "&:hover": { borderColor: "accent.primary" },

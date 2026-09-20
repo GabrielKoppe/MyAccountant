@@ -26,6 +26,9 @@ function setupQuietMocks() {
   // Conta sem nenhum item de checklist → a guarda do sinalizador (c) desliga.
   prismaMock.checklistItem.findFirst.mockResolvedValue(null as never);
   prismaMock.checklistCompletion.findFirst.mockResolvedValue(null as never);
+  // Sinalizador (d): nenhum modelo com automação, nenhuma seção inativa.
+  prismaMock.tableTemplate.findMany.mockResolvedValue([] as never);
+  prismaMock.section.findMany.mockResolvedValue([] as never);
 }
 
 afterEach(() => {
@@ -64,6 +67,8 @@ describe("getSettingsAttention", () => {
       prismaMock.accountMember.findMany.mock.calls[0]?.[0],
       prismaMock.checklistItem.findFirst.mock.calls[0]?.[0],
       prismaMock.checklistCompletion.findFirst.mock.calls[0]?.[0],
+      prismaMock.tableTemplate.findMany.mock.calls[0]?.[0],
+      prismaMock.section.findMany.mock.calls[0]?.[0],
     ]) {
       expect(call?.where).toMatchObject({ accountId: "acc-tenant" });
     }
@@ -170,6 +175,74 @@ describe("getSettingsAttention", () => {
     });
   });
 
+  // Spec 69 §4 — o modelo com automação apontando para seção inativa não cria
+  // tabela no mês novo (`month-service.applyAutoTemplates` o pula).
+  describe("(d) modelo com seção de destino inativa", () => {
+    it("sinaliza e leva à página de Modelos", async () => {
+      setupQuietMocks();
+      prismaMock.tableTemplate.findMany.mockResolvedValue([
+        { id: "tpl-off", autoSectionId: "sec-off" },
+      ] as never);
+      prismaMock.section.findMany.mockResolvedValue([{ id: "sec-off" }] as never);
+
+      expect(await getSettingsAttention("acc-models")).toEqual([
+        {
+          kind: "templateSectionInactive",
+          label: m.settings.hub.signals.templateSectionInactive(1),
+          href: "models",
+          count: 1,
+        },
+      ]);
+    });
+
+    it("não sinaliza quando a seção de destino continua ativa", async () => {
+      setupQuietMocks();
+      prismaMock.tableTemplate.findMany.mockResolvedValue([
+        { id: "tpl-ok", autoSectionId: "sec-ativa" },
+      ] as never);
+      prismaMock.section.findMany.mockResolvedValue([{ id: "sec-outra-off" }] as never);
+
+      expect(await getSettingsAttention("acc-models-ok")).toEqual([]);
+    });
+
+    it("conta só os modelos com automação ligada e seção definida", async () => {
+      setupQuietMocks();
+
+      await getSettingsAttention("acc-models-where");
+
+      expect(prismaMock.tableTemplate.findMany).toHaveBeenCalledWith({
+        where: {
+          accountId: "acc-models-where",
+          autoApply: true,
+          autoSectionId: { not: null },
+        },
+        select: { id: true, autoSectionId: true },
+      });
+      expect(prismaMock.section.findMany).toHaveBeenCalledWith({
+        where: { accountId: "acc-models-where", isActive: false },
+        select: { id: true },
+      });
+    });
+
+    it("pluraliza pela quantidade de modelos travados", async () => {
+      setupQuietMocks();
+      prismaMock.tableTemplate.findMany.mockResolvedValue([
+        { id: "tpl-1", autoSectionId: "sec-off" },
+        { id: "tpl-2", autoSectionId: "sec-off-2" },
+        { id: "tpl-3", autoSectionId: "sec-ativa" },
+      ] as never);
+      prismaMock.section.findMany.mockResolvedValue([
+        { id: "sec-off" },
+        { id: "sec-off-2" },
+      ] as never);
+
+      const signals = await getSettingsAttention("acc-models-plural");
+
+      expect(signals[0]).toMatchObject({ kind: "templateSectionInactive", count: 2 });
+      expect(signals[0]?.label).toContain("2 modelos");
+    });
+  });
+
   describe("(c) checklist não iniciado", () => {
     it("sinaliza o mês fiscal corrente quando não há nenhuma conclusão", async () => {
       vi.useFakeTimers();
@@ -238,12 +311,17 @@ describe("getSettingsAttention", () => {
       { id: "t-broken", mapping: structurallyBrokenMapping },
     ] as never);
     prismaMock.checklistItem.findFirst.mockResolvedValue({ id: "item-1" } as never);
+    prismaMock.tableTemplate.findMany.mockResolvedValue([
+      { id: "tpl-off", autoSectionId: "sec-off" },
+    ] as never);
+    prismaMock.section.findMany.mockResolvedValue([{ id: "sec-off" }] as never);
 
     const signals = await getSettingsAttention("acc-all");
 
     expect(signals.map((s) => s.kind)).toEqual([
       "aliasIncomplete",
       "templateBroken",
+      "templateSectionInactive",
       "checklistNotStarted",
     ]);
     expect(signals[0]?.href).toBe("aliases?filter=incomplete");

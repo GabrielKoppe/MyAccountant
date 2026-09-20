@@ -24,6 +24,7 @@ import {
   type ThemeMode,
 } from "@/lib/design-tokens";
 import { type AccentPreset, type AccentColorKey, getAccentPreset } from "@/lib/accent-colors";
+import { densityGlobalStyles } from "@/lib/table-density";
 
 // ============================================================================
 // EXTENSÃO DA PALETTE DO MUI
@@ -48,8 +49,8 @@ declare module "@mui/material/styles" {
       primaryHover: string;
       primarySubtle: string;
     };
-    danger: { main: string; subtle: string };
-    neutral: { main: string; subtle: string };
+    danger: { main: string; subtle: string; onSubtle: string };
+    neutral: { main: string; subtle: string; onSubtle: string };
   }
   interface PaletteOptions {
     surface?: Palette["surface"];
@@ -74,6 +75,16 @@ declare module "@mui/material/styles" {
   }
   interface TypeText {
     tertiary: string;
+  }
+
+  // `onSubtle` = cor de TEXTO sobre o fundo `.light` (= token `subtle`) do
+  // mesmo tom. Ver design-tokens.ts: o par `main` + `subtle` reprova AA no
+  // tema claro. Opcional porque `primary`/`secondary`/`info` nao definem.
+  interface PaletteColor {
+    onSubtle?: string;
+  }
+  interface SimplePaletteColorOptions {
+    onSubtle?: string;
   }
   interface TypographyVariants {
     kpi: React.CSSProperties;
@@ -108,16 +119,19 @@ function buildPalette(mode: ThemeMode, c: ColorTokens, ac: AccentPreset): Palett
     success: {
       main: c.success.main,
       light: c.success.subtle,
+      onSubtle: c.success.onSubtle,
       contrastText: c.text.inverse,
     },
     warning: {
       main: c.warning.main,
       light: c.warning.subtle,
+      onSubtle: c.warning.onSubtle,
       contrastText: c.text.inverse,
     },
     error: {
       main: c.danger.main,
       light: c.danger.subtle,
+      onSubtle: c.danger.onSubtle,
       contrastText: c.text.inverse,
     },
     info: {
@@ -329,6 +343,12 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
     components: {
       MuiCssBaseline: {
         styleOverrides: {
+          // Spec 69 §7.2 — densidade da tabela de transações: os 3 blocos
+          // `[data-density=...]` são declarados AQUI, uma vez só. Quem tem o
+          // atributo é a raiz da tabela (`TransactionTable`); os componentes só
+          // consomem `var(--row-h)` / `var(--row-fs)` / `var(--ctrl-h)` via
+          // `DENSITY_VAR`. Zero cálculo de layout em JS.
+          ...densityGlobalStyles(),
           body: {
             backgroundColor: c.background.canvas,
             color: c.text.primary,
@@ -503,17 +523,19 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
             fontSize: t.fontSize.xs,
             height: 24,
           },
+          // Texto sobre fundo sutil → `onSubtle`, nunca `main` (reprova AA no
+          // claro). Ver design-tokens.ts.
           colorSuccess: {
             backgroundColor: c.success.subtle,
-            color: c.success.main,
+            color: c.success.onSubtle,
           },
           colorWarning: {
             backgroundColor: c.warning.subtle,
-            color: c.warning.main,
+            color: c.warning.onSubtle,
           },
           colorError: {
             backgroundColor: c.danger.subtle,
-            color: c.danger.main,
+            color: c.danger.onSubtle,
           },
         },
       },
@@ -581,15 +603,43 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
         defaultProps: { disableScrollLock: true },
       },
 
+      // O balão ACOMPANHA o tema, em vez de inverter.
+      //
+      // Antes: `backgroundColor: c.text.primary` + `color: c.text.inverse`. Isso
+      // amarrava o balão ao oposto do modo — como `text.primary` é quase branco no
+      // tema escuro, o tooltip saía CLARO no escuro e escuro no claro. Trocado por
+      // uma superfície do próprio tema (a mesma dos cards) + borda + sombra de
+      // overlay, que é o que separa o balão do conteúdo atrás dele agora que os
+      // dois têm luminância parecida: sem a borda e a sombra, um tooltip sobre um
+      // card viraria uma mancha branca sobre branco.
+      //
+      // Contraste do texto sobre o balão: 17,72:1 no claro, 14,03:1 no escuro —
+      // travado em `theme-contrast.test.ts`.
       MuiTooltip: {
         styleOverrides: {
           tooltip: {
-            backgroundColor: c.text.primary,
-            color: c.text.inverse,
+            backgroundColor: c.background.surface,
+            color: c.text.primary,
+            // `border.strong` e não `border.default`: a borda é o que delimita o
+            // balão quando ele cai sobre um card (mesma superfície). Medido,
+            // contra a superfície de trás: 2,14:1 no claro e 2,29:1 no escuro,
+            // contra 1,49:1/1,59:1 da `border.default` — perto demais de sumir.
+            border: `1px solid ${c.border.strong}`,
+            boxShadow: elev[3],
             fontSize: t.fontSize.xs,
             fontWeight: t.fontWeight.regular,
             borderRadius: radius.md,
             padding: `${spacing[2]}px ${spacing[3]}px`,
+          },
+          // A seta é um quadrado girado que se pinta com `currentColor`: sem isto
+          // ela continuaria na cor antiga do balão. A borda no `::before` fecha o
+          // contorno na ponta.
+          arrow: {
+            color: c.background.surface,
+            "&::before": {
+              border: `1px solid ${c.border.strong}`,
+              boxSizing: "border-box",
+            },
           },
         },
       },
@@ -608,20 +658,25 @@ function buildThemeOptions(mode: ThemeMode, accentOverride?: AccentPreset): Them
             borderRadius: radius.md,
             border: "1px solid",
           },
+          // Texto do alerta usa `onSubtle` (AA sobre o fundo sutil); borda e
+          // icone seguem no `main`, que e a identidade visual do tom.
           standardSuccess: {
             backgroundColor: c.success.subtle,
             borderColor: c.success.main,
-            color: c.success.main,
+            color: c.success.onSubtle,
+            "& .MuiAlert-icon": { color: c.success.main },
           },
           standardWarning: {
             backgroundColor: c.warning.subtle,
             borderColor: c.warning.main,
-            color: c.warning.main,
+            color: c.warning.onSubtle,
+            "& .MuiAlert-icon": { color: c.warning.main },
           },
           standardError: {
             backgroundColor: c.danger.subtle,
             borderColor: c.danger.main,
-            color: c.danger.main,
+            color: c.danger.onSubtle,
+            "& .MuiAlert-icon": { color: c.danger.main },
           },
         },
       },

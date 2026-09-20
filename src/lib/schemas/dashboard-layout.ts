@@ -26,8 +26,18 @@ export const updateDashboardLayoutSchema = z.object({
   widgets: z.array(storedWidgetSchema),
 });
 
+/**
+ * Spec 69 §2.3 — publicar × descartar. As duas ações só precisam do contexto;
+ * o conteúdo publicado é o rascunho que já está gravado (nunca o que o cliente
+ * mandar junto), para não existir um caminho de "publicar qualquer coisa".
+ */
+export const dashboardLayoutContextOnlySchema = z.object({
+  context: dashboardContextSchema,
+});
+
 export type StoredWidget = z.infer<typeof storedWidgetSchema>;
 // z.input (não z.infer): storedWidgetSchema.visible tem .default(), então o tipo
 // que `defineAction` infere para o handler é o INPUT (visible opcional). Usar
 // z.input mantém o tipo do service alinhado ao da action. Ver skill server-actions.
 export type UpdateDashboardLayoutInput = z.input<typeof updateDashboardLayoutSchema>;
+export type DashboardLayoutContextOnlyInput = z.input<typeof dashboardLayoutContextOnlySchema>;

@@ -203,7 +203,7 @@ export function StepPreview({
                   sx={{
                     bgcolor:
                       row.status === "error"
-                        ? "error.subtle"
+                        ? "error.light"
                         : row.status === "ignored" || manual
                           ? "action.hover"
                           : "inherit",

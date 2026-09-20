@@ -45,6 +45,8 @@ import { centsToReais, reaisToCents, formatCentsToBrl } from "@/lib/money";
 import { INVESTMENT_TYPES, TransactionPaymentMethod } from "@/lib/schemas/transaction";
 import type { InvestmentType } from "@/lib/schemas/transaction";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+import type { PinnableColumnKey } from "@/lib/table-columns";
+import { DENSITY_VAR } from "@/lib/table-density";
 import type { TransactionLinkItem } from "@/server/services/transaction-link-service";
 
 import { SuggestionPopover } from "./aliases/SuggestionPopover";
@@ -53,6 +55,7 @@ import { CollapsibleSectionRow } from "./CollapsibleSectionRow";
 import { CreatableEntitySelect } from "./CreatableEntitySelect";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import { useOptions } from "./OptionsContext";
+import { PIN_ROW_BACKGROUND, pinnedBodyCellSx, pinnedSelectCellSx } from "./pinned-columns";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
 import { RowDrawerToolbar } from "./RowDrawerToolbar";
 import type {
@@ -69,6 +72,14 @@ type Props = {
   editValues: TxRow;
   setEditValues: React.Dispatch<React.SetStateAction<TxRow>>;
   isSelected: boolean;
+  /** Spec 69 §2.1 (`allowBulkEdit`) — desenha a caixa de seleção da linha em edição. */
+  selectable?: boolean;
+  /**
+   * Spec 69 §16 — colunas fixadas, já resolvidas pelo `TransactionTable`. A
+   * linha em edição precisa das MESMAS larguras da linha em leitura: a grade
+   * não pode desalinhar justamente na coluna que não tem como tremer.
+   */
+  pinnedColumns?: readonly PinnableColumnKey[];
   focusField: string;
   /** Ref imperativo do input de descrição (TX-03c: foco robusto vindo do modal→inline). */
   descriptionInputRef?: React.Ref<HTMLInputElement>;
@@ -104,14 +115,25 @@ const MONO_FONT_FAMILY = "var(--font-jetbrains-mono), 'JetBrains Mono', monospac
 // accent) já vem do tema (MuiOutlinedInput override global, spec 66 item 2) e
 // não desloca layout: o fieldset do MUI é absolutamente posicionado — trocar
 // 1px→2px não altera a caixa do input.
-const FIELD_ROOT_SX = { "& .MuiOutlinedInput-root": { height: 30, borderRadius: "6px" } } as const;
+// Spec 69 §7.2 — o campo da linha de edição é um "controle": altura em
+// `--ctrl-h` e fonte-base em `--row-fs`, para que a linha em EDIÇÃO tenha
+// exatamente a mesma altura da mesma linha em LEITURA. Os tamanhos por tipo de
+// campo abaixo ficam em `em` (relativos a esta base) e assim preservam as
+// proporções do frame 66 §5 em qualquer densidade.
+const FIELD_ROOT_SX = {
+  "& .MuiOutlinedInput-root": {
+    height: DENSITY_VAR.controlHeight,
+    fontSize: DENSITY_VAR.fontSize,
+    borderRadius: "6px",
+  },
+} as const;
 
 const DATE_FIELD_SX = {
   ...FIELD_ROOT_SX,
   "& .MuiOutlinedInput-input": {
     padding: "0 6px",
     fontFamily: MONO_FONT_FAMILY,
-    fontSize: "0.74rem",
+    fontSize: "0.9108em", // 0.74rem em densidade padrão (0.8125rem)
     color: "text.secondary",
   },
 } as const;
@@ -120,7 +142,7 @@ const DESCRIPTION_FIELD_SX = {
   ...FIELD_ROOT_SX,
   "& .MuiOutlinedInput-input": {
     padding: "0 8px",
-    fontSize: "0.78rem",
+    fontSize: "0.96em", // 0.78rem em densidade padrão (0.8125rem)
     color: "text.primary",
   },
 } as const;
@@ -133,7 +155,7 @@ const SELECT_FIELD_SX = {
   ...FIELD_ROOT_SX,
   "& .MuiOutlinedInput-input, & .MuiSelect-select": {
     padding: "0 8px",
-    fontSize: "0.76rem",
+    fontSize: "0.9354em", // 0.76rem em densidade padrão (0.8125rem)
     color: "text.secondary",
   },
   "& .MuiSelect-icon": { fontSize: 15 },
@@ -147,7 +169,7 @@ function amountFieldSx(color: string) {
       padding: "0 8px",
       textAlign: "right" as const,
       fontFamily: MONO_FONT_FAMILY,
-      fontSize: "0.78rem",
+      fontSize: "0.96em", // 0.78rem em densidade padrão (0.8125rem)
       color,
     },
   };
@@ -167,6 +189,8 @@ export function TransactionRowEditor({
   editValues,
   setEditValues,
   isSelected,
+  selectable = true,
+  pinnedColumns = [],
   focusField,
   descriptionInputRef,
   hiddenColumns,
@@ -299,23 +323,32 @@ export function TransactionRowEditor({
   return (
     <>
       <TableRow
-        sx={{ bgcolor: "background.subtle" }}
+        // Spec 69 §7.2 — mesma altura da linha em leitura (`--row-h`) e células
+        // sem padding vertical: editar não pode fazer a linha "pular".
+        sx={{ height: DENSITY_VAR.rowHeight, bgcolor: "background.subtle", "& td": { py: 0 } }}
         onKeyDown={(e) => {
           if (suggestionAnchorEl) return; // guard: popover de sugestão trata seu próprio Enter/Escape
           if (e.key === "Enter") onSave();
           if (e.key === "Escape") onCancel();
         }}
       >
-        <TableCell padding="checkbox">
-          <Checkbox
-            checked={isSelected}
-            onChange={(e) => onSelect(tx.id, e.target.checked)}
-            size="small"
-          />
+        <TableCell padding="checkbox" sx={[pinnedSelectCellSx(pinnedColumns, PIN_ROW_BACKGROUND.editing)]}>
+          {selectable && (
+            <Checkbox
+              checked={isSelected}
+              onChange={(e) => onSelect(tx.id, e.target.checked)}
+              size="small"
+            />
+          )}
         </TableCell>
 
         {/* Data */}
-        <TableCell sx={{ minWidth: 0 }}>
+        <TableCell
+          sx={[
+            { minWidth: 0 },
+            pinnedBodyCellSx(pinnedColumns, "occurredOn", PIN_ROW_BACKGROUND.editing),
+          ]}
+        >
           <TextField
             {...sharedInputProps}
             type="date"
@@ -327,7 +360,12 @@ export function TransactionRowEditor({
         </TableCell>
 
         {/* Descrição */}
-        <TableCell sx={{ minWidth: 0 }}>
+        <TableCell
+          sx={[
+            { minWidth: 0 },
+            pinnedBodyCellSx(pinnedColumns, "description", PIN_ROW_BACKGROUND.editing),
+          ]}
+        >
           <TextField
             {...sharedInputProps}
             value={editValues.description ?? ""}

@@ -1,637 +1,483 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import CircularProgress from "@mui/material/CircularProgress";
-import Divider from "@mui/material/Divider";
-import FormControl from "@mui/material/FormControl";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import IconButton from "@mui/material/IconButton";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
-import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import TableChartIcon from "@mui/icons-material/TableChart";
+import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { useSnackbar } from "notistack";
+import { useState, useTransition } from "react";
 
 import {
   createTemplateManualAction,
   deleteTemplateAction,
   updateTemplateAction,
 } from "@/actions/table-templates";
-import { formatCentsToBrl } from "@/lib/money";
-import { m } from "@/lib/messages";
-import { containers, layout } from "@/lib/design-tokens";
+import {
+  automationSiblings,
+  buildSectionOrder,
+  countDirtyFields,
+  draftFromModel,
+  orderPatches,
+  type ModelDraft,
+} from "@/components/settings/models/model-draft";
+import type { ModelItem } from "@/components/settings/models/model-item-draft";
+import {
+  ModelDefinitionTab,
+  type ModelDefinitionSection,
+} from "@/components/settings/models/ModelDefinitionTab";
+import { ModelTransactionsTab } from "@/components/settings/models/ModelTransactionsTab";
+import {
+  ModelUsedByTab,
+  PROVENANCE_CUTOFF_LABEL,
+  type ModelUsage,
+} from "@/components/settings/models/ModelUsedByTab";
+import { SETTINGS_GUTTER } from "@/components/settings/settings-layout";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { TemplateItemsEditor } from "../../../../../components/settings/TemplateItemsEditor";
+import { SettingsMasterDetail } from "@/components/settings/SettingsMasterDetail";
 import {
   SettingsPageShell,
   type SettingsPageShellProps,
 } from "@/components/settings/SettingsPageShell";
+import { SettingsSaveBar } from "@/components/settings/SettingsSaveBar";
+import { SettingsTabPanel, SettingsTabs } from "@/components/settings/SettingsTabs";
+import type { ResponsiblePartyOption } from "@/components/transactions/types";
+import { m } from "@/lib/messages";
+import type { RowLayout } from "@/lib/schemas/settings";
+import type { UpdateTemplateInput } from "@/lib/schemas/table-template";
+import type { TableColumnKey } from "@/lib/table-columns";
+import type { Density } from "@/lib/table-density";
 
-type TemplateItem = {
+const t = m.settings.presentation.models;
+
+/**
+ * Tipo de tabela como a página precisa dele.
+ *
+ * Carrega apresentação (`rowLayout`, `density`, `visibleColumns`) porque a aba 2
+ * renderiza a transação do modelo COM o tipo do modelo — sem esses três, a linha
+ * ali seria uma tabela genérica que só afirma ser a linha real.
+ */
+export type ModelTableTypeOption = {
   id: string;
-  day: number;
-  amountCents: string;
-  description: string | null;
-  isPending: boolean;
-  categoryId: string | null;
-  subcategoryId: string | null;
-  institutionId: string | null;
-  responsiblePartyId: string | null;
-  cardInstallment: string | null;
-  investmentType: import("@/lib/schemas/transaction").InvestmentType | null;
-  displayOrder: number;
+  name: string;
+  isDefault: boolean;
+  rowLayout: RowLayout;
+  density: Density;
+  visibleColumns: TableColumnKey[];
 };
 
-type Template = {
+export type SettingsModel = {
   id: string;
   name: string;
   description: string | null;
+  /** D7 — campo ÚNICO. `autoTableTypeId` é deprecated e não sobe para a UI. */
   tableTypeId: string | null;
   countInMonth: boolean;
   autoApply: boolean;
   autoSectionId: string | null;
-  autoTableTypeId: string | null;
-  _count: { items: number };
+  orderInSection: number | null;
   tableType: { id: string; name: string } | null;
-  items: TemplateItem[];
+  items: ModelItem[];
 };
-
-type Section = { id: string; name: string };
-type TableType = { id: string; name: string; isDefault: boolean };
 
 type Props = {
   accountId: string;
-  initialTemplates: Template[];
+  initialModels: SettingsModel[];
   categories: { id: string; name: string; subcategories: { id: string; name: string }[] }[];
   institutions: { id: string; name: string }[];
-  parties: import("@/components/transactions/types").ResponsiblePartyOption[];
-  tableTypes: TableType[];
-  sections: Section[];
+  parties: ResponsiblePartyOption[];
+  tableTypes: ModelTableTypeOption[];
+  sections: ModelDefinitionSection[];
+  /** Proveniência por modelo (`FinanceTable.createdFromTemplateId`), vinda do RSC. */
+  usageByModel: Record<string, ModelUsage>;
   title?: string;
 };
 
+const EMPTY_USAGE: ModelUsage = { tables: 0, months: 0 };
+
+/**
+ * Modelos de tabela — arquétipo C (Spec 69 §2.2, frame 06).
+ *
+ * Substitui o accordion anterior: lista mestre à esquerda, três abas no detalhe,
+ * rodapé "Salvar modelo". O que era diálogo de renomear virou o campo Nome da aba
+ * 1; o que era o bloco `AutoApplySection` no fim do accordion virou a Automação,
+ * agora com **um** campo de tipo (D7) e com Seção/Ordem revelados só sob o toggle.
+ *
+ * **Rascunho por modelo, não global.** `drafts` é indexado por id: trocar de modelo
+ * na lista mestre com alterações pendentes não as descarta — elas continuam lá ao
+ * voltar. O `dirtyCount` do rodapé, porém, é sempre o do modelo SELECIONADO: a barra
+ * fala do que está na tela, e "Salvar modelo" salva um modelo.
+ */
 export function TableModelsManager({
   accountId,
-  initialTemplates,
+  initialModels,
   categories,
   institutions,
   parties,
   tableTypes,
   sections,
+  usageByModel,
   title,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
-  const [isPending, startTransition] = useTransition();
-  const [templates, setTemplates] = useState<Template[]>(initialTemplates);
+  const [models, setModels] = useState<SettingsModel[]>(initialModels);
+  const [selectedId, setSelectedId] = useState<string | null>(initialModels[0]?.id ?? null);
+  const [drafts, setDrafts] = useState<Record<string, ModelDraft>>({});
+  const [tab, setTab] = useState("definition");
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
-  const [renameId, setRenameId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [editItemsId, setEditItemsId] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isSaving, startSaving] = useTransition();
+  const [isMutating, startMutating] = useTransition();
 
-  function handleCreate() {
-    if (!newName.trim()) return;
-    startTransition(async () => {
-      const result = await createTemplateManualAction(accountId, { name: newName.trim() });
+  const selected = models.find((model) => model.id === selectedId) ?? null;
+  const draft = selected ? (drafts[selected.id] ?? draftFromModel(selected)) : null;
+
+  // Sem `useMemo` de propósito: `draft` é um objeto novo a cada render quando não há
+  // rascunho salvo, então o memo nunca acertaria — e filtrar/ordenar meia dúzia de
+  // modelos custa menos que a comparação de dependências.
+  const siblings =
+    selected && draft ? automationSiblings(models, selected.id, draft.autoSectionId) : [];
+
+  // O tipo SALVO, não o do rascunho: a aba 2 renderiza a linha com o tipo que o
+  // modelo tem hoje. Trocar o tipo na aba 1 sem salvar não pode reescrever a
+  // aparência das transações já gravadas — elas nasceriam com o tipo antigo se o
+  // usuário descartasse.
+  const selectedTableType = tableTypes.find((type) => type.id === selected?.tableTypeId) ?? null;
+
+  function patchDraft(patch: Partial<ModelDraft>) {
+    if (!selected || !draft) return;
+    const next = { ...draft, ...patch };
+    // Trocar de seção zera a ordem: "2ª de 3" na seção antiga não diz nada sobre a
+    // fila da nova. `null` = "no fim", que é onde um recém-chegado entra.
+    if (patch.autoSectionId !== undefined && patch.autoSectionId !== draft.autoSectionId) {
+      next.orderInSection = null;
+    }
+    setDrafts((prev) => ({ ...prev, [selected.id]: next }));
+  }
+
+  function clearDraft(modelId: string) {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[modelId];
+      return next;
+    });
+  }
+
+  function handleSave() {
+    if (!selected || !draft) return;
+
+    const name = draft.name.trim();
+    const order =
+      draft.autoApply && draft.autoSectionId
+        ? buildSectionOrder(siblings, selected.id, draft.orderInSection)
+        : null;
+    const selfIndex = order ? order.indexOf(selected.id) : null;
+
+    const payload: UpdateTemplateInput = {
+      templateId: selected.id,
+      name,
+      tableTypeId: draft.tableTypeId || null,
+      autoApply: draft.autoApply,
+      autoSectionId: draft.autoSectionId || null,
+      ...(selfIndex === null ? {} : { orderInSection: selfIndex }),
+    };
+
+    startSaving(async () => {
+      const result = await updateTemplateAction(accountId, payload);
       if (!result.ok) {
         enqueueSnackbar(result.error.message, { variant: "error" });
         return;
       }
-      setTemplates((prev) => [
+
+      // Os irmãos da seção também precisam de renumeração — sem isso, mover este
+      // modelo para o topo o deixaria em 0 com o antigo primeiro TAMBÉM em 0, e o
+      // desempate por nome decidiria a fila no lugar do usuário.
+      const stored = new Map(models.map((model) => [model.id, model.orderInSection]));
+      const patches = order
+        ? orderPatches(order, stored).filter((patch) => patch.templateId !== selected.id)
+        : [];
+      const results = await Promise.all(
+        patches.map((patch) => updateTemplateAction(accountId, patch)),
+      );
+      const persisted = new Map(
+        patches
+          .filter((_, index) => results[index].ok)
+          .map((p) => [p.templateId, p.orderInSection]),
+      );
+
+      const nextTableType = tableTypes.find((type) => type.id === draft.tableTypeId) ?? null;
+      setModels((prev) =>
+        prev.map((model) => {
+          if (model.id === selected.id) {
+            return {
+              ...model,
+              name,
+              tableTypeId: draft.tableTypeId || null,
+              tableType: nextTableType ? { id: nextTableType.id, name: nextTableType.name } : null,
+              autoApply: draft.autoApply,
+              autoSectionId: draft.autoSectionId || null,
+              orderInSection: selfIndex ?? model.orderInSection,
+            };
+          }
+          const persistedOrder = persisted.get(model.id);
+          return persistedOrder === undefined
+            ? model
+            : { ...model, orderInSection: persistedOrder };
+        }),
+      );
+      clearDraft(selected.id);
+      enqueueSnackbar(t.saved, { variant: "success" });
+    });
+  }
+
+  function handleCreate() {
+    const name = newName.trim();
+    if (!name) return;
+
+    startMutating(async () => {
+      const result = await createTemplateManualAction(accountId, { name });
+      if (!result.ok) {
+        enqueueSnackbar(result.error.message, { variant: "error" });
+        return;
+      }
+      setModels((prev) => [
         ...prev,
         {
-          ...result.data,
+          id: result.data.id,
+          name: result.data.name,
           description: null,
           tableTypeId: null,
           countInMonth: true,
           autoApply: false,
           autoSectionId: null,
-          autoTableTypeId: null,
+          orderInSection: null,
           tableType: null,
-          _count: { items: 0 },
           items: [],
         },
       ]);
-      enqueueSnackbar(m.tableModels.created, { variant: "success" });
+      setSelectedId(result.data.id);
+      setTab("definition");
       setCreateOpen(false);
       setNewName("");
-    });
-  }
-
-  function handleRename() {
-    if (!renameId || !renameValue.trim()) return;
-    startTransition(async () => {
-      const result = await updateTemplateAction(accountId, {
-        templateId: renameId,
-        name: renameValue.trim(),
-      });
-      if (!result.ok) {
-        enqueueSnackbar(result.error.message, { variant: "error" });
-        return;
-      }
-      setTemplates((prev) =>
-        prev.map((t) => (t.id === renameId ? { ...t, name: renameValue.trim() } : t)),
-      );
-      enqueueSnackbar(m.tableModels.updated, { variant: "success" });
-      setRenameId(null);
+      enqueueSnackbar(m.tableModels.created, { variant: "success" });
     });
   }
 
   function handleDelete() {
-    if (!deleteId) return;
-    setDeleteId(null);
-    startTransition(async () => {
-      const result = await deleteTemplateAction(accountId, { templateId: deleteId });
+    if (!selected) return;
+    const target = selected.id;
+    setDeleteOpen(false);
+
+    startMutating(async () => {
+      const result = await deleteTemplateAction(accountId, { templateId: target });
       if (!result.ok) {
         enqueueSnackbar(result.error.message, { variant: "error" });
         return;
       }
-      setTemplates((prev) => prev.filter((t) => t.id !== deleteId));
+      const remaining = models.filter((model) => model.id !== target);
+      setModels(remaining);
+      clearDraft(target);
+      setSelectedId(remaining[0]?.id ?? null);
       enqueueSnackbar(m.tableModels.deleted, { variant: "success" });
     });
   }
 
-  function handleItemsUpdated(templateId: string, items: TemplateItem[]) {
-    setTemplates((prev) =>
-      prev.map((t) => (t.id === templateId ? { ...t, items, _count: { items: items.length } } : t)),
+  function handleItemsChanged(items: ModelItem[]) {
+    if (!selected) return;
+    setModels((prev) =>
+      prev.map((model) => (model.id === selected.id ? { ...model, items } : model)),
     );
   }
 
-  function handleAutoApplySaved(
-    templateId: string,
-    update: Pick<Template, "autoApply" | "autoSectionId" | "autoTableTypeId">,
-  ) {
-    setTemplates((prev) => prev.map((t) => (t.id === templateId ? { ...t, ...update } : t)));
-  }
-
-  const editTemplate = templates.find((t) => t.id === editItemsId);
-
-  // Título vem do RSC (evita duplicar a string com o generateMetadata); o
-  // fallback mantém o componente utilizável sem a prop.
   const pageTitle = title ?? m.tableModels.title;
 
-  // O cabeçalho é o MESMO nos dois branches (lista vazia e lista cheia): o
-  // critério SET-03 exige breadcrumb + título + propósito em todas as páginas,
-  // inclusive quando não existe nenhum modelo. Daí as props ficarem extraídas.
+  const createButton = (
+    <Button
+      variant="contained"
+      size="small"
+      startIcon={<AddIcon />}
+      onClick={() => setCreateOpen(true)}
+    >
+      {t.createButton}
+    </Button>
+  );
+
   const shellProps: Omit<SettingsPageShellProps, "children"> = {
     family: "Apresentação",
     title: pageTitle,
-    count: String(templates.length),
+    count: String(models.length),
     purpose: m.settings.purposes.models,
     primaryAction: {
-      label: m.tableModels.createButton,
+      label: t.createButton,
       icon: <AddIcon />,
       onClick: () => setCreateOpen(true),
     },
-    itemCount: templates.length,
+    secondaryActions: selected
+      ? [
+          {
+            label: m.common.delete,
+            icon: <DeleteOutlineIcon />,
+            onClick: () => setDeleteOpen(true),
+            disabled: isMutating,
+          },
+        ]
+      : undefined,
+    // Sem `dirtyCount`: o rodapé desta página é da COLUNA DE DETALHE (slot `footer`
+    // do master-detail), não do painel inteiro — o do shell corria por baixo da lista
+    // de modelos. Ver o comentário da prop `footer` em `SettingsMasterDetail`.
+    disableContentPadding: true,
   };
 
-  if (templates.length === 0 && !createOpen) {
-    return (
-      <SettingsPageShell {...shellProps}>
-        {/* Corpo do estado vazio preservado como estava: o P4 troca só o
-            cabeçalho. Migrar para <SettingsEmptyState> é escopo da Spec 69. */}
-        <Box sx={{ textAlign: "center", py: layout.page, color: "text.secondary" }}>
-          <TableChartIcon sx={{ fontSize: 64, opacity: 0.3 }} />
-          <Typography variant="h6" mt={1}>
-            {m.tableModels.noModels}
-          </Typography>
-          <Typography variant="body2" mt={0.5} mb={3}>
-            {m.tableModels.noModelsHint}
-          </Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-            {m.tableModels.createButton}
-          </Button>
-        </Box>
-        <CreateDialog
-          open={createOpen}
-          name={newName}
-          onNameChange={setNewName}
-          onConfirm={handleCreate}
-          onClose={() => setCreateOpen(false)}
-          isPending={isPending}
-        />
-      </SettingsPageShell>
-    );
-  }
+  // Sem modelo selecionado não há o que salvar: o slot fica vazio e o rodapé não
+  // aparece, que é o comportamento certo no estado vazio.
+  const saveBar =
+    selected && draft ? (
+      <SettingsSaveBar
+        dirtyCount={countDirtyFields(draft, selected)}
+        saveLabel={t.saveLabel}
+        saving={isSaving}
+        onSave={handleSave}
+        onDiscard={() => clearDraft(selected.id)}
+      />
+    ) : undefined;
 
   return (
     <SettingsPageShell {...shellProps}>
-      {/* Largura máxima que antes vinha do PageSettingsContainer. O shell não
-          impõe nenhuma (páginas de lista larga precisam da tela inteira), então
-          ela é reaplicada AQUI, no conteúdo, para não alterar o layout atual. */}
-      <Box sx={{ maxWidth: containers.md }}>
-        <Stack spacing={1}>
-          {templates.map((t) => (
-            <Accordion key={t.id} variant="outlined">
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1, mr: 1 }}>
-                  <TableChartIcon fontSize="small" color="action" />
-                  <Typography fontWeight="medium">{t.name}</Typography>
-                  <Chip
-                    label={m.tableModels.itemCount(t._count.items)}
-                    size="small"
-                    variant="outlined"
-                  />
-                  {t.tableType && <Chip label={t.tableType.name} size="small" />}
-                  {t.autoApply && (
-                    <StatusBadge variant="success">{m.tableModels.autoApplyBadge}</StatusBadge>
-                  )}
-                </Box>
-              </AccordionSummary>
-              <AccordionDetails>
-                {t.items.length > 0 ? (
-                  <Table size="small" sx={{ mb: layout.stack }}>
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: "background.default" }}>
-                        <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Dia</TableCell>
-                        <TableCell sx={{ fontSize: 11, fontWeight: "bold" }}>Descrição</TableCell>
-                        <TableCell sx={{ fontSize: 11, fontWeight: "bold" }} align="right">
-                          Valor
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {t.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell sx={{ fontSize: 12 }}>Dia {item.day}</TableCell>
-                          <TableCell sx={{ fontSize: 12 }}>
-                            {item.description ?? (
-                              <Typography variant="caption" color="text.disabled">
-                                —
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell sx={{ fontSize: 12 }} align="right">
-                            <Typography
-                              variant="caption"
-                              color={BigInt(item.amountCents) < 0n ? "error.main" : "success.main"}
-                            >
-                              {formatCentsToBrl(BigInt(item.amountCents))}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: layout.stack }}>
-                    Sem itens. Clique em "Editar itens" para adicionar.
-                  </Typography>
-                )}
+      <SettingsMasterDetail
+        items={models.map((model) => ({
+          id: model.id,
+          name: model.name,
+          summary: t.summary(model.tableType?.name ?? null, model.items.length),
+          // Esmaecido = modelo que ainda não cria transação nenhuma (frame 06).
+          dimmed: model.items.length === 0,
+        }))}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        ariaLabel={m.settings.presentation.masterListLabel}
+        emptyLabel={m.tableModels.noModels}
+        emptyDescription={m.tableModels.noModelsHint}
+        emptyIcon={<TableChartOutlinedIcon sx={{ fontSize: 48 }} />}
+        emptyAction={createButton}
+        footer={saveBar}
+      >
+        {selected && draft ? (
+          <>
+            <SettingsTabs
+              tabs={[
+                { value: "definition", label: m.settings.presentation.tabs.definition },
+                {
+                  value: "transactions",
+                  label: m.settings.presentation.tabs.modelTransactions,
+                  count: selected.items.length,
+                },
+                { value: "usedBy", label: m.settings.presentation.tabs.usedBy },
+              ]}
+              value={tab}
+              onChange={setTab}
+              ariaLabel={pageTitle}
+            />
 
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <Button size="small" startIcon={<AddIcon />} onClick={() => setEditItemsId(t.id)}>
-                    {m.tableModels.editItems}
-                  </Button>
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      setRenameId(t.id);
-                      setRenameValue(t.name);
-                    }}
-                  >
-                    <DriveFileRenameOutlineIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => setDeleteId(t.id)}
-                    disabled={isPending}
-                  >
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-
-                <AutoApplySection
-                  template={t}
-                  accountId={accountId}
-                  sections={sections}
+            {/* O shell está com o padding desligado (arquétipo C): a goteira do
+                detalhe é reaplicada aqui, na MESMA medida das abas. */}
+            <Box sx={{ px: SETTINGS_GUTTER, flex: 1, minHeight: 0 }}>
+              <SettingsTabPanel value="definition" activeValue={tab}>
+                <ModelDefinitionTab
+                  draft={draft}
+                  onChange={patchDraft}
                   tableTypes={tableTypes}
-                  onSaved={(update) => handleAutoApplySaved(t.id, update)}
+                  sections={sections}
+                  siblings={siblings}
+                  disabled={isSaving}
                 />
-              </AccordionDetails>
-            </Accordion>
-          ))}
-        </Stack>
-      </Box>
+              </SettingsTabPanel>
 
-      <CreateDialog
+              <SettingsTabPanel value="transactions" activeValue={tab}>
+                <ModelTransactionsTab
+                  accountId={accountId}
+                  model={selected}
+                  tableType={selectedTableType}
+                  lookups={{ categories, institutions, parties }}
+                  onItemsChanged={handleItemsChanged}
+                />
+              </SettingsTabPanel>
+
+              <SettingsTabPanel value="usedBy" activeValue={tab}>
+                <ModelUsedByTab
+                  usage={usageByModel[selected.id] ?? EMPTY_USAGE}
+                  cutoffDate={PROVENANCE_CUTOFF_LABEL}
+                />
+              </SettingsTabPanel>
+            </Box>
+          </>
+        ) : (
+          <Typography variant="body2" sx={{ px: SETTINGS_GUTTER, py: 4, color: "text.tertiary" }}>
+            {m.settings.presentation.detailEmpty}
+          </Typography>
+        )}
+      </SettingsMasterDetail>
+
+      <SettingsDialog
         open={createOpen}
-        name={newName}
-        onNameChange={setNewName}
-        onConfirm={handleCreate}
         onClose={() => {
           setCreateOpen(false);
           setNewName("");
         }}
-        isPending={isPending}
-      />
-
-      <SettingsDialog
-        open={!!renameId}
-        onClose={() => setRenameId(null)}
         size="form"
-        title={m.tableModels.renameTitle}
-        loading={isPending}
+        title={t.createButton}
+        loading={isMutating}
         actions={
           <>
-            <Button onClick={() => setRenameId(null)}>{m.common.cancel}</Button>
+            <Button
+              onClick={() => {
+                setCreateOpen(false);
+                setNewName("");
+              }}
+            >
+              {m.common.cancel}
+            </Button>
             <Button
               variant="contained"
-              onClick={handleRename}
-              endIcon={isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+              onClick={handleCreate}
+              disabled={isMutating || !newName.trim()}
             >
-              {m.common.save}
+              {m.common.create}
             </Button>
           </>
         }
       >
         <TextField
           label={m.tableModels.nameLabel}
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
+          value={newName}
+          onChange={(event) => setNewName(event.target.value)}
           fullWidth
           autoFocus
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleRename();
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              handleCreate();
             }
           }}
         />
       </SettingsDialog>
 
       <SettingsDialog
-        open={!!deleteId}
-        onClose={() => setDeleteId(null)}
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
         size="confirm"
         title={m.tableModels.deleteTitle}
         description={m.tableModels.deleteConfirm}
         actions={
           <>
-            <Button onClick={() => setDeleteId(null)}>{m.common.cancel}</Button>
+            <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
             <Button color="error" variant="contained" onClick={handleDelete}>
               {m.common.delete}
             </Button>
           </>
         }
       />
-
-      {editTemplate && (
-        <TemplateItemsEditor
-          accountId={accountId}
-          template={editTemplate}
-          categories={categories}
-          institutions={institutions}
-          parties={parties}
-          open={!!editItemsId}
-          onClose={() => setEditItemsId(null)}
-          onItemsChanged={(items) => handleItemsUpdated(editTemplate.id, items)}
-        />
-      )}
     </SettingsPageShell>
-  );
-}
-
-// ─── AutoApplySection ──────────────────────────────────────────────────────────
-
-type AutoApplySectionProps = {
-  template: Template;
-  accountId: string;
-  sections: Section[];
-  tableTypes: TableType[];
-  onSaved: (update: Pick<Template, "autoApply" | "autoSectionId" | "autoTableTypeId">) => void;
-};
-
-function AutoApplySection({
-  template,
-  accountId,
-  sections,
-  tableTypes,
-  onSaved,
-}: AutoApplySectionProps) {
-  const { enqueueSnackbar } = useSnackbar();
-  const [isPendingAutoApply, startAutoApplyTransition] = useTransition();
-  const [autoApply, setAutoApply] = useState(template.autoApply ?? false);
-  const [autoSectionId, setAutoSectionId] = useState(template.autoSectionId ?? "");
-  const [autoTableTypeId, setAutoTableTypeId] = useState(template.autoTableTypeId ?? "");
-  const [isDirty, setIsDirty] = useState(false);
-
-  const canSave = !autoApply || (autoSectionId !== "" && autoTableTypeId !== "");
-
-  function handleSave() {
-    startAutoApplyTransition(async () => {
-      const result = await updateTemplateAction(
-        accountId,
-        autoApply
-          ? {
-              templateId: template.id,
-              autoApply: true,
-              autoSectionId,
-              autoTableTypeId,
-            }
-          : { templateId: template.id, autoApply: false },
-      );
-      if (!result.ok) {
-        enqueueSnackbar(result.error.message, { variant: "error" });
-        return;
-      }
-      setIsDirty(false);
-      onSaved({
-        autoApply,
-        autoSectionId: autoApply ? autoSectionId : template.autoSectionId,
-        autoTableTypeId: autoApply ? autoTableTypeId : template.autoTableTypeId,
-      });
-      enqueueSnackbar(m.tableModels.updated, { variant: "success" });
-    });
-  }
-
-  function handleReset() {
-    setAutoApply(template.autoApply);
-    setAutoSectionId(template.autoSectionId ?? "");
-    setAutoTableTypeId(template.autoTableTypeId ?? "");
-    setIsDirty(false);
-  }
-
-  return (
-    <Box sx={{ mt: layout.stack }}>
-      <Divider sx={{ mb: layout.stack }} />
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        fontWeight="medium"
-        sx={{
-          display: "block",
-          mb: layout.inline,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}
-      >
-        {m.tableModels.autoApplySectionTitle}
-      </Typography>
-
-      <FormControlLabel
-        control={
-          <Switch
-            size="small"
-            checked={autoApply}
-            onChange={(e) => {
-              setAutoApply(e.target.checked);
-              setIsDirty(true);
-            }}
-            disabled={isPendingAutoApply}
-          />
-        }
-        label={<Typography variant="body2">{m.tableModels.autoApplyLabel}</Typography>}
-      />
-
-      {autoApply && (
-        <Tooltip title={m.tableModels.autoApplyHint} placement="bottom-start">
-          <Typography
-            variant="caption"
-            color="text.tertiary"
-            sx={{ display: "block", mt: 0.5, mb: layout.inline }}
-          >
-            {m.tableModels.autoApplyHint}
-          </Typography>
-        </Tooltip>
-      )}
-
-      {autoApply && (
-        <Stack direction="row" spacing={layout.inline} sx={{ mt: layout.inline }}>
-          <FormControl size="small" sx={{ flex: 1 }} error={isDirty && autoApply && !autoSectionId}>
-            <InputLabel>{m.tableModels.autoApplySection}</InputLabel>
-            <Select
-              value={autoSectionId}
-              label={m.tableModels.autoApplySection}
-              onChange={(e) => {
-                setAutoSectionId(e.target.value);
-                setIsDirty(true);
-              }}
-              disabled={isPendingAutoApply}
-            >
-              {sections.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl
-            size="small"
-            sx={{ flex: 1 }}
-            error={isDirty && autoApply && !autoTableTypeId}
-          >
-            <InputLabel>{m.tableModels.autoApplyTableType}</InputLabel>
-            <Select
-              value={autoTableTypeId}
-              label={m.tableModels.autoApplyTableType}
-              onChange={(e) => {
-                setAutoTableTypeId(e.target.value);
-                setIsDirty(true);
-              }}
-              disabled={isPendingAutoApply}
-            >
-              {tableTypes.map((t) => (
-                <MenuItem key={t.id} value={t.id}>
-                  {t.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-      )}
-
-      {isDirty && (
-        <Stack direction="row" spacing={layout.inline} sx={{ mt: layout.stack }}>
-          <Button
-            size="small"
-            variant="contained"
-            onClick={handleSave}
-            disabled={!canSave || isPendingAutoApply}
-            endIcon={
-              isPendingAutoApply ? <CircularProgress size={12} color="inherit" /> : undefined
-            }
-          >
-            {m.common.save}
-          </Button>
-          <Button size="small" onClick={handleReset} disabled={isPendingAutoApply}>
-            {m.common.cancel}
-          </Button>
-        </Stack>
-      )}
-    </Box>
-  );
-}
-
-// ─── CreateDialog ──────────────────────────────────────────────────────────────
-
-function CreateDialog({
-  open,
-  name,
-  onNameChange,
-  onConfirm,
-  onClose,
-  isPending,
-}: {
-  open: boolean;
-  name: string;
-  onNameChange: (v: string) => void;
-  onConfirm: () => void;
-  onClose: () => void;
-  isPending: boolean;
-}) {
-  return (
-    <SettingsDialog
-      open={open}
-      onClose={onClose}
-      size="form"
-      title={m.tableModels.createButton}
-      actions={
-        <>
-          <Button onClick={onClose}>{m.common.cancel}</Button>
-          <Button variant="contained" onClick={onConfirm} disabled={isPending || !name.trim()}>
-            {m.common.create}
-          </Button>
-        </>
-      }
-    >
-      <TextField
-        label={m.tableModels.nameLabel}
-        value={name}
-        onChange={(e) => onNameChange(e.target.value)}
-        fullWidth
-        autoFocus
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            onConfirm();
-          }
-        }}
-      />
-    </SettingsDialog>
   );
 }

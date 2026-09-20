@@ -11,6 +11,7 @@ import TableCell from "@mui/material/TableCell";
 import Tooltip from "@mui/material/Tooltip";
 
 import { m } from "@/lib/messages";
+import { DENSITY_VAR } from "@/lib/table-density";
 
 import { countAttachments } from "./attachments";
 import { RowDrawerChevron } from "./RowDrawerChevron";
@@ -36,7 +37,14 @@ type Props = {
 // 16px (Spec 66 · Fidelidade): "more_vert e afins" — todo o cluster de ações
 // (favorito, pendente, chevron, ⋮) usa o mesmo tamanho de ícone do frame.
 const ICON_SX = { fontSize: 16 } as const;
-const BTN_SX = { p: 0.5, minWidth: 28, minHeight: 28 } as const;
+// Altura/largura vêm de `--ctrl-h` (Spec 69 §7.2): o cluster de ações é o
+// conteúdo mais alto da linha em leitura, então é ele que precisa acompanhar a
+// densidade para a linha caber em 36/44/52px.
+const BTN_SX = {
+  p: 0.5,
+  minWidth: DENSITY_VAR.controlHeight,
+  minHeight: DENSITY_VAR.controlHeight,
+} as const;
 // Cluster sempre `justifyContent:flex-end`, gap 2px (não maior) — o botão
 // wrapper do RowDrawerChevron carrega seu próprio `mr` (não é nosso arquivo,
 // ver comentário abaixo), por isso o wrapper aqui compensa com margem negativa
@@ -79,7 +87,7 @@ export function TransactionRowActions({
   return (
     <TableCell
       align="right"
-      sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1 }}
+      sx={{ width: 160, minWidth: 160, whiteSpace: "nowrap", pr: 1, py: 0 }}
       onClick={(e) => e.stopPropagation()}
     >
       <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: GAP }}>

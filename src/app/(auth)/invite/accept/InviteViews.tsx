@@ -17,8 +17,8 @@ export type Tone = "accent" | "danger" | "warning" | "success";
 const HALO: Record<Tone, { bgcolor: string; color: string }> = {
   accent: { bgcolor: "accent.primarySubtle", color: "accent.primary" },
   danger: { bgcolor: "danger.subtle", color: "danger.main" },
-  warning: { bgcolor: "warning.subtle", color: "warning.main" },
-  success: { bgcolor: "success.subtle", color: "success.main" },
+  warning: { bgcolor: "warning.light", color: "warning.main" },
+  success: { bgcolor: "success.light", color: "success.main" },
 };
 
 /** Card centrado com halo circular no ícone — moldura compartilhada por todos os estados. */

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { m } from "@/lib/messages";
+import { TABLE_COLUMN_KEYS } from "@/lib/table-columns";
 
 import { partyIdSchema } from "./responsible-party";
 import { accentColorKeySchema, cuidSchema } from "./shared";
@@ -272,19 +272,10 @@ export type MergeEntityInput = z.infer<typeof mergeEntitySchema>;
 
 // ─── Table Types ──────────────────────────────────────────────────
 
-export const TOGGLEABLE_COLUMNS = [
-  { key: "category", label: m.transactions.fields.category },
-  { key: "subcategory", label: m.transactions.fields.subcategory },
-  { key: "institution", label: m.transactions.fields.institution },
-  { key: "paymentMethod", label: m.transactions.fields.paymentMethod },
-  { key: "responsibleUser", label: m.transactions.fields.responsibleUser },
-  { key: "isPending", label: m.transactions.fields.isPending },
-  { key: "notes", label: m.transactions.fields.notes },
-  { key: "cardInstallment", label: m.transactions.fields.cardInstallment },
-  { key: "investmentType", label: m.transactions.fields.investmentType },
-  { key: "expenseType", label: m.transactions.fields.expenseType },
-  { key: "tags", label: m.transactions.fields.tags },
-] as const;
+// `TOGGLEABLE_COLUMNS` (lista de chave+rótulo do gerenciador antigo) foi removida
+// com o pacote P3: a fonte única da ordem canônica e dos rótulos é `TABLE_COLUMNS`
+// de `@/lib/table-columns`, e o `TableTypesManager` em accordion que a consumia
+// deixou de existir.
 
 // Schema derivado das colunas configuráveis — strips chaves desconhecidas em inputs
 const hiddenColumnsBaseSchema = z.object({
@@ -309,24 +300,126 @@ export function parseHiddenColumns(raw: unknown): HiddenColumns {
   return hiddenColumnsSchema.parse(raw ?? {}) as HiddenColumns;
 }
 
-// Layout da linha por tipo de tabela (Spec 66 TX-04b): "columns" (A, default,
-// colunas explícitas) × "rich" (B, descrição + pílulas). Default reproduz o
-// comportamento atual.
-export const ROW_LAYOUTS = ["columns", "rich"] as const;
+// Layout da linha por tipo de tabela (Spec 66 TX-04b, Spec 69 D4): "columns"
+// (A, default, colunas explícitas) × "pills" (B, descrição + pílulas). O valor B
+// se chamava "rich" até a Spec 69; a migração
+// `20260811215017_spec69_apresentacao_...` renomeia no banco.
+export const ROW_LAYOUTS = ["columns", "pills"] as const;
 export const rowLayoutSchema = z.enum(ROW_LAYOUTS);
 export type RowLayout = z.infer<typeof rowLayoutSchema>;
 
+// Densidade da linha (Spec 69 §2.1, APR-03) — propriedade do TIPO, não do
+// usuário. Vira `data-density` + 3 variáveis CSS na tabela (pacote P1).
+export const DENSITIES = ["compact", "default", "comfortable"] as const;
+export const densitySchema = z.enum(DENSITIES);
+export type Density = z.infer<typeof densitySchema>;
+
+// Agrupamento padrão da tabela. `null` = nenhum. Só `date` tem consumidor hoje;
+// os demais são gravados e ficam inertes até a Spec 66 (§16, D8).
+export const GROUP_BY_VALUES = ["date", "category", "responsible", "installment"] as const;
+export const groupBySchema = z.enum(GROUP_BY_VALUES).nullable();
+export type GroupBy = z.infer<typeof groupBySchema>;
+
+const tableColumnKeySchema = z.enum(TABLE_COLUMN_KEYS);
+
+// Arrays de chaves de coluna. `.catch([])` no mesmo espírito de
+// `hiddenColumnsSchema`: JSON corrompido no banco não pode derrubar a leitura do
+// mês. A normalização (ordem, duplicatas, `locked`) é de `table-columns.ts`.
+export const visibleColumnsSchema = z.array(tableColumnKeySchema).catch([]);
+export const pinnedColumnsSchema = z.array(tableColumnKeySchema).catch([]);
+
+// Ao criar linha nova, herdar (frame 05b). Subconjunto fixo — "data da linha
+// anterior" não é chave de coluna, por isso a lista é própria e não
+// `tableColumnKeySchema`.
+export const INHERIT_ON_NEW_ROW_FIELDS = [
+  "occurredOn",
+  "responsibleUser",
+  "category",
+  "institution",
+] as const;
+export type InheritOnNewRowField = (typeof INHERIT_ON_NEW_ROW_FIELDS)[number];
+
+/**
+ * Default de um tipo NOVO — e o que o Prisma grava (`@default("[\"occurredOn\"]")`).
+ *
+ * Não é `[]`: a linha-fantasma sempre preservou a data entre lançamentos
+ * consecutivos, e agora que `inheritOnNewRow` tem consumidor de verdade
+ * (`NewTransactionRow`), um default vazio apagaria esse comportamento em silêncio.
+ * A migração `20260811230000_spec69_inherit_on_new_row_default_occurred_on` fez o
+ * mesmo com as linhas que o P0 já tinha gravado.
+ */
+export const DEFAULT_INHERIT_ON_NEW_ROW: InheritOnNewRowField[] = ["occurredOn"];
+
+export const inheritOnNewRowSchema = z
+  .array(z.enum(INHERIT_ON_NEW_ROW_FIELDS))
+  .catch(() => [...DEFAULT_INHERIT_ON_NEW_ROW]);
+
+/**
+ * Default de ordenação de um tipo NOVO — e o que o Prisma grava
+ * (`@default("{\"key\":\"occurredOn\",\"dir\":\"desc\"}")`).
+ *
+ * `desc`, não `asc`: a tabela do mês sempre renderizou do mais novo para o mais
+ * antigo (é o mesmo valor de `FALLBACK_SORT`, o piso de quem nem tem tipo). O P0
+ * gravou `asc` em todo tipo existente; agora que `defaultSort` tem consumidor de
+ * verdade (`TransactionTable`), um default `asc` inverteria a ordem de todo mundo
+ * na primeira abertura do mês. A migração
+ * `20260812120000_spec69_default_sort_desc_and_keep_ghost_row_off` fez o mesmo com
+ * as linhas que o P0 já tinha gravado.
+ */
+export const DEFAULT_TABLE_TYPE_SORT = { key: "occurredOn", dir: "desc" } as const;
+
+export const defaultSortSchema = z
+  .object({
+    key: tableColumnKeySchema,
+    dir: z.enum(["asc", "desc"]),
+  })
+  .catch(() => ({ ...DEFAULT_TABLE_TYPE_SORT }));
+export type DefaultSort = z.infer<typeof defaultSortSchema>;
+
+/**
+ * Default da linha-fantasma permanente de um tipo NOVO — e o que o Prisma grava
+ * (`@default(false)`).
+ *
+ * Mesmo princípio de `DEFAULT_TABLE_TYPE_SORT`: até esta spec a linha vazia de
+ * criação só aparecia ao clicar em "Nova transação". Um default `true` (o do P0)
+ * grudaria uma linha vazia permanente no fim de toda tabela no dia em que o campo
+ * ganhou consumidor. Quem quiser a linha sempre visível liga tipo a tipo na aba
+ * "Comportamento".
+ */
+export const DEFAULT_KEEP_GHOST_ROW: boolean = false;
+
+// Campos de apresentação compartilhados por create e update. TODOS opcionais:
+// em update, `undefined` significa "não mencionei" e o serviço não pode tocar no
+// campo (§15 — `undefined` × `null`).
+const tableTypePresentationFields = {
+  rowLayout: rowLayoutSchema.optional(),
+  density: densitySchema.optional(),
+  visibleColumns: z.array(tableColumnKeySchema).optional(),
+  pinnedColumns: z.array(tableColumnKeySchema).optional(),
+  inheritOnNewRow: z.array(z.enum(INHERIT_ON_NEW_ROW_FIELDS)).optional(),
+  defaultSort: z.object({ key: tableColumnKeySchema, dir: z.enum(["asc", "desc"]) }).optional(),
+  groupBy: z.enum(GROUP_BY_VALUES).nullable().optional(),
+  showFooterTotal: z.boolean().optional(),
+  showGroupSubtotal: z.boolean().optional(),
+  allowBulkEdit: z.boolean().optional(),
+  keepGhostRow: z.boolean().optional(),
+};
+
 export const createTableTypeSchema = z.object({
   name: z.string().min(1, "Nome obrigatório").max(50).trim(),
-  hiddenColumns: hiddenColumnsBaseSchema,
-  rowLayout: rowLayoutSchema.optional(),
+  // Legado e OPCIONAL: `visibleColumns` é a fonte da verdade desde o P0 (quando
+  // vem junto, ele manda e o serviço deriva `hiddenColumns`). Exigir o mapa numa
+  // API onde ele é derivado obrigava todo chamador a mandar `{}` só para passar
+  // na validação. Ausente = o serviço aplica o conjunto canônico completo.
+  hiddenColumns: hiddenColumnsBaseSchema.optional(),
+  ...tableTypePresentationFields,
 });
 
 export const updateTableTypeSchema = z.object({
   tableTypeId: cuidSchema,
   name: z.string().min(1, "Nome obrigatório").max(50).trim().optional(),
   hiddenColumns: hiddenColumnsBaseSchema.optional(),
-  rowLayout: rowLayoutSchema.optional(),
+  ...tableTypePresentationFields,
 });
 
 export const deleteTableTypeSchema = z.object({

@@ -2,21 +2,22 @@
 
 import { useEffect, useState, type RefObject } from "react";
 
-// Layout da linha (Spec 66 TX-04b): "columns" (A, default, colunas explícitas)
-// × "rich" (B, descrição + pílulas). Espelha o `RowLayout` do schema; declarado
-// aqui para não acoplar a fronteira Client aos schemas de settings.
-export type RowLayout = "columns" | "rich";
+// Layout da linha (Spec 66 TX-04b, Spec 69 D4): "columns" (A, default, colunas
+// explícitas) × "pills" (B, descrição + pílulas). Espelha o `RowLayout` do
+// schema; declarado aqui para não acoplar a fronteira Client aos schemas de
+// settings. O valor B se chamava "rich" até a Spec 69.
+export type RowLayout = "columns" | "pills";
 
 /**
  * Resolve o layout efetivo de renderização (TX-04d):
- * - viewport estreito SEMPRE degrada para "rich" (mais compacto), sem alterar a
+ * - viewport estreito SEMPRE degrada para "pills" (mais compacto), sem alterar a
  *   config compartilhada do `TableType`;
  * - caso contrário, usa o configurado, normalizando qualquer valor diferente de
- *   "rich" para "columns".
+ *   "pills" para "columns".
  */
 export function resolveRowLayout(configured: RowLayout, isNarrow: boolean): RowLayout {
-  if (isNarrow) return "rich";
-  return configured !== "rich" ? "columns" : "rich";
+  if (isNarrow) return "pills";
+  return configured !== "pills" ? "columns" : "pills";
 }
 
 /**

@@ -8,7 +8,20 @@ import { cache } from "react";
 
 import { prisma } from "@/server/prisma";
 import { formatMonthLabel, getCurrentFiscalMonth } from "@/lib/dates";
-import { parseHiddenColumns, type RowLayout } from "@/lib/schemas/settings";
+import {
+  DEFAULT_INHERIT_ON_NEW_ROW,
+  defaultSortSchema,
+  groupBySchema,
+  inheritOnNewRowSchema,
+  parseHiddenColumns,
+  pinnedColumnsSchema,
+  type DefaultSort,
+  type GroupBy,
+  type InheritOnNewRowField,
+  type RowLayout,
+} from "@/lib/schemas/settings";
+import type { TableColumnKey } from "@/lib/table-columns";
+import { parseDensity, type Density } from "@/lib/table-density";
 import { calculateMonthTotal } from "@/lib/month-total";
 import { getMonthSections, getSectionTotals } from "@/server/services/month-service";
 import { getBudgetsWithProgress } from "@/server/queries/budgets";
@@ -18,6 +31,7 @@ import { getFilteredTransactionsMap } from "@/server/queries/filtered-transactio
 import { listChecklistForMonth } from "@/server/services/checklist-service";
 import { generateInsights } from "@/server/services/insights-service";
 import { serializeTransaction } from "@/lib/serializers/transaction";
+import { FALLBACK_SORT } from "@/components/transactions/sort-rows";
 import type { TransactionRow } from "@/components/transactions/types";
 
 // ─── Shared queries (React.cache — executam 1x por render mesmo que chamadas N vezes) ──
@@ -320,6 +334,32 @@ export type SectionTable = {
   tableTypeName: string | null;
   hiddenColumns: ReturnType<typeof parseHiddenColumns>;
   rowLayout: RowLayout;
+  /** Spec 69 P1 — vira `data-density` na raiz da tabela. String simples: cruza a
+   *  fronteira RSC → Client sem serialização especial. */
+  density: Density;
+  /** Spec 69 §2.1 — `false` esconde o total da tabela no cabeçalho do card. */
+  showFooterTotal: boolean;
+  /** Spec 69 §2.1 — campos que a linha-fantasma herda do lançamento anterior. */
+  inheritOnNewRow: InheritOnNewRowField[];
+  /**
+   * Spec 69 §2.1 — ordenação com que a tabela ABRE. Objeto simples
+   * (`{ key, dir }`), sem Date/BigInt: cruza a fronteira RSC → Client direto.
+   */
+  defaultSort: DefaultSort;
+  /** Spec 69 §2.1 — dimensão de agrupamento do TIPO. Ver `resolveGrouping`. */
+  groupBy: GroupBy;
+  /** Spec 69 §2.1 — soma de cada bloco no cabeçalho do grupo. */
+  showGroupSubtotal: boolean;
+  /** Spec 69 §2.1 — `false` remove caixas de seleção e barra de ações em massa. */
+  allowBulkEdit: boolean;
+  /** Spec 69 §2.1 — `true` mantém a linha-fantasma de criação sempre visível. */
+  keepGhostRow: boolean;
+  /**
+   * Spec 69 §16 — colunas fixadas à esquerda, como o tipo gravou. Sai daqui SEM
+   * o recorte de `PINNABLE_COLUMNS`: quem resolve é a `TransactionTable`, que é
+   * a única que sabe o layout efetivo e as colunas visíveis na tela.
+   */
+  pinnedColumns: TableColumnKey[];
   total: string;
   transactionCount: number;
 };
@@ -347,7 +387,22 @@ export const getSectionTabData = cache(
           countInMonth: true,
           groupByDate: true,
           tableTypeId: true,
-          tableType: { select: { name: true, hiddenColumns: true, rowLayout: true } },
+          tableType: {
+            select: {
+              name: true,
+              hiddenColumns: true,
+              rowLayout: true,
+              density: true,
+              showFooterTotal: true,
+              inheritOnNewRow: true,
+              defaultSort: true,
+              groupBy: true,
+              showGroupSubtotal: true,
+              allowBulkEdit: true,
+              keepGhostRow: true,
+              pinnedColumns: true,
+            },
+          },
           _count: { select: { transactions: true } },
         },
       }),
@@ -372,6 +427,26 @@ export const getSectionTabData = cache(
       tableTypeName: t.tableType?.name ?? null,
       hiddenColumns: parseHiddenColumns(t.tableType?.hiddenColumns),
       rowLayout: (t.tableType?.rowLayout as RowLayout) ?? "columns",
+      density: parseDensity(t.tableType?.density),
+      // Tabela sem tipo (`tableTypeId: null`) cai no comportamento de sempre:
+      // total visível e data preservada entre lançamentos. Os defaults do Prisma
+      // dizem o mesmo — aqui é só o caminho em que não há tipo para consultar.
+      showFooterTotal: t.tableType?.showFooterTotal ?? true,
+      inheritOnNewRow: t.tableType
+        ? inheritOnNewRowSchema.parse(t.tableType.inheritOnNewRow)
+        : [...DEFAULT_INHERIT_ON_NEW_ROW],
+      // Sem tipo, cada campo cai no COMPORTAMENTO DE HOJE: mais recente no topo,
+      // sem blocos, seleção ligada e linha-fantasma só ao acionar "Nova transação".
+      // Desde a migração `20260812120000_…_default_sort_desc_and_keep_ghost_row_off`
+      // os defaults do Prisma dizem exatamente o mesmo — de propósito, para que ter
+      // ou não ter tipo não mude nada em quem nunca abriu a aba "Comportamento".
+      defaultSort: t.tableType ? defaultSortSchema.parse(t.tableType.defaultSort) : FALLBACK_SORT,
+      groupBy: t.tableType ? groupBySchema.catch(null).parse(t.tableType.groupBy) : null,
+      showGroupSubtotal: t.tableType?.showGroupSubtotal ?? false,
+      allowBulkEdit: t.tableType?.allowBulkEdit ?? true,
+      keepGhostRow: t.tableType?.keepGhostRow ?? false,
+      // `.catch([])` do schema cobre tabela sem tipo e Json inválido no banco.
+      pinnedColumns: pinnedColumnsSchema.parse(t.tableType?.pinnedColumns),
       total: tableTotalsMap.get(t.id) ?? "0",
       transactionCount: t._count.transactions,
     }));

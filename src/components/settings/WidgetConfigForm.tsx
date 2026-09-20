@@ -1361,7 +1361,10 @@ function AnalysisForm({
                   <Typography
                     sx={{
                       fontSize: "0.65rem",
-                      color: "text.disabled",
+                      // `text.tertiary` (4,69:1 no light) e não `text.disabled`
+                      // (2,14:1): estes rótulos carregam informação — o usuário
+                      // abre o resumo justamente para conferir o que configurou.
+                      color: "text.tertiary",
                       flexShrink: 0,
                       minWidth: 52,
                       lineHeight: 1.6,

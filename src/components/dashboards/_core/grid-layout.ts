@@ -131,6 +131,39 @@ export function findFreeCell(
   return null;
 }
 
+/**
+ * Spec 69 §2.3 — "Layout alterado — N movimentações".
+ *
+ * Conta INSTÂNCIAS diferentes entre o publicado e o rascunho: cada widget
+ * adicionado, removido ou alterado (posição, tamanho, variante, visibilidade ou
+ * config) conta 1. Não conta quantas vezes o usuário arrastou — o rodapé fala do
+ * tamanho da mudança pendente, não do histórico.
+ */
+export function countLayoutChanges(published: StoredWidget[], draft: StoredWidget[]): number {
+  const byId = new Map(published.map((w) => [w.instanceId, w]));
+  let changes = 0;
+
+  for (const w of draft) {
+    const before = byId.get(w.instanceId);
+    if (!before) {
+      changes++; // adicionado
+      continue;
+    }
+    byId.delete(w.instanceId);
+    const same =
+      before.x === w.x &&
+      before.y === w.y &&
+      before.w === w.w &&
+      before.h === w.h &&
+      before.visible === w.visible &&
+      before.sizeVariantId === w.sizeVariantId &&
+      JSON.stringify(before.config ?? null) === JSON.stringify(w.config ?? null);
+    if (!same) changes++;
+  }
+
+  return changes + byId.size; // o que sobrou no publicado foi removido
+}
+
 // Variante cujo (w, h) minimiza a distância de Manhattan até (w, h) arrastado.
 // Empate → a variante declarada primeiro (sizeVariants[0] é a default).
 export function snapToNearestVariant(

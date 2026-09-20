@@ -18,6 +18,10 @@ import {
   weekChartConfigSchema,
 } from "@/lib/schemas/widget-config";
 
+// Import de tipo apenas — `widget-viz` importa `WidgetDef` de volta; sem valor
+// em tempo de execução não há ciclo (os tipos somem na compilação).
+import type { VizKey, WidgetVizMap } from "./widget-viz";
+
 export type WidgetKind = "kpi" | "panel";
 export type DashboardContext = "monthly" | "yearly" | "month_summary";
 
@@ -47,15 +51,33 @@ export const GRID_CONFIG: Record<DashboardContext, DashboardGridConfig> = {
   month_summary: { cols: 6, initialRows: 6, maxRows: 10 },
 };
 
+/**
+ * Spec 69 §2.3 (tela 07c) — grupo do widget na paleta.
+ * `month` = recortes do mês corrente · `overTime` = séries entre meses/anos ·
+ * `operational` = listas de trabalho (pendências, checklist, insights).
+ */
+export type WidgetGroup = "month" | "overTime" | "operational";
+
 export type WidgetDef = {
   id: string;
   labelKey: string;
   kind: WidgetKind;
+  /** Grupo na paleta (07c). Ausente = cai no grupo `operational` na exibição. */
+  group?: WidgetGroup;
   sizeVariants: WidgetSizeVariant[]; // sizeVariants[0] = variante default
   defaultVisible: boolean;
   instantiable?: boolean; // default false = singleton
   configSchema?: z.ZodTypeAny; // opcional p/ singletons com config; obrigatório p/ instantiable (fases 5/6)
   defaultConfig?: unknown;
+  /**
+   * Spec 69 / APR-07 — matriz tamanho → visualização (07b). Opcional: quando
+   * ausente, a matriz é DERIVADA das `sizeVariants` (ver `widget-viz.ts`).
+   * Só declarar visualizações que o componente realmente renderiza — o rótulo
+   * aparece em snackbar e no inspetor, então prometer "tabela" onde o widget
+   * desenha uma rosca seria mentir para o usuário.
+   */
+  viz?: WidgetVizMap;
+  defaultViz?: VizKey;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,6 +217,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-month-total",
       labelKey: "monthTotal",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -202,6 +225,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-income",
       labelKey: "income",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -209,6 +233,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-expenses",
       labelKey: "expenses",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -216,6 +241,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-savings-rate",
       labelKey: "savingsRate",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -223,6 +249,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-top-category",
       labelKey: "topCategory",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -230,6 +257,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-pending",
       labelKey: "pending",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -237,6 +265,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "budgets",
       labelKey: "budgets",
       kind: "panel",
+      group: "month",
+      viz: { progressBars: { renderMode: "default", minCols: 2 } },
+      defaultViz: "progressBars",
       sizeVariants: BUDGETS_VARIANTS,
       defaultVisible: true,
       configSchema: budgetsConfigSchema,
@@ -246,6 +277,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "daily-heatmap",
       labelKey: "dailyHeatmap",
       kind: "panel",
+      group: "month",
+      viz: { heatmap: { renderMode: "default", minCols: 2 } },
+      defaultViz: "heatmap",
       sizeVariants: DAILY_HEATMAP_VARIANTS,
       defaultVisible: true,
       configSchema: dailyHeatmapConfigSchema,
@@ -255,6 +289,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "category-treemap",
       labelKey: "categoryTreemap",
       kind: "panel",
+      group: "month",
       sizeVariants: SQUARE_CHART_VARIANTS,
       defaultVisible: true,
       configSchema: treemapConfigSchema,
@@ -264,6 +299,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "money-flow",
       labelKey: "moneyFlow",
       kind: "panel",
+      group: "month",
       sizeVariants: MONEY_FLOW_VARIANTS,
       defaultVisible: true,
       configSchema: moneyFlowConfigSchema,
@@ -273,6 +309,15 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "section-breakdown",
       labelKey: "sectionBreakdown",
       kind: "panel",
+      group: "month",
+      // Eixo config (Spec 69 §2.3): quem troca rosca ↔ barras é `config.chartType`,
+      // não o tamanho — o renderMode aqui é só densidade. minCols segue a 07b
+      // convertida: rosca 6/12 → 3, barras 4/12 → 2.
+      viz: {
+        donut: { renderMode: "default", minCols: 3, chartType: "pie" },
+        bars: { renderMode: "default", minCols: 2, chartType: "bar" },
+      },
+      defaultViz: "donut",
       sizeVariants: PIE_VARIANTS,
       defaultVisible: true,
       configSchema: pieChartConfigSchema,
@@ -282,6 +327,15 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "category-breakdown",
       labelKey: "categoryBreakdown",
       kind: "panel",
+      group: "month",
+      // Eixo config (Spec 69 §2.3): quem troca rosca ↔ barras é `config.chartType`,
+      // não o tamanho — o renderMode aqui é só densidade. minCols segue a 07b
+      // convertida: rosca 6/12 → 3, barras 4/12 → 2.
+      viz: {
+        donut: { renderMode: "default", minCols: 3, chartType: "pie" },
+        bars: { renderMode: "default", minCols: 2, chartType: "bar" },
+      },
+      defaultViz: "donut",
       sizeVariants: PIE_VARIANTS,
       defaultVisible: true,
       configSchema: categoryBreakdownConfigSchema,
@@ -291,6 +345,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "top-transactions",
       labelKey: "topTransactions",
       kind: "panel",
+      group: "month",
+      viz: { table: { renderMode: "default", minCols: 3 } },
+      defaultViz: "table",
       sizeVariants: TOP_TX_VARIANTS,
       defaultVisible: true,
       configSchema: topTransactionsConfigSchema,
@@ -300,6 +357,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "insights",
       labelKey: "insights",
       kind: "panel",
+      group: "operational",
       sizeVariants: INSIGHTS_VARIANTS,
       defaultVisible: false,
     },
@@ -307,6 +365,12 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "member-breakdown",
       labelKey: "memberBreakdown",
       kind: "panel",
+      group: "month",
+      // Rosca única, de propósito: este widget declara `memberBreakdownConfigSchema`
+      // ({ view }), mas o componente lê `config.chartType` (PieChartConfig) — enquanto
+      // essa divergência existir, oferecer "barras" no seletor não mudaria o desenho.
+      viz: { donut: { renderMode: "default", minCols: 2 } },
+      defaultViz: "donut",
       sizeVariants: PIE_VARIANTS,
       defaultVisible: false,
       configSchema: memberBreakdownConfigSchema,
@@ -316,6 +380,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "member-list",
       labelKey: "memberList",
       kind: "panel",
+      group: "month",
       sizeVariants: MEMBER_LIST_VARIANTS,
       defaultVisible: false,
     },
@@ -323,6 +388,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "member-radar",
       labelKey: "memberRadar",
       kind: "panel",
+      group: "month",
       sizeVariants: MEMBER_RADAR_VARIANTS,
       defaultVisible: false,
     },
@@ -330,6 +396,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "analysis",
       labelKey: "analysis",
       kind: "panel",
+      group: "month",
       sizeVariants: ANALYSIS_VARIANTS,
       defaultVisible: false,
       instantiable: true,
@@ -346,6 +413,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-custom",
       labelKey: "kpiCustom",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
       instantiable: true,
@@ -357,6 +425,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-budget-health",
       labelKey: "budgetHealth",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
     },
@@ -364,6 +433,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-transaction-count",
       labelKey: "transactionCount",
       kind: "kpi",
+      group: "operational",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
       configSchema: transactionCountConfigSchema,
@@ -373,6 +443,15 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "institution-breakdown",
       labelKey: "institutionBreakdown",
       kind: "panel",
+      group: "month",
+      // Eixo config (Spec 69 §2.3): quem troca rosca ↔ barras é `config.chartType`,
+      // não o tamanho — o renderMode aqui é só densidade. minCols segue a 07b
+      // convertida: rosca 6/12 → 3, barras 4/12 → 2.
+      viz: {
+        donut: { renderMode: "default", minCols: 3, chartType: "pie" },
+        bars: { renderMode: "default", minCols: 2, chartType: "bar" },
+      },
+      defaultViz: "donut",
       sizeVariants: INSTITUTION_BREAKDOWN_VARIANTS,
       defaultVisible: false,
       configSchema: pieChartConfigSchema,
@@ -382,6 +461,10 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "week-chart",
       labelKey: "weekChart",
       kind: "panel",
+      group: "month",
+      // Barras comparativas ao longo do tempo (07b: 4/12 → 2 col).
+      viz: { bars: { renderMode: "default", minCols: 2 } },
+      defaultViz: "bars",
       sizeVariants: WEEK_CHART_VARIANTS,
       defaultVisible: false,
       configSchema: weekChartConfigSchema,
@@ -393,6 +476,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-year-total",
       labelKey: "yearTotal",
       kind: "kpi",
+      group: "overTime",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -400,6 +484,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-income",
       labelKey: "income",
       kind: "kpi",
+      group: "overTime",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -407,6 +492,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-expenses",
       labelKey: "expenses",
       kind: "kpi",
+      group: "overTime",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -414,6 +500,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-savings-rate",
       labelKey: "savingsRate",
       kind: "kpi",
+      group: "overTime",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -421,6 +508,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-monthly-avg",
       labelKey: "monthlyAvg",
       kind: "kpi",
+      group: "overTime",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -428,6 +516,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-best-month",
       labelKey: "bestMonth",
       kind: "kpi",
+      group: "overTime",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -435,6 +524,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-worst-month",
       labelKey: "worstMonth",
       kind: "kpi",
+      group: "overTime",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -442,6 +532,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-pending",
       labelKey: "pending",
       kind: "kpi",
+      group: "operational",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -449,6 +540,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "month-card-grid",
       labelKey: "monthCardGrid",
       kind: "panel",
+      group: "overTime",
       sizeVariants: MONTH_CARD_GRID_VARIANTS,
       defaultVisible: true,
     },
@@ -456,6 +548,10 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "monthly-bar-chart",
       labelKey: "monthlyBarChart",
       kind: "panel",
+      group: "overTime",
+      // Barras comparativas ao longo do tempo (07b: 4/12 → 2 col).
+      viz: { bars: { renderMode: "default", minCols: 2 } },
+      defaultViz: "bars",
       sizeVariants: MONTHLY_BAR_CHART_VARIANTS,
       defaultVisible: true,
     },
@@ -463,6 +559,10 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "top-categories",
       labelKey: "topCategories",
       kind: "panel",
+      group: "overTime",
+      // Barras comparativas ao longo do tempo (07b: 4/12 → 2 col).
+      viz: { bars: { renderMode: "default", minCols: 2 } },
+      defaultViz: "bars",
       sizeVariants: [
         { id: "default", labelKey: "default", w: 3, h: 2, renderMode: "default" },
         { id: "compact", labelKey: "compact", w: 2, h: 2, renderMode: "compact" },
@@ -476,6 +576,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "member-trend",
       labelKey: "memberTrend",
       kind: "panel",
+      group: "overTime",
       sizeVariants: MEMBER_TREND_VARIANTS,
       defaultVisible: false,
     },
@@ -483,6 +584,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "insights",
       labelKey: "insights",
       kind: "panel",
+      group: "operational",
       sizeVariants: INSIGHTS_VARIANTS,
       defaultVisible: false,
     },
@@ -490,6 +592,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "analysis",
       labelKey: "analysis",
       kind: "panel",
+      group: "overTime",
       sizeVariants: ANALYSIS_VARIANTS,
       defaultVisible: false,
       instantiable: true,
@@ -506,6 +609,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-custom",
       labelKey: "kpiCustom",
       kind: "kpi",
+      group: "overTime",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
       instantiable: true,
@@ -517,6 +621,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-transaction-count",
       labelKey: "transactionCount",
       kind: "kpi",
+      group: "operational",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
       configSchema: transactionCountConfigSchema,
@@ -526,6 +631,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "member-yearly",
       labelKey: "memberYearly",
       kind: "panel",
+      group: "overTime",
       sizeVariants: MEMBER_YEARLY_VARIANTS,
       defaultVisible: false,
     },
@@ -534,6 +640,11 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "net-worth-evolution",
       labelKey: "netWorthEvolution",
       kind: "panel",
+      group: "overTime",
+      // 3 col = a variante `compact`, que encurta o gráfico → dados reduzidos
+      // (o ⚠ da linha temporal em 07b, convertido de 6 col para 3).
+      viz: { line: { renderMode: "default", minCols: 3, reduced: true } },
+      defaultViz: "line",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
     },
@@ -543,6 +654,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "cashflow-forecast",
       labelKey: "cashflowForecast",
       kind: "panel",
+      group: "overTime",
+      viz: { line: { renderMode: "default", minCols: 3, reduced: true } },
+      defaultViz: "line",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
     },
@@ -552,6 +666,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "goal-progress",
       labelKey: "goalProgress",
       kind: "panel",
+      group: "overTime",
+      viz: { progressBars: { renderMode: "default", minCols: 3 } },
+      defaultViz: "progressBars",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
     },
@@ -561,6 +678,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-income",
       labelKey: "income",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -568,6 +686,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-expenses",
       labelKey: "expenses",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -575,6 +694,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-balance",
       labelKey: "balance",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: true,
     },
@@ -582,6 +702,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "budgets",
       labelKey: "budgets",
       kind: "panel",
+      group: "month",
+      viz: { progressBars: { renderMode: "default", minCols: 2 } },
+      defaultViz: "progressBars",
       sizeVariants: BUDGETS_VARIANTS,
       defaultVisible: true,
     },
@@ -589,6 +712,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "section-cards",
       labelKey: "sectionCards",
       kind: "panel",
+      group: "month",
       sizeVariants: SECTION_CARDS_VARIANTS,
       defaultVisible: true,
     },
@@ -596,6 +720,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "pending-transactions",
       labelKey: "pendingTransactions",
       kind: "panel",
+      group: "operational",
+      viz: { table: { renderMode: "default", minCols: 1 } },
+      defaultViz: "table",
       sizeVariants: ACTIVITY_ITEM_VARIANTS,
       defaultVisible: false,
     },
@@ -603,6 +730,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "favorite-transactions",
       labelKey: "favoriteTransactions",
       kind: "panel",
+      group: "operational",
+      viz: { table: { renderMode: "default", minCols: 1 } },
+      defaultViz: "table",
       sizeVariants: ACTIVITY_ITEM_VARIANTS,
       defaultVisible: false,
     },
@@ -610,6 +740,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "recent-transactions",
       labelKey: "recentTransactions",
       kind: "panel",
+      group: "operational",
+      viz: { table: { renderMode: "default", minCols: 1 } },
+      defaultViz: "table",
       sizeVariants: ACTIVITY_ITEM_VARIANTS,
       defaultVisible: false,
     },
@@ -617,6 +750,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "insights",
       labelKey: "insights",
       kind: "panel",
+      group: "operational",
       sizeVariants: INSIGHTS_VARIANTS,
       defaultVisible: false,
     },
@@ -627,6 +761,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "checklist",
       labelKey: "checklist",
       kind: "panel",
+      group: "operational",
+      viz: { list: { renderMode: "default", minCols: 1 } },
+      defaultViz: "list",
       sizeVariants: ACTIVITY_ITEM_VARIANTS,
       defaultVisible: false,
     },
@@ -634,6 +771,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-custom",
       labelKey: "kpiCustom",
       kind: "kpi",
+      group: "month",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
       instantiable: true,
@@ -644,6 +782,9 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "filtered-transactions",
       labelKey: "filteredTransactions",
       kind: "panel",
+      group: "operational",
+      viz: { table: { renderMode: "default", minCols: 3 } },
+      defaultViz: "table",
       sizeVariants: WIDE_CHART_VARIANTS,
       defaultVisible: false,
       instantiable: true,
@@ -666,6 +807,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-pending",
       labelKey: "pending",
       kind: "kpi",
+      group: "operational",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
     },
@@ -673,6 +815,7 @@ export const WIDGET_REGISTRY: Record<DashboardContext, WidgetDef[]> = {
       id: "kpi-transaction-count",
       labelKey: "transactionCount",
       kind: "kpi",
+      group: "operational",
       sizeVariants: KPI_VARIANTS,
       defaultVisible: false,
       configSchema: transactionCountConfigSchema,

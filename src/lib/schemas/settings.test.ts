@@ -5,8 +5,8 @@ import { createTableTypeSchema, updateTableTypeSchema } from "./settings";
 const tableTypeId = "cljk3d4e500006abcdefgh1122";
 
 describe("createTableTypeSchema — rowLayout", () => {
-  it('aceita rowLayout "columns" e "rich"', () => {
-    for (const rowLayout of ["columns", "rich"] as const) {
+  it('aceita rowLayout "columns" e "pills"', () => {
+    for (const rowLayout of ["columns", "pills"] as const) {
       const result = createTableTypeSchema.safeParse({
         name: "Tipo",
         hiddenColumns: {},
@@ -32,8 +32,8 @@ describe("createTableTypeSchema — rowLayout", () => {
 });
 
 describe("updateTableTypeSchema — rowLayout", () => {
-  it('aceita rowLayout "columns" e "rich"', () => {
-    for (const rowLayout of ["columns", "rich"] as const) {
+  it('aceita rowLayout "columns" e "pills"', () => {
+    for (const rowLayout of ["columns", "pills"] as const) {
       const result = updateTableTypeSchema.safeParse({ tableTypeId, rowLayout });
       expect(result.success).toBe(true);
     }

@@ -22,8 +22,15 @@ import type {
 } from "@/components/transactions/types";
 import { m } from "@/lib/messages";
 import { formatCentsToBrl } from "@/lib/money";
-import type { RowLayout } from "@/lib/schemas/settings";
+import type {
+  DefaultSort,
+  GroupBy,
+  InheritOnNewRowField,
+  RowLayout,
+} from "@/lib/schemas/settings";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+import type { TableColumnKey } from "@/lib/table-columns";
+import type { Density } from "@/lib/table-density";
 
 import { MoneyValue } from "../ui/MoneyValue";
 
@@ -44,6 +51,24 @@ type TableData = {
   tableTypeName: string | null;
   hiddenColumns: HiddenColumns;
   rowLayout: RowLayout;
+  /** Spec 69 P1 — densidade do tipo de tabela; vira `data-density` na tabela. */
+  density: Density;
+  /** Spec 69 §2.1 — `false` esconde o total desta tabela. */
+  showFooterTotal: boolean;
+  /** Spec 69 §2.1 — o que a linha-fantasma herda do lançamento anterior. */
+  inheritOnNewRow: InheritOnNewRowField[];
+  /** Spec 69 §2.1 — ordenação com que a tabela abre. */
+  defaultSort: DefaultSort;
+  /** Spec 69 §2.1 — agrupamento em blocos, do tipo de tabela. */
+  groupBy: GroupBy;
+  /** Spec 69 §2.1 — soma por bloco no cabeçalho do grupo. */
+  showGroupSubtotal: boolean;
+  /** Spec 69 §2.1 — seleção e edição em massa. */
+  allowBulkEdit: boolean;
+  /** Spec 69 §2.1 — linha-fantasma de criação sempre visível. */
+  keepGhostRow: boolean;
+  /** Spec 69 §16 — colunas fixadas à esquerda (cru; a tabela é quem resolve). */
+  pinnedColumns: TableColumnKey[];
   total: string;
   transactionCount: number;
 };

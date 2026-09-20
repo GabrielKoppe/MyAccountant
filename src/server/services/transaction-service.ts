@@ -475,7 +475,16 @@ export async function listTablesForMove(accountId: string) {
     }),
     prisma.financeTable.findMany({
       where: { accountId },
-      select: { id: true, name: true, monthId: true, sectionId: true },
+      // `_count.transactions` (Spec 69 P7): "Importar de um mês" mostra quantas
+      // transações entram ANTES de confirmar. É um COUNT agregado por tabela, não
+      // a leitura das transações — o custo é o mesmo de listar as tabelas.
+      select: {
+        id: true,
+        name: true,
+        monthId: true,
+        sectionId: true,
+        _count: { select: { transactions: true } },
+      },
     }),
     prisma.tableType.findMany({
       where: { accountId },

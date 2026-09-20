@@ -253,6 +253,13 @@ export const messages = {
           n === 1
             ? "1 template de importação com referência quebrada"
             : `${n} templates de importação com referência quebrada`,
+        // Spec 69 §4 — o modelo com automação ligada cuja seção de destino está
+        // inativa não cria tabela nenhuma no mês novo; sem este sinal o usuário
+        // só descobriria pela ausência.
+        templateSectionInactive: (n: number) =>
+          n === 1
+            ? "1 modelo de tabela aponta para uma seção inativa"
+            : `${n} modelos de tabela apontam para uma seção inativa`,
         checklistNotStarted: (monthLabel: string) => `Checklist de ${monthLabel} não iniciado`,
       },
       // Rótulos das contagens baratas do chip (hub + nav). Cada função devolve a
@@ -398,6 +405,9 @@ export const messages = {
         expanded: "Expandido",
         medium: "Médio",
         giant: "Gigante",
+        // `member-list` usa este renderMode e não tinha tradução — aparecia cru
+        // como "full" no inspetor.
+        full: "Completo",
       },
       configSection: "Configuração",
       configSave: "Salvar",
@@ -1005,6 +1015,390 @@ export const messages = {
       cannotDeleteDefault: "O tipo padrão não pode ser deletado.",
       noTableTypes: "Nenhum tipo de tabela cadastrado.",
     },
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // Spec 69 — Família 2: Apresentação (Tipos de tabela, Modelos, Dashboards)
+    //
+    // Namespace ÚNICO das três páginas. Escrito de uma vez, antes da
+    // implementação, justamente porque este arquivo é compartilhado: com vários
+    // pacotes editando o mesmo objeto ao mesmo tempo, as chaves se atropelam.
+    // ═════════════════════════════════════════════════════════════════════════
+    presentation: {
+      // ── Comuns às três páginas ────────────────────────────────────────────
+      tabs: {
+        columnsLayout: "Colunas & layout",
+        behavior: "Comportamento",
+        usedBy: "Onde é usado",
+        definition: "Definição",
+        modelTransactions: "Transações do modelo",
+      },
+      masterListLabel: "Lista de itens",
+      masterEmpty: "Nenhum item ainda.",
+      detailEmpty: "Selecione um item à esquerda para editar.",
+      /** Nome acessível do `tablist`. O título da página já é o `h1`; repeti-lo aqui
+       * faria o leitor de tela anunciar a mesma frase duas vezes seguidas. */
+      tabsLabel: "Seções desta página",
+
+      /**
+       * Rótulos neutros do chip em modo toggle. Existem separados dos de coluna
+       * porque "Remover coluna Data da linha anterior" (o que sairia ao reusar
+       * `tableTypes.columns.remove`) descreve errado o bloco "Ao criar linha nova,
+       * herdar" — ali o chip liga e desliga uma herança, não remove uma coluna.
+       */
+      chip: {
+        toggleOn: (name: string) => `Ligar ${name}`,
+        toggleOff: (name: string) => `Desligar ${name}`,
+      },
+
+      /** Cartão "contagem sob demanda" — reusado pelas duas abas "Onde é usado". */
+      onDemand: {
+        title: "Contagem sob demanda",
+        body: "Varrer todos os meses tem custo que cresce com o uso da conta. Clique para contar agora — o resultado fica em cache por 24 h.",
+        count: "Contar",
+        recount: "Recontar",
+        counting: "Contando…",
+        resultAt: (when: string) => `Resultado de ${when}`,
+        realTitle: "Tabelas e transações reais",
+        viewTransactions: "Ver as transações",
+      },
+
+      // ── Tipos de tabela (telas 05 e 05b) ──────────────────────────────────
+      tableTypes: {
+        saveLabel: "Salvar tipo",
+        saved: "Tipo salvo.",
+        createButton: "Novo tipo",
+        /** Resumo da lista mestre: "8 col · pílulas · 2 modelos". */
+        summary: (columns: number, layout: string, models: number) =>
+          `${columns} col · ${layout} · ${models === 0 ? "sem modelo" : `${models} ${models === 1 ? "modelo" : "modelos"}`}`,
+
+        rowLayout: {
+          title: "Organização da linha",
+          // O `hint` daqui era a etiqueta "Spec 66" do frame — referência interna de
+          // documento, que não diz nada a quem usa o app. Removida de propósito.
+          columnsLabel: "A · Colunas fixas",
+          columnsHelp: "Grade alinhada, boa para comparar valores.",
+          pillsLabel: "B · Pílulas",
+          pillsHelp: "Atributos como chips, melhor para muitos campos opcionais.",
+          /**
+           * A palavra solta, sem o prefixo "A · "/"B · ": entra no meio de frases
+           * ("8 col · pílulas · 2 modelos", "layout pílulas"), onde a letra do card
+           * não faz sentido nenhum.
+           */
+          columnsShort: "colunas",
+          pillsShort: "pílulas",
+        },
+
+        density: {
+          title: "Densidade",
+          hint: "propriedade do tipo, não do usuário",
+          compact: "Compacta",
+          default: "Padrão",
+          comfortable: "Confortável",
+          /** "36px · 0.78rem" — a medida sob o nome do card. Os valores vêm de
+           * `DENSITY_METRICS` por parâmetro; a escala é a do D9 (36/44/52). */
+          meta: (height: string, fontSize: string) => `${height} · ${fontSize}`,
+        },
+
+        columns: {
+          visibleTitle: "Colunas visíveis",
+          visibleHint: "arraste pela alça para reordenar · × remove",
+          availableTitle: "Disponíveis",
+          availableHint: "clique no + para adicionar ao fim",
+          empty: "Nenhuma coluna visível — a tabela mostraria só data, descrição e valor.",
+          allInUse: "Todas as colunas já estão em uso.",
+          remove: (name: string) => `Remover coluna ${name}`,
+          add: (name: string) => `Adicionar coluna ${name}`,
+          drag: (name: string) => `Reordenar coluna ${name}`,
+          locked: "Coluna obrigatória — não pode ser removida.",
+          /** O tipo padrão não aceita mudança no conjunto de colunas (o serviço recusa).
+           * Frase própria porque `locked` foi escrita para o chip, não para o bloco. */
+          defaultLocked: "O tipo padrão sempre exibe todas as colunas.",
+          /**
+           * D3 — a ordem é gravada e vale no preview, mas a tabela do mês só passa
+           * a respeitá-la com a Spec 66. Dito na tela, não escondido.
+           */
+          orderPendingNote:
+            "A ordem é salva e já vale na pré-visualização. A tabela do mês passa a respeitá-la quando a nova linha de transação entrar.",
+        },
+
+        preview: {
+          title: "Pré-visualização ao vivo",
+          hint: "duas linhas de exemplo, com o layout, a densidade e as colunas escolhidos agora",
+        },
+
+        behavior: {
+          defaultSortLabel: "Ordenação padrão",
+          sortAsc: "crescente",
+          sortDesc: "decrescente",
+          groupByLabel: "Agrupar por",
+          /**
+           * Volta a ser só a dica do frame 05b. A cauda "aguarda a nova linha de
+           * transação" saiu daqui quando a nota única entrou no topo da aba: as duas
+           * ficavam a 40px uma da outra dizendo a mesma coisa.
+           */
+          groupByHint: "Categoria, responsável ou parcela",
+          groupByNone: "Nenhum",
+          groupByDate: "Data",
+          groupByCategory: "Categoria",
+          groupByResponsible: "Responsável",
+          groupByInstallment: "Parcela",
+          totalsTitle: "Totais e linhas",
+          /** "no rodapé" era herança do frame: neste app o total da tabela vive no
+           * CABEÇALHO do card, não numa linha de rodapé. Agora que o toggle faz
+           * efeito de verdade, o rótulo tem que apontar para o lugar certo. */
+          showFooterTotal: "Mostrar o total da tabela",
+          showGroupSubtotal: "Mostrar subtotal por grupo",
+          allowBulkEdit: "Permitir seleção e edição em massa",
+          keepGhostRow: "Manter a linha-fantasma de criação sempre visível",
+          /**
+           * Texto do tooltip de cada controle: o que ele faz **na tabela do mês**.
+           * Frase única, concreta e no efeito observável — quem lê está decidindo
+           * sem ver a tabela na frente, e "ordenação padrão" não diz nada sozinho.
+           */
+          help: {
+            defaultSort:
+              "Por qual coluna a tabela já vem ordenada ao abrir o mês. Clicar no cabeçalho continua reordenando na hora.",
+            groupBy:
+              "Divide as linhas em blocos com um cabeçalho por grupo. Com “Nenhum”, a tabela é uma lista corrida. O agrupamento por data continua sendo decidido no menu de cada tabela.",
+            showFooterTotal: "Mostra ou esconde o total da tabela, no cabeçalho do card.",
+            showGroupSubtotal:
+              "Acrescenta a soma de cada bloco no cabeçalho do grupo. Só aparece quando há agrupamento.",
+            allowBulkEdit:
+              "Liga as caixas de seleção nas linhas e a barra de ações em massa. Desligado, a tabela fica só de leitura seletiva.",
+            keepGhostRow:
+              "Mantém a linha vazia de criação sempre visível no fim da tabela, em vez de só ao clicar em “Nova transação”.",
+            pinnedColumns:
+              "Colunas que ficam presas à esquerda ao rolar a tabela na horizontal. Só as de identificação podem ser presas, e apenas no layout de colunas.",
+            inheritOnNewRow:
+              "Quais campos a próxima linha nova já vem preenchida, copiando da que você acabou de criar.",
+          },
+          pinnedTitle: "Colunas fixadas à esquerda",
+          pinnedEmpty: "Nenhuma coluna fixada.",
+          /** Layout B não tem grade para fixar — o controle fica desabilitado com o motivo à vista. */
+          pinnedDisabledPills: "Disponível apenas no layout de colunas fixas.",
+          pinMore: "fixar mais",
+          inheritTitle: "Ao criar linha nova, herdar",
+          /**
+           * Mapa com as MESMAS chaves que são persistidas em `inheritOnNewRow`
+           * (`INHERIT_ON_NEW_ROW_FIELDS`). Deliberadamente um mapa, e não quatro
+           * chaves soltas: com rótulos avulsos a UI precisaria de um de-para
+           * `occurredOn → inheritDate` escrito à mão, que é exatamente o tipo de
+           * tradução paralela que sai de sincronia na primeira mudança.
+           */
+          inheritLabels: {
+            occurredOn: "Data da linha anterior",
+            responsibleUser: "Responsável",
+            category: "Categoria",
+            institution: "Instituição",
+          } as Record<string, string>,
+          /**
+           * §16 — nota ÚNICA no topo da aba, no lugar de uma marca por controle.
+           *
+           * A marca individual dizia a verdade, mas repetida seis vezes virava ruído
+           * visual e passava a competir com os próprios controles que anotava. A
+           * informação continua inteira e nomeia exatamente quais controles esperam,
+           * o que também é o que o teste verifica.
+           */
+          // `pendingNote` foi REMOVIDA: desde que `pinnedColumns` passou a funcionar,
+          // nenhum controle desta aba é inerte, e uma nota avisando sobre nada seria
+          // pior que nenhuma nota. A garantia do §16 vive agora no teste da aba.
+          // `pendingBadge` também foi removida: nenhum controle desta aba é inerte.
+          // O caminho de volta está no `describe` do §16 em `BehaviorTab.test.tsx`.
+        },
+
+        usedBy: {
+          modelsTitle: "Modelos de tabela que usam este tipo",
+          /**
+           * Era "contagem barata" — anotação de CUSTO DE IMPLEMENTAÇÃO herdada do
+           * frame, que não diz nada a quem usa o app. O que interessa ao usuário é o
+           * contraste com o painel logo abaixo, que só conta quando ele pede.
+           */
+          modelsHint: "sempre atualizado",
+          modelsEmpty: "Nenhum modelo usa este tipo.",
+          sectionOf: (section: string) => `seção ${section}`,
+          noSection: "sem seção de destino",
+          /** A frase do frame: "24 tabelas em 12 meses · 488 transações". */
+          realResult: (tables: number, months: number, transactions: number) =>
+            `${tables} ${tables === 1 ? "tabela" : "tabelas"} em ${months} ${months === 1 ? "mês" : "meses"} · ${transactions} ${transactions === 1 ? "transação" : "transações"}`,
+        },
+      },
+
+      // ── Modelos de tabela (telas 06 e 06b) ────────────────────────────────
+      models: {
+        saveLabel: "Salvar modelo",
+        saved: "Modelo salvo.",
+        createButton: "Novo modelo",
+        /** Validações inline. Sem elas, o erro só chega do servidor depois do clique
+         * em Salvar — tarde demais para um campo que o usuário acabou de deixar. */
+        nameRequired: "Dê um nome à tabela.",
+        /** Resumo da lista mestre: "cartão de crédito · 6 transações". */
+        summary: (tableType: string | null, transactions: number) =>
+          `${tableType ?? "sem tipo"} · ${transactions === 0 ? "vazio" : `${transactions} ${transactions === 1 ? "transação" : "transações"}`}`,
+
+        definition: {
+          nameLabel: "Nome da tabela",
+          tableTypeLabel: "Tipo de tabela",
+          tableTypeHint: "Define colunas, densidade e layout da linha",
+          tableTypeEmpty: "Nenhum tipo de tabela cadastrado.",
+          automationTitle: "Automação",
+          autoApplyLabel: "Criar esta tabela em todo mês novo",
+          sectionLabel: "Seção de destino",
+          sectionHint: "Sem automação, a seção é escolhida no momento de inserir a tabela.",
+          sectionRequired: "Escolha a seção de destino para ligar a automação.",
+          tableTypeRequired: "Escolha o tipo de tabela para ligar a automação.",
+          sectionInactive: "Esta seção está inativa — o modelo não criará tabela até reativá-la.",
+          orderLabel: "Ordem dentro da seção",
+          orderPosition: (position: number, total: number) => `${position}ª de ${total}`,
+          orderHint: (section: string) =>
+            `Só aparece porque há outro modelo automático em "${section}"`,
+          orderUp: "Subir na seção",
+          orderDown: "Descer na seção",
+        },
+
+        transactions: {
+          /** Faixa acima da mini-tabela: "Linha renderizada com o tipo X · layout pílulas". */
+          renderedWith: (tableType: string, layout: string) =>
+            `Linha renderizada com o tipo ${tableType} · layout ${layout}`,
+          renderedWithNoType: "Escolha um tipo de tabela na aba Definição para ver a linha real.",
+          columnDay: "Dia",
+          columnDescription: "Descrição",
+          columnCategory: "Categoria",
+          columnResponsible: "Responsável",
+          columnInstitution: "Instituição",
+          columnAmount: "Valor",
+          addRow: "Adicionar transação ao modelo…",
+          newButton: "Nova transação",
+          empty: "Este modelo ainda não cria nenhuma transação.",
+          total: (formatted: string) => `Total do modelo ${formatted}`,
+          created: "Transação adicionada ao modelo.",
+          updated: "Transação do modelo atualizada.",
+          deleted: "Transação removida do modelo.",
+          /** Explicação do dia relativo + valor zero, sob a tabela. */
+          hint: 'Dia é relativo — "dia 5", "último dia", "primeiro dia útil" — e resolve para a data real no mês em que a tabela nascer. Valor 0,00 significa "criar em branco para o usuário preencher".',
+          /** Campos que não cabem na linha, num painel expansível dentro dela. */
+          moreFields: "Mais campos",
+          dayRule: {
+            label: "Dia",
+            fixed: (day: number) => `dia ${day}`,
+            last: "último dia",
+            firstBusiness: "primeiro dia útil",
+            // `fixedGroup`/`relativeGroup` foram removidos: o `SettingsSelect` renderiza
+            // lista plana e não aceita `ListSubheader`. A separação é feita pela ORDEM
+            // (as relativas primeiro) — enterradas depois de "dia 31", ninguém as acharia.
+          },
+          categoryPlaceholder: "definir",
+          responsiblePlaceholder: "definir",
+          blankAmountHint: "criada em branco",
+        },
+
+        importFromMonth: {
+          button: "Importar de um mês",
+          title: "Importar de um mês",
+          description:
+            "Puxa as transações de uma tabela real já existente como ponto de partida. As transações atuais do modelo são mantidas — as importadas entram no fim.",
+          monthLabel: "Mês",
+          tableLabel: "Tabela",
+          noTables: "Nenhuma tabela neste mês.",
+          preview: (count: number) =>
+            `${count} ${count === 1 ? "transação será importada" : "transações serão importadas"}`,
+          confirm: "Importar",
+          success: (count: number) =>
+            `${count} ${count === 1 ? "transação importada" : "transações importadas"}.`,
+        },
+
+        usedBy: {
+          title: "Meses e tabelas criados a partir deste modelo",
+          /** D6 — sem backfill: a aba declara a data de corte em vez de fingir total. */
+          cutoffNote: (since: string) =>
+            `Tabelas criadas antes de ${since} não guardam a origem e não entram nesta contagem.`,
+          empty: "Nenhuma tabela foi criada a partir deste modelo ainda.",
+          result: (tables: number, months: number) =>
+            `${tables} ${tables === 1 ? "tabela" : "tabelas"} em ${months} ${months === 1 ? "mês" : "meses"}`,
+        },
+      },
+
+      // ── Dashboards (telas 07, 07b e 07c) ──────────────────────────────────
+      dashboards: {
+        pagesLabel: "Página do dashboard",
+        pageMonthly: "Mensal",
+        pageYearly: "Anual",
+        pageMonthSummary: "Resumo do mês",
+        summary: (widgets: number, rows: number) =>
+          `${widgets} ${widgets === 1 ? "widget" : "widgets"} · ${rows} ${rows === 1 ? "linha" : "linhas"}`,
+
+        undo: "Desfazer",
+        redo: "Refazer",
+        undone: "Alteração desfeita.",
+        redone: "Alteração refeita.",
+        sampleDataLabel: "Dados de amostra",
+        addWidget: "Adicionar widget",
+        viewPage: "Ver a página",
+
+        /** Rodapé de publicação (o layout só afeta a página real ao publicar). */
+        publishLabel: "Publicar layout",
+        published: "Layout publicado.",
+        discarded: "Alterações descartadas.",
+        dirtyCount: (n: number) =>
+          `Layout alterado — ${n} ${n === 1 ? "movimentação" : "movimentações"}`,
+
+        emptySlot: "Arraste um widget aqui ou clique para escolher",
+        sizeChip: (w: number, h: number) => `${w}×${h}`,
+
+        inspector: {
+          title: "Widget",
+          sizeTitle: "Tamanho",
+          sizeColumns: "col",
+          sizeRows: "linhas",
+          vizTitle: "Visualização",
+          vizHint: "depende do tamanho",
+          dataSourceTitle: "Fonte de dados",
+          filtersTitle: "Filtros",
+          addFilter: "filtro",
+          showTitle: "Mostrar título",
+          interactive: "Permitir interação do usuário",
+          duplicate: "Duplicar",
+          delete: "Excluir",
+        },
+
+        palette: {
+          title: "Adicionar widget",
+          description: "Arraste para o grid ou clique para inserir no primeiro espaço livre.",
+          groupMonth: "Do mês",
+          groupOverTime: "Ao longo do tempo",
+          groupOperational: "Operacional",
+          alreadyInLayout: "já está no layout",
+          /** "rosca · tabela · 6, 8, 12 col" — o que o card diz sob o nome. */
+          supports: (viz: string, sizes: string) => `${viz} · ${sizes}`,
+        },
+
+        viz: {
+          gauge: "Medidor único",
+          progressBars: "Barras de progresso",
+          donut: "Rosca com legenda",
+          table: "Tabela compacta",
+          line: "Linha temporal",
+          heatmap: "Mapa de calor",
+          /**
+           * Duas visualizações que o frame 07b não separa, mas o app tem de verdade:
+           * `bars` é a barra temporal (mês a mês, semana a semana), distinta das
+           * "barras de progresso" de meta; `list` é a lista do checklist, que não é
+           * uma tabela de colunas. Sem elas, três widgets ficavam sem visualização
+           * declarada e caíam na matriz derivada.
+           */
+          bars: "Barras comparativas",
+          list: "Lista",
+          /** Motivo do desabilitado, no próprio item. */
+          needsColumns: (cols: number) => `precisa de ${cols} colunas`,
+          onlyAtSize: (size: string) => `só em ${size}`,
+          reducedData: "aceita com dados reduzidos",
+          unavailable: "indisponível",
+          /** Troca automática ao redimensionar (nunca quebra em silêncio). */
+          switched: (to: string, reason: string) => `Visualização trocada para ${to} — ${reason}`,
+          switchedReasonSize: "o tamanho escolhido não a suporta",
+        },
+      },
+    },
+
     transactionAliases: {
       title: "Apelidos de Transação",
       subtitle:
@@ -1291,6 +1685,25 @@ export const messages = {
   transactions: {
     title: "Transações",
     newTransaction: "Nova transação",
+    /**
+     * Cabeçalho do bloco "sem valor" ao agrupar (Spec 69 §2.1). Namespace próprio
+     * em vez de reusar `m.dashboards.members.*`: o texto coincide hoje, mas são
+     * duas telas independentes e a primeira que mudar quebra a outra em silêncio.
+     */
+    grouping: {
+      noCategory: "Sem categoria",
+      noResponsible: "Sem responsável",
+      noInstallment: "Sem parcela",
+    },
+    /**
+     * Tabela que nunca teve transação. Distinto de `filters.noResults`, que fala de
+     * busca vazia ("nenhuma encontrada", "revise os filtros") — dizer isso a quem
+     * acabou de criar a tabela sugere que existe algo escondido por um filtro.
+     */
+    emptyTable: {
+      title: "Nenhuma transação",
+      hint: 'Clique em "+ Nova transação" no cabeçalho para adicionar',
+    },
     created: "Transação adicionada",
     confirmDelete: "Deletar esta transação?",
     deleted: "Transação deletada",

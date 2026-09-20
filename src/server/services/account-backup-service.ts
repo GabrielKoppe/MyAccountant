@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 
 import type { AccountSnapshot, AccountSnapshotData } from "@/lib/schemas/account-backup";
+import { DEFAULT_INHERIT_ON_NEW_ROW, DEFAULT_TABLE_TYPE_SORT } from "@/lib/schemas/settings";
 import { AppError, NotFoundError } from "@/server/api/errors";
 import { logger } from "@/server/logger";
 import { prisma } from "@/server/prisma";
@@ -37,11 +38,7 @@ const log = logger.child({ module: "account-backup-service" });
 // campo a campo, mantendo os demais campos (já `string`/`unknown` no schema)
 // inalterados — não precisa duplicar a lista de campos por modelo.
 type Moneyed<T> = {
-  [K in keyof T]: T[K] extends bigint
-    ? string
-    : T[K] extends bigint | null
-      ? string | null
-      : T[K];
+  [K in keyof T]: T[K] extends bigint ? string : T[K] extends bigint | null ? string | null : T[K];
 };
 
 type AccountSnapshotJsonData = {
@@ -184,12 +181,25 @@ export async function buildAccountSnapshot(accountId: string): Promise<AccountSn
         partyId: m.partyId,
         userId: m.userId,
       })),
+      // Spec 69 — os 11 campos de apresentação entram no snapshot. Sem eles o
+      // restore devolvia todo tipo aos defaults do Prisma sem avisar.
       tableTypes: tableTypes.map((t) => ({
         id: t.id,
         accountId: t.accountId,
         name: t.name,
         isDefault: t.isDefault,
         hiddenColumns: t.hiddenColumns,
+        rowLayout: t.rowLayout,
+        density: t.density,
+        visibleColumns: t.visibleColumns,
+        pinnedColumns: t.pinnedColumns,
+        inheritOnNewRow: t.inheritOnNewRow,
+        defaultSort: t.defaultSort,
+        groupBy: t.groupBy,
+        showFooterTotal: t.showFooterTotal,
+        showGroupSubtotal: t.showGroupSubtotal,
+        allowBulkEdit: t.allowBulkEdit,
+        keepGhostRow: t.keepGhostRow,
         createdAt: ts(t.createdAt),
       })),
       sections: sections.map((s) => ({
@@ -661,7 +671,9 @@ const MODEL_ORDER: ModelDescriptor[] = [
   {
     key: "pendingInstallments",
     createMany: (tx, rows) =>
-      tx.pendingInstallment.createMany({ data: rows as Prisma.PendingInstallmentCreateManyInput[] }),
+      tx.pendingInstallment.createMany({
+        data: rows as Prisma.PendingInstallmentCreateManyInput[],
+      }),
     deleteMany: (tx, accountId) => tx.pendingInstallment.deleteMany({ where: { accountId } }),
   },
   {
@@ -676,7 +688,8 @@ const MODEL_ORDER: ModelDescriptor[] = [
   },
   {
     key: "budgets",
-    createMany: (tx, rows) => tx.budget.createMany({ data: rows as Prisma.BudgetCreateManyInput[] }),
+    createMany: (tx, rows) =>
+      tx.budget.createMany({ data: rows as Prisma.BudgetCreateManyInput[] }),
     deleteMany: (tx, accountId) => tx.budget.deleteMany({ where: { accountId } }),
   },
   {
@@ -867,6 +880,24 @@ export function planImport(
       name: t.name,
       isDefault: t.isDefault,
       hiddenColumns: toJsonInput(t.hiddenColumns, {}),
+      // Spec 69 — apresentação. Os escalares já vêm com o default do schema Zod
+      // (backup antigo não os tem); as colunas Json caem no fallback aqui, pelo
+      // mesmo caminho de `hiddenColumns`. `inheritOnNewRow` cai em
+      // `["occurredOn"]`, que é o comportamento de sempre da linha-fantasma —
+      // um backup anterior à Spec 69 foi tirado de um app que preservava a data.
+      // Pelo mesmo motivo `defaultSort` cai em `DEFAULT_TABLE_TYPE_SORT`
+      // (`occurredOn`/`desc`): aquele app mostrava do mais novo para o mais antigo.
+      rowLayout: t.rowLayout,
+      density: t.density,
+      visibleColumns: toJsonInput(t.visibleColumns, []),
+      pinnedColumns: toJsonInput(t.pinnedColumns, []),
+      inheritOnNewRow: toJsonInput(t.inheritOnNewRow, [...DEFAULT_INHERIT_ON_NEW_ROW]),
+      defaultSort: toJsonInput(t.defaultSort, { ...DEFAULT_TABLE_TYPE_SORT }),
+      groupBy: t.groupBy,
+      showFooterTotal: t.showFooterTotal,
+      showGroupSubtotal: t.showGroupSubtotal,
+      allowBulkEdit: t.allowBulkEdit,
+      keepGhostRow: t.keepGhostRow,
       createdAt: date(t.createdAt),
     })),
 
@@ -1308,9 +1339,6 @@ export async function importSnapshot(
     { timeout: 120_000, maxWait: 15_000 },
   );
 
-  log.info(
-    { accountId: targetAccountId, mode, userId, counts },
-    "Account snapshot imported",
-  );
+  log.info({ accountId: targetAccountId, mode, userId, counts }, "Account snapshot imported");
   return { accountId: targetAccountId, counts };
 }

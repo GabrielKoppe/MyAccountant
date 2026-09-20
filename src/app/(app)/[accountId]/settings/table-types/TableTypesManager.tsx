@@ -1,488 +1,412 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import ViewColumnOutlinedIcon from "@mui/icons-material/ViewColumnOutlined";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
-import CircularProgress from "@mui/material/CircularProgress";
-import Collapse from "@mui/material/Collapse";
-import Divider from "@mui/material/Divider";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import IconButton from "@mui/material/IconButton";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useSnackbar } from "notistack";
+import { useState, useTransition } from "react";
 
 import {
   createTableTypeAction,
   deleteTableTypeAction,
   updateTableTypeAction,
 } from "@/actions/account-settings";
-import {
-  createTableTypeSchema,
-  type CreateTableTypeInput,
-  type RowLayout,
-  TOGGLEABLE_COLUMNS,
-} from "@/lib/schemas/settings";
-import { m } from "@/lib/messages";
-import { containers, layout } from "@/lib/design-tokens";
+import { SETTINGS_GUTTER } from "@/components/settings/settings-layout";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
-import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
+import { SettingsMasterDetail } from "@/components/settings/SettingsMasterDetail";
+import {
+  SettingsPageShell,
+  type SettingsPageShellProps,
+} from "@/components/settings/SettingsPageShell";
+import { SettingsSaveBar } from "@/components/settings/SettingsSaveBar";
+import { SettingsTabPanel, SettingsTabs } from "@/components/settings/SettingsTabs";
+import { BehaviorTab } from "@/components/settings/table-types/BehaviorTab";
+import { ColumnsLayoutTab } from "@/components/settings/table-types/ColumnsLayoutTab";
+import {
+  buildUpdatePayload,
+  countDirtyFields,
+  draftFromType,
+  prunePinned,
+  type TableTypeDraft,
+} from "@/components/settings/table-types/table-type-draft";
+import {
+  TableTypeUsedByTab,
+  type TableTypeModelUsage,
+} from "@/components/settings/table-types/TableTypeUsedByTab";
+import { m } from "@/lib/messages";
+import {
+  DEFAULT_INHERIT_ON_NEW_ROW,
+  DEFAULT_KEEP_GHOST_ROW,
+  DEFAULT_TABLE_TYPE_SORT,
+} from "@/lib/schemas/settings";
+import { visibleColumnsFromHidden } from "@/lib/table-columns";
 
-type TableTypeItem = {
+const t = m.settings.presentation.tableTypes;
+/** Chaves do namespace legado que a Spec 69 não reescreveu (nome, badge, exclusão). */
+const legacy = m.settings.tableTypes;
+
+/** Um tipo de tabela como a página o conhece: os 12 campos editáveis + o contexto. */
+export type SettingsTableType = TableTypeDraft & {
   id: string;
-  name: string;
   isDefault: boolean;
-  hiddenColumns: Record<string, boolean>;
-  rowLayout: RowLayout;
+  /** Tabelas reais que usam este tipo — é o número do aviso de exclusão. */
   tableCount: number;
+  /** Modelos que usam este tipo (contagem barata do RSC). */
+  models: TableTypeModelUsage[];
 };
 
 type Props = {
   accountId: string;
-  initialTypes: TableTypeItem[];
+  initialTypes: SettingsTableType[];
 };
 
-const ALWAYS_VISIBLE = [
-  { key: "occurredOn", label: "Data" },
-  { key: "amount", label: "Valor" },
-  { key: "description", label: "Descrição" },
-];
-
+/**
+ * Tipos de tabela — arquétipo C (Spec 69 §2.1, frames 05 e 05b).
+ *
+ * Substitui o accordion + diálogos anterior. Nada se perdeu: **criar** continua na
+ * ação primária do shell, **renomear** virou o campo Nome da aba 1 (era um diálogo
+ * de edição inline), **excluir** virou ação secundária do shell com o mesmo aviso
+ * de N tabelas afetadas, e o selo **Padrão** virou o `badge` do item na lista
+ * mestre — ele diz QUAL tipo é o padrão, e isso se lê melhor na lista do que ao
+ * lado de um campo do detalhe. O motivo da trava de colunas, que o selo explicava
+ * de carona, está dito na Aba 1 (`columns.defaultLocked`).
+ *
+ * **Rascunho por tipo, não global** (mesmo padrão da página de Modelos): `drafts`
+ * é indexado por id, então trocar de tipo na lista mestre não descarta edição
+ * pendente. O `dirtyCount` do rodapé, porém, é sempre o do tipo SELECIONADO — a
+ * barra fala do que está na tela, e "Salvar tipo" salva um tipo.
+ */
 export function TableTypesManager({ accountId, initialTypes }: Props) {
   const { enqueueSnackbar } = useSnackbar();
-  const [types, setTypes] = useState(initialTypes);
-  const [isPending, startTransition] = useTransition();
+  const [types, setTypes] = useState<SettingsTableType[]>(initialTypes);
+  const [selectedId, setSelectedId] = useState<string | null>(initialTypes[0]?.id ?? null);
+  const [drafts, setDrafts] = useState<Record<string, TableTypeDraft>>({});
+  const [tab, setTab] = useState("columns");
   const [createOpen, setCreateOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<TableTypeItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<TableTypeItem | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [newName, setNewName] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isSaving, startSaving] = useTransition();
+  const [isMutating, startMutating] = useTransition();
 
-  const form = useForm<CreateTableTypeInput>({
-    resolver: zodResolver(createTableTypeSchema),
-    defaultValues: { name: "", hiddenColumns: {} },
-  });
+  const selected = types.find((type) => type.id === selectedId) ?? null;
+  const draft = selected ? (drafts[selected.id] ?? draftFromType(selected)) : null;
 
-  function openCreate() {
-    form.reset({ name: "", hiddenColumns: {} });
-    setCreateOpen(true);
-  }
-
-  function openEdit(type: TableTypeItem) {
-    setEditTarget(type);
-    setExpandedId(type.id);
-  }
-
-  function closeDialog() {
-    setCreateOpen(false);
-    setEditTarget(null);
-    form.reset();
-  }
-
-  async function onSubmitCreate(values: CreateTableTypeInput) {
-    const result = await createTableTypeAction(accountId, values);
-    if (!result.ok) {
-      enqueueSnackbar(result.error.message, { variant: "error" });
-      return;
+  function patchDraft(patch: Partial<TableTypeDraft>) {
+    if (!selected || !draft) return;
+    const next = { ...draft, ...patch };
+    // Uma coluna que saiu de `visibleColumns` não pode continuar fixada — a poda
+    // vale para qualquer caminho que mude o conjunto, não só o × do chip.
+    if (patch.visibleColumns !== undefined && patch.pinnedColumns === undefined) {
+      next.pinnedColumns = prunePinned(next.pinnedColumns, next.visibleColumns);
     }
-    setTypes((prev) => [
-      ...prev,
-      {
-        id: result.data.tableTypeId,
-        ...values,
-        rowLayout: values.rowLayout ?? "columns",
-        isDefault: false,
-        tableCount: 0,
-      },
-    ]);
-    enqueueSnackbar(m.settings.tableTypes.created, { variant: "success" });
-    closeDialog();
+    setDrafts((prev) => ({ ...prev, [selected.id]: next }));
   }
 
-  function handleToggleColumn(typeId: string, key: string, hidden: boolean) {
-    startTransition(async () => {
-      const current = types.find((t) => t.id === typeId);
-      if (!current) return;
+  function clearDraft(tableTypeId: string) {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[tableTypeId];
+      return next;
+    });
+  }
 
-      const newHidden = { ...current.hiddenColumns };
-      if (hidden) newHidden[key] = true;
-      else delete newHidden[key];
+  function handleSave() {
+    if (!selected || !draft) return;
 
-      const result = await updateTableTypeAction(accountId, {
-        tableTypeId: typeId,
-        hiddenColumns: newHidden,
-      });
+    const payload = buildUpdatePayload(selected.id, draft, selected, {
+      canEditColumns: !selected.isDefault,
+    });
+
+    startSaving(async () => {
+      const result = await updateTableTypeAction(accountId, payload);
       if (!result.ok) {
         enqueueSnackbar(result.error.message, { variant: "error" });
         return;
       }
       setTypes((prev) =>
-        prev.map((t) => (t.id === typeId ? { ...t, hiddenColumns: newHidden } : t)),
+        prev.map((type) =>
+          type.id === selected.id
+            ? {
+                ...type,
+                ...draft,
+                name: draft.name.trim(),
+                // O tipo padrão não aceita mudança de conjunto de colunas: o
+                // estado local precisa refletir o que o servidor GRAVOU, não o
+                // que a UI mandou, senão a lista mestre mentiria até a recarga.
+                visibleColumns: selected.isDefault ? type.visibleColumns : draft.visibleColumns,
+              }
+            : type,
+        ),
       );
+      clearDraft(selected.id);
+      enqueueSnackbar(t.saved, { variant: "success" });
     });
   }
 
-  function handleChangeLayout(typeId: string, layout: RowLayout) {
-    startTransition(async () => {
-      const current = types.find((t) => t.id === typeId);
-      if (!current || current.rowLayout === layout) return;
+  function handleCreate() {
+    const name = newName.trim();
+    if (!name) return;
 
-      const result = await updateTableTypeAction(accountId, {
-        tableTypeId: typeId,
-        rowLayout: layout,
-      });
+    startMutating(async () => {
+      const result = await createTableTypeAction(accountId, { name, hiddenColumns: {} });
       if (!result.ok) {
         enqueueSnackbar(result.error.message, { variant: "error" });
         return;
       }
-      setTypes((prev) => prev.map((t) => (t.id === typeId ? { ...t, rowLayout: layout } : t)));
-      enqueueSnackbar(m.settings.tableTypes.updated, { variant: "success" });
+      // Os defaults abaixo espelham os do `createTableType` — um tipo recém-criado
+      // aparece na tela exatamente como está no banco, sem esperar recarga.
+      setTypes((prev) => [
+        ...prev,
+        {
+          id: result.data.tableTypeId,
+          name,
+          isDefault: false,
+          rowLayout: "columns",
+          density: "default",
+          visibleColumns: visibleColumnsFromHidden({}),
+          pinnedColumns: [],
+          inheritOnNewRow: [...DEFAULT_INHERIT_ON_NEW_ROW],
+          defaultSort: { ...DEFAULT_TABLE_TYPE_SORT },
+          groupBy: null,
+          showFooterTotal: true,
+          showGroupSubtotal: false,
+          allowBulkEdit: true,
+          keepGhostRow: DEFAULT_KEEP_GHOST_ROW,
+          tableCount: 0,
+          models: [],
+        },
+      ]);
+      setSelectedId(result.data.tableTypeId);
+      setTab("columns");
+      setCreateOpen(false);
+      setNewName("");
+      enqueueSnackbar(legacy.created, { variant: "success" });
     });
   }
 
-  function handleRename(typeId: string, name: string) {
-    startTransition(async () => {
-      const result = await updateTableTypeAction(accountId, { tableTypeId: typeId, name });
+  function handleDelete() {
+    if (!selected) return;
+    const target = selected.id;
+    setDeleteOpen(false);
+
+    startMutating(async () => {
+      const result = await deleteTableTypeAction(accountId, { tableTypeId: target });
       if (!result.ok) {
         enqueueSnackbar(result.error.message, { variant: "error" });
         return;
       }
-      setTypes((prev) => prev.map((t) => (t.id === typeId ? { ...t, name } : t)));
-      enqueueSnackbar(m.settings.tableTypes.updated, { variant: "success" });
-      setEditTarget(null);
+      const remaining = types.filter((type) => type.id !== target);
+      setTypes(remaining);
+      clearDraft(target);
+      setSelectedId(remaining[0]?.id ?? null);
+      enqueueSnackbar(legacy.deleted, { variant: "success" });
     });
   }
 
-  function confirmDelete() {
-    if (!deleteTarget) return;
-    const target = deleteTarget;
-    setDeleteTarget(null);
-    startTransition(async () => {
-      const result = await deleteTableTypeAction(accountId, { tableTypeId: target.id });
-      if (!result.ok) {
-        enqueueSnackbar(result.error.message, { variant: "error" });
-        return;
-      }
-      setTypes((prev) => prev.filter((t) => t.id !== target.id));
-      enqueueSnackbar(m.settings.tableTypes.deleted, { variant: "success" });
-    });
-  }
+  const createButton = (
+    <Button
+      variant="contained"
+      size="small"
+      startIcon={<AddIcon />}
+      onClick={() => setCreateOpen(true)}
+    >
+      {t.createButton}
+    </Button>
+  );
+
+  const shellProps: Omit<SettingsPageShellProps, "children"> = {
+    family: "Apresentação",
+    title: m.settings.nav.tableTypes,
+    count: String(types.length),
+    purpose: m.settings.purposes.tableTypes,
+    primaryAction: {
+      label: t.createButton,
+      icon: <AddIcon />,
+      onClick: () => setCreateOpen(true),
+    },
+    // O tipo padrão não é excluível (o serviço recusa) — oferecer o botão só para
+    // ele falhar seria uma promessa vazia.
+    secondaryActions:
+      selected && !selected.isDefault
+        ? [
+            {
+              label: m.common.delete,
+              icon: <DeleteOutlineIcon />,
+              onClick: () => setDeleteOpen(true),
+              disabled: isMutating,
+            },
+          ]
+        : undefined,
+    // Sem `dirtyCount`: o rodapé desta página é da COLUNA DE DETALHE (slot `footer`
+    // do master-detail), não do painel inteiro — o do shell corria por baixo da lista
+    // de tipos. Ver o comentário da prop `footer` em `SettingsMasterDetail`.
+    disableContentPadding: true,
+  };
+
+  const saveBar =
+    selected && draft ? (
+      <SettingsSaveBar
+        dirtyCount={countDirtyFields(draft, selected)}
+        saveLabel={t.saveLabel}
+        saving={isSaving}
+        onSave={handleSave}
+        onDiscard={() => clearDraft(selected.id)}
+      />
+    ) : undefined;
 
   return (
-    <SettingsPageShell
-      family="Apresentação"
-      title={m.settings.nav.tableTypes}
-      // Chip do §7.5: só a contagem de tipos — é o dado que a página já carrega.
-      count={String(types.length)}
-      purpose={m.settings.purposes.tableTypes}
-      // A ação primária é a mesma de antes (abre o diálogo de criação); só mudou de lugar.
-      primaryAction={{
-        label: m.settings.tableTypes.createButton,
-        icon: <AddIcon />,
-        onClick: openCreate,
-      }}
-      itemCount={types.length}
-    >
-      {/* O container antigo limitava o conteúdo a containers.md; o shell não limita
-          largura, então a restrição passa a viver no conteúdo para a lista não esticar. */}
-      <Box sx={{ maxWidth: containers.md }}>
-        {types.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
-            {m.settings.tableTypes.noTableTypes}
+    <SettingsPageShell {...shellProps}>
+      <SettingsMasterDetail
+        items={types.map((type) => ({
+          id: type.id,
+          name: type.name,
+          summary: t.summary(
+            type.visibleColumns.length,
+            type.rowLayout === "pills" ? t.rowLayout.pillsShort : t.rowLayout.columnsShort,
+            type.models.length,
+          ),
+          // "Padrão" identifica o tipo, não um campo dele: na lista mestre dá para
+          // ver qual é o padrão sem abrir os cinco tipos um a um. A razão da trava
+          // de colunas continua escrita na Aba 1 (`columns.defaultLocked`).
+          badge: type.isDefault ? legacy.defaultBadge : undefined,
+          // Esmaecido = tipo que nenhum modelo usa (frame 05).
+          dimmed: type.models.length === 0,
+        }))}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        ariaLabel={m.settings.presentation.masterListLabel}
+        emptyLabel={legacy.noTableTypes}
+        emptyDescription={m.settings.purposes.tableTypes}
+        emptyIcon={<ViewColumnOutlinedIcon sx={{ fontSize: 48 }} />}
+        emptyAction={createButton}
+        footer={saveBar}
+      >
+        {selected && draft ? (
+          <>
+            <SettingsTabs
+              tabs={[
+                { value: "columns", label: m.settings.presentation.tabs.columnsLayout },
+                { value: "behavior", label: m.settings.presentation.tabs.behavior },
+                {
+                  value: "usedBy",
+                  label: m.settings.presentation.tabs.usedBy,
+                  count: selected.models.length,
+                },
+              ]}
+              value={tab}
+              onChange={setTab}
+              ariaLabel={m.settings.nav.tableTypes}
+            />
+
+            {/* O shell está com o padding desligado (arquétipo C): a goteira do
+                detalhe é reaplicada aqui, na MESMA medida das abas. */}
+            <Box sx={{ px: SETTINGS_GUTTER, flex: 1, minHeight: 0 }}>
+              <SettingsTabPanel value="columns" activeValue={tab}>
+                <ColumnsLayoutTab
+                  draft={draft}
+                  onChange={patchDraft}
+                  isDefault={selected.isDefault}
+                  disabled={isSaving}
+                />
+              </SettingsTabPanel>
+
+              <SettingsTabPanel value="behavior" activeValue={tab}>
+                <BehaviorTab draft={draft} onChange={patchDraft} disabled={isSaving} />
+              </SettingsTabPanel>
+
+              <SettingsTabPanel value="usedBy" activeValue={tab}>
+                <TableTypeUsedByTab
+                  // `key` por tipo: o painel de contagem guarda o resultado em
+                  // estado próprio. Sem remontar, trocar de tipo com a aba aberta
+                  // mostraria a contagem do tipo ANTERIOR como se fosse deste.
+                  key={selected.id}
+                  accountId={accountId}
+                  tableTypeId={selected.id}
+                  tableTypeName={selected.name}
+                  models={selected.models}
+                  modelsHref={`/${accountId}/settings/models`}
+                />
+              </SettingsTabPanel>
+            </Box>
+          </>
+        ) : (
+          <Typography variant="body2" sx={{ px: SETTINGS_GUTTER, py: 4, color: "text.tertiary" }}>
+            {m.settings.presentation.detailEmpty}
           </Typography>
         )}
+      </SettingsMasterDetail>
 
-        <Stack spacing={1}>
-          {types.map((type) => {
-            const isExpanded = expandedId === type.id;
-            const hiddenKeys = Object.keys(type.hiddenColumns).filter((k) => type.hiddenColumns[k]);
-
-            return (
-              <Paper key={type.id} variant="outlined">
-                {/* Header */}
-                <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, gap: 1 }}>
-                  {/* Edit inline or show name */}
-                  {editTarget?.id === type.id ? (
-                    <EditableNameField
-                      initialName={type.name}
-                      onSave={(name) => handleRename(type.id, name)}
-                      onCancel={() => setEditTarget(null)}
-                      disabled={isPending}
-                    />
-                  ) : (
-                    <>
-                      <Typography
-                        variant="body2"
-                        fontWeight="medium"
-                        noWrap
-                        sx={{ flex: 1, minWidth: 0 }}
-                      >
-                        {type.name}
-                      </Typography>
-                      {type.isDefault && (
-                        <Chip
-                          label={m.settings.tableTypes.defaultBadge}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                      )}
-                      {hiddenKeys.length > 0 && (
-                        <Typography variant="caption" color="text.secondary">
-                          {hiddenKeys.length} coluna(s) oculta(s)
-                        </Typography>
-                      )}
-                      <Tooltip title={m.common.edit}>
-                        <IconButton size="small" onClick={() => openEdit(type)}>
-                          <EditIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Tooltip>
-                      {!type.isDefault && (
-                        <Tooltip title={m.common.delete}>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => setDeleteTarget(type)}
-                            disabled={isPending}
-                          >
-                            <DeleteIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      <IconButton
-                        size="small"
-                        onClick={() => setExpandedId(isExpanded ? null : type.id)}
-                      >
-                        {isExpanded ? (
-                          <ExpandLessIcon sx={{ fontSize: 16 }} />
-                        ) : (
-                          <ExpandMoreIcon sx={{ fontSize: 16 }} />
-                        )}
-                      </IconButton>
-                    </>
-                  )}
-                </Box>
-
-                {/* Colunas expandidas */}
-                <Collapse in={isExpanded}>
-                  <Divider />
-                  <Box sx={{ px: 2, py: 1.5 }}>
-                    <Typography variant="caption" fontWeight="bold" color="text.secondary">
-                      {m.settings.tableTypes.alwaysVisible}
-                    </Typography>
-                    <List dense disablePadding>
-                      {ALWAYS_VISIBLE.map(({ key, label }) => (
-                        <ListItem key={key} dense disableGutters>
-                          <FormControlLabel
-                            sx={{ m: 0 }}
-                            control={<Switch size="small" checked disabled />}
-                            label={label}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-
-                    <Typography
-                      variant="caption"
-                      fontWeight="bold"
-                      color="text.secondary"
-                      sx={{ mt: 1, display: "block" }}
-                    >
-                      {m.settings.tableTypes.configurable}
-                    </Typography>
-                    <List dense disablePadding>
-                      {TOGGLEABLE_COLUMNS.map(({ key, label }) => (
-                        <ListItem key={key} dense disableGutters>
-                          <FormControlLabel
-                            sx={{ m: 0 }}
-                            control={
-                              <Switch
-                                size="small"
-                                checked={!type.hiddenColumns[key]}
-                                disabled={type.isDefault || isPending}
-                                onChange={(e) =>
-                                  handleToggleColumn(type.id, key, !e.target.checked)
-                                }
-                              />
-                            }
-                            label={label}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                    {type.isDefault && (
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                        O tipo padrão sempre exibe todas as colunas.
-                      </Typography>
-                    )}
-
-                    <Typography
-                      variant="caption"
-                      fontWeight="bold"
-                      color="text.secondary"
-                      sx={{ mt: 2, display: "block" }}
-                    >
-                      {m.settings.tableTypes.layoutLabel}
-                    </Typography>
-                    <ToggleButtonGroup
-                      size="small"
-                      exclusive
-                      value={type.rowLayout}
-                      disabled={isPending}
-                      onChange={(_e, value: RowLayout | null) => {
-                        if (value) handleChangeLayout(type.id, value);
-                      }}
-                      sx={{ mt: 0.5 }}
-                    >
-                      <ToggleButton value="columns">
-                        {m.settings.tableTypes.layoutColumns}
-                      </ToggleButton>
-                      <ToggleButton value="rich">{m.settings.tableTypes.layoutRich}</ToggleButton>
-                    </ToggleButtonGroup>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ mt: 0.5, display: "block" }}
-                    >
-                      {type.rowLayout === "rich"
-                        ? m.settings.tableTypes.layoutRichHelp
-                        : m.settings.tableTypes.layoutColumnsHelp}
-                    </Typography>
-                  </Box>
-                </Collapse>
-              </Paper>
-            );
-          })}
-        </Stack>
-      </Box>
-
-      {/* Create dialog */}
       <SettingsDialog
         open={createOpen}
-        onClose={closeDialog}
+        onClose={() => {
+          setCreateOpen(false);
+          setNewName("");
+        }}
         size="form"
-        title={m.settings.tableTypes.createTitle}
-        loading={form.formState.isSubmitting}
+        title={legacy.createTitle}
+        loading={isMutating}
         actions={
           <>
-            <Button size="small" onClick={closeDialog}>
+            <Button
+              onClick={() => {
+                setCreateOpen(false);
+                setNewName("");
+              }}
+            >
               {m.common.cancel}
             </Button>
             <Button
-              size="small"
-              type="submit"
-              form="table-types-form"
               variant="contained"
-              endIcon={
-                form.formState.isSubmitting ? (
-                  <CircularProgress size={16} color="inherit" />
-                ) : undefined
-              }
+              onClick={handleCreate}
+              disabled={isMutating || !newName.trim()}
             >
               {m.common.create}
             </Button>
           </>
         }
       >
-        <form id="table-types-form" onSubmit={form.handleSubmit(onSubmitCreate)} noValidate>
-          <Stack spacing={layout.stack}>
-            <Controller
-              name="name"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <TextField
-                  {...field}
-                  label={m.settings.tableTypes.nameLabel}
-                  error={!!fieldState.error}
-                  helperText={fieldState.error?.message ?? m.settings.tableTypes.createHelperText}
-                  fullWidth
-                  autoFocus
-                />
-              )}
-            />
-          </Stack>
-        </form>
+        <TextField
+          label={legacy.nameLabel}
+          value={newName}
+          onChange={(event) => setNewName(event.target.value)}
+          helperText={legacy.createHelperText}
+          fullWidth
+          autoFocus
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              handleCreate();
+            }
+          }}
+        />
       </SettingsDialog>
 
-      {/* Delete dialog */}
       <SettingsDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
         size="confirm"
-        title={m.settings.tableTypes.deleteTitle}
-        description={m.settings.tableTypes.deleteConfirm}
+        title={legacy.deleteTitle}
+        description={legacy.deleteConfirm}
         actions={
           <>
-            <Button size="small" onClick={() => setDeleteTarget(null)}>
-              {m.common.cancel}
-            </Button>
-            <Button size="small" color="error" variant="contained" onClick={confirmDelete}>
+            <Button onClick={() => setDeleteOpen(false)}>{m.common.cancel}</Button>
+            <Button color="error" variant="contained" onClick={handleDelete}>
               {m.common.delete}
             </Button>
           </>
         }
       >
-        {deleteTarget && deleteTarget.tableCount > 0 ? (
-          <Alert severity="warning">
-            {m.settings.tableTypes.deleteWarning(deleteTarget.tableCount)}
-          </Alert>
+        {/* O aviso de N tabelas afetadas do gerenciador antigo — a única
+            informação que dizia o tamanho do estrago antes do clique. */}
+        {selected && selected.tableCount > 0 ? (
+          <Alert severity="warning">{legacy.deleteWarning(selected.tableCount)}</Alert>
         ) : null}
       </SettingsDialog>
     </SettingsPageShell>
-  );
-}
-
-function EditableNameField({
-  initialName,
-  onSave,
-  onCancel,
-  disabled,
-}: {
-  initialName: string;
-  onSave: (name: string) => void;
-  onCancel: () => void;
-  disabled: boolean;
-}) {
-  const [value, setValue] = useState(initialName);
-  return (
-    <Box sx={{ display: "flex", gap: 1, flex: 1, alignItems: "center" }}>
-      <TextField
-        size="small"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        autoFocus
-        disabled={disabled}
-        sx={{ flex: 1 }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            onSave(value);
-          }
-          if (e.key === "Escape") onCancel();
-        }}
-      />
-      <Button size="small" variant="contained" onClick={() => onSave(value)} disabled={disabled}>
-        {m.common.save}
-      </Button>
-      <Button size="small" onClick={onCancel} disabled={disabled}>
-        {m.common.cancel}
-      </Button>
-    </Box>
   );
 }

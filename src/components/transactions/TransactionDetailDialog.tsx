@@ -497,15 +497,16 @@ export function TransactionDetailDialog({
                 flexShrink: 0,
               }}
             >
+              {/* Texto sobre fundo sutil → `onSubtle` (AA); `main` da 2,77:1. */}
               {tx.isPending && (
-                <HeaderChip bgcolor="warning.subtle" color="warning.main">
+                <HeaderChip bgcolor="warning.light" color="warning.onSubtle">
                   {m.transactions.fields.isPending}
                 </HeaderChip>
               )}
               {tx.isFavorite && (
                 <HeaderChip
-                  bgcolor="warning.subtle"
-                  color="warning.main"
+                  bgcolor="warning.light"
+                  color="warning.onSubtle"
                   icon={<StarIcon sx={{ fontSize: 12 }} />}
                 >
                   {m.transactions.fields.isFavorite}

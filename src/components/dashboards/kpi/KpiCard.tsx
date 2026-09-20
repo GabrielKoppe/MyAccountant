@@ -249,7 +249,7 @@ export function KpiCard({
         >
           {breakdown.map((item, i) => (
             <Fragment key={i}>
-              <Divider sx={{ borderColor: "divider.subtle" }} />
+              <Divider sx={{ borderColor: "border.subtle" }} />
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
                 {item.dotColor && (
                   <Box
@@ -290,7 +290,7 @@ export function KpiCard({
               </Box>
             </Fragment>
           ))}
-          <Divider sx={{ my: 0.25, borderColor: "divider.subtle" }} />
+          <Divider sx={{ my: 0.25, borderColor: "border.subtle" }} />
         </Box>
       )}
 

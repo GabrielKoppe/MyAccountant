@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SnackbarProvider } from "notistack";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -175,6 +175,161 @@ describe("NewTransactionRow", () => {
 
     await waitFor(() => expect(createTransactionAction).toHaveBeenCalled());
     expect(createTransactionAction.mock.calls[0][1].expenseType).toBe("fixed");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Spec 69 §2.1 — "Ao criar linha nova, herdar" (`inheritOnNewRow` do tipo de
+// tabela). O que se prova aqui é o EFEITO: chave ligada → o valor sobrevive ao
+// salvamento e vai no payload do lançamento SEGUINTE; chave desligada → o campo
+// volta ao ponto de partida da linha.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CATEGORIES = [
+  { id: "cat-1", name: "Alimentação", subcategories: [{ id: "sub-1", name: "Mercado" }] },
+  { id: "cat-2", name: "Moradia", subcategories: [] },
+];
+const INSTITUTIONS = [{ id: "inst-1", name: "Nubank" }];
+const PARTIES = [
+  {
+    id: "party-1",
+    name: "Gabriel",
+    kind: "personal" as const,
+    icon: null,
+    color: null,
+    imageUrl: null,
+  },
+  { id: "party-2", name: "Casa", kind: "group" as const, icon: null, color: null, imageUrl: null },
+];
+
+/** Escolhe uma opção num `CreatableEntitySelect` (Autocomplete) pelo aria-label. */
+async function pickAutocomplete(ariaLabel: string, optionName: string) {
+  await userEvent.click(screen.getByRole("combobox", { name: ariaLabel }));
+  await userEvent.click(await screen.findByRole("option", { name: optionName }));
+}
+
+/** Escolhe uma opção num `Select` do MUI (responsável) pelo aria-label. */
+async function pickSelect(ariaLabel: string, optionName: string) {
+  await userEvent.click(screen.getByRole("combobox", { name: ariaLabel }));
+  // Regex: o `MenuItem` do responsável carrega o avatar da persona junto do
+  // nome, então o nome acessível não é só o texto.
+  await userEvent.click(await screen.findByRole("option", { name: new RegExp(optionName) }));
+}
+
+async function saveWith(description: string) {
+  await userEvent.type(screen.getByPlaceholderText("Descrição…"), `${description}{Enter}`);
+}
+
+/** Preenche os 4 campos herdáveis, salva, e devolve o payload do 2º salvamento. */
+async function fillSaveTwice() {
+  fireEvent.change(screen.getByDisplayValue(/^\d{4}-\d{2}-\d{2}$/), {
+    target: { value: "2026-03-05" },
+  });
+  await pickAutocomplete("Categoria", "Alimentação");
+  await pickAutocomplete("Subcategoria", "Mercado");
+  await pickAutocomplete("Instituição", "Nubank");
+  await pickSelect("Responsável", "Casa");
+
+  await saveWith("Primeiro");
+  await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(1));
+
+  await saveWith("Segundo");
+  await waitFor(() => expect(createTransactionAction).toHaveBeenCalledTimes(2));
+  return createTransactionAction.mock.calls[1][1];
+}
+
+describe("NewTransactionRow — herdar ao criar linha nova (Spec 69 §2.1)", () => {
+  beforeEach(() => {
+    createTransactionAction.mockReset();
+    createTransactionAction.mockResolvedValue({ ok: true, data: { transactionId: "tx-new" } });
+  });
+
+  function renderWithInherit(inheritOnNewRow: string[]) {
+    return renderRow({
+      categories: CATEGORIES,
+      institutions: INSTITUTIONS,
+      parties: PARTIES,
+      defaultResponsiblePartyId: "party-1",
+      inheritOnNewRow: inheritOnNewRow as never,
+    });
+  }
+
+  it("nenhuma chave ligada: os quatro campos voltam ao ponto de partida", async () => {
+    renderWithInherit([]);
+
+    const payload = await fillSaveTwice();
+
+    expect(payload.occurredOn).toEqual(new Date(new Date().toISOString().slice(0, 10)));
+    expect(payload.categoryId).toBeNull();
+    expect(payload.subcategoryId).toBeNull();
+    expect(payload.institutionId).toBeNull();
+    // Responsável NÃO vira null: volta ao default da conta (semântica de hoje).
+    expect(payload.responsiblePartyId).toBe("party-1");
+  });
+
+  it("`occurredOn` ligada: a data do lançamento anterior sobrevive", async () => {
+    renderWithInherit(["occurredOn"]);
+
+    const payload = await fillSaveTwice();
+
+    expect(payload.occurredOn).toEqual(new Date("2026-03-05"));
+    // O resto continua limpo — uma chave ligada não liga as outras.
+    expect(payload.categoryId).toBeNull();
+    expect(payload.institutionId).toBeNull();
+    expect(payload.responsiblePartyId).toBe("party-1");
+  });
+
+  it("`category` ligada: herda categoria E subcategoria juntas (par coerente)", async () => {
+    renderWithInherit(["category"]);
+
+    const payload = await fillSaveTwice();
+
+    expect(payload.categoryId).toBe("cat-1");
+    expect(payload.subcategoryId).toBe("sub-1");
+    expect(payload.institutionId).toBeNull();
+  });
+
+  it("`category` desligada leva a subcategoria junto — nunca sobra órfã", async () => {
+    renderWithInherit(["institution"]);
+
+    const payload = await fillSaveTwice();
+
+    expect(payload.categoryId).toBeNull();
+    expect(payload.subcategoryId).toBeNull();
+  });
+
+  it("`institution` ligada: a instituição do lançamento anterior sobrevive", async () => {
+    renderWithInherit(["institution"]);
+
+    const payload = await fillSaveTwice();
+
+    expect(payload.institutionId).toBe("inst-1");
+    expect(payload.categoryId).toBeNull();
+  });
+
+  it("`responsibleUser` ligada: o responsável escolhido sobrevive ao default da conta", async () => {
+    renderWithInherit(["responsibleUser"]);
+
+    const payload = await fillSaveTwice();
+
+    expect(payload.responsiblePartyId).toBe("party-2");
+  });
+
+  it("sem a prop, o default reproduz o comportamento de sempre: só a data sobrevive", async () => {
+    renderRow({
+      categories: CATEGORIES,
+      institutions: INSTITUTIONS,
+      parties: PARTIES,
+      defaultResponsiblePartyId: "party-1",
+    });
+
+    const payload = await fillSaveTwice();
+
+    expect(payload.occurredOn).toEqual(new Date("2026-03-05"));
+    expect(payload.categoryId).toBeNull();
+    expect(payload.subcategoryId).toBeNull();
+    expect(payload.institutionId).toBeNull();
+    expect(payload.responsiblePartyId).toBe("party-1");
   });
 });
 

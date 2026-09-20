@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { accountSnapshotSchema } from "@/lib/schemas/account-backup";
 import type {
   AccountSnapshot,
   AccountSnapshotData,
@@ -361,10 +362,14 @@ function section(over: Partial<SectionRow> & { id: string }): SectionRow {
 function category(over: Partial<CategoryRow> & { id: string }): CategoryRow {
   return { accountId: "src", name: "Cat", createdById: "src-user", createdAt: ISO, ...over };
 }
-function subcategory(over: Partial<SubcategoryRow> & { id: string; categoryId: string }): SubcategoryRow {
+function subcategory(
+  over: Partial<SubcategoryRow> & { id: string; categoryId: string },
+): SubcategoryRow {
   return { accountId: "src", name: "Sub", createdAt: ISO, ...over };
 }
-function responsibleParty(over: Partial<ResponsiblePartyRow> & { id: string }): ResponsiblePartyRow {
+function responsibleParty(
+  over: Partial<ResponsiblePartyRow> & { id: string },
+): ResponsiblePartyRow {
   return {
     accountId: "src",
     name: "Você",
@@ -512,7 +517,9 @@ function dashboardLayout(over: Partial<DashboardLayoutRow> & { id: string }): Da
     ...over,
   };
 }
-function transactionAlias(over: Partial<TransactionAliasRow> & { id: string }): TransactionAliasRow {
+function transactionAlias(
+  over: Partial<TransactionAliasRow> & { id: string },
+): TransactionAliasRow {
   return {
     accountId: "src",
     trigger: "Uber",
@@ -607,7 +614,11 @@ describe("planImport — soft-ref remap (String sem relação Prisma)", () => {
       ],
       installmentGroups: [installmentGroup({ id: "ig-old", sectionId: "s-old" })],
       pendingInstallments: [
-        pendingInstallment({ id: "pi-old", installmentGroupId: "ig-old", subcategoryId: "sub-old" }),
+        pendingInstallment({
+          id: "pi-old",
+          installmentGroupId: "ig-old",
+          subcategoryId: "sub-old",
+        }),
       ],
     });
 
@@ -677,7 +688,9 @@ describe("planImport — re-carimbo de usuário + drops (DD-10)", () => {
   it("re-carimba createdById para o importador, dropa ResponsiblePartyMember e zera Budget.memberUserIds", () => {
     const snapshot = makeSnapshot({
       responsibleParties: [responsibleParty({ id: "p-old" })],
-      responsiblePartyMembers: [{ partyId: "p-old", userId: "other-user" } as ResponsiblePartyMemberRow],
+      responsiblePartyMembers: [
+        { partyId: "p-old", userId: "other-user" } as ResponsiblePartyMemberRow,
+      ],
       categories: [category({ id: "c-old", createdById: "other-user" })],
       // O budget precisa de uma dimensão que SOBREVIVA ao remap (categoryIds → c-old) além do
       // membro: se só tivesse memberUserIds, o DD-10 zeraria a única dimensão e o guard de import
@@ -798,8 +811,9 @@ describe("importSnapshot — modo overwrite (executor tx)", () => {
     // deleteMany chamado uma vez por modelo, na ordem REVERSA da topológica.
     const reverseKeys = [...IMPORT_TOPO_ORDER].reverse();
     const orders = reverseKeys.map((key) => {
-      const fn = (deleteDelegate[key] as { deleteMany: { mock: { invocationCallOrder: number[] } } })
-        .deleteMany;
+      const fn = (
+        deleteDelegate[key] as { deleteMany: { mock: { invocationCallOrder: number[] } } }
+      ).deleteMany;
       expect(fn.mock.invocationCallOrder.length).toBe(1);
       return fn.mock.invocationCallOrder[0]!;
     });
@@ -818,5 +832,97 @@ describe("importSnapshot — modo overwrite (executor tx)", () => {
         data: expect.objectContaining({ currency: "BRL", monthStartDay: 1 }),
       }),
     );
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Spec 69 — apresentação do tipo de tabela no backup (ida e volta).
+//
+// Antes desta rodada o snapshot só levava `hiddenColumns`: restaurar um backup
+// devolvia layout, densidade, colunas e os 6 toggles aos defaults do Prisma, em
+// silêncio. O teste percorre o caminho inteiro — export → `accountSnapshotSchema`
+// → `planImport` — porque é o schema no meio que decide se um campo sobrevive.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Os 11 campos de apresentação, todos DIFERENTES do default do Prisma. */
+const PRESENTATION = {
+  rowLayout: "pills",
+  density: "compact",
+  visibleColumns: ["occurredOn", "description", "category", "amount"],
+  pinnedColumns: ["occurredOn"],
+  inheritOnNewRow: ["occurredOn", "category"],
+  defaultSort: { key: "amount", dir: "desc" },
+  groupBy: "category",
+  showFooterTotal: false,
+  showGroupSubtotal: true,
+  allowBulkEdit: false,
+  keepGhostRow: false,
+} as const;
+
+describe("backup do tipo de tabela — apresentação (Spec 69)", () => {
+  it("exporta os 11 campos e o import os devolve intactos", async () => {
+    prismaMock.tableType.findMany.mockResolvedValue([
+      {
+        id: "tt-1",
+        accountId: ACCOUNT_ID,
+        name: "Cartão de crédito",
+        isDefault: false,
+        hiddenColumns: { tags: true },
+        ...PRESENTATION,
+        createdAt: new Date(ISO),
+      },
+    ] as never);
+
+    const exported = await buildAccountSnapshot(ACCOUNT_ID);
+    // O JSON passa pelo schema no import — é ele quem pode perder um campo.
+    const parsed = accountSnapshotSchema.parse(JSON.parse(JSON.stringify(exported)));
+    const plan = planImport(parsed, "target-acc", IMPORTER);
+
+    const restored = plan.inserts.tableTypes[0]!;
+    expect(restored).toMatchObject(PRESENTATION);
+    expect(restored.hiddenColumns).toEqual({ tags: true });
+    // Multi-tenancy: a linha restaurada é da conta de destino, com id novo.
+    expect(restored.accountId).toBe("target-acc");
+    expect(restored.id).not.toBe("tt-1");
+  });
+
+  it("backup ANTIGO (sem os campos) restaura nos defaults, sem estourar", () => {
+    // Snapshot escrito por uma versão anterior à Spec 69: a linha do tipo tem só
+    // os 6 campos que existiam.
+    const legacy = {
+      ...makeSnapshot({}),
+      data: {
+        ...emptyData(),
+        tableTypes: [
+          {
+            id: "tt-old",
+            accountId: "src",
+            name: "Antigo",
+            isDefault: true,
+            hiddenColumns: {},
+            createdAt: ISO,
+          },
+        ],
+      },
+    };
+
+    const parsed = accountSnapshotSchema.parse(JSON.parse(JSON.stringify(legacy)));
+    const plan = planImport(parsed, "target-acc", IMPORTER);
+
+    const restored = plan.inserts.tableTypes[0]!;
+    expect(restored.rowLayout).toBe("columns");
+    expect(restored.density).toBe("default");
+    expect(restored.visibleColumns).toEqual([]);
+    expect(restored.pinnedColumns).toEqual([]);
+    // O app de onde esse backup saiu SEMPRE preservava a data na linha nova,
+    // mostrava do mais novo para o mais antigo, e só abria a linha vazia ao clicar
+    // em "Nova transação" — os três defaults reproduzem esse app, não a spec nova.
+    expect(restored.inheritOnNewRow).toEqual(["occurredOn"]);
+    expect(restored.defaultSort).toEqual({ key: "occurredOn", dir: "desc" });
+    expect(restored.groupBy).toBeNull();
+    expect(restored.showFooterTotal).toBe(true);
+    expect(restored.showGroupSubtotal).toBe(false);
+    expect(restored.allowBulkEdit).toBe(true);
+    expect(restored.keepGhostRow).toBe(false);
   });
 });

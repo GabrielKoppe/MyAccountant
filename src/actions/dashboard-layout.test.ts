@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import "../../tests/mocks/auth";
 import { TEST_CTX } from "../../tests/fixtures/account";
@@ -28,6 +28,11 @@ import { addAnalysisToDashboardAction } from "./dashboard-layout";
 // Reexporta o mock com tipagem para uso nos testes
 const serviceMock = vi.mocked(layoutService);
 
+/** Layout do editor sem rascunho pendente (o caso comum). */
+function editorLayout(widgets: StoredWidget[] = [], hasDraft = false) {
+  return { widgets, published: widgets, hasDraft };
+}
+
 const VALID_SANDBOX_CONFIG = {
   periodType: "current_month" as const,
   groupBy: "category" as const,
@@ -37,9 +42,13 @@ const VALID_SANDBOX_CONFIG = {
 };
 
 describe("addAnalysisToDashboardAction", () => {
+  // Só as CHAMADAS (não as implementações): cada caso afirma sobre o que a sua
+  // própria execução chamou.
+  beforeEach(() => vi.clearAllMocks());
+
   it("cria instância analysis com config e posição livre quando layout está vazio", async () => {
-    // Mockar getLayout para retornar layout vazio (sem widgets)
-    serviceMock.getLayout.mockResolvedValue([]);
+    // Layout do editor vazio (sem widgets e sem rascunho pendente)
+    serviceMock.getEditorLayout.mockResolvedValue(editorLayout());
     serviceMock.upsertLayout.mockResolvedValue(undefined);
 
     const result = await addAnalysisToDashboardAction(TEST_CTX.accountId, {
@@ -59,7 +68,7 @@ describe("addAnalysisToDashboardAction", () => {
   });
 
   it("usa ctx.accountId, nunca input.accountId — multi-tenancy", async () => {
-    serviceMock.getLayout.mockResolvedValue([]);
+    serviceMock.getEditorLayout.mockResolvedValue(editorLayout());
     serviceMock.upsertLayout.mockResolvedValue(undefined);
 
     await addAnalysisToDashboardAction(TEST_CTX.accountId, {
@@ -67,8 +76,8 @@ describe("addAnalysisToDashboardAction", () => {
       config: VALID_SANDBOX_CONFIG,
     });
 
-    // Verificar que getLayout foi chamado com o accountId correto
-    expect(serviceMock.getLayout).toHaveBeenCalledWith(TEST_CTX.accountId, "monthly");
+    // Verificar que a leitura foi feita com o accountId correto
+    expect(serviceMock.getEditorLayout).toHaveBeenCalledWith(TEST_CTX.accountId, "monthly");
     // Verificar que upsertLayout foi chamado com ctx que tem accountId correto
     expect(serviceMock.upsertLayout).toHaveBeenCalledWith(
       expect.objectContaining({ context: "monthly" }),
@@ -77,7 +86,7 @@ describe("addAnalysisToDashboardAction", () => {
   });
 
   it("posiciona o widget dentro dos limites de cols e maxRows", async () => {
-    serviceMock.getLayout.mockResolvedValue([]);
+    serviceMock.getEditorLayout.mockResolvedValue(editorLayout());
     serviceMock.upsertLayout.mockResolvedValue(undefined);
 
     const result = await addAnalysisToDashboardAction(TEST_CTX.accountId, {
@@ -112,7 +121,7 @@ describe("addAnalysisToDashboardAction", () => {
         });
       }
     }
-    serviceMock.getLayout.mockResolvedValue(fullLayout);
+    serviceMock.getEditorLayout.mockResolvedValue(editorLayout(fullLayout));
 
     const result = await addAnalysisToDashboardAction(TEST_CTX.accountId, {
       context: "monthly",
@@ -123,6 +132,22 @@ describe("addAnalysisToDashboardAction", () => {
     if (!result.ok) {
       expect(result.error.code).toBe("CONFLICT");
     }
+  });
+
+  it("com rascunho pendente, o gráfico entra no RASCUNHO (não publica sozinho)", async () => {
+    // Spec 69 §2.3: publicar aqui faria o usuário perder este widget ao publicar
+    // o rascunho dele — e mexer no publicado sem ele pedir quebra o contrato.
+    serviceMock.getEditorLayout.mockResolvedValue(editorLayout([], true));
+    serviceMock.saveDraft.mockResolvedValue(undefined);
+
+    const result = await addAnalysisToDashboardAction(TEST_CTX.accountId, {
+      context: "monthly",
+      config: VALID_SANDBOX_CONFIG,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(serviceMock.saveDraft).toHaveBeenCalledOnce();
+    expect(serviceMock.upsertLayout).not.toHaveBeenCalled();
   });
 
   it("rejeita config inválida (schema Zod)", async () => {

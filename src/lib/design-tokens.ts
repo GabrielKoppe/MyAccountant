@@ -42,10 +42,23 @@ export const lightColors = {
     primaryHover: "#3D4DC4",
     primarySubtle: "#EAEDFB",
   },
-  success: { main: "#4B7F52", subtle: "#E8F0E9" },
-  warning: { main: "#B8862A", subtle: "#F5EDD5" },
-  danger: { main: "#B54545", subtle: "#F5E4E4" },
-  neutral: { main: "#7A7368", subtle: "#EDEBE5" },
+  // `onSubtle` = cor de TEXTO sobre o fundo `subtle` do mesmo tom.
+  //
+  // Por que existe: o par `main` + `subtle` REPROVA WCAG AA (4,5:1 para texto
+  // normal) no tema claro — warning 2,77:1, success 4,05:1, danger 4,38:1. O
+  // `StatusBadge` (12px/500) e os chips de estado usavam esse par, ou seja,
+  // todo rotulo de status financeiro do app estava abaixo do minimo.
+  //
+  // `main` continua INTACTO: e a cor de icone, borda, serie de grafico e valor
+  // positivo/negativo. So o texto sobre fundo sutil usa `onSubtle`. Os hex sao
+  // o mesmo matiz/saturacao do `main`, escurecidos o MINIMO necessario para
+  // cruzar 4,5:1 (success 4,51 · warning 4,51 · danger 4,52).
+  // Guardado por `src/lib/theme-contrast.test.ts` — nao "simplifique" de volta.
+  success: { main: "#4B7F52", subtle: "#E8F0E9", onSubtle: "#46774D" },
+  warning: { main: "#B8862A", subtle: "#F5EDD5", onSubtle: "#8B6520" },
+  danger: { main: "#B54545", subtle: "#F5E4E4", onSubtle: "#B14444" },
+  // neutral.onSubtle = text.secondary (7,98:1 sobre neutral.subtle) — ja passava.
+  neutral: { main: "#7A7368", subtle: "#EDEBE5", onSubtle: "#4A453C" },
 } as const;
 
 // ============================================================================
@@ -68,7 +81,11 @@ export const darkColors = {
   text: {
     primary: "#F0EDE5",
     secondary: "#C4BDB0",
-    tertiary: "#8B847A",
+    // #8B847A media 4,44:1 sobre `background.surface` (#221F1B) — 0,06 abaixo
+    // do minimo AA. Clareado o MINIMO necessario para 4,54:1; diferenca
+    // imperceptivel, mas o token carrega rotulo e texto informativo em varias
+    // telas. Guardado por `src/lib/theme-contrast.test.ts`.
+    tertiary: "#8C867C",
     disabled: "#5C574E",
     inverse: "#1A1815",
   },
@@ -77,10 +94,16 @@ export const darkColors = {
     primaryHover: "#94A1EC",
     primarySubtle: "#252840",
   },
-  success: { main: "#7AAE83", subtle: "#1F2D24" },
-  warning: { main: "#D4A551", subtle: "#2E2818" },
-  danger: { main: "#D47373", subtle: "#2E1F1F" },
-  neutral: { main: "#8B847A", subtle: "#322D26" },
+  // No escuro o par `main` + `subtle` JA passa AA (success 5,63:1 · warning
+  // 6,49:1 · danger 4,88:1), entao `onSubtle` = `main`: o comportamento atual
+  // do tema escuro fica exatamente como estava. A duplicacao e intencional
+  // (mantem o token uniforme entre os modos) e o teste
+  // `theme-contrast.test.ts` trava a igualdade `onSubtle === main` no dark.
+  success: { main: "#7AAE83", subtle: "#1F2D24", onSubtle: "#7AAE83" },
+  warning: { main: "#D4A551", subtle: "#2E2818", onSubtle: "#D4A551" },
+  danger: { main: "#D47373", subtle: "#2E1F1F", onSubtle: "#D47373" },
+  // neutral.onSubtle = text.secondary (7,31:1 sobre neutral.subtle).
+  neutral: { main: "#8B847A", subtle: "#322D26", onSubtle: "#C4BDB0" },
 } as const;
 
 // ============================================================================

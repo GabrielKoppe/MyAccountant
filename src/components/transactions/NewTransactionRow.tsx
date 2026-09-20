@@ -29,6 +29,7 @@ import { computeSuggestion } from "@/lib/aliases/apply";
 import { motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import { centsToReais, reaisToCents } from "@/lib/money";
+import { DEFAULT_INHERIT_ON_NEW_ROW, type InheritOnNewRowField } from "@/lib/schemas/settings";
 import {
   INVESTMENT_TYPES,
   TransactionExpenseType,
@@ -36,12 +37,15 @@ import {
 } from "@/lib/schemas/transaction";
 import type { InvestmentType } from "@/lib/schemas/transaction";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+import type { PinnableColumnKey } from "@/lib/table-columns";
+import { DENSITY_VAR } from "@/lib/table-density";
 
 import { SuggestionPopover } from "./aliases/SuggestionPopover";
 import { useSuggestions } from "./aliases/useSuggestions";
 import { CollapsibleSectionRow } from "./CollapsibleSectionRow";
 import { CreatableEntitySelect } from "./CreatableEntitySelect";
 import { useOptions } from "./OptionsContext";
+import { PIN_ROW_BACKGROUND, pinnedBodyCellSx, pinnedSelectCellSx } from "./pinned-columns";
 import { ResponsiblePartySelect } from "./ResponsiblePartySelect";
 import { RowDrawerToolbar } from "./RowDrawerToolbar";
 import type {
@@ -65,6 +69,27 @@ type Props = {
   parties: ResponsiblePartyOption[];
   defaultResponsiblePartyId: string | null;
   aliases: SerializedTransactionAlias[];
+  /**
+   * Spec 69 §16 — colunas fixadas, já resolvidas pelo `TransactionTable`. A
+   * linha-fantasma segue as mesmas larguras das demais: ela é uma linha da mesma
+   * grade, e uma coluna presa que mudasse de largura aqui arrastaria a coluna
+   * seguinte junto.
+   */
+  pinnedColumns?: readonly PinnableColumnKey[];
+  /**
+   * Spec 69 §2.1 — "Ao criar linha nova, herdar", do tipo de tabela.
+   * Chave presente = o campo sobrevive ao salvamento (herda do lançamento
+   * recém-criado); chave ausente = o campo é limpo. Default = o comportamento
+   * de sempre (só a data sobrevivia).
+   */
+  inheritOnNewRow?: InheritOnNewRowField[];
+  /**
+   * Spec 69 §2.1 (`keepGhostRow`) — se a linha deve puxar o foco ao montar.
+   * `true` quando o usuário pediu a linha ("Nova transação"); `false` quando ela
+   * é a linha-fantasma permanente, que está sempre na tela e não pode disputar o
+   * cursor com o resto da página no carregamento.
+   */
+  autoFocus?: boolean;
   onCreated: (tx: TransactionRow) => void;
   onCancel: () => void;
 };
@@ -82,14 +107,25 @@ const MONO_FONT_FAMILY = "var(--font-jetbrains-mono), 'JetBrains Mono', monospac
 // §5/§6: "Inputs iguais aos do editor". Duplicados aqui (não há módulo
 // compartilhado dentro do escopo desta task) para os dois arquivos ficarem
 // visualmente idênticos sem introduzir um import cruzado novo.
-const FIELD_ROOT_SX = { "& .MuiOutlinedInput-root": { height: 30, borderRadius: "6px" } } as const;
+// Spec 69 §7.2 — o campo da linha de edição é um "controle": altura em
+// `--ctrl-h` e fonte-base em `--row-fs`, para que a linha em EDIÇÃO tenha
+// exatamente a mesma altura da mesma linha em LEITURA. Os tamanhos por tipo de
+// campo abaixo ficam em `em` (relativos a esta base) e assim preservam as
+// proporções do frame 66 §5 em qualquer densidade.
+const FIELD_ROOT_SX = {
+  "& .MuiOutlinedInput-root": {
+    height: DENSITY_VAR.controlHeight,
+    fontSize: DENSITY_VAR.fontSize,
+    borderRadius: "6px",
+  },
+} as const;
 
 const DATE_FIELD_SX = {
   ...FIELD_ROOT_SX,
   "& .MuiOutlinedInput-input": {
     padding: "0 6px",
     fontFamily: MONO_FONT_FAMILY,
-    fontSize: "0.74rem",
+    fontSize: "0.9108em", // 0.74rem em densidade padrão (0.8125rem)
     color: "text.secondary",
   },
 } as const;
@@ -98,7 +134,7 @@ const DESCRIPTION_FIELD_SX = {
   ...FIELD_ROOT_SX,
   "& .MuiOutlinedInput-input": {
     padding: "0 8px",
-    fontSize: "0.78rem",
+    fontSize: "0.96em", // 0.78rem em densidade padrão (0.8125rem)
     color: "text.primary",
     "&::placeholder": { color: "text.disabled", opacity: 1 },
   },
@@ -108,7 +144,7 @@ const SELECT_FIELD_SX = {
   ...FIELD_ROOT_SX,
   "& .MuiOutlinedInput-input, & .MuiSelect-select": {
     padding: "0 8px",
-    fontSize: "0.76rem",
+    fontSize: "0.9354em", // 0.76rem em densidade padrão (0.8125rem)
     color: "text.secondary",
   },
   "& .MuiSelect-icon": { fontSize: 15 },
@@ -122,7 +158,7 @@ function amountFieldSx(color: string) {
       padding: "0 8px",
       textAlign: "right" as const,
       fontFamily: MONO_FONT_FAMILY,
-      fontSize: "0.78rem",
+      fontSize: "0.96em", // 0.78rem em densidade padrão (0.8125rem)
       color,
     },
   };
@@ -147,6 +183,9 @@ export function NewTransactionRow({
   parties,
   defaultResponsiblePartyId,
   aliases,
+  pinnedColumns = [],
+  inheritOnNewRow = DEFAULT_INHERIT_ON_NEW_ROW,
+  autoFocus = true,
   onCreated,
   onCancel,
 }: Props) {
@@ -195,7 +234,13 @@ export function NewTransactionRow({
   // Sugestão manual (Fase 4) — apelido. Linha nova sempre habilitada (não há
   // "mount com descrição preenchida" a evitar, ao contrário do editor).
   const [suggestionAnchorEl, setSuggestionAnchorEl] = useState<HTMLElement | null>(null);
-  const matchedAlias = useSuggestions(description, BigInt(amountCents), institutionId, aliases, true);
+  const matchedAlias = useSuggestions(
+    description,
+    BigInt(amountCents),
+    institutionId,
+    aliases,
+    true,
+  );
   const suggestion = useMemo(
     () =>
       matchedAlias
@@ -267,36 +312,44 @@ export function NewTransactionRow({
 
     setSuggestionAnchorEl(null);
 
-    enqueueSnackbar(m.transactions.aliasSuggestion.applied(matchedAlias?.trigger ?? "", changes.length), {
-      variant: "info",
-      action: (snackKey) => (
-        <Button
-          size="small"
-          color="inherit"
-          onClick={() => {
-            setDescription(snapshot.description);
-            setNotes(snapshot.notes);
-            setAmountCents(snapshot.amountCents);
-            setCategoryId(snapshot.categoryId);
-            setSubcategoryId(snapshot.subcategoryId);
-            setInstitutionId(snapshot.institutionId);
-            setResponsiblePartyId(snapshot.responsiblePartyId);
-            setExpenseType(snapshot.expenseType);
-            setPaymentMethod(snapshot.paymentMethod);
-            setIsPending(snapshot.isPending);
-            closeSnackbar(snackKey);
-          }}
-        >
-          {m.transactions.aliasSuggestion.undo}
-        </Button>
-      ),
-    });
+    enqueueSnackbar(
+      m.transactions.aliasSuggestion.applied(matchedAlias?.trigger ?? "", changes.length),
+      {
+        variant: "info",
+        action: (snackKey) => (
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() => {
+              setDescription(snapshot.description);
+              setNotes(snapshot.notes);
+              setAmountCents(snapshot.amountCents);
+              setCategoryId(snapshot.categoryId);
+              setSubcategoryId(snapshot.subcategoryId);
+              setInstitutionId(snapshot.institutionId);
+              setResponsiblePartyId(snapshot.responsiblePartyId);
+              setExpenseType(snapshot.expenseType);
+              setPaymentMethod(snapshot.paymentMethod);
+              setIsPending(snapshot.isPending);
+              closeSnackbar(snackKey);
+            }}
+          >
+            {m.transactions.aliasSuggestion.undo}
+          </Button>
+        ),
+      },
+    );
   }
 
   const subcatsForCategory = categories.find((c) => c.id === categoryId)?.subcategories ?? [];
   // "outlined" — mesmo padrão do editor (TransactionRowEditor) e do resto do
   // app (CLAUDE.md §5.11); ver comentário lá para o porquê do override.
   const sharedInputProps = { size: "small" as const, variant: "outlined" as const };
+
+  /** Spec 69 §2.1 — a chave está ligada no tipo de tabela? */
+  function inherits(field: InheritOnNewRowField): boolean {
+    return inheritOnNewRow.includes(field);
+  }
 
   async function handleSave() {
     if (saving) return;
@@ -371,15 +424,28 @@ export function NewTransactionRow({
       updatedAt: now,
     });
 
-    // Entrada rápida: a linha permanece aberta. Limpa os campos editáveis,
-    // preserva a data e volta o tipo ao default (one_time); a descrição recebe
-    // o foco para o próximo lançamento. ESC/cancelar continua fechando a linha.
+    // Entrada rápida: a linha permanece aberta. Limpa os campos editáveis e
+    // volta o tipo ao default (one_time); a descrição recebe o foco para o
+    // próximo lançamento. ESC/cancelar continua fechando a linha.
+    //
+    // Spec 69 §2.1 — os 4 campos de `inheritOnNewRow` são a exceção: quando a
+    // chave está ligada, o valor do lançamento recém-criado (que ainda está no
+    // state) simplesmente SOBREVIVE — não há nada a fazer. Quando está
+    // desligada, volta ao ponto de partida da linha.
     setDescription("");
     setAmountCents("0");
-    setCategoryId(null);
-    setSubcategoryId(null);
-    setInstitutionId(null);
-    setResponsiblePartyId(defaultResponsiblePartyId);
+    if (!inherits("occurredOn")) setOccurredOn(todayISO());
+    // Categoria e subcategoria andam JUNTAS: herdar a categoria e limpar a
+    // subcategoria deixaria o par incoerente, e herdar a subcategoria sem a
+    // categoria é impossível (o select de subcategoria depende dela).
+    if (!inherits("category")) {
+      setCategoryId(null);
+      setSubcategoryId(null);
+    }
+    if (!inherits("institution")) setInstitutionId(null);
+    // Não é `null`: sem herança o responsável volta ao DEFAULT DA CONTA, que é
+    // como a linha nasce. Essa é a semântica de hoje e ela não muda.
+    if (!inherits("responsibleUser")) setResponsiblePartyId(defaultResponsiblePartyId);
     setIsPending(false);
     setInvestmentType(null);
     setExpenseType(TransactionExpenseType.one_time);
@@ -397,7 +463,9 @@ export function NewTransactionRow({
   return (
     <>
       <TableRow
-        sx={{ bgcolor: "accent.primarySubtle" }}
+        // Spec 69 §7.2 — mesma altura das demais linhas (`--row-h`), células sem
+        // padding vertical: a linha-fantasma acompanha a densidade do tipo.
+        sx={{ height: DENSITY_VAR.rowHeight, bgcolor: "accent.primarySubtle", "& td": { py: 0 } }}
         onKeyDown={(e) => {
           if (suggestionAnchorEl) return; // guard: popover de sugestão trata seu próprio Enter/Escape
           if (e.key === "Enter") handleSave();
@@ -406,24 +474,37 @@ export function NewTransactionRow({
       >
         {/* Ícone "+" no lugar do checkbox — identidade visual de linha nova,
             distinta do checkbox de seleção em massa das demais linhas (spec 66 §6). */}
-        <TableCell padding="checkbox">
+        <TableCell
+          padding="checkbox"
+          sx={[pinnedSelectCellSx(pinnedColumns, PIN_ROW_BACKGROUND.ghost)]}
+        >
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
             <AddIcon sx={{ fontSize: 18, color: "accent.primary" }} />
           </Box>
         </TableCell>
 
-        <TableCell sx={{ minWidth: 0 }}>
+        <TableCell
+          sx={[
+            { minWidth: 0 },
+            pinnedBodyCellSx(pinnedColumns, "occurredOn", PIN_ROW_BACKGROUND.ghost),
+          ]}
+        >
           <TextField
             {...sharedInputProps}
             type="date"
             value={occurredOn}
             onChange={(e) => setOccurredOn(e.target.value)}
             sx={{ width: "100%", minWidth: 0, maxWidth: 116, ...DATE_FIELD_SX }}
-            autoFocus
+            autoFocus={autoFocus}
           />
         </TableCell>
 
-        <TableCell sx={{ minWidth: 0 }}>
+        <TableCell
+          sx={[
+            { minWidth: 0 },
+            pinnedBodyCellSx(pinnedColumns, "description", PIN_ROW_BACKGROUND.ghost),
+          ]}
+        >
           <TextField
             {...sharedInputProps}
             inputRef={descriptionRef}

@@ -58,12 +58,40 @@ export type ResponsiblePartyMemberRow = z.infer<typeof responsiblePartyMemberRow
 
 // ─── Tipos de tabela ────────────────────────────────────────────────
 
+/**
+ * Spec 69 — o tipo de tabela deixou de ser "nome + colunas ocultas": carrega
+ * layout da linha, densidade e 9 outros campos de apresentação. Fora do backup,
+ * restaurar um snapshot devolvia todo tipo aos defaults do Prisma **em silêncio**
+ * — o usuário perdia a configuração inteira sem nenhum aviso.
+ *
+ * Todos com `.default(...)` / `z.unknown()`: um backup **antigo** (anterior a
+ * estas colunas) não tem os campos e tem que restaurar no default, não estourar.
+ * Os defaults abaixo são os mesmos do `schema.prisma`.
+ */
 export const tableTypeRowSchema = z.object({
   id: z.string(),
   accountId: z.string(),
   name: z.string(),
   isDefault: z.boolean(),
   hiddenColumns: z.unknown(),
+  // "columns" | "pills" (Spec 66/69 D4)
+  rowLayout: z.string().default("columns"),
+  // "compact" | "default" | "comfortable"
+  density: z.string().default("default"),
+  // Colunas Json — validadas de verdade só na leitura da tela (schemas de
+  // `settings.ts`); aqui vale a mesma regra de `hiddenColumns`/`mapping`.
+  visibleColumns: z.unknown(),
+  pinnedColumns: z.unknown(),
+  inheritOnNewRow: z.unknown(),
+  defaultSort: z.unknown(),
+  // null | "date" | "category" | "responsible" | "installment"
+  groupBy: z.string().nullable().default(null),
+  showFooterTotal: z.boolean().default(true),
+  showGroupSubtotal: z.boolean().default(false),
+  allowBulkEdit: z.boolean().default(true),
+  // `false`, como o `@default` do Prisma: um backup anterior à Spec 69 saiu de um
+  // app onde a linha vazia só aparecia ao clicar em "Nova transação".
+  keepGhostRow: z.boolean().default(false),
   createdAt: z.string(),
 });
 export type TableTypeRow = z.infer<typeof tableTypeRowSchema>;

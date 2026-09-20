@@ -56,6 +56,14 @@ Nova rota `/[accountId]/settings` (index, hoje inexistente) com um card por fam�
 | Template quebrado | `CsvTemplate` cujo mapeamento referencia coluna/categoria inexistente | `/settings/templates?filter=broken` |
 | Checklist não iniciado | mês corrente sem nenhuma `ChecklistCompletion` | `/settings/checklist` |
 
+> ⚠️ **Passaram a ser quatro (Spec 69 §4, pacote P8, 2026-08-11)**: entrou **Modelo com seção
+> inativa** — `TableTemplate` com `autoApply` ligado cujo `autoSectionId` aponta para uma
+> `Section` com `isActive: false`. Destino `/settings/models` (sem `?filter=`: o filtro chega
+> com o master-detail da Spec 69 §2.2). Ele entra **entre** "Template quebrado" e "Checklist
+> não iniciado": é defeito de configuração como os dois primeiros, e o checklist é lembrete.
+> A regra de leitura barata do D9 continua valendo — são duas queries em tabelas de
+> configuração, nenhuma toca `Transaction`.
+
 > A regra do apelido é a da spec ("nenhum campo preenchido"), **não** a do frame ("sem categoria") — apelido que só normaliza descrição é um uso legítimo e não deve ser sinalizado.
 
 O botão "Revisar" leva ao destino do **primeiro** sinalizador presente, na ordem da tabela. O bloco inteiro não é renderizado quando não há nenhum sinalizador (sem placeholder vazio).

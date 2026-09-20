@@ -16,7 +16,10 @@ import {
   type DragMoveEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import AddIcon from "@mui/icons-material/Add";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import { useSnackbar } from "notistack";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -28,16 +31,29 @@ import {
   snapToNearestVariant,
 } from "@/components/dashboards/_core/grid-layout";
 import type { DashboardContext, WidgetDef } from "@/components/dashboards/_core/widget-registry";
+import {
+  configWithViz,
+  currentVizKey,
+  pickNearestValidViz,
+  variantForViz,
+  vizAxis,
+} from "@/components/dashboards/_core/widget-viz";
+import { motion } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 import type { WidgetConfigOptions } from "@/server/queries/widget-config-options";
 
+import { vizLabelByKey } from "./viz-display";
 import { WidgetCardBody } from "./WidgetCardBody";
 import { PALETTE_DRAG_PREFIX, WidgetPalette } from "./WidgetPalette";
 import { WidgetSettingsPanel } from "./WidgetSettingsPanel";
 
 const ROW_HEIGHT = 88; // px por linha da grade no editor
 const GAP_PX = 8; // = theme.spacing(2)
+
+// Tokens de motion (design-tokens) no lugar dos 120ms/200ms mágicos.
+const T_FAST = `${motion.duration.fast}ms ${motion.easing.standard}`;
+const T_NORMAL = `${motion.duration.normal}ms ${motion.easing.standard}`;
 
 type LayoutChangeOpts = { immediate?: boolean };
 
@@ -50,6 +66,9 @@ type Props = {
   initialRows: number;
   context: DashboardContext;
   onLayoutChange: (widgets: StoredWidget[], opts?: LayoutChangeOpts) => void;
+  /** Gaveta da paleta (07c) — o botão "Adicionar widget" vive na toolbar do editor. */
+  paletteOpen: boolean;
+  onPaletteOpenChange: (open: boolean) => void;
 };
 
 type ResizeSession = {
@@ -58,6 +77,9 @@ type ResizeSession = {
   startY: number;
   startW: number;
   startH: number;
+  /** Variante e config no início do arrasto — base da comparação de visualização (APR-07). */
+  startVariantId: string;
+  startConfig: unknown;
   def: WidgetDef;
   resultLayout: StoredWidget[] | null;
 };
@@ -149,7 +171,7 @@ function ResizeHandle({
         // para o grip ficar concêntrico ao canto arredondado em vez de reto.
         borderBottomRightRadius: "9px",
         opacity: selected ? 0.7 : 0.4,
-        transition: "opacity 120ms, border-color 120ms",
+        transition: `opacity ${T_FAST}, border-color ${T_FAST}`,
         "&:hover": { opacity: 0.95, borderColor: "text.secondary" },
       }}
     />
@@ -225,6 +247,45 @@ function DraggableWidget({
   );
 }
 
+// Slot final tracejado (frame 07): "Arraste um widget aqui ou clique para
+// escolher". Ocupa a linha inteira logo abaixo do último widget; clicar abre a
+// gaveta da paleta. Fica por cima das células-guia, mas não atrapalha o drop —
+// a detecção do @dnd-kit é por retângulo medido, não por hit-test do DOM.
+function EmptySlot({ y, cols, onClick }: { y: number; cols: number; onClick: () => void }) {
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        gridColumn: `1 / span ${cols}`,
+        gridRow: `${y + 1}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 1,
+        border: "1px dashed",
+        borderColor: "border.strong",
+        borderRadius: 1,
+        bgcolor: "transparent",
+        color: "text.tertiary",
+        appearance: "none",
+        font: "inherit",
+        fontSize: "0.76rem",
+        cursor: "pointer",
+        zIndex: 2,
+        transition: `border-color ${T_FAST}, color ${T_FAST}`,
+        // `accent.primary` (semântico, com variante dark própria) no lugar de
+        // `primary.main` — o resto da feature já fala esse vocabulário.
+        "&:hover": { borderColor: "accent.primary", color: "text.secondary" },
+      }}
+    >
+      <AddIcon sx={{ fontSize: 17 }} />
+      {m.settings.presentation.dashboards.emptySlot}
+    </Box>
+  );
+}
+
 function GuideCell({ x, y, droppable }: { x: number; y: number; droppable: boolean }) {
   const { setNodeRef } = useDroppable({ id: `cell:${x}:${y}` });
   return (
@@ -253,6 +314,8 @@ export function DashboardGridCanvas({
   initialRows,
   context,
   onLayoutChange,
+  paletteOpen,
+  onPaletteOpenChange,
 }: Props) {
   const { enqueueSnackbar } = useSnackbar();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -427,6 +490,98 @@ export function DashboardGridCanvas({
     onLayoutChange(widgets.map((w) => (w.instanceId === id ? { ...w, visible: !w.visible } : w)));
   }
 
+  // Inserção por clique na paleta: primeira célula livre (mesmo caminho do
+  // fallback do drop). Mantido junto do arraste — os dois já existiam.
+  function handleInsertFromPalette(widgetId: string) {
+    const def = defById.get(widgetId);
+    const variant = def?.sizeVariants[0];
+    if (!variant) return;
+    const free = findFreeCell(widgets, variant.w, variant.h, cols, maxRows);
+    if (!free) {
+      flashError(m.settings.dashboards.gridFull);
+      return;
+    }
+    const instanceId = newInstanceId();
+    const next = insertWithPush(
+      widgets,
+      {
+        instanceId,
+        widgetId,
+        visible: true,
+        x: free.x,
+        y: free.y,
+        w: variant.w,
+        h: variant.h,
+        sizeVariantId: variant.id,
+      },
+      maxRows,
+    );
+    if (!next) {
+      flashError(m.settings.dashboards.gridFull);
+      return;
+    }
+    onLayoutChange(next, { immediate: true });
+    setSelectedId(instanceId);
+  }
+
+  // ─── Matriz tamanho → visualização (APR-07) ──────────────────────────────
+  /**
+   * Reconcilia a visualização depois de uma mudança de tamanho.
+   *
+   * Nunca troca em silêncio: quando o novo tamanho leva a outra visualização, o
+   * usuário é avisado por snackbar com o motivo (§7.3). No eixo config (rosca ↔
+   * barras) a troca também precisa ser GRAVADA no config da instância — senão a
+   * página real continuaria desenhando a visualização que não cabe mais.
+   */
+  function reconcileViz(
+    layout: StoredWidget[],
+    instanceId: string,
+    def: WidgetDef,
+    before: { sizeVariantId: string; config?: unknown },
+    to: { w: number; h: number },
+  ): StoredWidget[] {
+    const pick = pickNearestValidViz(def, to, currentVizKey(def, before));
+    if (!pick.changed || !pick.viz) return layout;
+
+    enqueueSnackbar(
+      m.settings.presentation.dashboards.viz.switched(
+        vizLabelByKey(def, pick.viz),
+        m.settings.presentation.dashboards.viz.switchedReasonSize,
+      ),
+      { variant: "info" },
+    );
+
+    if (vizAxis(def) !== "config") return layout;
+    return layout.map((w) =>
+      w.instanceId === instanceId ? { ...w, config: configWithViz(def, w.config, pick.viz!) } : w,
+    );
+  }
+
+  /**
+   * Escolha explícita de visualização no inspetor.
+   * - Eixo config: grava `config.chartType` (o tamanho fica onde está).
+   * - Eixo variante: aplica a variante que a produz mais próxima do tamanho
+   *   atual — não teletransporta o widget para outro tamanho sem necessidade.
+   */
+  function handleSelectViz(vizKey: string) {
+    const inst = widgets.find((w) => w.instanceId === selectedId);
+    const def = inst ? defById.get(inst.widgetId) : undefined;
+    if (!inst || !def) return;
+
+    if (vizAxis(def) === "config") {
+      const config = configWithViz(def, inst.config, vizKey);
+      onLayoutChange(
+        widgets.map((w) => (w.instanceId === inst.instanceId ? { ...w, config } : w)),
+        { immediate: true },
+      );
+      return;
+    }
+
+    const variant = variantForViz(def, vizKey, { w: inst.w, h: inst.h });
+    if (!variant || variant.id === inst.sizeVariantId) return;
+    handleSelectVariant(variant.id);
+  }
+
   // ─── Ações do painel lateral (duplicar / remover / variante) ─────────────
 
   function handleDuplicate() {
@@ -468,8 +623,12 @@ export function DashboardGridCanvas({
       cols,
       maxRows,
     );
-    if (next) onLayoutChange(next);
-    else flashError(m.settings.dashboards.sizeNoRoom);
+    if (next) {
+      const def = defById.get(inst.widgetId);
+      onLayoutChange(
+        def ? reconcileViz(next, inst.instanceId, def, inst, { w: variant.w, h: variant.h }) : next,
+      );
+    } else flashError(m.settings.dashboards.sizeNoRoom);
   }
 
   // Config interna (configSchema) — salva na hora (ação deliberada do form).
@@ -493,6 +652,8 @@ export function DashboardGridCanvas({
       startY: clientY,
       startW: inst.w,
       startH: inst.h,
+      startVariantId: inst.sizeVariantId,
+      startConfig: inst.config,
       def,
       resultLayout: null,
     };
@@ -530,7 +691,18 @@ export function DashboardGridCanvas({
     resizeRef.current = null;
     setResizePreview(null);
     if (session?.resultLayout && !layoutsEqual(session.resultLayout, widgets)) {
-      onLayoutChange(session.resultLayout);
+      const resized = session.resultLayout.find((w) => w.instanceId === session.instanceId);
+      onLayoutChange(
+        resized
+          ? reconcileViz(
+              session.resultLayout,
+              session.instanceId,
+              session.def,
+              { sizeVariantId: session.startVariantId, config: session.startConfig },
+              { w: resized.w, h: resized.h },
+            )
+          : session.resultLayout,
+      );
     }
   }
 
@@ -579,13 +751,18 @@ export function DashboardGridCanvas({
         border: 1,
         borderColor: dropError ? "danger.main" : "border.subtle",
         bgcolor: "background.canvas",
-        transition: "border-color 200ms",
+        transition: `border-color ${T_NORMAL}`,
       }}
     >
       {/* Células-guia (droppable após montar, para o drop da paleta) */}
       {Array.from({ length: rows * cols }).map((_, i) => (
         <GuideCell key={`guide-${i}`} x={i % cols} y={Math.floor(i / cols)} droppable={mounted} />
       ))}
+
+      {/* Slot vazio no fim (07) — some durante o arrasto para não competir com o preview */}
+      {!dragging && usedRows < rows && (
+        <EmptySlot y={usedRows} cols={cols} onClick={() => onPaletteOpenChange(true)} />
+      )}
 
       {/* Indicador de drop zone durante o arrasto da paleta */}
       {isPaletteDrag && paletteDrop && (
@@ -638,6 +815,8 @@ export function DashboardGridCanvas({
     </Box>
   );
 
+  // Rail direito: inspetor do widget selecionado (frame 07). Sem seleção, um
+  // convite para abrir a gaveta da paleta — que antes vivia aqui dentro.
   const sidebar =
     selectedWidget && selectedDef ? (
       <WidgetSettingsPanel
@@ -646,32 +825,56 @@ export function DashboardGridCanvas({
         def={selectedDef}
         configOptions={configOptions}
         onSelectVariant={handleSelectVariant}
+        onSelectViz={handleSelectViz}
         onSaveConfig={handleSaveConfig}
         onDuplicate={handleDuplicate}
         onRemove={handleRemove}
         onClose={() => setSelectedId(null)}
       />
     ) : (
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1, alignItems: "flex-start" }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+          {m.settings.presentation.dashboards.palette.title}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.35 }}>
+          {m.settings.presentation.dashboards.palette.description}
+        </Typography>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AddIcon fontSize="small" />}
+          onClick={() => onPaletteOpenChange(true)}
+          sx={{ fontSize: "0.75rem" }}
+        >
+          {m.settings.presentation.dashboards.addWidget}
+        </Button>
+      </Box>
+    );
+
+  const content = (
+    <>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column-reverse", md: "row" },
+          gap: 2,
+          alignItems: "flex-start",
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>{gridInner}</Box>
+        <Box sx={{ width: { xs: "100%", md: 260 }, flexShrink: 0 }}>{sidebar}</Box>
+      </Box>
+      {/* Gaveta da paleta — dentro do DndContext, para o arraste até o grid continuar valendo. */}
       <WidgetPalette
         context={context}
         registry={registry}
         activeWidgetIds={activeWidgetIds}
         interactive={mounted}
+        open={paletteOpen}
+        onClose={() => onPaletteOpenChange(false)}
+        onInsert={handleInsertFromPalette}
       />
-    );
-
-  const content = (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: { xs: "column-reverse", md: "row" },
-        gap: 2,
-        alignItems: "flex-start",
-      }}
-    >
-      <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>{gridInner}</Box>
-      <Box sx={{ width: { xs: "100%", md: 260 }, flexShrink: 0 }}>{sidebar}</Box>
-    </Box>
+    </>
   );
 
   // Pré-montagem (SSR/primeiro paint): layout estático, sem DnD → sem hydration mismatch.
@@ -687,7 +890,9 @@ export function DashboardGridCanvas({
       onDragCancel={resetDrag}
     >
       {content}
-      <DragOverlay>{overlay}</DragOverlay>
+      {/* zIndex acima da gaveta da paleta (theme.zIndex.drawer = 1200) e abaixo
+          de modal/snackbar — o card arrastado tem de aparecer sobre a gaveta. */}
+      <DragOverlay zIndex={1250}>{overlay}</DragOverlay>
     </DndContext>
   );
 }

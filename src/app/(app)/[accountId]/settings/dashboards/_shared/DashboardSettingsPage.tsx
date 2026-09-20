@@ -1,22 +1,21 @@
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import Box from "@mui/material/Box";
+import { redirect } from "next/navigation";
 
-import { requireAccountAccess } from "@/server/auth/session";
-import { getLayout } from "@/server/services/dashboard-layout-service";
-import { getWidgetConfigOptions } from "@/server/queries/widget-config-options";
-import { m } from "@/lib/messages";
-import { containers } from "@/lib/design-tokens";
-import { DashboardGridEditor } from "@/components/settings/DashboardGridEditor";
-import { SettingsPageShell } from "@/components/settings/SettingsPageShell";
 import type { DashboardContext } from "@/components/dashboards/_core/widget-registry";
+import { DashboardGridEditor } from "@/components/settings/DashboardGridEditor";
+import { m } from "@/lib/messages";
+import { requireAccountAccess } from "@/server/auth/session";
+import { prisma } from "@/server/prisma";
+import { getWidgetConfigOptions } from "@/server/queries/widget-config-options";
+import { getEditorLayout } from "@/server/services/dashboard-layout-service";
 
 type Props = { accountId: string; context: DashboardContext };
 
 /**
- * Nome de cada sub-rota. Continua servindo ao `generateMetadata` (título da aba)
- * e, desde a Spec 67 §7.5, também ao chip de contagem: as três rotas compartilham
- * o título "Dashboards" e é o chip que diz QUAL delas está aberta.
+ * Nome de cada sub-rota. Continua servindo ao `generateMetadata` (título da aba).
+ * Desde a Spec 69, QUAL das três páginas está aberta é dito pelo
+ * `ToggleButtonGroup` da toolbar (DIV-12) — o chip do cabeçalho passou a ser o
+ * resumo do layout ("6 widgets · 4 linhas"), como no frame 07.
  */
 const CONTEXT_TITLES: Record<DashboardContext, string> = {
   monthly: m.settings.nav.dashboards.monthly,
@@ -24,38 +23,52 @@ const CONTEXT_TITLES: Record<DashboardContext, string> = {
   month_summary: m.settings.nav.dashboards.monthSummary,
 };
 
+/**
+ * "Ver a página": o destino real de cada dashboard. Mensal e Resumo do mês
+ * precisam de um mês; sem nenhum mês na conta a ação simplesmente não aparece,
+ * em vez de levar a um 404.
+ */
+async function resolveViewPageHref(
+  accountId: string,
+  context: DashboardContext,
+): Promise<string | undefined> {
+  if (context === "yearly") return `/${accountId}/dashboards`;
+
+  const latestMonth = await prisma.month.findFirst({
+    where: { accountId },
+    orderBy: [{ year: "desc" }, { month: "desc" }],
+    select: { id: true },
+  });
+  if (!latestMonth) return undefined;
+
+  return context === "monthly"
+    ? `/${accountId}/dashboards/monthly/${latestMonth.id}`
+    : `/${accountId}/months/${latestMonth.id}`;
+}
+
 export async function DashboardSettingsPage({ accountId, context }: Props) {
   const { member } = await requireAccountAccess(accountId).catch(() => redirect("/home"));
   if (member.role === "viewer") redirect(`/${accountId}`);
 
-  const [widgets, configOptions] = await Promise.all([
-    getLayout(accountId, context),
+  const [layout, configOptions, viewPageHref] = await Promise.all([
+    getEditorLayout(accountId, context),
     getWidgetConfigOptions(accountId),
+    resolveViewPageHref(accountId, context),
   ]);
 
+  // O shell vive DENTRO do editor: o rodapé "Publicar layout" depende do estado
+  // de cliente (movimentações pendentes), que esta RSC não tem.
   return (
-    // Sem `primaryAction`: widget entra por arraste da paleta, não por botão.
-    // Sem `dirtyCount`: o editor salva sozinho (otimista + debounce), não há rodapé de salvar.
-    <SettingsPageShell
-      family="Apresentação"
+    <DashboardGridEditor
+      accountId={accountId}
+      context={context}
+      initialWidgets={layout.widgets}
+      initialPublished={layout.published}
+      configOptions={configOptions}
       title={m.settings.nav.groups.dashboardsLabel}
-      count={CONTEXT_TITLES[context]}
       purpose={m.settings.purposes.dashboards}
-    >
-      {/*
-        O padding agora é do shell; só o teto de largura precisa ser reposto aqui —
-        o `PageSettingsContainer` limitava o editor a `containers.lg`, e sem isso o
-        grid esticaria indefinidamente em telas ultralargas.
-      */}
-      <Box sx={{ maxWidth: containers.lg }}>
-        <DashboardGridEditor
-          accountId={accountId}
-          context={context}
-          initialWidgets={widgets}
-          configOptions={configOptions}
-        />
-      </Box>
-    </SettingsPageShell>
+      viewPageHref={viewPageHref}
+    />
   );
 }
 

@@ -19,8 +19,14 @@ import { tagChipSx } from "@/components/tags/tagChipSx";
 import { formatDateShort } from "@/lib/dates";
 import { m } from "@/lib/messages";
 import { displaySignInverts, formatCentsToBrl } from "@/lib/money";
+import { DENSITY_VAR } from "@/lib/table-density";
 
-import type { ColumnsRowProps } from "./ColumnsRow";
+import {
+  PENDING_DIM_CLASS,
+  PENDING_HOST_CLASS,
+  pendingRowSx,
+  type ColumnsRowProps,
+} from "./ColumnsRow";
 import { PartyAvatar } from "./PartyAvatar";
 import { pillOutlineSx, pillSx, rowCheckboxCheckedIconSx, rowCheckboxIconSx } from "./pill-sx";
 import { describeRowState } from "./row-state";
@@ -33,12 +39,13 @@ import { TransactionRowActions } from "./TransactionRowActions";
 // afordâncias rápidas (toggle Pendente/Favorito, chevron, menu ⋮) permanecem em
 // TransactionRowActions. Pendente é exibido via chip discreto (sem ícone, minúsculo
 // — Spec 66 · Fidelidade item 6); Favorita é um ★ inline antes do título (frame B).
-export type RichRowProps = ColumnsRowProps;
+export type PillsRowProps = ColumnsRowProps;
 
-export function RichRow({
+export function PillsRow({
   tx,
   isSelected,
   isReadOnly,
+  selectable = true,
   hiddenColumns,
   sectionCountType,
   categories,
@@ -62,7 +69,7 @@ export function RichRow({
   onToggleDrawer,
   drawerOpen,
   onOpenMenu,
-}: RichRowProps) {
+}: PillsRowProps) {
   const amount = BigInt(tx.amountCents);
   const displayAmount = displaySignInverts(sectionCountType) ? -amount : amount;
   const amountColor =
@@ -73,13 +80,9 @@ export function RichRow({
     category && tx.subcategoryId
       ? category.subcategories.find((s) => s.id === tx.subcategoryId)
       : null;
-  const institution = tx.institutionId
-    ? institutions.find((i) => i.id === tx.institutionId)
-    : null;
+  const institution = tx.institutionId ? institutions.find((i) => i.id === tx.institutionId) : null;
   const institutionLabel = institution?.name ?? tx.institutionText ?? null;
-  const party = tx.responsiblePartyId
-    ? parties.find((p) => p.id === tx.responsiblePartyId)
-    : null;
+  const party = tx.responsiblePartyId ? parties.find((p) => p.id === tx.responsiblePartyId) : null;
 
   const hasInstallment = Boolean(
     tx.installmentGroupId && tx.installmentNumber && tx.installmentGroupCount,
@@ -90,7 +93,13 @@ export function RichRow({
       hover
       selected={isSelected}
       sx={{
-        opacity: tx.isPending ? 0.6 : 1,
+        // Spec 69 §7.2 — `height` em `<tr>` é MÍNIMO no CSS de tabelas: a linha
+        // de pílulas (título + linha de metadados) continua crescendo à vontade,
+        // e uma linha sem pílula nenhuma nunca fica menor que a densidade.
+        height: DENSITY_VAR.rowHeight,
+        // Esmaecimento por célula (ver `pendingRowSx` em ColumnsRow): o chip
+        // "Pendente" fica fora do escopo opaco para continuar legível.
+        ...(tx.isPending ? pendingRowSx : null),
         // Linha selecionada (frame 66 §4): fundo accent sutil — não o
         // `action.selected` cinza padrão do MUI.
         "&.Mui-selected, &.Mui-selected:hover": { bgcolor: "accent.primarySubtle" },
@@ -106,21 +115,27 @@ export function RichRow({
       }}
     >
       <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-        <Checkbox
-          checked={isSelected}
-          onChange={(e) => onSelect(tx.id, e.target.checked)}
-          size="small"
-          disabled={isReadOnly}
-          icon={<Box component="span" sx={rowCheckboxIconSx} />}
-          checkedIcon={
-            <Box component="span" sx={rowCheckboxCheckedIconSx}>
-              <CheckIcon sx={{ fontSize: 12 }} />
-            </Box>
-          }
-        />
+        {selectable && (
+          <Checkbox
+            checked={isSelected}
+            onChange={(e) => onSelect(tx.id, e.target.checked)}
+            size="small"
+            disabled={isReadOnly}
+            icon={<Box component="span" sx={rowCheckboxIconSx} />}
+            checkedIcon={
+              <Box component="span" sx={rowCheckboxCheckedIconSx}>
+                <CheckIcon sx={{ fontSize: 12 }} />
+              </Box>
+            }
+          />
+        )}
       </TableCell>
 
       <TableCell
+        // Célula-host do chip de estado: no layout B ela concentra TODO o
+        // conteúdo, então o fade da linha pendente é reaplicado peça a peça
+        // (`.row-dim`) — tudo menos o chip "Pendente".
+        className={tx.isPending ? PENDING_HOST_CLASS : undefined}
         sx={{ cursor: isReadOnly ? "default" : "pointer", py: 1 }}
         onClick={() => !isReadOnly && onStartEdit("description")}
         aria-label={describeRowState(tx)}
@@ -129,10 +144,11 @@ export function RichRow({
           {/* Data — coluna fixa à esquerda, mono (Spec 66 TX-04b, frame B) */}
           <Typography
             component="span"
+            className={PENDING_DIM_CLASS}
             color="text.secondary"
             sx={{
               fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
-              fontSize: "0.8rem",
+              fontSize: DENSITY_VAR.fontSize,
               minWidth: 40,
               flexShrink: 0,
             }}
@@ -145,15 +161,24 @@ export function RichRow({
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
               {/* Favorita = ★ na descrição (não StatusBadge) */}
               {tx.isFavorite && (
-                <StarIcon sx={{ fontSize: 16, color: "warning.main", flexShrink: 0 }} />
+                <StarIcon
+                  className={PENDING_DIM_CLASS}
+                  sx={{ fontSize: 16, color: "warning.main", flexShrink: 0 }}
+                />
               )}
               <Typography
                 component="span"
                 variant="body2"
+                className={PENDING_DIM_CLASS}
                 // Frame 66 §4: na linha selecionada a descrição vai para o accent.
                 color={isSelected ? "accent.primary" : "text.primary"}
                 fontWeight={500}
-                sx={{ fontSize: "0.82rem", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}
+                sx={{
+                  fontSize: DENSITY_VAR.fontSize,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
               >
                 {tx.description || (
                   <Typography component="span" variant="caption" color="text.disabled">
@@ -165,6 +190,7 @@ export function RichRow({
               {hasSuggestion && (
                 <Tooltip title={m.transactions.aliasSuggestion.header}>
                   <IconButton
+                    className={PENDING_DIM_CLASS}
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -178,22 +204,27 @@ export function RichRow({
                 </Tooltip>
               )}
 
-              {/* Pendente = pílula discreta (sem ícone, minúsculo) — nunca StatusBadge. */}
+              {/* Pendente = pílula discreta (sem ícone, minúsculo) — nunca StatusBadge.
+                  Sem `.row-dim`: é o rótulo que explica o esmaecimento da linha. */}
               {tx.isPending && (
                 <Chip
                   label={m.transactions.fields.isPendingChip}
                   size="small"
                   sx={{
                     ...pillSx,
-                    bgcolor: "warning.subtle",
-                    color: "warning.main",
+                    bgcolor: "warning.light",
+                    // Texto sobre fundo sutil → `onSubtle` (AA); `main` da 2,77:1.
+                    color: "warning.onSubtle",
                   }}
                 />
               )}
             </Box>
 
             {/* Pílulas de metadados (gated por hiddenColumns) — linha com gap 5px, mt 4px */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap", mt: 0.5 }}>
+            <Box
+              className={PENDING_DIM_CLASS}
+              sx={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap", mt: 0.5 }}
+            >
               {!hiddenColumns.category && category && (
                 <Chip
                   size="small"
@@ -306,13 +337,13 @@ export function RichRow({
           </Box>
 
           {/* Bloco direito: valor, mono, centralizado com a linha */}
-          <Box sx={{ flexShrink: 0, textAlign: "right" }}>
+          <Box className={PENDING_DIM_CLASS} sx={{ flexShrink: 0, textAlign: "right" }}>
             <Typography
               component="span"
               sx={{
                 fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
                 fontWeight: 500,
-                fontSize: "0.8rem",
+                fontSize: DENSITY_VAR.fontSize,
                 fontVariantNumeric: "tabular-nums",
                 color: amountColor,
               }}

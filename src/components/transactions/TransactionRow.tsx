@@ -21,13 +21,14 @@ import { matchAlias } from "@/lib/aliases/match";
 import { m } from "@/lib/messages";
 import type { CreateTransactionAliasInput } from "@/lib/schemas/transaction-alias";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+import type { PinnableColumnKey } from "@/lib/table-columns";
 
 import { SuggestionPopover } from "./aliases/SuggestionPopover";
 import { TransactionAliasFormDialog } from "./aliases/TransactionAliasFormDialog";
 import { ColumnsRow } from "./ColumnsRow";
 import { LinkTransactionDialog } from "./LinkTransactionDialog";
 import { useOptions } from "./OptionsContext";
-import { RichRow } from "./RichRow";
+import { PillsRow } from "./PillsRow";
 import type { RowLayout } from "./row-layout";
 import { TransactionRowDetails } from "./TransactionRowDetails";
 import { TransactionRowEditor } from "./TransactionRowEditor";
@@ -40,6 +41,12 @@ import type {
   RowMenuItem,
   TransactionRow as TxRow,
 } from "./types";
+
+/**
+ * Referência estável para o default de `pinnedColumns`: um `[]` literal no
+ * default de prop nasceria novo a cada render e derrubaria o `memo` da linha.
+ */
+const EMPTY_PINNED: readonly PinnableColumnKey[] = [];
 
 /**
  * Campos que a edição em massa inline propaga para TODAS as linhas selecionadas
@@ -76,6 +83,10 @@ type Props = {
   currentUserId: string;
   isSelected: boolean;
   isReadOnly: boolean;
+  /** Spec 69 §2.1 (`allowBulkEdit`) — repassado à linha (leitura e edição). */
+  selectable?: boolean;
+  /** Spec 69 §16 — colunas fixadas, já resolvidas pelo `TransactionTable`. */
+  pinnedColumns?: readonly PinnableColumnKey[];
   sectionCountType: SectionCountType;
   hiddenColumns: HiddenColumns;
   /** Layout já resolvido pelo TransactionTable (config + degradação por viewport). */
@@ -113,6 +124,8 @@ export function TransactionRowBase({
   currentUserId,
   isSelected,
   isReadOnly,
+  selectable = true,
+  pinnedColumns = EMPTY_PINNED,
   sectionCountType,
   hiddenColumns,
   effectiveLayout,
@@ -510,6 +523,8 @@ export function TransactionRowBase({
           editValues={activeValues}
           setEditValues={bulkEditing ? setBulkEditValues : setEditValues}
           isSelected={isSelected}
+          selectable={selectable}
+          pinnedColumns={pinnedColumns}
           focusField={bulkEditing ? (bulkFocus ? "description" : "") : focusField}
           descriptionInputRef={descriptionInputRef}
           hiddenColumns={hiddenColumns}
@@ -531,7 +546,7 @@ export function TransactionRowBase({
   }
 
   // Modo leitura — delega para o layout do tipo de tabela (Spec 66 P6). O
-  // container mantém estado/handlers/effects e os overlays; ColumnsRow/RichRow
+  // container mantém estado/handlers/effects e os overlays; ColumnsRow/PillsRow
   // apenas desenham a linha. Overlays (SuggestionPopover, TagPopover,
   // InstallmentGroupPanel, LinkTransactionDialog, aliasDialog) e a gaveta ficam
   // aqui — os popovers usam anchors abertos pela linha (onOpenSuggestion/onOpenTags).
@@ -539,6 +554,8 @@ export function TransactionRowBase({
     tx,
     isSelected,
     isReadOnly,
+    selectable,
+    pinnedColumns,
     sectionCountType,
     hiddenColumns,
     categories,
@@ -566,7 +583,7 @@ export function TransactionRowBase({
 
   return (
     <>
-      {effectiveLayout === "rich" ? <RichRow {...rowProps} /> : <ColumnsRow {...rowProps} />}
+      {effectiveLayout === "pills" ? <PillsRow {...rowProps} /> : <ColumnsRow {...rowProps} />}
 
       {suggestion && (
         <SuggestionPopover

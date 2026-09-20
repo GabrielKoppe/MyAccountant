@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=block" rel="stylesheet">
+<style>
+:root{
+--sans:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',Menlo,monospace;
+--canvas:#1A1815;--surface:#221F1B;--subtle:#2A2620;--muted:#322D26;
+--bsubtle:#322D26;--bdefault:#44403A;--bstrong:#5C574E;
+--tprimary:#F0EDE5;--tsec:#C4BDB0;--ttert:#8B847A;--tdis:#5C574E;
+--accent:#7E8DE5;--accenthover:#94A1EC;--accentsub:#252840;
+--success:#7AAE83;--successsub:#1F2D24;--warning:#D4A551;--warningsub:#2E2818;--danger:#D47373;--dangersub:#2E1F1F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#161412;color:var(--tprimary);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}a:hover{color:var(--accenthover)}
+.ms{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;line-height:1;display:inline-block;vertical-align:middle;flex-shrink:0}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--bstrong);border-radius:9999px}::-webkit-scrollbar-track{background:transparent}
+.lbl{margin:0 0 12px;font:600 12px/1.4 var(--mono);color:var(--ttert);letter-spacing:.03em}
+.lbl span{color:var(--tdis)}
+.navlbl{font:500 0.82rem var(--sans)}
+.grp{font:600 0.62rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--tdis);padding:0 14px;margin:16px 0 6px}
+.ni{display:flex;align-items:center;gap:10px;padding:9px 14px;color:var(--tsec)}
+.ni.on{color:var(--accent);background:var(--subtle);border-right:2px solid var(--accent)}
+.ni.on .navlbl{font-weight:600}
+.sni{display:flex;align-items:center;gap:9px;padding:7px 14px;color:var(--tsec);font:400 0.8rem var(--sans)}
+.sni.on{color:var(--accent);background:var(--subtle);border-right:2px solid var(--accent);font-weight:600}
+.sni .ct{margin-left:auto;font:500 0.66rem var(--mono);color:var(--tdis)}
+.frame{width:1280px;border:1px solid var(--bdefault);border-radius:12px;overflow:hidden;background:var(--canvas)}
+.sec{display:flex;align-items:center;gap:14px;margin:56px 0 22px}
+.sec b{font:700 0.7rem var(--mono);letter-spacing:0.14em;color:var(--accent);border:1px solid var(--accentsub);background:var(--accentsub);padding:5px 10px;border-radius:6px;font-weight:700}
+.sec i{flex:1;height:1px;background:var(--bsubtle);font-style:normal}
+.prob{background:var(--surface);border:1px solid var(--bsubtle);border-left:2px solid var(--danger);border-radius:8px;padding:13px 16px}
+.prob .k{font:600 0.6rem var(--mono);letter-spacing:.06em;color:var(--danger);margin-bottom:5px}
+.prob .t{font:600 0.86rem var(--sans);margin-bottom:4px}
+.prob .d{font:400 0.76rem/1.5 var(--sans);color:var(--ttert)}
+.fix{background:var(--surface);border:1px solid var(--bsubtle);border-left:2px solid var(--success);border-radius:8px;padding:13px 16px}
+.fix .k{font:600 0.6rem var(--mono);letter-spacing:.06em;color:var(--success);margin-bottom:5px}
+.fix .t{font:600 0.86rem var(--sans);margin-bottom:4px}
+.fix .d{font:400 0.76rem/1.5 var(--sans);color:var(--ttert)}
+.fam{border:1px solid var(--bsubtle);background:var(--surface);border-radius:12px;padding:16px;flex:1;min-width:230px}
+.fam h4{margin:0 0 3px;font:600 0.9rem var(--sans);display:flex;align-items:center;gap:8px}
+.fam p{margin:0 0 12px;font:400 0.72rem/1.5 var(--sans);color:var(--ttert)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:6px;background:var(--subtle);border:1px solid var(--bsubtle);font:500 0.74rem var(--sans);color:var(--tsec)}
+.hcard{border:1px solid var(--bsubtle);background:var(--surface);border-radius:12px;overflow:hidden}
+.hcard .hh{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--bsubtle);background:var(--subtle);font:600 0.64rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--tsec)}
+.hrow{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--bsubtle)}
+.hrow:first-of-type{border-top:none}
+.hrow .n{font:500 0.83rem var(--sans);color:var(--tprimary)}
+.hrow .s{font:400 0.7rem var(--sans);color:var(--tdis)}
+.hrow .c{margin-left:auto;font:500 0.72rem var(--mono);color:var(--ttert)}
+.tbtn{height:30px;border-radius:7px;border:1px solid var(--bdefault);color:var(--tsec);display:inline-flex;align-items:center;gap:6px;padding:0 11px;font:500 0.76rem var(--sans)}
+.pbtn{height:30px;border-radius:7px;background:var(--accent);color:#15121f;display:inline-flex;align-items:center;gap:5px;padding:0 12px;font:600 0.76rem var(--sans)}
+.note{font:400 0.78rem/1.6 var(--sans);color:var(--tsec);max-width:860px;margin:0 0 14px}
+.arw{color:var(--tdis);align-self:center}
+</style>
+</helmet>
+
+<div style="padding:52px 60px 120px;max-width:1560px;margin:0 auto">
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+    <span style="font:700 0.68rem var(--mono);letter-spacing:.1em;color:var(--accent);border:1px solid var(--accent);padding:4px 8px;border-radius:5px">1a</span>
+    <span style="font:600 2rem/1.1 var(--sans);letter-spacing:-0.02em;color:var(--accent)">Configurações — Arquitetura &amp; Padrão de Página</span>
+  </div>
+  <p class="note" style="font-size:0.95rem;max-width:900px">Reestruturação de <strong style="color:var(--tprimary)">/[accountId]/settings/*</strong>: de uma lista rasa de 15 páginas CRUD para <strong style="color:var(--tprimary)">5 famílias + 1 hub + 4 arquétipos de página</strong>. Continuidade da Spec 65 (sidebar) e Spec 66 (linha de transação).</p>
+
+  <!-- ═══ DIAGNÓSTICO ═══ -->
+  <div class="sec"><b>DIAGNÓSTICO — O QUE ESTÁ QUEBRADO HOJE</b><i></i></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+    <div class="prob"><div class="k">SET-01 · NAVEGAÇÃO</div><div class="t">15 itens sem hierarquia</div><div class="d">Lista linear com um divisor. "Apelidos", "Modelos" e "Templates" são nomes ambíguos — o usuário não sabe onde procurar sem clicar em tudo.</div></div>
+    <div class="prob"><div class="k">SET-02 · ENTRADA</div><div class="t">Não existe porta de entrada</div><div class="d">O link "Configurações" cai em <code style="font:500 0.72rem var(--mono);color:var(--tsec)">/general</code>, um formulário. Não há visão do que já está configurado nem do que falta.</div></div>
+    <div class="prob"><div class="k">SET-03 · PADRÃO</div><div class="t">15 páginas, 15 cabeçalhos diferentes</div><div class="d">Título, contagem, busca e botão primário aparecem em posições distintas. Cada página reensina o usuário a operá-la.</div></div>
+    <div class="prob"><div class="k">SET-04 · ESCALA</div><div class="t">Listas longas sem busca</div><div class="d">Categorias/subcategorias e Apelidos crescem para centenas de linhas. Sem busca, filtro ou agrupamento, viram scroll infinito.</div></div>
+    <div class="prob"><div class="k">SET-05 · OBJETOS COMPLEXOS EM MODAL</div><div class="t">Tipo de tabela não cabe num diálogo</div><div class="d">Colunas visíveis, densidade e (Spec 66) <code style="font:500 0.72rem var(--mono);color:var(--tsec)">rowLayout</code> precisam de pré-visualização ao vivo — impossível num modal de 480px.</div></div>
+    <div class="prob"><div class="k">SET-06 · DEPENDÊNCIAS INVISÍVEIS</div><div class="t">Excluir tem raio de impacto oculto</div><div class="d">Uma Categoria é referenciada por Apelidos, Templates, Projeção e Checklist. Nada mostra isso antes do delete.</div></div>
+  </div>
+
+  <!-- ═══ PRINCÍPIOS ═══ -->
+  <div class="sec"><b>AS 6 MUDANÇAS PROPOSTAS</b><i></i></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+    <div class="fix"><div class="k">↳ SET-01</div><div class="t">5 famílias por intenção, não por objeto</div><div class="d">Agrupar pelo que o usuário está tentando fazer: estruturar, apresentar, alimentar, planejar, administrar. Cada família com 3–4 itens — abaixo do limite de leitura por varredura.</div></div>
+    <div class="fix"><div class="k">↳ SET-02</div><div class="t">Hub em <code style="font:500 0.72rem var(--mono);color:var(--tsec)">/settings</code></div><div class="d">Índice com as 5 famílias em cards, contagem real de cada objeto e sinalizadores do que exige atenção. Vira também o onboarding da conta.</div></div>
+    <div class="fix"><div class="k">↳ SET-03</div><div class="t">Um shell de página só</div><div class="d">Cabeçalho (título · contagem · descrição · ação primária), barra de ferramentas, conteúdo, estado vazio. Componente único reaproveitado por todas as 15 páginas.</div></div>
+    <div class="fix"><div class="k">↳ SET-04</div><div class="t">Busca sempre presente acima de 12 itens</div><div class="d">Campo de busca + filtro por seção/tipo + ordenação na toolbar padrão. Agrupamento e contagem no cabeçalho de grupo.</div></div>
+    <div class="fix"><div class="k">↳ SET-05</div><div class="t">Master-detail para objetos compostos</div><div class="d">Tipos de tabela, Modelos, Templates de importação e Dashboards passam a lista-à-esquerda + editor-à-direita com preview ao vivo. Modais só para criação rápida e confirmações.</div></div>
+    <div class="fix"><div class="k">↳ SET-06</div><div class="t">"Onde é usado" em todo objeto</div><div class="d">Contagem de uso na linha, painel de referências no detalhe e diálogo de exclusão que exige realocação quando há dependentes.</div></div>
+  </div>
+
+  <!-- ═══ MAPA DE FAMÍLIAS ═══ -->
+  <div class="sec"><b>MAPA — DE 15 ITENS RASOS PARA 5 FAMÍLIAS</b><i></i></div>
+  <p class="note">Diferença em relação à Spec 65 §7.2: <strong style="color:var(--tprimary)">Tipos de tabela</strong> e <strong style="color:var(--tprimary)">Modelos</strong> saem de "Importação" (não são importação — são apresentação) e <strong style="color:var(--tprimary)">Conectores de IA</strong> entram em "Entrada de dados" (sua função real é classificar o que entra). Resultado: 6 famílias desiguais → 5 famílias de 3–4 itens.</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <div class="fam"><h4><span class="ms" style="font-size:18px;color:var(--accent)">account_tree</span>Estrutura</h4><p>O vocabulário da conta. Quase nunca muda depois do setup.</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span class="pill"><span class="ms" style="font-size:15px">view_agenda</span>Seções</span>
+        <span class="pill"><span class="ms" style="font-size:15px">sell</span>Categorias &amp; subcategorias</span>
+        <span class="pill"><span class="ms" style="font-size:15px">account_balance</span>Instituições</span>
+        <span class="pill"><span class="ms" style="font-size:15px">person</span>Responsáveis</span>
+      </div></div>
+    <div class="fam"><h4><span class="ms" style="font-size:18px;color:var(--accent)">table_chart</span>Apresentação</h4><p>Como os dados aparecem. Onde vive o <code style="font:500 0.72rem var(--mono);color:var(--tsec)">rowLayout</code> da Spec 66.</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span class="pill"><span class="ms" style="font-size:15px">table_rows</span>Tipos de tabela</span>
+        <span class="pill"><span class="ms" style="font-size:15px">content_copy</span>Modelos de tabela</span>
+        <span class="pill"><span class="ms" style="font-size:15px">bar_chart</span>Dashboards</span>
+      </div></div>
+    <div class="fam"><h4><span class="ms" style="font-size:18px;color:var(--accent)">input</span>Entrada de dados</h4><p>Tudo que transforma arquivo externo em transação.</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span class="pill"><span class="ms" style="font-size:15px">upload_file</span>Templates de importação</span>
+        <span class="pill"><span class="ms" style="font-size:15px">alternate_email</span>Apelidos</span>
+        <span class="pill"><span class="ms" style="font-size:15px">smart_toy</span>Conectores de IA</span>
+      </div></div>
+    <div class="fam"><h4><span class="ms" style="font-size:18px;color:var(--accent)">event_repeat</span>Planejamento</h4><p>Metas e ritual mensal. Sempre lidos junto.</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span class="pill"><span class="ms" style="font-size:15px">savings</span>Projeção</span>
+        <span class="pill"><span class="ms" style="font-size:15px">checklist</span>Checklist mensal</span>
+      </div></div>
+    <div class="fam" style="border-color:var(--bdefault)"><h4><span class="ms" style="font-size:18px;color:var(--warning)">shield</span>Conta <span style="font:600 0.58rem var(--mono);color:var(--warning);border:1px solid var(--warning);padding:2px 5px;border-radius:4px">OWNER</span></h4><p>Administração. Baixa frequência, alto impacto — isolado no rodapé.</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span class="pill"><span class="ms" style="font-size:15px">tune</span>Geral</span>
+        <span class="pill"><span class="ms" style="font-size:15px">group</span>Membros</span>
+        <span class="pill"><span class="ms" style="font-size:15px">history</span>Trilha de auditoria</span>
+      </div></div>
+  </div>
+
+  <!-- ═══ ARQUÉTIPOS ═══ -->
+  <div class="sec"><b>4 ARQUÉTIPOS DE PÁGINA — TODAS AS 15 CAEM EM UM DELES</b><i></i></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <div class="hcard"><div class="hh"><span class="ms" style="font-size:16px">list</span>A · Lista simples</div>
+      <div style="padding:13px 14px"><div style="font:400 0.76rem/1.5 var(--sans);color:var(--ttert);margin-bottom:10px">Objeto de 2–4 campos. Edição inline na linha, criação por linha-fantasma no fim da lista. Sem modal.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px"><span class="pill" style="font-size:0.68rem">Instituições</span><span class="pill" style="font-size:0.68rem">Responsáveis</span><span class="pill" style="font-size:0.68rem">Apelidos</span></div></div></div>
+    <div class="hcard"><div class="hh"><span class="ms" style="font-size:16px">account_tree</span>B · Lista hierárquica</div>
+      <div style="padding:13px 14px"><div style="font:400 0.76rem/1.5 var(--sans);color:var(--ttert);margin-bottom:10px">Pai/filho com reordenação por arraste, expandir/recolher e contagem de uso por nó.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px"><span class="pill" style="font-size:0.68rem">Seções</span><span class="pill" style="font-size:0.68rem">Categorias</span><span class="pill" style="font-size:0.68rem">Checklist</span></div></div></div>
+    <div class="hcard"><div class="hh"><span class="ms" style="font-size:16px">vertical_split</span>C · Master-detail</div>
+      <div style="padding:13px 14px"><div style="font:400 0.76rem/1.5 var(--sans);color:var(--ttert);margin-bottom:10px">Objeto composto com preview ao vivo. Lista 260px à esquerda, editor com abas à direita, salvar fixo no rodapé.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px"><span class="pill" style="font-size:0.68rem">Tipos de tabela</span><span class="pill" style="font-size:0.68rem">Modelos</span><span class="pill" style="font-size:0.68rem">Templates</span><span class="pill" style="font-size:0.68rem">Dashboards</span><span class="pill" style="font-size:0.68rem">Conectores</span></div></div></div>
+    <div class="hcard"><div class="hh"><span class="ms" style="font-size:16px">edit_note</span>D · Formulário</div>
+      <div style="padding:13px 14px"><div style="font:400 0.76rem/1.5 var(--sans);color:var(--ttert);margin-bottom:10px">Campos em blocos rotulados, salvar fixo, zona de perigo ao final. Projeção usa grade editável em vez de campos.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px"><span class="pill" style="font-size:0.68rem">Geral</span><span class="pill" style="font-size:0.68rem">Membros</span><span class="pill" style="font-size:0.68rem">Projeção</span><span class="pill" style="font-size:0.68rem">Auditoria</span></div></div></div>
+  </div>
+
+  <!-- ═══ ANATOMIA DO SHELL ═══ -->
+  <div class="sec"><b>ANATOMIA DO SHELL ÚNICO — <code style="font:600 0.68rem var(--mono);color:var(--accent)">SettingsPageShell</code></b><i></i></div>
+  <div style="display:flex;gap:20px;align-items:flex-start">
+    <div style="width:820px;border:1px solid var(--bdefault);border-radius:10px;overflow:hidden;background:var(--canvas)">
+      <div style="padding:16px 20px 14px;border-bottom:1px solid var(--bsubtle)">
+        <div style="font:400 0.7rem var(--sans);color:var(--tdis);margin-bottom:6px">Configurações <span style="color:var(--tdis)">/</span> Estrutura</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font:600 1.25rem var(--sans);letter-spacing:-0.01em">Categorias</span>
+          <span style="height:20px;padding:0 8px;border-radius:5px;background:var(--subtle);border:1px solid var(--bsubtle);font:500 0.68rem/20px var(--mono);color:var(--ttert)">18 · 47 sub</span>
+          <span style="flex:1"></span>
+          <span class="tbtn"><span class="ms" style="font-size:15px">file_download</span>Exportar</span>
+          <span class="pbtn"><span class="ms" style="font-size:16px">add</span>Nova categoria</span>
+        </div>
+        <div style="font:400 0.78rem/1.5 var(--sans);color:var(--ttert);margin-top:5px;max-width:560px">Classificam cada transação. Usadas por importação, projeção e todos os dashboards.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:1px solid var(--bsubtle);background:var(--surface)">
+        <span style="height:30px;flex:1;max-width:280px;border:1px solid var(--bdefault);border-radius:7px;display:flex;align-items:center;gap:7px;padding:0 10px;color:var(--tdis);font:400 0.78rem var(--sans)"><span class="ms" style="font-size:16px">search</span>Buscar categoria ou subcategoria…</span>
+        <span class="tbtn"><span class="ms" style="font-size:15px">filter_alt</span>Seção<span class="ms" style="font-size:15px">expand_more</span></span>
+        <span class="tbtn"><span class="ms" style="font-size:15px">swap_vert</span>Ordem manual<span class="ms" style="font-size:15px">expand_more</span></span>
+        <span style="flex:1"></span>
+        <span style="font:400 0.72rem var(--sans);color:var(--tdis)">3 sem uso</span>
+        <span class="tbtn" style="border-color:var(--bsubtle)"><span class="ms" style="font-size:15px">unfold_less</span></span>
+      </div>
+      <div style="padding:40px 20px;text-align:center">
+        <div style="width:44px;height:44px;border-radius:11px;background:var(--subtle);border:1px solid var(--bsubtle);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px"><span class="ms" style="font-size:22px;color:var(--ttert)">sell</span></div>
+        <div style="font:600 0.9rem var(--sans);margin-bottom:5px">Estado vazio padronizado</div>
+        <div style="font:400 0.78rem/1.5 var(--sans);color:var(--ttert);max-width:380px;margin:0 auto 14px">Uma frase do que o objeto faz + a ação primária + um atalho de importação/preset quando existir.</div>
+        <div style="display:flex;gap:8px;justify-content:center"><span class="pbtn"><span class="ms" style="font-size:16px">add</span>Criar a primeira</span><span class="tbtn">Usar preset padrão</span></div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:10px">
+      <div class="prob" style="border-left-color:var(--accent);background:var(--surface)"><div class="k" style="color:var(--accent)">REGRA 1</div><div class="t">Contagem sempre no título</div><div class="d">Chip ao lado do nome. Dá noção de escala antes de rolar e confirma que salvou.</div></div>
+      <div class="prob" style="border-left-color:var(--accent);background:var(--surface)"><div class="k" style="color:var(--accent)">REGRA 2</div><div class="t">Uma frase de propósito</div><div class="d">Abaixo do título, sempre. Resolve a ambiguidade de "Modelos" vs "Templates" vs "Tipos" sem renomear nada.</div></div>
+      <div class="prob" style="border-left-color:var(--accent);background:var(--surface)"><div class="k" style="color:var(--accent)">REGRA 3</div><div class="t">Uma única ação primária</div><div class="d">Sempre no canto superior direito, sempre preenchida com o accent. Secundárias como contorno à esquerda dela.</div></div>
+      <div class="prob" style="border-left-color:var(--accent);background:var(--surface)"><div class="k" style="color:var(--accent)">REGRA 4</div><div class="t">Toolbar só acima de 12 itens</div><div class="d">Listas curtas (Seções, Responsáveis) não ganham busca — ruído sem função.</div></div>
+      <div class="prob" style="border-left-color:var(--accent);background:var(--surface)"><div class="k" style="color:var(--accent)">REGRA 5</div><div class="t">Salvar sempre no mesmo lugar</div><div class="d">Barra fixa no rodapé do painel com "N alterações não salvas" — nunca um botão flutuando no meio do formulário.</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ TELAS ═══ -->
+  <div class="sec"><b>TELAS EM TAMANHO REAL</b><i></i></div>
+
+  <!-- 1 · HUB -->
+  <div class="lbl">1 · Hub de Configurações&nbsp;&nbsp;·&nbsp;&nbsp;<span>nova rota /settings — substitui o pouso em /general</span></div>
+  <div class="frame" style="margin-bottom:44px">
+    <div style="display:flex;min-height:640px">
+      <div style="width:210px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface);display:flex;flex-direction:column">
+        <div style="padding:14px 14px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bsubtle)"><span style="font:600 0.95rem var(--sans)">Família Koppe</span><span class="ms" style="font-size:18px;color:var(--ttert)">unfold_more</span></div>
+        <div style="padding:12px 12px 4px"><div style="height:36px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center;gap:6px;font:600 0.82rem var(--sans)"><span class="ms" style="font-size:18px">add</span>Nova transação</div></div>
+        <div class="grp">Principal</div>
+        <div class="ni"><span class="ms" style="font-size:19px">calendar_month</span><span class="navlbl">Meses</span></div>
+        <div class="ni"><span class="ms" style="font-size:19px">bar_chart</span><span class="navlbl">Dashboards</span></div>
+        <div class="ni"><span class="ms" style="font-size:19px">account_balance_wallet</span><span class="navlbl">Patrimônio</span></div>
+        <div class="grp">Gestão</div>
+        <div class="ni"><span class="ms" style="font-size:19px">group</span><span class="navlbl">Membros</span></div>
+        <div class="ni on"><span class="ms" style="font-size:19px">settings</span><span class="navlbl">Configurações</span></div>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--bsubtle)"><span style="width:28px;height:28px;border-radius:50%;background:var(--accentsub);color:var(--accent);display:flex;align-items:center;justify-content:center;font:600 0.75rem var(--sans)">G</span><span class="navlbl" style="color:var(--tsec);flex:1">Gabriel</span><span class="ms" style="font-size:18px;color:var(--ttert)">expand_less</span></div>
+      </div>
+      <div style="flex:1;min-width:0;padding:22px 26px 30px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <span style="font:600 1.4rem var(--sans);letter-spacing:-0.02em">Configurações</span>
+          <span style="flex:1"></span>
+          <span style="height:30px;flex:0 0 260px;border:1px solid var(--bdefault);border-radius:7px;display:flex;align-items:center;gap:7px;padding:0 10px;color:var(--tdis);font:400 0.78rem var(--sans)"><span class="ms" style="font-size:16px">search</span>Buscar em configurações<span style="margin-left:auto;font:500 0.66rem var(--mono);color:var(--tdis)">⌘K</span></span>
+        </div>
+        <div style="font:400 0.82rem/1.5 var(--sans);color:var(--ttert);margin-bottom:18px">Estrutura, entrada e apresentação dos dados desta conta.</div>
+
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--accentsub);background:var(--accentsub);border-radius:10px;margin-bottom:18px">
+          <span class="ms" style="font-size:20px;color:var(--accent)">lightbulb</span>
+          <div style="flex:1"><div style="font:600 0.82rem var(--sans);margin-bottom:2px">3 itens pedem atenção</div><div style="font:400 0.74rem var(--sans);color:var(--tsec)">2 apelidos sem categoria · 1 template de importação com coluna quebrada · Checklist de julho não iniciado</div></div>
+          <span class="tbtn" style="border-color:var(--accent);color:var(--accent)">Revisar</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+          <div class="hcard">
+            <div class="hh"><span class="ms" style="font-size:16px;color:var(--accent)">account_tree</span>Estrutura</div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">view_agenda</span><div><div class="n">Seções</div><div class="s">Abas de cada mês</div></div><span class="c">6</span></div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">sell</span><div><div class="n">Categorias</div><div class="s">Classificação das transações</div></div><span class="c">18 · 47</span></div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">account_balance</span><div><div class="n">Instituições</div><div class="s">Bancos e cartões</div></div><span class="c">9</span></div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">person</span><div><div class="n">Responsáveis</div><div class="s">Quem paga ou recebe</div></div><span class="c">4</span></div>
+          </div>
+          <div class="hcard">
+            <div class="hh"><span class="ms" style="font-size:16px;color:var(--accent)">table_chart</span>Apresentação</div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">table_rows</span><div><div class="n">Tipos de tabela</div><div class="s">Colunas, densidade e layout da linha</div></div><span class="c">5</span></div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">content_copy</span><div><div class="n">Modelos de tabela</div><div class="s">Tabelas criadas a cada novo mês</div></div><span class="c">7</span></div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">bar_chart</span><div><div class="n">Dashboards</div><div class="s">Mensal · anual · resumo</div></div><span class="c">3</span></div>
+          </div>
+          <div class="hcard">
+            <div class="hh"><span class="ms" style="font-size:16px;color:var(--accent)">input</span>Entrada de dados</div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">upload_file</span><div><div class="n">Templates de importação</div><div class="s">Mapeamento de CSV/XLSX</div></div><span style="margin-left:auto;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:15px;color:var(--warning)">error</span><span class="c" style="margin:0">4</span></span></div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">alternate_email</span><div><div class="n">Apelidos</div><div class="s">Descrição bruta → nome limpo</div></div><span style="margin-left:auto;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:15px;color:var(--warning)">error</span><span class="c" style="margin:0">132</span></span></div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">smart_toy</span><div><div class="n">Conectores de IA</div><div class="s">Classificação automática</div></div><span class="c">1 ativo</span></div>
+          </div>
+          <div class="hcard">
+            <div class="hh"><span class="ms" style="font-size:16px;color:var(--accent)">event_repeat</span>Planejamento</div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">savings</span><div><div class="n">Projeção</div><div class="s">Metas por categoria</div></div><span class="c">2026</span></div>
+            <div class="hrow"><span class="ms" style="font-size:17px;color:var(--ttert)">checklist</span><div><div class="n">Checklist mensal</div><div class="s">Ritual de fechamento</div></div><span style="margin-left:auto;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:15px;color:var(--warning)">error</span><span class="c" style="margin:0">11</span></span></div>
+          </div>
+          <div class="hcard" style="grid-column:span 2">
+            <div class="hh"><span class="ms" style="font-size:16px;color:var(--warning)">shield</span>Conta<span style="margin-left:auto;font:600 0.56rem var(--mono);color:var(--warning);border:1px solid var(--warning);padding:2px 6px;border-radius:4px;letter-spacing:.06em">SOMENTE OWNER</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr">
+              <div class="hrow" style="border-top:none"><span class="ms" style="font-size:17px;color:var(--ttert)">tune</span><div><div class="n">Geral</div><div class="s">Nome, moeda, fuso</div></div></div>
+              <div class="hrow" style="border-top:none;border-left:1px solid var(--bsubtle)"><span class="ms" style="font-size:17px;color:var(--ttert)">group</span><div><div class="n">Membros</div><div class="s">Convites e papéis</div></div><span class="c">3</span></div>
+              <div class="hrow" style="border-top:none;border-left:1px solid var(--bsubtle)"><span class="ms" style="font-size:17px;color:var(--ttert)">history</span><div><div class="n">Trilha de auditoria</div><div class="s">Últimos 90 dias</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 · CATEGORIAS -->
+  <div class="lbl">2 · Categorias&nbsp;&nbsp;·&nbsp;&nbsp;<span>arquétipo B — lista hierárquica com busca, arraste e contagem de uso</span></div>
+  <div class="frame" style="margin-bottom:44px">
+    <div style="display:flex;min-height:620px">
+      <div style="width:210px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface)">
+        <div style="padding:14px 14px 12px;border-bottom:1px solid var(--bsubtle);display:flex;align-items:center;justify-content:space-between"><span style="font:600 0.95rem var(--sans)">Família Koppe</span><span class="ms" style="font-size:18px;color:var(--ttert)">unfold_more</span></div>
+        <div style="padding:12px 12px 4px"><div style="height:36px;border-radius:8px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center;gap:6px;font:600 0.82rem var(--sans)"><span class="ms" style="font-size:18px">add</span>Nova transação</div></div>
+        <div class="grp">Principal</div>
+        <div class="ni"><span class="ms" style="font-size:19px">calendar_month</span><span class="navlbl">Meses</span></div>
+        <div class="ni"><span class="ms" style="font-size:19px">bar_chart</span><span class="navlbl">Dashboards</span></div>
+        <div class="ni"><span class="ms" style="font-size:19px">account_balance_wallet</span><span class="navlbl">Patrimônio</span></div>
+        <div class="grp">Gestão</div>
+        <div class="ni"><span class="ms" style="font-size:19px">group</span><span class="navlbl">Membros</span></div>
+        <div class="ni on"><span class="ms" style="font-size:19px">settings</span><span class="navlbl">Configurações</span></div>
+      </div>
+      <div style="width:220px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--canvas);padding-bottom:12px">
+        <div style="padding:13px 14px;border-bottom:1px solid var(--bsubtle);display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:17px;color:var(--tsec)">arrow_back</span><span style="font:600 0.85rem var(--sans)">Configurações</span></div>
+        <div class="grp">Estrutura</div>
+        <div class="sni"><span class="ms" style="font-size:17px">view_agenda</span>Seções<span class="ct">6</span></div>
+        <div class="sni on"><span class="ms" style="font-size:17px">sell</span>Categorias<span class="ct">18</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">account_balance</span>Instituições<span class="ct">9</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">person</span>Responsáveis<span class="ct">4</span></div>
+        <div class="grp">Apresentação</div>
+        <div class="sni"><span class="ms" style="font-size:17px">table_rows</span>Tipos de tabela<span class="ct">5</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">content_copy</span>Modelos<span class="ct">7</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">bar_chart</span>Dashboards<span class="ct">3</span></div>
+        <div class="grp">Entrada de dados</div>
+        <div class="sni"><span class="ms" style="font-size:17px">upload_file</span>Templates<span class="ct">4</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">alternate_email</span>Apelidos<span class="ct">132</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">smart_toy</span>Conectores de IA<span class="ct">1</span></div>
+        <div class="grp">Planejamento</div>
+        <div class="sni"><span class="ms" style="font-size:17px">savings</span>Projeção</div>
+        <div class="sni"><span class="ms" style="font-size:17px">checklist</span>Checklist mensal</div>
+        <div class="grp">Conta</div>
+        <div class="sni"><span class="ms" style="font-size:17px">tune</span>Geral</div>
+        <div class="sni"><span class="ms" style="font-size:17px">group</span>Membros<span class="ct">3</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">history</span>Trilha de auditoria</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="padding:16px 20px 13px;border-bottom:1px solid var(--bsubtle)">
+          <div style="font:400 0.7rem var(--sans);color:var(--tdis);margin-bottom:6px">Configurações / Estrutura</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font:600 1.2rem var(--sans);letter-spacing:-0.01em">Categorias</span>
+            <span style="height:20px;padding:0 8px;border-radius:5px;background:var(--subtle);border:1px solid var(--bsubtle);font:500 0.68rem/20px var(--mono);color:var(--ttert)">18 · 47 sub</span>
+            <span style="flex:1"></span>
+            <span class="tbtn"><span class="ms" style="font-size:15px">file_download</span>Exportar</span>
+            <span class="pbtn"><span class="ms" style="font-size:16px">add</span>Nova categoria</span>
+          </div>
+          <div style="font:400 0.77rem/1.5 var(--sans);color:var(--ttert);margin-top:5px">Classificam cada transação. Usadas por importação, projeção e todos os dashboards.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:9px 20px;border-bottom:1px solid var(--bsubtle);background:var(--surface)">
+          <span style="height:29px;flex:1;max-width:250px;border:1px solid var(--bdefault);border-radius:7px;display:flex;align-items:center;gap:7px;padding:0 10px;color:var(--tdis);font:400 0.77rem var(--sans)"><span class="ms" style="font-size:16px">search</span>Buscar…</span>
+          <span class="tbtn"><span class="ms" style="font-size:15px">filter_alt</span>Todas as seções<span class="ms" style="font-size:15px">expand_more</span></span>
+          <span class="tbtn"><span class="ms" style="font-size:15px">swap_vert</span>Ordem manual<span class="ms" style="font-size:15px">expand_more</span></span>
+          <span style="flex:1"></span>
+          <span style="font:400 0.72rem var(--sans);color:var(--warning)">3 sem uso</span>
+          <span class="tbtn" style="border-color:var(--bsubtle);padding:0 8px"><span class="ms" style="font-size:16px">unfold_less</span></span>
+        </div>
+        <div style="padding:0 20px">
+          <div style="display:grid;grid-template-columns:24px 26px 1fr 130px 100px 90px 32px;padding:9px 4px;font:500 0.62rem var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--tdis);border-bottom:1px solid var(--bsubtle)"><span></span><span></span><span>Nome</span><span>Seção padrão</span><span>Tipo</span><span style="text-align:right">Uso</span><span></span></div>
+
+          <div style="display:grid;grid-template-columns:24px 26px 1fr 130px 100px 90px 32px;padding:9px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.82rem var(--sans)">
+            <span class="ms" style="font-size:16px;color:var(--tdis)">drag_indicator</span><span class="ms" style="font-size:17px;color:var(--tsec)">expand_more</span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:3px;background:#7AAE83"></span><span style="font-weight:600">Alimentação</span><span style="font:500 0.65rem var(--mono);color:var(--tdis)">4 sub</span></span>
+            <span style="color:var(--tsec);font-size:0.78rem">Alimentação</span><span style="color:var(--tsec);font-size:0.78rem">Despesa</span>
+            <span style="text-align:right;font:500 0.75rem var(--mono);color:var(--tsec)">312</span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span>
+          </div>
+          <div style="display:grid;grid-template-columns:24px 26px 1fr 130px 100px 90px 32px;padding:7px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.8rem var(--sans);background:rgba(42,38,32,.45)">
+            <span></span><span class="ms" style="font-size:15px;color:var(--tdis);padding-left:9px">subdirectory_arrow_right</span>
+            <span style="color:var(--tsec);padding-left:4px">Mercado</span><span style="color:var(--tdis);font-size:0.76rem">herda</span><span style="color:var(--tdis);font-size:0.76rem">—</span>
+            <span style="text-align:right;font:500 0.73rem var(--mono);color:var(--ttert)">188</span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span>
+          </div>
+          <div style="display:grid;grid-template-columns:24px 26px 1fr 130px 100px 90px 32px;padding:7px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.8rem var(--sans);background:rgba(42,38,32,.45)">
+            <span></span><span class="ms" style="font-size:15px;color:var(--tdis);padding-left:9px">subdirectory_arrow_right</span>
+            <span style="color:var(--tsec);padding-left:4px">Restaurante</span><span style="color:var(--tdis);font-size:0.76rem">herda</span><span style="color:var(--tdis);font-size:0.76rem">—</span>
+            <span style="text-align:right;font:500 0.73rem var(--mono);color:var(--ttert)">96</span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span>
+          </div>
+          <div style="display:grid;grid-template-columns:24px 26px 1fr 130px 100px 90px 32px;padding:7px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.8rem var(--sans);background:rgba(42,38,32,.45)">
+            <span></span><span class="ms" style="font-size:15px;color:var(--tdis);padding-left:9px">subdirectory_arrow_right</span>
+            <span style="color:var(--tsec);padding-left:4px">Delivery</span><span style="color:var(--tdis);font-size:0.76rem">herda</span><span style="color:var(--tdis);font-size:0.76rem">—</span>
+            <span style="text-align:right;font:500 0.73rem var(--mono);color:var(--ttert)">28</span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:24px 26px 1fr 130px 100px 90px 32px;padding:9px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.82rem var(--sans)">
+            <span class="ms" style="font-size:16px;color:var(--tdis)">drag_indicator</span><span class="ms" style="font-size:17px;color:var(--tsec)">chevron_right</span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:3px;background:#7E8DE5"></span><span style="font-weight:600">Moradia</span><span style="font:500 0.65rem var(--mono);color:var(--tdis)">6 sub</span></span>
+            <span style="color:var(--tsec);font-size:0.78rem">Moradia</span><span style="color:var(--tsec);font-size:0.78rem">Despesa</span>
+            <span style="text-align:right;font:500 0.75rem var(--mono);color:var(--tsec)">204</span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span>
+          </div>
+          <div style="display:grid;grid-template-columns:24px 26px 1fr 130px 100px 90px 32px;padding:9px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.82rem var(--sans)">
+            <span class="ms" style="font-size:16px;color:var(--tdis)">drag_indicator</span><span class="ms" style="font-size:17px;color:var(--tsec)">chevron_right</span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:3px;background:#D4A551"></span><span style="font-weight:600">Transporte</span><span style="font:500 0.65rem var(--mono);color:var(--tdis)">5 sub</span></span>
+            <span style="color:var(--tsec);font-size:0.78rem">Transporte</span><span style="color:var(--tsec);font-size:0.78rem">Despesa</span>
+            <span style="text-align:right;font:500 0.75rem var(--mono);color:var(--tsec)">141</span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span>
+          </div>
+          <div style="display:grid;grid-template-columns:24px 26px 1fr 130px 100px 90px 32px;padding:9px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.82rem var(--sans)">
+            <span class="ms" style="font-size:16px;color:var(--tdis)">drag_indicator</span><span></span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:3px;background:#5C574E"></span><span style="font-weight:600;color:var(--tsec)">Doações</span></span>
+            <span style="color:var(--tsec);font-size:0.78rem">Outros</span><span style="color:var(--tsec);font-size:0.78rem">Despesa</span>
+            <span style="text-align:right"><span style="font:500 0.65rem var(--mono);color:var(--warning);border:1px solid var(--warningsub);background:var(--warningsub);padding:2px 6px;border-radius:4px">sem uso</span></span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span>
+          </div>
+          <div style="display:grid;grid-template-columns:24px 26px 1fr 1fr;padding:10px 4px;align-items:center;color:var(--tdis);font:400 0.82rem var(--sans);border-bottom:1px dashed var(--bsubtle)">
+            <span></span><span class="ms" style="font-size:17px;color:var(--accent)">add</span><span style="color:var(--ttert)">Adicionar categoria…</span><span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 · TIPOS DE TABELA -->
+  <div class="lbl">3 · Tipos de tabela&nbsp;&nbsp;·&nbsp;&nbsp;<span>arquétipo C — master-detail com preview ao vivo; hospeda rowLayout/densidade da Spec 66</span></div>
+  <div class="frame" style="margin-bottom:44px">
+    <div style="display:flex;min-height:640px">
+      <div style="width:64px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--surface);display:flex;flex-direction:column;align-items:center">
+        <div style="width:100%;padding:12px 0;display:flex;justify-content:center;border-bottom:1px solid var(--bsubtle)"><span style="width:34px;height:34px;border-radius:9px;background:var(--accentsub);color:var(--accent);display:flex;align-items:center;justify-content:center;font:600 0.85rem var(--sans)">FK</span></div>
+        <div style="padding:12px 0 8px"><span style="width:38px;height:38px;border-radius:9px;background:var(--accent);color:#15121f;display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:20px">add</span></span></div>
+        <span style="width:38px;height:38px;border-radius:9px;color:var(--tsec);display:flex;align-items:center;justify-content:center;margin-top:6px"><span class="ms" style="font-size:20px">calendar_month</span></span>
+        <span style="width:38px;height:38px;border-radius:9px;color:var(--tsec);display:flex;align-items:center;justify-content:center;margin-top:4px"><span class="ms" style="font-size:20px">bar_chart</span></span>
+        <span style="width:38px;height:38px;border-radius:9px;color:var(--tsec);display:flex;align-items:center;justify-content:center;margin-top:4px"><span class="ms" style="font-size:20px">account_balance_wallet</span></span>
+        <span style="width:38px;height:38px;border-radius:9px;background:var(--subtle);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-top:16px"><span class="ms" style="font-size:20px">settings</span></span>
+      </div>
+      <div style="width:220px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--canvas)">
+        <div style="padding:13px 14px;border-bottom:1px solid var(--bsubtle);display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:17px;color:var(--tsec)">arrow_back</span><span style="font:600 0.85rem var(--sans)">Configurações</span></div>
+        <div class="grp">Estrutura</div>
+        <div class="sni"><span class="ms" style="font-size:17px">view_agenda</span>Seções<span class="ct">6</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">sell</span>Categorias<span class="ct">18</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">account_balance</span>Instituições<span class="ct">9</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">person</span>Responsáveis<span class="ct">4</span></div>
+        <div class="grp">Apresentação</div>
+        <div class="sni on"><span class="ms" style="font-size:17px">table_rows</span>Tipos de tabela<span class="ct">5</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">content_copy</span>Modelos<span class="ct">7</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">bar_chart</span>Dashboards<span class="ct">3</span></div>
+        <div class="grp">Entrada de dados</div>
+        <div class="sni"><span class="ms" style="font-size:17px">upload_file</span>Templates<span class="ct">4</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">alternate_email</span>Apelidos<span class="ct">132</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">smart_toy</span>Conectores de IA<span class="ct">1</span></div>
+        <div class="grp">Planejamento</div>
+        <div class="sni"><span class="ms" style="font-size:17px">savings</span>Projeção</div>
+        <div class="sni"><span class="ms" style="font-size:17px">checklist</span>Checklist mensal</div>
+        <div class="grp">Conta</div>
+        <div class="sni"><span class="ms" style="font-size:17px">tune</span>Geral</div>
+        <div class="sni"><span class="ms" style="font-size:17px">group</span>Membros<span class="ct">3</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">history</span>Trilha de auditoria</div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div style="padding:15px 20px 12px;border-bottom:1px solid var(--bsubtle)">
+          <div style="font:400 0.7rem var(--sans);color:var(--tdis);margin-bottom:6px">Configurações / Apresentação</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font:600 1.2rem var(--sans);letter-spacing:-0.01em">Tipos de tabela</span>
+            <span style="height:20px;padding:0 8px;border-radius:5px;background:var(--subtle);border:1px solid var(--bsubtle);font:500 0.68rem/20px var(--mono);color:var(--ttert)">5</span>
+            <span style="flex:1"></span>
+            <span class="pbtn"><span class="ms" style="font-size:16px">add</span>Novo tipo</span>
+          </div>
+          <div style="font:400 0.77rem/1.5 var(--sans);color:var(--ttert);margin-top:5px">Definem colunas visíveis, densidade e formato da linha para cada tabela do mês.</div>
+        </div>
+        <div style="flex:1;display:flex;min-height:0">
+          <div style="width:216px;flex-shrink:0;border-right:1px solid var(--bsubtle)">
+            <div style="padding:9px 12px;border-bottom:1px solid var(--bsubtle)"><span style="height:28px;display:flex;align-items:center;gap:7px;padding:0 9px;border:1px solid var(--bdefault);border-radius:7px;color:var(--tdis);font:400 0.75rem var(--sans)"><span class="ms" style="font-size:15px">search</span>Filtrar</span></div>
+            <div style="padding:8px 10px;border-bottom:1px solid var(--bsubtle);background:var(--subtle);border-left:2px solid var(--accent)"><div style="font:600 0.82rem var(--sans);color:var(--accent)">Cartão de crédito</div><div style="font:400 0.7rem var(--sans);color:var(--ttert);margin-top:2px">8 colunas · pílulas · usado em 12</div></div>
+            <div style="padding:8px 10px;border-bottom:1px solid var(--bsubtle)"><div style="font:500 0.82rem var(--sans);color:var(--tsec)">Conta corrente</div><div style="font:400 0.7rem var(--sans);color:var(--tdis);margin-top:2px">6 colunas · colunas · usado em 12</div></div>
+            <div style="padding:8px 10px;border-bottom:1px solid var(--bsubtle)"><div style="font:500 0.82rem var(--sans);color:var(--tsec)">Receitas</div><div style="font:400 0.7rem var(--sans);color:var(--tdis);margin-top:2px">5 colunas · colunas · usado em 12</div></div>
+            <div style="padding:8px 10px;border-bottom:1px solid var(--bsubtle)"><div style="font:500 0.82rem var(--sans);color:var(--tsec)">Investimentos</div><div style="font:400 0.7rem var(--sans);color:var(--tdis);margin-top:2px">7 colunas · colunas · usado em 4</div></div>
+            <div style="padding:8px 10px;border-bottom:1px solid var(--bsubtle)"><div style="font:500 0.82rem var(--sans);color:var(--tsec)">Reembolsos</div><div style="font:400 0.7rem var(--sans);color:var(--warning);margin-top:2px">6 colunas · sem uso</div></div>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+            <div style="display:flex;gap:0;padding:0 18px;border-bottom:1px solid var(--bsubtle);background:var(--surface)">
+              <span style="padding:10px 12px;font:600 0.8rem var(--sans);color:var(--tprimary);border-bottom:2px solid var(--accent)">Colunas &amp; layout</span>
+              <span style="padding:10px 12px;font:500 0.8rem var(--sans);color:var(--ttert)">Comportamento</span>
+              <span style="padding:10px 12px;font:500 0.8rem var(--sans);color:var(--ttert)">Onde é usado <span style="font:500 0.62rem var(--mono);color:var(--tdis)">12</span></span>
+            </div>
+            <div style="flex:1;padding:16px 18px;overflow:hidden">
+              <div style="font:600 0.62rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:9px">Organização da linha <span style="color:var(--accent)">· Spec 66</span></div>
+              <div style="display:flex;gap:10px;margin-bottom:18px">
+                <div style="flex:1;border:1px solid var(--bdefault);border-radius:9px;padding:11px 13px;background:var(--surface)">
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><span class="ms" style="font-size:15px;color:var(--tdis)">radio_button_unchecked</span><span style="font:600 0.8rem var(--sans);color:var(--tsec)">A · Colunas fixas</span></div>
+                  <div style="font:400 0.71rem/1.45 var(--sans);color:var(--tdis);margin-bottom:8px">Grade alinhada, boa para comparar valores.</div>
+                  <div style="display:grid;grid-template-columns:34px 1fr 46px;gap:5px"><span style="height:7px;background:var(--muted);border-radius:2px"></span><span style="height:7px;background:var(--muted);border-radius:2px"></span><span style="height:7px;background:var(--muted);border-radius:2px"></span><span style="height:7px;background:var(--bsubtle);border-radius:2px"></span><span style="height:7px;background:var(--bsubtle);border-radius:2px"></span><span style="height:7px;background:var(--bsubtle);border-radius:2px"></span></div>
+                </div>
+                <div style="flex:1;border:1px solid var(--accent);border-radius:9px;padding:11px 13px;background:var(--accentsub)">
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px"><span class="ms" style="font-size:15px;color:var(--accent)">radio_button_checked</span><span style="font:600 0.8rem var(--sans);color:var(--accent)">B · Pílulas</span></div>
+                  <div style="font:400 0.71rem/1.45 var(--sans);color:var(--tsec);margin-bottom:8px">Atributos como chips; melhor para muitos campos opcionais.</div>
+                  <div style="display:flex;gap:5px;flex-wrap:wrap"><span style="height:12px;width:52px;background:var(--muted);border-radius:6px"></span><span style="height:12px;width:38px;background:var(--muted);border-radius:6px"></span><span style="height:12px;width:44px;background:var(--muted);border-radius:6px"></span><span style="height:12px;width:30px;background:var(--muted);border-radius:6px"></span></div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:18px;margin-bottom:16px">
+                <div><div style="font:600 0.62rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:8px">Densidade</div>
+                  <div style="display:flex;border:1px solid var(--bdefault);border-radius:7px;overflow:hidden"><span style="padding:6px 13px;font:500 0.76rem var(--sans);color:var(--tsec)">Compacta</span><span style="padding:6px 13px;font:600 0.76rem var(--sans);background:var(--subtle);color:var(--accent);border-left:1px solid var(--bdefault);border-right:1px solid var(--bdefault)">Padrão</span><span style="padding:6px 13px;font:500 0.76rem var(--sans);color:var(--tsec)">Confortável</span></div></div>
+                <div><div style="font:600 0.62rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:8px">Cor de destaque</div>
+                  <div style="display:flex;gap:6px;align-items:center"><span style="width:24px;height:24px;border-radius:6px;background:#7E8DE5;border:2px solid var(--tprimary)"></span><span style="width:24px;height:24px;border-radius:6px;background:#7AAE83"></span><span style="width:24px;height:24px;border-radius:6px;background:#D4A551"></span><span style="width:24px;height:24px;border-radius:6px;background:#D47373"></span></div></div>
+              </div>
+
+              <div style="font:600 0.62rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:9px">Colunas visíveis <span style="color:var(--tsec)">· arraste para reordenar</span></div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+                <span class="pill" style="border-color:var(--accent);color:var(--accent);background:var(--accentsub)"><span class="ms" style="font-size:14px">drag_indicator</span>Data</span>
+                <span class="pill" style="border-color:var(--accent);color:var(--accent);background:var(--accentsub)"><span class="ms" style="font-size:14px">drag_indicator</span>Descrição</span>
+                <span class="pill" style="border-color:var(--accent);color:var(--accent);background:var(--accentsub)"><span class="ms" style="font-size:14px">drag_indicator</span>Categoria</span>
+                <span class="pill" style="border-color:var(--accent);color:var(--accent);background:var(--accentsub)"><span class="ms" style="font-size:14px">drag_indicator</span>Responsável</span>
+                <span class="pill" style="border-color:var(--accent);color:var(--accent);background:var(--accentsub)"><span class="ms" style="font-size:14px">drag_indicator</span>Parcela</span>
+                <span class="pill" style="border-color:var(--accent);color:var(--accent);background:var(--accentsub)"><span class="ms" style="font-size:14px">drag_indicator</span>Valor</span>
+                <span class="pill" style="color:var(--tdis)"><span class="ms" style="font-size:14px">add</span>Instituição</span>
+                <span class="pill" style="color:var(--tdis)"><span class="ms" style="font-size:14px">add</span>Método</span>
+                <span class="pill" style="color:var(--tdis)"><span class="ms" style="font-size:14px">add</span>Moeda</span>
+              </div>
+
+              <div style="font:600 0.62rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:8px">Pré-visualização ao vivo</div>
+              <div style="border:1px solid var(--bsubtle);border-radius:9px;overflow:hidden;background:var(--surface)">
+                <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bsubtle);font:400 0.79rem var(--sans)">
+                  <span style="font:500 0.72rem var(--mono);color:var(--ttert);width:44px">12 jun</span>
+                  <span style="flex:1;color:var(--tprimary)">Padaria Real</span>
+                  <span class="pill" style="padding:3px 7px;font-size:0.68rem"><span style="width:7px;height:7px;border-radius:2px;background:#7AAE83"></span>Alimentação</span>
+                  <span class="pill" style="padding:3px 7px;font-size:0.68rem">Gabriel</span>
+                  <span class="pill" style="padding:3px 7px;font-size:0.68rem">2/6</span>
+                  <span style="font:500 0.82rem var(--mono);color:var(--danger);width:88px;text-align:right">−R$ 84,90</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;font:400 0.79rem var(--sans)">
+                  <span style="font:500 0.72rem var(--mono);color:var(--ttert);width:44px">14 jun</span>
+                  <span style="flex:1;color:var(--tprimary)">Uber</span>
+                  <span class="pill" style="padding:3px 7px;font-size:0.68rem"><span style="width:7px;height:7px;border-radius:2px;background:#D4A551"></span>Transporte</span>
+                  <span class="pill" style="padding:3px 7px;font-size:0.68rem">Marina</span>
+                  <span style="font:500 0.82rem var(--mono);color:var(--danger);width:88px;text-align:right">−R$ 23,40</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 18px;border-top:1px solid var(--bsubtle);background:var(--surface)">
+              <span style="font:400 0.76rem var(--sans);color:var(--warning)">2 alterações não salvas</span>
+              <span style="flex:1"></span>
+              <span class="tbtn">Descartar</span>
+              <span class="pbtn">Salvar tipo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 · APELIDOS + ONDE É USADO -->
+  <div class="lbl">4 · Apelidos + diálogo "Onde é usado"&nbsp;&nbsp;·&nbsp;&nbsp;<span>arquétipo A — edição inline; exclusão com raio de impacto (SET-06)</span></div>
+  <div class="frame" style="margin-bottom:44px">
+    <div style="display:flex;min-height:560px">
+      <div style="width:220px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--canvas)">
+        <div style="padding:13px 14px;border-bottom:1px solid var(--bsubtle);display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:17px;color:var(--tsec)">arrow_back</span><span style="font:600 0.85rem var(--sans)">Configurações</span></div>
+        <div class="grp">Estrutura</div>
+        <div class="sni"><span class="ms" style="font-size:17px">view_agenda</span>Seções<span class="ct">6</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">sell</span>Categorias<span class="ct">18</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">account_balance</span>Instituições<span class="ct">9</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">person</span>Responsáveis<span class="ct">4</span></div>
+        <div class="grp">Apresentação</div>
+        <div class="sni"><span class="ms" style="font-size:17px">table_rows</span>Tipos de tabela<span class="ct">5</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">content_copy</span>Modelos<span class="ct">7</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">bar_chart</span>Dashboards<span class="ct">3</span></div>
+        <div class="grp">Entrada de dados</div>
+        <div class="sni"><span class="ms" style="font-size:17px">upload_file</span>Templates<span class="ct">4</span></div>
+        <div class="sni on"><span class="ms" style="font-size:17px">alternate_email</span>Apelidos<span class="ct">132</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">smart_toy</span>Conectores de IA<span class="ct">1</span></div>
+        <div class="grp">Planejamento</div>
+        <div class="sni"><span class="ms" style="font-size:17px">savings</span>Projeção</div>
+        <div class="sni"><span class="ms" style="font-size:17px">checklist</span>Checklist mensal</div>
+      </div>
+      <div style="flex:1;min-width:0;position:relative">
+        <div style="padding:15px 20px 12px;border-bottom:1px solid var(--bsubtle)">
+          <div style="font:400 0.7rem var(--sans);color:var(--tdis);margin-bottom:6px">Configurações / Entrada de dados</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font:600 1.2rem var(--sans);letter-spacing:-0.01em">Apelidos</span>
+            <span style="height:20px;padding:0 8px;border-radius:5px;background:var(--subtle);border:1px solid var(--bsubtle);font:500 0.68rem/20px var(--mono);color:var(--ttert)">132</span>
+            <span style="flex:1"></span>
+            <span class="tbtn"><span class="ms" style="font-size:15px">auto_fix_high</span>Sugerir com IA</span>
+            <span class="pbtn"><span class="ms" style="font-size:16px">add</span>Novo apelido</span>
+          </div>
+          <div style="font:400 0.77rem/1.5 var(--sans);color:var(--ttert);margin-top:5px">Reescrevem a descrição bruta do extrato e podem pré-atribuir categoria e responsável na importação.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:9px 20px;border-bottom:1px solid var(--bsubtle);background:var(--surface)">
+          <span style="height:29px;flex:1;max-width:250px;border:1px solid var(--bdefault);border-radius:7px;display:flex;align-items:center;gap:7px;padding:0 10px;color:var(--tdis);font:400 0.77rem var(--sans)"><span class="ms" style="font-size:16px">search</span>Buscar padrão ou apelido…</span>
+          <span class="tbtn" style="border-color:var(--warning);color:var(--warning)"><span class="ms" style="font-size:15px">error</span>Sem categoria (2)</span>
+          <span style="flex:1"></span>
+          <span style="font:400 0.72rem var(--sans);color:var(--tdis)">Ordenar por uso</span>
+        </div>
+        <div style="padding:0 20px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 150px 110px 70px 32px;padding:9px 4px;font:500 0.62rem var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--tdis);border-bottom:1px solid var(--bsubtle)"><span>Padrão no extrato</span><span>Vira</span><span>Categoria</span><span>Responsável</span><span style="text-align:right">Uso</span><span></span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 150px 110px 70px 32px;padding:9px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.81rem var(--sans)"><span style="font:500 0.76rem var(--mono);color:var(--tsec)">PADARIA REAL LTD*</span><span>Padaria Real</span><span class="pill" style="padding:3px 7px;font-size:0.68rem;width:fit-content"><span style="width:7px;height:7px;border-radius:2px;background:#7AAE83"></span>Alimentação</span><span style="color:var(--tsec);font-size:0.78rem">Gabriel</span><span style="text-align:right;font:500 0.75rem var(--mono);color:var(--tsec)">41</span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 150px 110px 70px 32px;padding:9px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.81rem var(--sans);background:var(--subtle);border-left:2px solid var(--accent)"><span style="font:500 0.76rem var(--mono);color:var(--tprimary)">UBER *TRIP</span><span style="border:1px solid var(--accent);border-radius:6px;padding:4px 8px;background:var(--canvas)">Uber<span style="color:var(--accent)">|</span></span><span class="pill" style="padding:3px 7px;font-size:0.68rem;width:fit-content"><span style="width:7px;height:7px;border-radius:2px;background:#D4A551"></span>Transporte</span><span style="color:var(--tsec);font-size:0.78rem">—</span><span style="text-align:right;font:500 0.75rem var(--mono);color:var(--tsec)">88</span><span class="ms" style="font-size:17px;color:var(--accent);text-align:right">check</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 150px 110px 70px 32px;padding:9px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.81rem var(--sans)"><span style="font:500 0.76rem var(--mono);color:var(--tsec)">IFD*IFOOD</span><span>iFood</span><span class="pill" style="padding:3px 7px;font-size:0.68rem;width:fit-content"><span style="width:7px;height:7px;border-radius:2px;background:#7AAE83"></span>Delivery</span><span style="color:var(--tsec);font-size:0.78rem">Marina</span><span style="text-align:right;font:500 0.75rem var(--mono);color:var(--tsec)">37</span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 150px 110px 70px 32px;padding:9px 4px;align-items:center;border-bottom:1px solid var(--bsubtle);font:400 0.81rem var(--sans)"><span style="font:500 0.76rem var(--mono);color:var(--tsec)">POSTO SHELL 22</span><span>Posto Shell</span><span style="font:500 0.68rem var(--mono);color:var(--warning);border:1px solid var(--warningsub);background:var(--warningsub);padding:3px 7px;border-radius:4px;width:fit-content">definir</span><span style="color:var(--tdis);font-size:0.78rem">—</span><span style="text-align:right;font:500 0.75rem var(--mono);color:var(--tsec)">19</span><span class="ms" style="font-size:17px;color:var(--tdis);text-align:right">more_horiz</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 150px 110px 70px 32px;padding:9px 4px;align-items:center;border-bottom:1px dashed var(--bsubtle);font:400 0.81rem var(--sans);color:var(--ttert)"><span style="display:flex;align-items:center;gap:7px"><span class="ms" style="font-size:16px;color:var(--accent)">add</span>Novo padrão…</span><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+
+        <div style="position:absolute;inset:0;background:rgba(15,13,11,.66);display:flex;align-items:center;justify-content:center">
+          <div style="width:470px;background:var(--surface);border:1px solid var(--bdefault);border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.5);overflow:hidden">
+            <div style="padding:16px 20px 12px;border-bottom:1px solid var(--bsubtle)">
+              <div style="display:flex;align-items:center;gap:9px"><span class="ms" style="font-size:19px;color:var(--warning)">warning</span><span style="font:600 1rem var(--sans)">Excluir "Alimentação"?</span></div>
+              <div style="font:400 0.79rem/1.5 var(--sans);color:var(--ttert);margin-top:6px">Este objeto é referenciado em 5 lugares. Escolha o destino antes de continuar.</div>
+            </div>
+            <div style="padding:14px 20px">
+              <div style="font:600 0.6rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:9px">Onde é usado</div>
+              <div style="display:flex;flex-direction:column;gap:1px;border:1px solid var(--bsubtle);border-radius:8px;overflow:hidden;margin-bottom:16px">
+                <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--canvas)"><span class="ms" style="font-size:16px;color:var(--ttert)">receipt_long</span><span style="font:400 0.8rem var(--sans);flex:1">Transações</span><span style="font:500 0.75rem var(--mono);color:var(--tsec)">312</span></div>
+                <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--canvas)"><span class="ms" style="font-size:16px;color:var(--ttert)">alternate_email</span><span style="font:400 0.8rem var(--sans);flex:1">Apelidos</span><span style="font:500 0.75rem var(--mono);color:var(--tsec)">8</span></div>
+                <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--canvas)"><span class="ms" style="font-size:16px;color:var(--ttert)">savings</span><span style="font:400 0.8rem var(--sans);flex:1">Metas de projeção</span><span style="font:500 0.75rem var(--mono);color:var(--tsec)">12</span></div>
+                <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--canvas)"><span class="ms" style="font-size:16px;color:var(--ttert)">bar_chart</span><span style="font:400 0.8rem var(--sans);flex:1">Widgets de dashboard</span><span style="font:500 0.75rem var(--mono);color:var(--tsec)">3</span></div>
+              </div>
+              <div style="font:600 0.6rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:8px">Realocar para</div>
+              <div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;padding:0 11px;gap:8px;font:400 0.82rem var(--sans);color:var(--tdis)">Escolher categoria de destino<span style="flex:1"></span><span class="ms" style="font-size:18px">expand_more</span></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;padding:13px 20px;border-top:1px solid var(--bsubtle)">
+              <span class="tbtn" style="border:none">Cancelar</span>
+              <span style="height:30px;border-radius:7px;background:var(--danger);color:#1a1010;display:inline-flex;align-items:center;padding:0 13px;font:600 0.78rem var(--sans)">Realocar e excluir</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 · GERAL -->
+  <div class="lbl">5 · Geral&nbsp;&nbsp;·&nbsp;&nbsp;<span>arquétipo D — blocos rotulados, salvar fixo, zona de perigo isolada</span></div>
+  <div class="frame" style="margin-bottom:44px">
+    <div style="display:flex;min-height:560px">
+      <div style="width:220px;flex-shrink:0;border-right:1px solid var(--bsubtle);background:var(--canvas)">
+        <div style="padding:13px 14px;border-bottom:1px solid var(--bsubtle);display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:17px;color:var(--tsec)">arrow_back</span><span style="font:600 0.85rem var(--sans)">Configurações</span></div>
+        <div class="grp">Estrutura</div>
+        <div class="sni"><span class="ms" style="font-size:17px">view_agenda</span>Seções<span class="ct">6</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">sell</span>Categorias<span class="ct">18</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">account_balance</span>Instituições<span class="ct">9</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">person</span>Responsáveis<span class="ct">4</span></div>
+        <div class="grp">Apresentação</div>
+        <div class="sni"><span class="ms" style="font-size:17px">table_rows</span>Tipos de tabela<span class="ct">5</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">content_copy</span>Modelos<span class="ct">7</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">bar_chart</span>Dashboards<span class="ct">3</span></div>
+        <div class="grp">Entrada de dados</div>
+        <div class="sni"><span class="ms" style="font-size:17px">upload_file</span>Templates<span class="ct">4</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">alternate_email</span>Apelidos<span class="ct">132</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">smart_toy</span>Conectores de IA<span class="ct">1</span></div>
+        <div class="grp">Planejamento</div>
+        <div class="sni"><span class="ms" style="font-size:17px">savings</span>Projeção</div>
+        <div class="sni"><span class="ms" style="font-size:17px">checklist</span>Checklist mensal</div>
+        <div class="grp">Conta</div>
+        <div class="sni on"><span class="ms" style="font-size:17px">tune</span>Geral</div>
+        <div class="sni"><span class="ms" style="font-size:17px">group</span>Membros<span class="ct">3</span></div>
+        <div class="sni"><span class="ms" style="font-size:17px">history</span>Trilha de auditoria</div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div style="padding:15px 20px 12px;border-bottom:1px solid var(--bsubtle)">
+          <div style="font:400 0.7rem var(--sans);color:var(--tdis);margin-bottom:6px">Configurações / Conta</div>
+          <div style="display:flex;align-items:center;gap:10px"><span style="font:600 1.2rem var(--sans);letter-spacing:-0.01em">Geral</span><span style="height:20px;padding:0 8px;border-radius:5px;background:var(--warningsub);border:1px solid var(--warningsub);font:500 0.66rem/20px var(--mono);color:var(--warning)">owner</span></div>
+          <div style="font:400 0.77rem/1.5 var(--sans);color:var(--ttert);margin-top:5px">Identidade e padrões desta conta. Afetam todos os membros.</div>
+        </div>
+        <div style="flex:1;padding:18px 20px;max-width:720px">
+          <div style="font:600 0.62rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:10px">Identidade</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px">
+            <div><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Nome da conta</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;padding:0 11px;font:400 0.84rem var(--sans)">Família Koppe</div></div>
+            <div><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Início do ano fiscal</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;padding:0 11px;font:400 0.84rem var(--sans);color:var(--tsec)">Janeiro<span style="flex:1"></span><span class="ms" style="font-size:18px;color:var(--tdis)">expand_more</span></div></div>
+          </div>
+          <div style="font:600 0.62rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:10px">Padrões financeiros</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:22px">
+            <div><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Moeda</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;padding:0 11px;font:400 0.84rem var(--sans);color:var(--tsec)">BRL — Real<span style="flex:1"></span><span class="ms" style="font-size:18px;color:var(--tdis)">expand_more</span></div></div>
+            <div><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Fuso horário</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;padding:0 11px;font:400 0.84rem var(--sans);color:var(--tsec)">America/Sao_Paulo<span style="flex:1"></span><span class="ms" style="font-size:18px;color:var(--tdis)">expand_more</span></div></div>
+            <div><label style="display:block;font:500 0.75rem var(--sans);color:var(--tsec);margin-bottom:5px">Fechamento do mês</label><div style="height:36px;border:1px solid var(--bdefault);border-radius:8px;display:flex;align-items:center;padding:0 11px;font:400 0.84rem var(--sans);color:var(--tsec)">Dia 1<span style="flex:1"></span><span class="ms" style="font-size:18px;color:var(--tdis)">expand_more</span></div></div>
+          </div>
+          <div style="font:600 0.62rem var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--tdis);margin-bottom:10px">Zona de perigo</div>
+          <div style="border:1px solid var(--dangersub);background:var(--dangersub);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px">
+            <div style="flex:1"><div style="font:600 0.84rem var(--sans);margin-bottom:3px">Excluir esta conta</div><div style="font:400 0.75rem/1.5 var(--sans);color:var(--tsec)">Remove 12 meses, 1.482 transações e todas as configurações. Irreversível.</div></div>
+            <span style="height:32px;border-radius:7px;border:1px solid var(--danger);color:var(--danger);display:inline-flex;align-items:center;padding:0 13px;font:600 0.78rem var(--sans)">Excluir conta</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 20px;border-top:1px solid var(--bsubtle);background:var(--surface)">
+          <span style="font:400 0.76rem var(--sans);color:var(--tdis)">Nenhuma alteração</span>
+          <span style="flex:1"></span>
+          <span class="tbtn" style="opacity:.5">Descartar</span>
+          <span class="pbtn" style="opacity:.45">Salvar</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MIGRAÇÃO ═══ -->
+  <div class="sec"><b>ORDEM DE IMPLEMENTAÇÃO SUGERIDA</b><i></i></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:stretch">
+    <div class="hcard" style="flex:1;min-width:200px"><div class="hh">Passo 1 · baixo risco</div><div style="padding:13px 14px;font:400 0.78rem/1.55 var(--sans);color:var(--ttert)">Reagrupar o <code style="font:500 0.72rem var(--mono);color:var(--tsec)">SettingsNav</code> nas 5 famílias e adicionar as contagens. Nenhuma página muda.</div></div>
+    <div class="hcard" style="flex:1;min-width:200px"><div class="hh">Passo 2 · shell</div><div style="padding:13px 14px;font:400 0.78rem/1.55 var(--sans);color:var(--ttert)">Criar <code style="font:500 0.72rem var(--mono);color:var(--tsec)">SettingsPageShell</code> e migrar as 15 páginas uma a uma — só o cabeçalho, sem tocar no conteúdo.</div></div>
+    <div class="hcard" style="flex:1;min-width:200px"><div class="hh">Passo 3 · hub</div><div style="padding:13px 14px;font:400 0.78rem/1.55 var(--sans);color:var(--ttert)">Nova rota <code style="font:500 0.72rem var(--mono);color:var(--tsec)">/settings</code> com os cards e o bloco "pedem atenção". Redirecionar o link da sidebar para cá.</div></div>
+    <div class="hcard" style="flex:1;min-width:200px"><div class="hh">Passo 4 · master-detail</div><div style="padding:13px 14px;font:400 0.78rem/1.55 var(--sans);color:var(--ttert)">Converter Tipos de tabela primeiro (é o que a Spec 66 precisa), depois Templates, Modelos, Dashboards e Conectores.</div></div>
+    <div class="hcard" style="flex:1;min-width:200px"><div class="hh">Passo 5 · dependências</div><div style="padding:13px 14px;font:400 0.78rem/1.55 var(--sans);color:var(--ttert)">Query de contagem de uso por objeto → coluna "Uso", aba "Onde é usado" e o diálogo de exclusão com realocação.</div></div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>

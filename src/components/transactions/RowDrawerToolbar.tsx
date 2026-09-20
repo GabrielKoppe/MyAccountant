@@ -9,6 +9,7 @@ import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 
 import { m } from "@/lib/messages";
+import { DENSITY_VAR } from "@/lib/table-density";
 
 import { drawerSectionMeta } from "./drawerSections";
 
@@ -36,11 +37,21 @@ type Props = {
   bgcolor?: string;
 };
 
-// Ícones-gaveta (nota/câmbio/vínculos/tags): 32x32, ícone 17px, ativo em
-// accent.primary — spec 66 §5 item 4. `padding:0` porque o tamanho final é
-// travado por width/height, não pelo padding interno default do IconButton.
-const DRAWER_BTN_SX = { width: 32, height: 32, padding: 0, borderRadius: "8px" } as const;
+// Ícones-gaveta (nota/câmbio/vínculos/tags): quadrados em `--ctrl-h` (Spec 69
+// §7.2 — a barra de gavetas segue a MESMA densidade da linha), ícone 17px,
+// ativo em accent.primary — spec 66 §5 item 4. `padding:0` porque o tamanho
+// final é travado por width/height, não pelo padding interno do IconButton.
+const DRAWER_BTN_SX = {
+  width: DENSITY_VAR.controlHeight,
+  height: DENSITY_VAR.controlHeight,
+  padding: 0,
+  borderRadius: "8px",
+} as const;
 const DRAWER_ICON_SX = { fontSize: 17 } as const;
+
+/** Botões de texto da barra (criar apelido / cancelar / salvar) — mesma altura
+ *  de controle dos ícones, para a barra inteira respirar na mesma densidade. */
+const DRAWER_TEXT_BTN_SX = { height: DENSITY_VAR.controlHeight, borderRadius: "8px" } as const;
 
 function drawerIconColor(active: boolean) {
   return active ? "accent.primary" : "text.secondary";
@@ -151,8 +162,7 @@ export function RowDrawerToolbar({
               onClick={onCreateAlias}
               startIcon={<BookmarkAddOutlinedIcon sx={{ fontSize: 15 }} />}
               sx={{
-                height: 30,
-                borderRadius: "8px",
+                ...DRAWER_TEXT_BTN_SX,
                 px: "8px",
                 fontWeight: 400,
                 fontSize: "0.76rem",
@@ -171,8 +181,7 @@ export function RowDrawerToolbar({
                 color="inherit"
                 onClick={actions.onCancel}
                 sx={{
-                  height: 30,
-                  borderRadius: "8px",
+                  ...DRAWER_TEXT_BTN_SX,
                   px: "12px",
                   fontWeight: 500,
                   fontSize: "0.78rem",
@@ -185,8 +194,7 @@ export function RowDrawerToolbar({
                 variant="text"
                 onClick={actions.onSave}
                 sx={{
-                  height: 30,
-                  borderRadius: "8px",
+                  ...DRAWER_TEXT_BTN_SX,
                   px: "14px",
                   fontWeight: 600,
                   fontSize: "0.78rem",

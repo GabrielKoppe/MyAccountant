@@ -145,7 +145,11 @@ describe("createMonth", () => {
         items: [],
       },
     ] as any);
-    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1", accountId: "acc-test-1" } as any);
+    prismaMock.section.findFirst.mockResolvedValue({
+      id: "sec-1",
+      accountId: "acc-test-1",
+      isActive: true,
+    } as any);
     prismaMock.tableType.findFirst.mockResolvedValue({
       id: "tt-1",
       accountId: "acc-test-1",
@@ -193,7 +197,11 @@ describe("createMonth", () => {
         items: [],
       },
     ] as any);
-    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1", accountId: "acc-test-1" } as any);
+    prismaMock.section.findFirst.mockResolvedValue({
+      id: "sec-1",
+      accountId: "acc-test-1",
+      isActive: true,
+    } as any);
     prismaMock.tableType.findFirst.mockResolvedValue({
       id: "tt-1",
       accountId: "acc-test-1",
@@ -548,7 +556,11 @@ describe("createMonth — lastUsedAt dos objetos consumidos (spec 67 §7.4)", ()
         items,
       },
     ] as any);
-    prismaMock.section.findFirst.mockResolvedValue({ id: "sec-1", accountId: "acc-test-1" } as any);
+    prismaMock.section.findFirst.mockResolvedValue({
+      id: "sec-1",
+      accountId: "acc-test-1",
+      isActive: true,
+    } as any);
     prismaMock.tableType.findFirst.mockResolvedValue({
       id: "tt-1",
       accountId: "acc-test-1",
@@ -648,5 +660,350 @@ describe("createMonth — lastUsedAt dos objetos consumidos (spec 67 §7.4)", ()
     expect(result.autoApplied[0]).toMatchObject({ templateName: "Gastos Fixos", success: true });
     // deixa o fire-and-forget assentar para o catch interno do helper rodar
     await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+});
+
+// ─── Spec 69 §4 (pacote P8) — dia relativo, valor em branco, ordem e seção inativa ──
+
+describe("createMonth — modelos da Spec 69 (P8)", () => {
+  /** Item de modelo mínimo; cada teste sobrescreve só o que está exercitando. */
+  function templateItem(over: Record<string, unknown> = {}) {
+    return {
+      id: "item-1",
+      day: 5,
+      dayRule: "5",
+      amountCents: 10000n,
+      description: "Aluguel",
+      notes: null,
+      isPending: false,
+      displayOrder: 0,
+      categoryId: null,
+      subcategoryId: null,
+      institutionId: null,
+      responsiblePartyId: null,
+      cardInstallment: null,
+      investmentType: null,
+      expenseType: null,
+      ...over,
+    };
+  }
+
+  /** Modelo com automação ligada e bem configurado; `over` ajusta o cenário. */
+  function template(over: Record<string, unknown> = {}) {
+    return {
+      id: "tpl-1",
+      name: "Contas fixas",
+      autoApply: true,
+      autoSectionId: "sec-1",
+      tableTypeId: "tt-1",
+      autoTableTypeId: null,
+      orderInSection: null,
+      countInMonth: true,
+      items: [],
+      ...over,
+    };
+  }
+
+  /**
+   * Registra o que foi criado em vez de só contar chamadas: as asserções deste
+   * pacote são sobre o CONTEÚDO (data resolvida, ordem, proveniência).
+   * `sections` mapeia id → `isActive`; id ausente = seção que não existe.
+   */
+  function setup(templates: unknown[], sections: Record<string, boolean> = { "sec-1": true }) {
+    const tables: Array<Record<string, any>> = [];
+    const rows: Array<Record<string, any>> = [];
+
+    const txMock = {
+      financeTable: {
+        // Conta por seção, como o Prisma faria — é ela que vira `displayOrder`.
+        count: vi.fn(
+          async ({ where }: any) => tables.filter((t) => t.sectionId === where.sectionId).length,
+        ),
+        create: vi.fn(async ({ data }: any) => {
+          tables.push(data);
+          return { id: `table-${tables.length}` };
+        }),
+      },
+      transaction: {
+        createMany: vi.fn(async ({ data }: any) => {
+          rows.push(...data);
+          return { count: data.length };
+        }),
+      },
+    };
+
+    prismaMock.pendingInstallment.findMany.mockResolvedValue([]);
+    prismaMock.month.findUnique.mockResolvedValue(null);
+    prismaMock.month.create.mockResolvedValue({ id: "month-novo-1" } as any);
+    prismaMock.tableTemplate.findMany.mockResolvedValue(templates as any);
+    prismaMock.section.findFirst.mockImplementation((async ({ where }: any) =>
+      where.id in sections ? { id: where.id, isActive: sections[where.id] } : null) as never);
+    prismaMock.tableType.findFirst.mockResolvedValue({
+      id: "tt-1",
+      accountId: "acc-test-1",
+    } as any);
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(txMock));
+
+    return { tables, rows, txMock };
+  }
+
+  /** `occurredOn` é construído em horário local (`@db.Date`), como `applyDayToMonth`. */
+  function localDate(date: Date) {
+    return [date.getFullYear(), date.getMonth() + 1, date.getDate()];
+  }
+
+  describe("dia relativo (dayRule) resolvido para a data real do mês", () => {
+    it('"último dia" cai em 28 num fevereiro não bissexto', async () => {
+      const { rows } = setup([template({ items: [templateItem({ dayRule: "last", day: 31 })] })]);
+
+      await createMonth({ year: 2027, month: 2 }, TEST_CTX);
+
+      expect(localDate(rows[0].occurredOn)).toEqual([2027, 2, 28]);
+    });
+
+    it("dia fixo maior que o mês cai no último dia (dia 30 em fevereiro)", async () => {
+      const { rows } = setup([template({ items: [templateItem({ dayRule: "30", day: 30 })] })]);
+
+      await createMonth({ year: 2027, month: 2 }, TEST_CTX);
+
+      expect(localDate(rows[0].occurredOn)).toEqual([2027, 2, 28]);
+    });
+
+    it("dia 31 num mês de 31 dias é respeitado como está", async () => {
+      const { rows } = setup([template({ items: [templateItem({ dayRule: "31", day: 31 })] })]);
+
+      await createMonth({ year: 2026, month: 7 }, TEST_CTX);
+
+      expect(localDate(rows[0].occurredOn)).toEqual([2026, 7, 31]);
+    });
+
+    it('"primeiro dia útil" pula o fim de semana quando o dia 1 é sábado', async () => {
+      // 01/08/2026 é sábado → primeiro dia útil é segunda, 03/08.
+      const { rows } = setup([
+        template({ items: [templateItem({ dayRule: "firstBusiness", day: 1 })] }),
+      ]);
+
+      await createMonth({ year: 2026, month: 8 }, TEST_CTX);
+
+      expect(localDate(rows[0].occurredOn)).toEqual([2026, 8, 3]);
+    });
+
+    it("item legado sem dayRule cai no `day` (fallback), sem quebrar", async () => {
+      const { rows } = setup([template({ items: [templateItem({ dayRule: null, day: 12 })] })]);
+
+      await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(localDate(rows[0].occurredOn)).toEqual([2026, 6, 12]);
+    });
+  });
+
+  describe("valor 0,00 = transação em branco", () => {
+    it("nasce com 0 e PENDENTE, mantendo o que identifica a linha", async () => {
+      const { rows } = setup([
+        template({
+          items: [
+            templateItem({
+              amountCents: 0n,
+              isPending: false,
+              description: "Conta de luz",
+              categoryId: "cat-1",
+            }),
+          ],
+        }),
+      ]);
+
+      await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(rows[0]).toMatchObject({
+        amountCents: 0n,
+        isPending: true,
+        description: "Conta de luz",
+        categoryId: "cat-1",
+      });
+    });
+
+    it("item com valor não-zero preserva o isPending configurado no modelo", async () => {
+      const { rows } = setup([
+        template({
+          items: [
+            templateItem({ id: "a", amountCents: 5000n, isPending: false }),
+            templateItem({ id: "b", amountCents: -5000n, isPending: true }),
+          ],
+        }),
+      ]);
+
+      await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(rows.map((r) => [r.amountCents, r.isPending])).toEqual([
+        [5000n, false],
+        [-5000n, true],
+      ]);
+    });
+  });
+
+  describe("orderInSection", () => {
+    it("aplica na ordem configurada, e o modelo sem ordem vai para o fim", async () => {
+      const { tables } = setup([
+        // Ordem do banco (createdAt asc) propositalmente embaralhada.
+        template({ id: "t-sem-ordem", name: "Sem ordem", orderInSection: null }),
+        template({ id: "t-segundo", name: "Segundo", orderInSection: 1 }),
+        template({ id: "t-primeiro", name: "Primeiro", orderInSection: 0 }),
+      ]);
+
+      const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(tables.map((t) => [t.name, t.displayOrder])).toEqual([
+        ["Primeiro", 0],
+        ["Segundo", 1],
+        ["Sem ordem", 2],
+      ]);
+      expect(result.autoApplied.map((r) => r.templateName)).toEqual([
+        "Primeiro",
+        "Segundo",
+        "Sem ordem",
+      ]);
+    });
+
+    it("sem nenhuma ordem definida, mantém o critério de hoje (createdAt asc do banco)", async () => {
+      const { tables } = setup([
+        template({ id: "t-a", name: "A" }),
+        template({ id: "t-b", name: "B" }),
+      ]);
+
+      await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(tables.map((t) => [t.name, t.displayOrder])).toEqual([
+        ["A", 0],
+        ["B", 1],
+      ]);
+    });
+
+    it("displayOrder é contado por seção — seções diferentes não se somam", async () => {
+      const { tables } = setup(
+        [
+          template({ id: "t-a", name: "A", autoSectionId: "sec-1", orderInSection: 0 }),
+          template({ id: "t-b", name: "B", autoSectionId: "sec-2", orderInSection: 0 }),
+        ],
+        { "sec-1": true, "sec-2": true },
+      );
+
+      await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(tables.map((t) => [t.sectionId, t.displayOrder])).toEqual([
+        ["sec-1", 0],
+        ["sec-2", 0],
+      ]);
+    });
+  });
+
+  describe("seção de destino inativa (Spec 68)", () => {
+    it("não cria tabela, e os outros modelos seguem sendo aplicados", async () => {
+      const { tables } = setup(
+        [
+          template({ id: "t-off", name: "Modelo travado", autoSectionId: "sec-off" }),
+          template({ id: "t-ok", name: "Modelo bom", autoSectionId: "sec-1" }),
+        ],
+        { "sec-1": true, "sec-off": false },
+      );
+
+      const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(tables.map((t) => t.name)).toEqual(["Modelo bom"]);
+      expect(result.autoApplied).toEqual([
+        {
+          templateName: "Modelo travado",
+          success: false,
+          error: expect.stringMatching(/inativa/i),
+        },
+        { templateName: "Modelo bom", success: true },
+      ]);
+    });
+
+    it("o mês é criado mesmo que TODOS os modelos estejam travados", async () => {
+      setup([template({ autoSectionId: "sec-off" })], { "sec-off": false });
+
+      const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(result.monthId).toBe("month-novo-1");
+      expect(result.autoApplied[0]).toMatchObject({ success: false });
+    });
+
+    it("preview marca o modelo como bloqueado em vez de deixar falhar depois", async () => {
+      prismaMock.tableTemplate.findMany.mockResolvedValue([
+        { id: "tpl-1", name: "Travado", autoSectionId: "sec-off", tableTypeId: "tt-1", items: [] },
+      ] as any);
+      prismaMock.section.findMany.mockResolvedValue([
+        { id: "sec-off", name: "Arquivada", isActive: false },
+      ] as any);
+      prismaMock.tableType.findMany.mockResolvedValue([{ id: "tt-1", name: "Manual" }] as any);
+      prismaMock.pendingInstallment.findMany.mockResolvedValue([]);
+
+      const groups = await previewMonthAutomations({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(groups[0].items[0]).toMatchObject({
+        blockedReason: "section_not_found",
+        defaultSelected: false,
+      });
+    });
+  });
+
+  describe("proveniência e consolidação do tipo de tabela (D6, D7)", () => {
+    it("grava createdFromTemplateId na tabela criada", async () => {
+      const { tables } = setup([template({ id: "tpl-provenance" })]);
+
+      await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(tables[0]).toMatchObject({
+        createdFromTemplateId: "tpl-provenance",
+        sourceMethod: "template",
+      });
+    });
+
+    it("usa tableTypeId (campo consolidado) na tabela criada", async () => {
+      const { tables } = setup([template({ tableTypeId: "tt-1", autoTableTypeId: null })]);
+
+      await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(tables[0].tableTypeId).toBe("tt-1");
+      expect(prismaMock.tableType.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: "tt-1" }) }),
+      );
+    });
+
+    it("modelo legado que só tem autoTableTypeId continua criando (fallback de leitura)", async () => {
+      const { tables } = setup([template({ tableTypeId: null, autoTableTypeId: "tt-1" })]);
+
+      const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(result.autoApplied[0]).toMatchObject({ success: true });
+      expect(tables[0].tableTypeId).toBe("tt-1");
+    });
+
+    it("modelo sem NENHUM dos dois campos falha com motivo, sem derrubar o mês", async () => {
+      setup([template({ tableTypeId: null, autoTableTypeId: null })]);
+
+      const result = await createMonth({ year: 2026, month: 6 }, TEST_CTX);
+
+      expect(result.monthId).toBe("month-novo-1");
+      expect(result.autoApplied[0]).toMatchObject({ success: false });
+    });
+  });
+
+  it("multi-tenancy: toda leitura e toda escrita usam o accountId do contexto", async () => {
+    const { tables, rows } = setup([template({ items: [templateItem()] })]);
+
+    await createMonth({ year: 2026, month: 6 }, { ...TEST_CTX, accountId: "acc-OUTRA" });
+
+    expect(prismaMock.tableTemplate.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ accountId: "acc-OUTRA" }) }),
+    );
+    expect(prismaMock.section.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ accountId: "acc-OUTRA" }) }),
+    );
+    expect(prismaMock.tableType.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ accountId: "acc-OUTRA" }) }),
+    );
+    expect(tables[0].accountId).toBe("acc-OUTRA");
+    expect(rows[0].accountId).toBe("acc-OUTRA");
   });
 });

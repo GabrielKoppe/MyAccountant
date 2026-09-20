@@ -33,7 +33,7 @@ export function StepDone({ accountId, sections, lastMonth }: Props) {
           width: 72,
           height: 72,
           borderRadius: "50%",
-          bgcolor: "success.subtle",
+          bgcolor: "success.light",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

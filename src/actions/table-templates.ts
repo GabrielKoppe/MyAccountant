@@ -2,9 +2,6 @@
 
 import { z } from "zod";
 
-import { defineAction } from "@/server/api/define-action";
-import { revalidateMonth, revalidateTableTemplates } from "@/server/api/revalidate";
-import * as svc from "@/server/services/table-template-service";
 import {
   addTemplateItemSchema,
   applyTemplateSchema,
@@ -12,9 +9,13 @@ import {
   createTemplateManualSchema,
   deleteTemplateItemSchema,
   deleteTemplateSchema,
+  importTemplateItemsFromTableSchema,
   updateTemplateItemSchema,
   updateTemplateSchema,
 } from "@/lib/schemas/table-template";
+import { defineAction } from "@/server/api/define-action";
+import { revalidateMonth, revalidateTableTemplates } from "@/server/api/revalidate";
+import * as svc from "@/server/services/table-template-service";
 
 const EDITOR_ROLES = ["owner", "editor"] as const;
 
@@ -78,6 +79,18 @@ export const deleteTemplateItemAction = defineAction({
   schema: deleteTemplateItemSchema,
   requireRoles: [...EDITOR_ROLES],
   handler: async (input, ctx) => svc.deleteItem(input, ctx),
+});
+
+// Spec 69 §2.2 / P7 — "Importar de um mês". `revalidateTableTemplates` porque a
+// contagem de itens do modelo aparece na lista mestre e no rótulo da aba.
+export const importTemplateItemsFromTableAction = defineAction({
+  schema: importTemplateItemsFromTableSchema,
+  requireRoles: [...EDITOR_ROLES],
+  handler: async (input, ctx) => {
+    const result = await svc.importItemsFromTable(input, ctx);
+    revalidateTableTemplates(ctx.accountId);
+    return result;
+  },
 });
 
 export const applyTemplateAction = defineAction({

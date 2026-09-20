@@ -20,6 +20,7 @@ import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import type { Theme } from "@mui/material/styles";
 import type { SectionCountType } from "@prisma/client";
 import { useSnackbar } from "notistack";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -33,18 +34,41 @@ import { bulkUpdateAction, updateTransactionAction } from "@/actions/transaction
 import { applyGlobalFilters, useMonthFilters } from "@/components/months/MonthFilterContext";
 import { useDeleteUndo } from "@/components/providers/DeleteUndoProvider";
 import { TagUpdateContext } from "@/components/tags/TagUpdateContext";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { MoneyValue } from "@/components/ui/MoneyValue";
 import type { ActionResult } from "@/lib/action-result";
-import { formatDateLong } from "@/lib/dates";
 import { m } from "@/lib/messages";
+import { displaySignInverts } from "@/lib/money";
+import {
+  DEFAULT_INHERIT_ON_NEW_ROW,
+  type DefaultSort,
+  type GroupBy,
+  type InheritOnNewRowField,
+} from "@/lib/schemas/settings";
 import type { BulkUpdateInput, UpdateTransactionInput } from "@/lib/schemas/transaction";
 import type { SerializedTransactionAlias } from "@/lib/serializers/transaction-alias";
+import type { TableColumnKey } from "@/lib/table-columns";
+import { DEFAULT_DENSITY, type Density } from "@/lib/table-density";
 
 import { BulkActionBar } from "./BulkActionBar";
+import { groupRows, resolveGrouping } from "./group-rows";
 import { MoveTransactionsDialog } from "./MoveTransactionsDialog";
 import { NewTransactionRow } from "./NewTransactionRow";
 import { OptionsProvider } from "./OptionsContext";
+import {
+  effectivePinnedColumns,
+  pinnedHeadCellSx,
+  pinnedSelectHeadCellSx,
+} from "./pinned-columns";
 import { resolveRowLayout, useIsNarrow, type RowLayout } from "./row-layout";
 import { RowActionsMenu } from "./RowActionsMenu";
+import {
+  FALLBACK_SORT,
+  isCustomSort,
+  nextSortState,
+  sortRows,
+  type SortState,
+} from "./sort-rows";
 import { TransactionDetailDialog } from "./TransactionDetailDialog";
 import { TransactionRow } from "./TransactionRow";
 import type {
@@ -56,13 +80,6 @@ import type {
   RowMenuItem,
   TransactionRow as TxRow,
 } from "./types";
-
-type SortField = "occurredOn" | "amountCents" | "description" | "categoryId" | "institutionId";
-type SortDir = "asc" | "desc";
-type SortState = { field: SortField; dir: SortDir } | null;
-
-const DEFAULT_SORT_FIELD: SortField = "occurredOn";
-const DEFAULT_SORT_DIR: SortDir = "desc";
 
 // Rótulos do header (`.thead` do frame 66 §1): fonte SANS — não mono —, 0.62rem,
 // peso 500, letter-spacing .05em, uppercase, `text.tertiary`.
@@ -122,50 +139,6 @@ function toUpdateInput(patch: Partial<TxRow>): Omit<UpdateTransactionInput, "tra
   return out as Omit<UpdateTransactionInput, "transactionId">;
 }
 
-function nextSortState(current: SortState, field: SortField): SortState {
-  if (!current || current.field !== field) return { field, dir: "asc" };
-  if (current.dir === "asc") return { field, dir: "desc" };
-  return null; // reset to default
-}
-
-function sortRows(
-  rows: TxRow[],
-  sort: SortState,
-  categoryById: Map<string, string>,
-  institutionById: Map<string, string>,
-): TxRow[] {
-  const field = sort?.field ?? DEFAULT_SORT_FIELD;
-  const dir = sort?.dir ?? DEFAULT_SORT_DIR;
-
-  return [...rows].sort((a, b) => {
-    let cmp = 0;
-    switch (field) {
-      case "occurredOn":
-        cmp = a.occurredOn.localeCompare(b.occurredOn);
-        break;
-      case "amountCents":
-        cmp = Number(BigInt(a.amountCents) - BigInt(b.amountCents));
-        break;
-      case "description":
-        cmp = (a.description ?? "").localeCompare(b.description ?? "");
-        break;
-      case "categoryId": {
-        const aName = categoryById.get(a.categoryId ?? "") ?? "";
-        const bName = categoryById.get(b.categoryId ?? "") ?? "";
-        cmp = aName.localeCompare(bName);
-        break;
-      }
-      case "institutionId": {
-        const aName = institutionById.get(a.institutionId ?? "") ?? "";
-        const bName = institutionById.get(b.institutionId ?? "") ?? "";
-        cmp = aName.localeCompare(bName);
-        break;
-      }
-    }
-    return dir === "asc" ? cmp : -cmp;
-  });
-}
-
 type Props = {
   tableId: string;
   monthId: string;
@@ -177,6 +150,42 @@ type Props = {
   sectionCountType: SectionCountType;
   hiddenColumns: HiddenColumns;
   rowLayout: RowLayout;
+  /**
+   * Spec 69 §7.2 — densidade do tipo de tabela. Vira `data-density` na raiz e,
+   * daí, as 3 variáveis CSS (`--row-h`, `--row-fs`, `--ctrl-h`) que a linha, o
+   * editor e a barra de gavetas consomem. Opcional para não obrigar quem
+   * renderiza a tabela fora do mês a conhecer o campo.
+   */
+  density?: Density;
+  /**
+   * Spec 69 §2.1 — o que a linha-fantasma herda do lançamento recém-criado.
+   * Só atravessa até `NewTransactionRow`; a tabela em si não usa. Opcional com o
+   * default de sempre (`["occurredOn"]`) para quem renderiza fora do mês.
+   */
+  inheritOnNewRow?: InheritOnNewRowField[];
+  /**
+   * Spec 69 §2.1 — ordenação com que a tabela ABRE, do tipo de tabela. É só o
+   * ponto de partida: clicar no cabeçalho continua reordenando, e o terceiro
+   * clique volta para cá (em vez do `occurredOn/desc` que era fixo no código).
+   */
+  defaultSort?: DefaultSort;
+  /**
+   * Spec 69 §2.1 — dimensão de agrupamento do TIPO. Não substitui `groupByDate`
+   * (por tabela): a precedência entre os dois está documentada em `group-rows.ts`.
+   */
+  typeGroupBy?: GroupBy;
+  /** Spec 69 §2.1 — soma das linhas do bloco no cabeçalho do grupo. */
+  showGroupSubtotal?: boolean;
+  /** Spec 69 §2.1 — `false` remove seleção de linha, "selecionar tudo" e a BulkActionBar. */
+  allowBulkEdit?: boolean;
+  /** Spec 69 §2.1 — `true` mantém a linha-fantasma de criação sempre visível, no fim. */
+  keepGhostRow?: boolean;
+  /**
+   * Spec 69 §16 — colunas fixadas à esquerda, **como estão gravadas**. A tabela
+   * é quem resolve (∩ `PINNABLE_COLUMNS` ∩ visíveis, ordem das visíveis, e nada
+   * no layout de pílulas); ninguém aqui confia no valor cru do banco.
+   */
+  pinnedColumns?: unknown;
   initialTransactions: TxRow[];
   categories: CategoryOption[];
   institutions: InstitutionOption[];
@@ -204,6 +213,14 @@ export function TransactionTable({
   sectionCountType,
   hiddenColumns,
   rowLayout,
+  density = DEFAULT_DENSITY,
+  inheritOnNewRow = DEFAULT_INHERIT_ON_NEW_ROW,
+  defaultSort = FALLBACK_SORT,
+  typeGroupBy = null,
+  showGroupSubtotal = false,
+  allowBulkEdit = true,
+  keepGhostRow = false,
+  pinnedColumns: rawPinnedColumns,
   initialTransactions,
   categories: propCategories,
   institutions: propInstitutions,
@@ -253,7 +270,10 @@ export function TransactionTable({
   const handleOpenMove = useCallback((ids: string[]) => setMoveIds(ids), []);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const [sort, setSort] = useState<SortState>(null);
+  // Spec 69 §2.1 — a ordenação NASCE do tipo de tabela (`defaultSort`) em vez de
+  // `null` + `occurredOn/desc` fixos. Continua sendo estado local: o clique no
+  // cabeçalho reordena normalmente, e o 3º clique volta para este mesmo valor.
+  const [sort, setSort] = useState<SortState>(defaultSort);
   const [isGrouped, setIsGrouped] = useState(groupByDate);
 
   // Sincroniza se a prop muda (ex: após revalidação do server)
@@ -261,10 +281,19 @@ export function TransactionTable({
     setIsGrouped(groupByDate);
   }, [groupByDate]);
 
+  // O padrão do tipo mudou em Configurações (revalidação do server) → a tabela
+  // reabre no novo padrão. Só realinha o que está em vigor, sem tocar num sort
+  // que o usuário tenha escolhido no cabeçalho depois.
+  useEffect(() => {
+    setSort(defaultSort);
+    onSortActiveChange?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultSort.key, defaultSort.dir]);
+
   // Reset do sort disparado pelo pai (ex: botão no header da tabela)
   useEffect(() => {
     if (resetSortSignal !== undefined && resetSortSignal > 0) {
-      setSort(null);
+      setSort(defaultSort);
       onSortActiveChange?.(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -272,12 +301,25 @@ export function TransactionTable({
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Layout efetivo (Spec 66 TX-04d): degrada para "rich" em viewport estreito.
+  // Layout efetivo (Spec 66 TX-04d): degrada para "pills" em viewport estreito.
   // A medição vem do container de overflow; `useIsNarrow` retorna false até
   // montar, então SSR/1ª render usam sempre o layout configurado (sem mismatch).
   const wrapperRef = useRef<HTMLDivElement>(null);
   const isNarrow = useIsNarrow(wrapperRef);
   const effectiveLayout = resolveRowLayout(rowLayout, isNarrow);
+
+  /**
+   * Spec 69 §16 — as colunas EFETIVAMENTE fixadas.
+   *
+   * Só vale no layout A: em pílulas (configurado ou por degradação de viewport)
+   * não existe grade de colunas para fixar, então nada gruda mesmo com valor
+   * gravado. A filtragem por `PINNABLE_COLUMNS` e por coluna visível é do
+   * `resolvePinnedColumns`.
+   */
+  const pinnedColumns = useMemo(
+    () => effectivePinnedColumns(rawPinnedColumns, hiddenColumns, effectiveLayout),
+    [effectiveLayout, rawPinnedColumns, hiddenColumns],
+  );
 
   const { requestDelete, registerRestoreCallback, unregisterRestoreCallback } = useDeleteUndo();
 
@@ -292,11 +334,20 @@ export function TransactionTable({
   const selectedIds = Array.from(selected);
   const detailTx = detailTxId ? (rows.find((r) => r.id === detailTxId) ?? null) : null;
 
-  // Map-based lookups para sortRows — O(1) em vez de O(n) por transação
+  // Map-based lookups para sortRows/groupRows — O(1) em vez de O(n) por transação
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+  const subcategoryById = useMemo(
+    () => new Map(categories.flatMap((c) => c.subcategories.map((s) => [s.id, s.name] as const))),
+    [categories],
+  );
   const institutionById = useMemo(
     () => new Map(institutions.map((i) => [i.id, i.name])),
     [institutions],
+  );
+  const partyById = useMemo(() => new Map(parties.map((p) => [p.id, p.name])), [parties]);
+  const sortLookups = useMemo(
+    () => ({ categoryById, subcategoryById, institutionById, partyById }),
+    [categoryById, subcategoryById, institutionById, partyById],
   );
 
   // Debounce do searchText para evitar re-runs pesados a cada keystroke
@@ -320,8 +371,19 @@ export function TransactionTable({
       const q = debouncedSearch.trim().toLowerCase();
       result = result.filter((r) => (r.description ?? "").toLowerCase().includes(q));
     }
-    return sortRows(result, sort, categoryById, institutionById);
-  }, [rows, filters, debouncedSearch, sort, categoryById, institutionById]);
+    return sortRows(result, sort, sortLookups);
+  }, [rows, filters, debouncedSearch, sort, sortLookups]);
+
+  // Spec 69 §2.1 — dimensão de agrupamento em vigor. A precedência entre o
+  // `groupBy` do TIPO e o `groupByDate` desta TABELA está em `group-rows.ts`.
+  const effectiveGroupBy = resolveGrouping(typeGroupBy, isGrouped, sort.key);
+  const groups = useMemo(
+    () =>
+      effectiveGroupBy === null
+        ? null
+        : groupRows(visibleRows, effectiveGroupBy, { categoryById, partyById }),
+    [visibleRows, effectiveGroupBy, categoryById, partyById],
+  );
 
   const allSelected = visibleRows.length > 0 && visibleRows.every((r) => selected.has(r.id));
   const someSelected = visibleRows.some((r) => selected.has(r.id)) && !allSelected;
@@ -605,11 +667,12 @@ export function TransactionTable({
     setSearchText("");
   }
 
-  function handleSortClick(field: SortField) {
-    const next = nextSortState(sort, field);
+  function handleSortClick(field: TableColumnKey) {
+    const next = nextSortState(sort, field, defaultSort);
     setSort(next);
-    const isNonDefault = next !== null && next.field !== DEFAULT_SORT_FIELD;
-    onSortActiveChange?.(isNonDefault);
+    // "Voltar à visualização padrão" só faz sentido quando o que está na tela
+    // NÃO é o padrão do tipo — inclusive na direção, não só na coluna.
+    onSortActiveChange?.(isCustomSort(next, defaultSort));
   }
 
   const handleAutoEditConsumed = useCallback(() => setEditRequestId(null), []);
@@ -619,23 +682,28 @@ export function TransactionTable({
     label,
     align,
   }: {
-    field: SortField;
+    field: TableColumnKey;
     label: string;
     align?: "right";
   }) {
-    const isActive = sort?.field === field;
-    const Icon = sort?.dir === "asc" ? ArrowUpwardIcon : ArrowDownwardIcon;
+    const isActive = sort.key === field;
+    const Icon = sort.dir === "asc" ? ArrowUpwardIcon : ArrowDownwardIcon;
     return (
       <TableCell
         align={align}
-        sx={{
-          ...HEADER_LABEL_SX,
-          whiteSpace: "nowrap",
-          cursor: "pointer",
-          userSelect: "none",
-          "&:hover": { color: "accent.primary" },
-          color: isActive ? "accent.primary" : "text.tertiary",
-        }}
+        sx={[
+          {
+            ...HEADER_LABEL_SX,
+            whiteSpace: "nowrap",
+            cursor: "pointer",
+            userSelect: "none",
+            "&:hover": { color: "accent.primary" },
+            color: isActive ? "accent.primary" : "text.tertiary",
+          },
+          // Spec 69 §16 — `false` quando a coluna não é fixável ou não está
+          // presa: ordenar e fixar são independentes e convivem na mesma célula.
+          field === "occurredOn" && pinnedHeadCellSx(pinnedColumns, "occurredOn"),
+        ]}
         onClick={() => handleSortClick(field)}
       >
         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}>
@@ -658,6 +726,10 @@ export function TransactionTable({
         currentUserId={currentUserId}
         isSelected={selected.has(tx.id)}
         isReadOnly={isReadOnly}
+        // Spec 69 §2.1 — sem edição em massa não há caixa de seleção na linha.
+        // A célula continua existindo (vazia) para a grade não sair do lugar.
+        selectable={allowBulkEdit}
+        pinnedColumns={pinnedColumns}
         sectionCountType={sectionCountType}
         hiddenColumns={hiddenColumns}
         effectiveLayout={effectiveLayout}
@@ -685,31 +757,90 @@ export function TransactionTable({
     );
   };
 
+  /**
+   * Spec 69 §2.1 — a linha-fantasma na tela.
+   *
+   * `keepGhostRow` ligado: ela está sempre lá, no FIM da tabela — é a linha em
+   * branco em que se digita direto, sem passar por "Nova transação".
+   * Desligado: só aparece quando o botão a pede (`showNewRow`), no topo, que é
+   * o comportamento de sempre. Em tabela somente-leitura não aparece nunca —
+   * antes esse guard vinha de graça, porque o único gatilho era um botão que
+   * some no modo leitura.
+   */
+  const ghostVisible = !isReadOnly && (showNewRow || keepGhostRow);
+  const ghostAtEnd = keepGhostRow;
+
+  const ghostRow = (
+    <NewTransactionRow
+      tableId={tableId}
+      monthId={monthId}
+      accountId={accountId}
+      currentUserId={currentUserId}
+      hiddenColumns={hiddenColumns}
+      pinnedColumns={pinnedColumns}
+      categories={categories}
+      institutions={institutions}
+      members={members}
+      parties={parties}
+      aliases={aliases}
+      defaultResponsiblePartyId={defaultResponsiblePartyId}
+      inheritOnNewRow={inheritOnNewRow}
+      // A linha permanente NÃO rouba o foco ao abrir o mês: `autoFocus` só
+      // quando ela foi pedida ("Nova transação"). Sem esse recorte, cada tabela
+      // com `keepGhostRow` disputaria o cursor no carregamento da página.
+      autoFocus={showNewRow}
+      onCreated={onNewCreated}
+      onCancel={onNewRowClose}
+    />
+  );
+
+  /**
+   * Célula de "selecionar tudo" do cabeçalho. Sem `allowBulkEdit` ela continua
+   * existindo, vazia: é a coluna que alinha o checkbox das linhas e o "+" da
+   * linha-fantasma — removê-la deslocaria a grade inteira em uma coluna.
+   */
+  const selectAllHeadSx = pinnedSelectHeadCellSx(pinnedColumns);
+  const selectAllCell = allowBulkEdit ? (
+    <TableCell padding="checkbox" sx={[selectAllHeadSx]}>
+      <Checkbox
+        size="small"
+        checked={allSelected}
+        indeterminate={someSelected}
+        onChange={(e) => handleSelectAll(e.target.checked)}
+        disabled={isReadOnly}
+      />
+    </TableCell>
+  ) : (
+    <TableCell padding="checkbox" sx={[selectAllHeadSx]} />
+  );
+
+  /**
+   * Mesma convenção de sinal da linha (`ColumnsRow`/`PillsRow`) e do total do
+   * card: em seção `subtract` o valor positivo armazenado É despesa.
+   */
+  const subtotalIsPositive = (cents: bigint) =>
+    displaySignInverts(sectionCountType) ? cents < 0n : cents >= 0n;
+
   const isFiltered = hasGlobalFilters || searchText.trim().length > 0;
-  const noRowsAtAll = rows.length === 0 && !showNewRow;
-  const noRowsAfterFilter = !noRowsAtAll && visibleRows.length === 0;
+  const noRowsAtAll = rows.length === 0 && !ghostVisible;
+  // "Nada encontrado" pressupõe que havia algo para encontrar. Com a
+  // linha-fantasma permanente, `!noRowsAtAll` deixou de garantir isso — uma
+  // tabela vazia passaria a exibir "revise os filtros" sem filtro nenhum.
+  const noRowsAfterFilter = rows.length > 0 && visibleRows.length === 0;
 
   // Empty table (no data at all, no active filter)
   if (noRowsAtAll && !isFiltered) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          py: 4,
-          gap: 1,
-          color: "text.disabled",
-        }}
-      >
-        <TableChartOutlinedIcon sx={{ fontSize: 36, opacity: 0.4 }} />
-        <Typography variant="body2">Nenhuma transação</Typography>
-        {!isReadOnly && (
-          <Typography variant="caption" color="text.secondary">
-            Clique em "+ Nova transação" no cabeçalho para adicionar
-          </Typography>
-        )}
-      </Box>
+      // `<EmptyState>` canônico no lugar do Box/Typography à mão: o texto herdava
+      // `text.disabled` (2,14:1 no light) e o ícone ainda levava `opacity: 0.4`
+      // por cima. O componente já usa `text.tertiary` no ícone (4,69:1) e
+      // `text.primary`/`text.secondary` no texto.
+      <EmptyState
+        size="compact"
+        icon={<TableChartOutlinedIcon sx={{ fontSize: 36 }} />}
+        title={m.transactions.emptyTable.title}
+        description={isReadOnly ? undefined : m.transactions.emptyTable.hint}
+      />
     );
   }
 
@@ -723,8 +854,11 @@ export function TransactionTable({
       }}
     >
       <TagUpdateContext.Provider value={globalTagUpdate}>
-        <Box>
-          {selected.size > 0 && (
+        {/* Spec 69 §7.2 — raiz da tabela: o `data-density` daqui resolve as 3
+            variáveis CSS (declaradas no tema) para TUDO que está abaixo —
+            leitura, edição, linha nova e barra de gavetas. */}
+        <Box data-density={density}>
+          {allowBulkEdit && selected.size > 0 && (
             <BulkActionBar
               accountId={accountId}
               tableId={tableId}
@@ -789,20 +923,12 @@ export function TransactionTable({
           <Box ref={wrapperRef} sx={{ overflowX: "auto" }}>
             <Table size="small">
               <TableHead>
-                {effectiveLayout === "rich" ? (
+                {effectiveLayout === "pills" ? (
                   // Header mínimo no layout rico (frame B): select-all + os três
                   // rótulos que o layout de fato tem (DATA · TRANSAÇÃO · VALOR).
                   // Sem cabeçalhos por coluna — no rico os metadados são pílulas.
                   <TableRow sx={{ bgcolor: "background.default" }}>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        size="small"
-                        checked={allSelected}
-                        indeterminate={someSelected}
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                        disabled={isReadOnly}
-                      />
-                    </TableCell>
+                    {selectAllCell}
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                         <Box component="span" sx={{ ...HEADER_LABEL_SX, minWidth: 40 }}>
@@ -820,17 +946,11 @@ export function TransactionTable({
                   </TableRow>
                 ) : (
                   <TableRow sx={{ bgcolor: "background.default" }}>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        size="small"
-                        checked={allSelected}
-                        indeterminate={someSelected}
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                        disabled={isReadOnly}
-                      />
-                    </TableCell>
+                    {selectAllCell}
                     <SortableHeaderCell field="occurredOn" label="Data" />
-                  <TableCell sx={HEADER_LABEL_SX}>
+                  <TableCell
+                    sx={[HEADER_LABEL_SX, pinnedHeadCellSx(pinnedColumns, "description")]}
+                  >
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <Box
                         component="span"
@@ -838,7 +958,7 @@ export function TransactionTable({
                           cursor: "pointer",
                           userSelect: "none",
                           "&:hover": { color: "accent.primary" },
-                          color: sort?.field === "description" ? "accent.primary" : "text.tertiary",
+                          color: sort.key === "description" ? "accent.primary" : "text.tertiary",
                           display: "inline-flex",
                           alignItems: "center",
                           gap: 0.25,
@@ -846,7 +966,7 @@ export function TransactionTable({
                         onClick={() => handleSortClick("description")}
                       >
                         Descrição
-                        {sort?.field === "description" &&
+                        {sort.key === "description" &&
                           (sort.dir === "asc" ? (
                             <ArrowUpwardIcon sx={{ fontSize: 12 }} />
                           ) : (
@@ -870,17 +990,17 @@ export function TransactionTable({
                       )}
                     </Box>
                   </TableCell>
-                  {show("category") && <SortableHeaderCell field="categoryId" label="Categoria" />}
+                  {show("category") && <SortableHeaderCell field="category" label="Categoria" />}
                   {show("subcategory") && (
                     <TableCell sx={HEADER_LABEL_SX}>Subcategoria</TableCell>
                   )}
                   {show("institution") && (
-                    <SortableHeaderCell field="institutionId" label="Instituição" />
+                    <SortableHeaderCell field="institution" label="Instituição" />
                   )}
                   {show("paymentMethod") && (
                     <TableCell sx={HEADER_LABEL_SX}>{m.transactions.paymentMethodColumn}</TableCell>
                   )}
-                  <SortableHeaderCell field="amountCents" label="Valor" align="right" />
+                  <SortableHeaderCell field="amount" label="Valor" align="right" />
                   {show("responsibleUser") && (
                     <TableCell sx={HEADER_LABEL_SX}>Resp.</TableCell>
                   )}
@@ -905,23 +1025,7 @@ export function TransactionTable({
               </TableHead>
 
               <TableBody>
-                {showNewRow && (
-                  <NewTransactionRow
-                    tableId={tableId}
-                    monthId={monthId}
-                    accountId={accountId}
-                    currentUserId={currentUserId}
-                    hiddenColumns={hiddenColumns}
-                    categories={categories}
-                    institutions={institutions}
-                    members={members}
-                    parties={parties}
-                    aliases={aliases}
-                    defaultResponsiblePartyId={defaultResponsiblePartyId}
-                    onCreated={onNewCreated}
-                    onCancel={onNewRowClose}
-                  />
-                )}
+                {ghostVisible && !ghostAtEnd && ghostRow}
 
                 {noRowsAfterFilter ? (
                   <TableRow>
@@ -958,48 +1062,77 @@ export function TransactionTable({
                       </Box>
                     </TableCell>
                   </TableRow>
+                ) : groups === null ? (
+                  visibleRows.map(renderTransactionRow)
                 ) : (
-                  (() => {
-                    // Agrupamento por data: ativo se isGrouped=true E sort for a ordenação padrão (occurredOn)
-                    const groupingActive = isGrouped && (!sort || sort.field === "occurredOn");
-
-                    if (!groupingActive) {
-                      return visibleRows.map(renderTransactionRow);
-                    }
-
-                    // Renderizar com separadores de data
-                    const result: React.ReactNode[] = [];
-                    let lastDate: string | null = null;
-                    for (const tx of visibleRows) {
-                      if (tx.occurredOn !== lastDate) {
-                        lastDate = tx.occurredOn;
-                        result.push(
-                          <TableRow
-                            key={`date-sep-${tx.occurredOn}`}
-                            sx={{ pointerEvents: "none", bgcolor: "background.subtle" }}
+                  groups.map((group) => (
+                    <React.Fragment key={`group-${group.key}`}>
+                      <TableRow sx={{ pointerEvents: "none", bgcolor: "background.subtle" }}>
+                        <TableCell
+                          colSpan={99}
+                          sx={{
+                            py: 0.5,
+                            px: 2,
+                            borderBottom: 0,
+                            borderTop: 1,
+                            borderColor: "divider",
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "baseline",
+                              justifyContent: "space-between",
+                              gap: 2,
+                            }}
                           >
-                            <TableCell
-                              colSpan={99}
-                              sx={{
-                                py: 0.5,
-                                px: 2,
-                                borderBottom: 0,
-                                borderTop: 1,
-                                borderColor: "divider",
-                              }}
+                            <Typography
+                              variant="caption"
+                              color="text.tertiary"
+                              fontWeight={500}
+                              sx={[
+                                // Spec 69 §16 — o cabeçalho de grupo é `colSpan={99}`:
+                                // ele não tem como ficar meio preso e meio rolante, e
+                                // rola inteiro. Com um painel congelado à esquerda isso
+                                // deixaria uma FAIXA VAZIA no lugar do rótulo — some
+                                // justamente a legenda do bloco que as colunas presas
+                                // existem para ancorar. O rótulo (só ele) gruda em
+                                // `left`, alinhado com o `px: 2` da célula.
+                                pinnedColumns.length > 0 && {
+                                  position: "sticky",
+                                  left: (theme: Theme) => theme.spacing(2),
+                                },
+                              ]}
                             >
-                              <Typography variant="caption" color="text.tertiary" fontWeight={500}>
-                                {formatDateLong(tx.occurredOn)}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>,
-                        );
-                      }
-                      result.push(renderTransactionRow(tx));
-                    }
-                    return result;
-                  })()
+                              {group.label}
+                            </Typography>
+                            {/* Spec 69 §2.1 — subtotal do bloco. `BigInt` até aqui;
+                                a formatação em reais é do `MoneyValue`. A COR vem
+                                do tipo de seção, como na linha e no total do card:
+                                em seção `subtract` um valor positivo é despesa
+                                (vermelho), e o verde do `MoneyValue` (que lê só o
+                                sinal cru) contradiria todas as linhas somadas. */}
+                            {showGroupSubtotal && (
+                              <MoneyValue
+                                cents={group.subtotalCents}
+                                variant="caption"
+                                sx={{
+                                  fontWeight: 500,
+                                  color: subtotalIsPositive(group.subtotalCents)
+                                    ? "success.main"
+                                    : "error.main",
+                                }}
+                              />
+                            )}
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                      {group.rows.map(renderTransactionRow)}
+                    </React.Fragment>
+                  ))
                 )}
+
+                {ghostVisible && ghostAtEnd && ghostRow}
               </TableBody>
             </Table>
           </Box>

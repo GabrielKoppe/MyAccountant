@@ -6,6 +6,7 @@ import {
   applyMoveWithPush,
   applyResizeWithPush,
   findFreeCell,
+  countLayoutChanges,
   insertWithPush,
   rectsOverlap,
   snapToNearestVariant,
@@ -140,5 +141,50 @@ describe("snapToNearestVariant", () => {
     // (4,3): compact (3×2) dist=2 e large (6×3) dist=2 empatam →
     // vence compact, declarada antes (sizeVariants[0] é a default).
     expect(snapToNearestVariant(4, 3, variants).id).toBe("compact");
+  });
+});
+
+// ─── Spec 69 — "Layout alterado — N movimentações" ───────────────────────────
+
+describe("countLayoutChanges", () => {
+  const published = [w({ instanceId: "a", x: 0, y: 0 }), w({ instanceId: "b", x: 1, y: 0 })];
+
+  it("layout idêntico não tem movimentação", () => {
+    expect(countLayoutChanges(published, [...published])).toBe(0);
+  });
+
+  it("conta mover, redimensionar, ocultar e trocar de variante como 1 cada", () => {
+    expect(countLayoutChanges(published, [w({ instanceId: "a", x: 3, y: 0 }), published[1]])).toBe(
+      1,
+    );
+    expect(
+      countLayoutChanges(published, [w({ instanceId: "a", x: 0, y: 0, w: 2 }), published[1]]),
+    ).toBe(1);
+    expect(
+      countLayoutChanges(published, [w({ instanceId: "a", visible: false }), published[1]]),
+    ).toBe(1);
+    expect(
+      countLayoutChanges(published, [w({ instanceId: "a", sizeVariantId: "wide" }), published[1]]),
+    ).toBe(1);
+  });
+
+  it("conta adicionado e removido", () => {
+    expect(countLayoutChanges(published, [...published, w({ instanceId: "c", y: 1 })])).toBe(1);
+    expect(countLayoutChanges(published, [published[0]])).toBe(1);
+  });
+
+  it("conta troca de config (visualização por chartType)", () => {
+    expect(
+      countLayoutChanges(published, [
+        { ...published[0], config: { chartType: "bar" } },
+        published[1],
+      ]),
+    ).toBe(1);
+  });
+
+  it("soma alterações independentes", () => {
+    expect(
+      countLayoutChanges(published, [w({ instanceId: "a", x: 4 }), w({ instanceId: "c", y: 2 })]),
+    ).toBe(3); // a mudou, c entrou, b saiu
   });
 });

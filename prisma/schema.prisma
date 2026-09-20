@@ -377,15 +377,51 @@ model ResponsiblePartyMember {
 }
 
 model TableType {
-  id            String         @id @default(cuid())
-  accountId     String         @map("account_id")
-  name          String
-  isDefault     Boolean        @default(false) @map("is_default")
-  hiddenColumns Json           @default("{}") @map("hidden_columns")
-  rowLayout     String         @default("columns") @map("row_layout")
-  status        SettingsStatus @default(active) // Spec 67 §7.4 (D2)
-  lastUsedAt    DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
-  createdAt     DateTime       @default(now()) @map("created_at")
+  id                String         @id @default(cuid())
+  accountId         String         @map("account_id")
+  name              String
+  isDefault         Boolean        @default(false) @map("is_default")
+  // DEPRECATED (Spec 69 P0, FU-3) — espelho DERIVADO de `visibleColumns`, mantido
+  // porque o renderer atual da tabela do mês (`ColumnsRow`) ainda o consome.
+  // A escrita é dupla: quem grava `visibleColumns` grava este junto. Só pode ser
+  // dropado quando a Spec 66 passar a ler `visibleColumns`.
+  hiddenColumns     Json           @default("{}") @map("hidden_columns")
+  // Spec 69 D4 — valores: "columns" | "pills". (Era "rich"; renomeado com backfill.)
+  rowLayout         String         @default("columns") @map("row_layout")
+  // Spec 69 §14 P0 — `String`, não enum nativo: é a convenção que `rowLayout` já
+  // estabeleceu neste schema. A validação é do Zod (`src/lib/schemas/settings.ts`).
+  // Valores: "compact" | "default" | "comfortable".
+  density           String         @default("default")
+  // Array ORDENADO de chaves de coluna (`src/lib/table-columns.ts` é a fonte da
+  // ordem canônica). A ordem é gravada desde já; a tabela do mês só a respeita
+  // quando o renderer da Spec 66 chegar (D3, §16).
+  visibleColumns    Json           @default("[]") @map("visible_columns")
+  pinnedColumns     Json           @default("[]") @map("pinned_columns")
+  // Chaves de `INHERIT_ON_NEW_ROW_FIELDS`. O default NÃO é `[]`: a linha-fantasma
+  // sempre preservou a data entre lançamentos consecutivos, e o P0 gravou `[]` em
+  // todo tipo existente. Ligar o campo com `[]` de default apagaria esse
+  // comportamento em silêncio — por isso o default (e o backfill da migração
+  // `20260811_..._inherit_default_occurred_on`) é `["occurredOn"]`.
+  inheritOnNewRow   Json           @default("[\"occurredOn\"]") @map("inherit_on_new_row")
+  // { key: <chave de coluna>, dir: "asc" | "desc" }. O default é `desc`, não `asc`:
+  // a tabela do mês SEMPRE mostrou do mais novo para o mais antigo, e o P0 gravou
+  // `asc` em todo tipo existente — ligar o consumidor com `asc` de default
+  // inverteria a ordem de todo mundo sem aviso. Ver `DEFAULT_TABLE_TYPE_SORT` e a
+  // migração `20260812120000_spec69_default_sort_desc_and_keep_ghost_row_off`.
+  defaultSort       Json           @default("{\"key\":\"occurredOn\",\"dir\":\"desc\"}") @map("default_sort")
+  // null | "date" | "category" | "responsible" | "installment"
+  groupBy           String?        @map("group_by")
+  showFooterTotal   Boolean        @default(true) @map("show_footer_total")
+  showGroupSubtotal Boolean        @default(false) @map("show_group_subtotal")
+  allowBulkEdit     Boolean        @default(true) @map("allow_bulk_edit")
+  // Default `false` pelo mesmo motivo de `defaultSort`: até esta spec a linha vazia
+  // de criação só aparecia ao clicar em "Nova transação". Um default `true` grudaria
+  // uma linha vazia permanente no fim de toda tabela existente.
+  // Ver `DEFAULT_KEEP_GHOST_ROW` e a migração acima.
+  keepGhostRow      Boolean        @default(false) @map("keep_ghost_row")
+  status            SettingsStatus @default(active) // Spec 67 §7.4 (D2)
+  lastUsedAt        DateTime?      @map("last_used_at") // Spec 67 §7.4 — gravado na ESCRITA que consome o objeto
+  createdAt         DateTime       @default(now()) @map("created_at")
 
   account           Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   financeTables     FinanceTable[]
@@ -465,21 +501,25 @@ model Section {
 }
 
 model FinanceTable {
-  id            String            @id @default(cuid())
-  accountId     String            @map("account_id")
-  monthId       String            @map("month_id")
-  sectionId     String            @map("section_id")
-  tableTypeId   String?           @map("table_type_id")
-  name          String
-  countInMonth  Boolean           @default(true) @map("count_in_month")
-  groupByDate   Boolean           @default(true) @map("group_by_date")
-  sourceMethod  TableSourceMethod @default(empty) @map("source_method")
-  sourceTableId String?           @map("source_table_id")
-  displayOrder  Int               @default(0) @map("display_order")
-  createdById   String            @map("created_by_id")
-  createdAt     DateTime          @default(now()) @map("created_at")
-  updatedById   String?           @map("updated_by_id")
-  updatedAt     DateTime          @updatedAt @map("updated_at")
+  id                    String            @id @default(cuid())
+  accountId             String            @map("account_id")
+  monthId               String            @map("month_id")
+  sectionId             String            @map("section_id")
+  tableTypeId           String?           @map("table_type_id")
+  name                  String
+  countInMonth          Boolean           @default(true) @map("count_in_month")
+  groupByDate           Boolean           @default(true) @map("group_by_date")
+  sourceMethod          TableSourceMethod @default(empty) @map("source_method")
+  sourceTableId         String?           @map("source_table_id")
+  // Spec 69 D6 — proveniência: QUAL modelo criou esta tabela. Gravado daqui em
+  // diante, sem backfill heurístico; a aba "Onde é usado" declara a data de corte.
+  // Sem FK de propósito: apagar o modelo não pode apagar nem travar a tabela real.
+  createdFromTemplateId String?           @map("created_from_template_id")
+  displayOrder          Int               @default(0) @map("display_order")
+  createdById           String            @map("created_by_id")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedById           String?           @map("updated_by_id")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
 
   account      Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
   month        Month          @relation(fields: [monthId], references: [id], onDelete: Cascade)
@@ -493,6 +533,7 @@ model FinanceTable {
 
   @@index([monthId])
   @@index([accountId, monthId, sectionId])
+  @@index([accountId, createdFromTemplateId])
   @@map("finance_tables")
 }
 
@@ -680,6 +721,13 @@ model TableTemplate {
   countInMonth    Boolean        @default(true) @map("count_in_month")
   autoApply       Boolean        @default(false) @map("auto_apply")
   autoSectionId   String?        @map("auto_section_id")
+  // Spec 69 §14 P0 — ordem do modelo dentro da seção de destino. Só faz sentido
+  // sob `autoApply`; `null` = "no fim, pela ordem de criação".
+  orderInSection  Int?           @map("order_in_section")
+  /// DEPRECATED (Spec 69 D7, FU-3) — consolidado em `tableTypeId`. **Sem consumidor
+  /// desde o pacote P8**: nada mais grava aqui, e a leitura sobrevive só como
+  /// fallback (`tableTypeId ?? autoTableTypeId`) para a linha que tenha escapado do
+  /// backfill. A coluna fica por cautela — dropar em FU-3, num passo só dela.
   autoTableTypeId String?        @map("auto_table_type_id")
   createdById     String         @map("created_by_id")
   status          SettingsStatus @default(active) // Spec 67 §7.4 (D2)
@@ -701,7 +749,10 @@ model TableTemplateItem {
   id                 String                  @id @default(cuid())
   templateId         String                  @map("template_id")
   accountId          String                  @map("account_id")
+  // `day` continua sendo a fonte para quem ainda não conhece `dayRule` (é NOT NULL
+  // e alimenta o `orderBy`). `dayRule` é a forma rica: "5" | "last" | "firstBusiness".
   day                Int
+  dayRule            String?                 @map("day_rule")
   amountCents        BigInt                  @map("amount_cents")
   description        String?
   notes              String?
@@ -766,12 +817,17 @@ enum DashboardLayoutContext {
 }
 
 model DashboardLayout {
-  id        String                 @id @default(cuid())
-  accountId String                 @map("account_id")
-  context   DashboardLayoutContext
-  widgets   Json // StoredWidget[] (spec 36) — instâncias configuráveis em grade 2D
-  createdAt DateTime               @default(now()) @map("created_at")
-  updatedAt DateTime               @updatedAt @map("updated_at")
+  id          String                 @id @default(cuid())
+  accountId   String                 @map("account_id")
+  context     DashboardLayoutContext
+  widgets     Json // StoredWidget[] (spec 36) — instâncias configuráveis em grade 2D
+  // Spec 69 §2.3 — publicar × descartar: `widgets` é o layout PUBLICADO (o que a
+  // página real renderiza); `draft` é o rascunho do editor, `null` quando não há
+  // alteração pendente. `publishedAt` é o carimbo da última publicação.
+  draft       Json?
+  publishedAt DateTime?              @map("published_at")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 

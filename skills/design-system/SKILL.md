@@ -67,11 +67,18 @@ text: {
   inverse:   "#FAFAF7",
 }
 accent:  { primary: "#4E5FD9", primaryHover: "#3D4DC4", primarySubtle: "#EAEDFB" }
-success: { main: "#4B7F52", subtle: "#E8F0E9" }
-warning: { main: "#B8862A", subtle: "#F5EDD5" }
-danger:  { main: "#B54545", subtle: "#F5E4E4" }
-neutral: { main: "#7A7368", subtle: "#EDEBE5" }
+success: { main: "#4B7F52", subtle: "#E8F0E9", onSubtle: "#46774D" }
+warning: { main: "#B8862A", subtle: "#F5EDD5", onSubtle: "#8B6520" }
+danger:  { main: "#B54545", subtle: "#F5E4E4", onSubtle: "#B14444" }
+neutral: { main: "#7A7368", subtle: "#EDEBE5", onSubtle: "#4A453C" }
 ```
+
+> **`onSubtle` = cor de TEXTO sobre o fundo `subtle` do mesmo tom.** O par
+> `main` + `subtle` REPROVA WCAG AA (4,5:1) no tema claro — warning **2,77:1**,
+> success **4,05:1**, danger **4,38:1**. `main` continua sendo icone, borda,
+> serie de grafico e valor positivo/negativo; **so texto sobre fundo sutil usa
+> `onSubtle`**. Guardado por `src/lib/theme-contrast.test.ts` e auditavel com
+> `pnpm exec tsx scripts/contrast-audit.ts`.
 
 ### 2.2 Cores — Dark Mode (Sepia Escuro)
 
@@ -85,14 +92,18 @@ background: {
 text: {
   primary:   "#F0EDE5",  // off-white quente, NAO branco puro
   secondary: "#C4BDB0",
-  tertiary:  "#8B847A",
+  tertiary:  "#8C867C",  // 4,54:1 sobre `surface` (o antigo #8B847A dava 4,44)
 }
 accent:  { primary: "#7E8DE5", primaryHover: "#94A1EC", primarySubtle: "#252840" }
-success: { main: "#7AAE83", subtle: "#1F2D24" }
-warning: { main: "#D4A551", subtle: "#2E2818" }
-danger:  { main: "#D47373", subtle: "#2E1F1F" }
-neutral: { main: "#8B847A", subtle: "#322D26" }
+success: { main: "#7AAE83", subtle: "#1F2D24", onSubtle: "#7AAE83" }
+warning: { main: "#D4A551", subtle: "#2E2818", onSubtle: "#D4A551" }
+danger:  { main: "#D47373", subtle: "#2E1F1F", onSubtle: "#D47373" }
+neutral: { main: "#8B847A", subtle: "#322D26", onSubtle: "#C4BDB0" }
 ```
+
+> No dark o par `main` + `subtle` **ja passa** AA (5,63 / 6,49 / 4,88), entao
+> `onSubtle === main`: o token e uniforme entre os modos e o tema escuro nao
+> muda de aparencia.
 
 ### 2.3 Paleta de graficos
 
@@ -1778,6 +1789,13 @@ Cuidados especificos:
   ```tsx
   <Box sx={{ bgcolor: "success.subtle" }} />  // ❌ undefined — regra descartada, sem erro
   <Box sx={{ bgcolor: "success.light" }} />   // ✅
+  ```
+- **`X.main` como cor de TEXTO sobre fundo `X.light`/`X.subtle`**: reprova WCAG AA
+  no tema claro (warning 2,77:1). Use `X.onSubtle` (ver §2.1). `main` segue valendo
+  para icone, borda, serie de grafico e valor.
+  ```tsx
+  <Box sx={{ bgcolor: "warning.light", color: "warning.main" }} />      // ❌ 2,77:1
+  <Box sx={{ bgcolor: "warning.light", color: "warning.onSubtle" }} />  // ✅ 4,51:1
   ```
 
 ### Acessibilidade

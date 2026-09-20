@@ -11,10 +11,13 @@ import Typography from "@mui/material/Typography";
 import { WIDGET_ICONS } from "@/components/dashboards/_core/widget-icons";
 import type { DashboardContext } from "@/components/dashboards/_core/widget-registry";
 import { WIDGET_TYPE } from "@/components/dashboards/_core/widget-types";
+import { motion, typography } from "@/lib/design-tokens";
 import { m } from "@/lib/messages";
 import type { StoredWidget } from "@/lib/schemas/dashboard-layout";
 
 import { widgetDescription, widgetLabel } from "./widget-display";
+
+const T_FAST = `${motion.duration.fast}ms ${motion.easing.standard}`;
 
 // Card visual compartilhado pelo canvas (instâncias na grade) e pela paleta
 // (widgets disponíveis). Sem alça de drag — o arrasto fica no Box que o envolve.
@@ -70,7 +73,8 @@ export function WidgetCardBody({
         opacity: ghost ? 0.6 : hidden ? 0.35 : 1,
         boxShadow: elevated ? 6 : 0,
         userSelect: "none",
-        transition: "transform 120ms, border-color 120ms, box-shadow 120ms",
+        // Tokens de motion no lugar dos 120ms mágicos.
+        transition: `transform ${T_FAST}, border-color ${T_FAST}, box-shadow ${T_FAST}`,
         ...(hoverable && {
           "&:hover": {
             borderColor: "primary.main",
@@ -162,9 +166,26 @@ export function WidgetCardBody({
         >
           {m.settings.dashboards.widgetTypes[typeKey]}
         </Box>
-        <Typography variant="caption" color="text.tertiary">
-          {widget.w}×{widget.h}
-        </Typography>
+        {/* Chip de tamanho (frame 07): metadado, não título — borda fina, tom
+            terciário, mono. Nunca `text.disabled`: em 10px mede ~2,1:1 (§15). */}
+        <Box
+          component="span"
+          sx={{
+            fontFamily: typography.fontFamily.mono,
+            fontSize: "0.6rem",
+            lineHeight: 1.6,
+            px: 0.5,
+            // String em px: `borderRadius` numérico é multiplicado por 8 (§15).
+            borderRadius: "4px",
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderColor: selected ? "accent.primary" : "border.default",
+            color: selected ? "accent.primary" : "text.tertiary",
+            bgcolor: selected ? "accent.primarySubtle" : "transparent",
+          }}
+        >
+          {m.settings.presentation.dashboards.sizeChip(widget.w, widget.h)}
+        </Box>
       </Box>
     </Card>
   );
